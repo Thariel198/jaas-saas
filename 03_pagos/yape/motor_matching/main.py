@@ -637,10 +637,23 @@ def ejecutar_matching(df: pd.DataFrame, mapa: dict,
                 continue
 
         # ── Ciclo 1 o sin corrección: flujo normal ───────────────
-        # Capa 0: origen ambiguo → siempre pendiente con candidatos
-        if origen_key in indice_ambiguo:
+        # Capa 1: mensaje primero — siempre
+        mz_msg, lote_msg = extraer_mz_lote_mensaje(mensaje)
+        if mz_msg:
+            mz_msg = normalizar_mz(mz_msg, mzs_validas)
+
+        if mz_msg and lote_msg:
+            # Mensaje dio resultado → usar directo, no es ambiguo
+            mz     = mz_msg
+            lote   = lote_msg
+            uid    = match_origen["user_id"] if match_origen and match_origen["mz"] == mz and match_origen["lote"] == lote else ""
+            nivel  = "por mensaje"
+            fuente = "mensaje"
+
+        # Capa 2: sin mensaje → revisar ambiguo o maestro único
+        elif origen_key in indice_ambiguo:
+            # Sin mensaje y maestro tiene 2+ lotes → pendiente ambiguo
             candidatos = indice_ambiguo[origen_key]
-            # Calcular diferencia de cada candidato vs monto pagado
             pistas = []
             for c in candidatos:
                 datos_c = planilla.get((c["mz"], c["lote"]), {})
@@ -659,18 +672,6 @@ def ejecutar_matching(df: pd.DataFrame, mapa: dict,
             })
             continue
 
-        # Capa 1: mensaje
-        mz_msg, lote_msg = extraer_mz_lote_mensaje(mensaje)
-        if mz_msg:
-            mz_msg = normalizar_mz(mz_msg, mzs_validas)
-
-        # Capa 2: maestro
-        if mz_msg and lote_msg:
-            mz     = mz_msg
-            lote   = lote_msg
-            uid    = match_origen["user_id"] if match_origen and match_origen["mz"] == mz and match_origen["lote"] == lote else ""
-            nivel  = "por mensaje"
-            fuente = "mensaje"
         elif match_origen:
             mz     = match_origen["mz"]
             lote   = match_origen["lote"]
