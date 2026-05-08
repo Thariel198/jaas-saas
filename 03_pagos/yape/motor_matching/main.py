@@ -46,6 +46,12 @@ PATRONES_MENSAJE = [
     re.compile(r'mz:?\s*([A-Z][A-Z0-9]*)\.?\s+lote\s+(\d+[A-Z]?)', re.IGNORECASE),
     # Mz:Y. Lote 9 con dos puntos y punto
     re.compile(r'mz:([A-Z][A-Z0-9]*)\.?\s*(?:lt\.?|lote\.?|lte\.?)\s+(\d+[A-Z]?)', re.IGNORECASE),
+    # M.Z V.LT.16 — mz con puntos intercalados
+    re.compile(r'm\.z\.?\s*([A-Z][A-Z0-9]*)\.?\s*(?:lt\.?|lte\.?)\s*\.?\s*(\d+[A-Z]?)', re.IGNORECASE),
+    # Mz F . Lt 10 — punto separador entre MZ y Lt
+    re.compile(r'mz\.?\s*([A-Z][A-Z0-9]*)\s*\.\s*(?:lt\.?|lte\.?)\s*(\d+[A-Z]?)', re.IGNORECASE),
+    # mz:w. lt:17 — dos puntos en lt también
+    re.compile(r'mz:?\s*([A-Z][A-Z0-9]*)\.?\s*lt:(\d+[A-Z]?)', re.IGNORECASE),
     re.compile(r'mz\.?\s*["\']([ A-Z0-9]+)["\']?\s*(?:lt\.?|lote\.?|lte\.?)\s*["\']?(\d+[A-Z]?)["\']?', re.IGNORECASE),
     re.compile(r'mz\.?\s*([A-Z0-9\-]+)[_]+(?:lote|lt|lte)\.?\s*(\d+[A-Z]?)', re.IGNORECASE),
     re.compile(r'maz\.?\s*([A-Z0-9]+)\.?\s*(?:lot\.?|lote\.?|lt\.?)\s*(\d+[A-Z]?)', re.IGNORECASE),
@@ -449,103 +455,233 @@ def cargar_reportes(ancla=None) -> tuple:
 
 ACUMULADAS_FILE = "correcciones_acumuladas.xlsx"
 
-def _parsear_excel_correcciones(ruta: Path, tiene_header_instruccion: bool = False) -> dict:
-    """Lee archivo de correcciones → dict: origen_upper → {mz, lote}"""
-    if not ruta.exists():
-        return {}
-    try:
-        header_row = 1 if tiene_header_instruccion else 0
-        df = pd.read_excel(ruta, header=header_row, dtype=str)
-        df.columns = [c.strip().upper() for c in df.columns]
-    except Exception as e:
-        print(f"  ⚠ No se pudo leer {ruta.name}: {e}")
-        return {}
+# ── Detector de pagos múltiples ──────────────────────────
+PATRON_MULTIPLE = re.compile(
+    r'mz\.?\s*([A-Z][A-Z0-9]*)\s*\.?\s*(?:lt\.?|lte\.?|lote\.?)\s*\.?\s*(\d+[A-Z]?)',
+    re.IGNORECASE
+)
 
-    if "MZ" not in df.columns or "ORIGEN" not in df.columns:
-        return {}
+# Patrón para misma MZ con múltiples lotes: "Mz K 3 y 4" → K-3 y K-4
+PATRON_MISMA_MZ = re.compile(
+    r'mz\.?\s*([A-Z][A-Z0-9]*)\s+(\d+[A-Z]?)\s*(?:y|,)\s*(\d+[A-Z]?)',
+    re.IGNORECASE
+)
 
+def extraer_multiples(mensaje: str) -> list:
+    """
+    Extrae todos los pares MZ-LOTE de un mensaje con múltiples lotes.
+    Casos:
+      'MzE Lt7, MzP Lt11A y MzM Lt18' → [(E,7),(P,11A),(M,18)]
+      'Mz K 3 y 4'                     → [(K,3),(K,4)]
+    Retorna lista si hay 2+ pares, lista vacía si hay 0 o 1.
+    """
+    if not mensaje or str(mensaje).strip() in ("", "nan", "None"):
+        return []
+
+    # Caso 1: múltiples MZ-LOTE distintos
+    pares = PATRON_MULTIPLE.findall(mensaje)
+    if len(pares) >= 2:
+        return [(mz.strip().upper(), lote.strip().upper()) for mz, lote in pares]
+
+    # Caso 2: misma MZ con múltiples lotes "Mz K 3 y 4"
+    m = PATRON_MISMA_MZ.search(mensaje)
+    if m:
+        mz    = m.group(1).strip().upper()
+        lote1 = m.group(2).strip().upper()
+        lote2 = m.group(3).strip().upper()
+        return [(mz, lote1), (mz, lote2)]
+
+    return []
+
+
+# ── Leer acumuladas (3 hojas) ────────────────────────────
+def _leer_hoja_acumuladas(wb, nombre_hoja: str) -> dict:
+    """Lee una hoja del acumuladas → dict: origen_upper → {mz, lote, monto, fecha}"""
+    if nombre_hoja not in wb.sheetnames:
+        return {}
+    ws   = wb[nombre_hoja]
+    data = list(ws.values)
+    if len(data) < 2:
+        return {}
+    headers = [str(h).strip().upper() if h else "" for h in data[0]]
     resultado = {}
-    for _, fila in df.iterrows():
-        mz = str(fila.get("MZ", "")).strip().upper()
-        if not mz or mz in ("NAN", "NONE", ""):
+    for fila in data[1:]:
+        if not fila:
             continue
-        origen = str(fila.get("ORIGEN", "")).strip().upper()
-        if not origen or origen in ("NAN", "NONE", ""):
+        row = dict(zip(headers, fila))
+        origen = str(row.get("ORIGEN", "")).strip().upper()
+        mz     = str(row.get("MZ", "")).strip().upper()
+        if not origen or not mz or origen in ("NAN","") or mz in ("NAN",""):
             continue
-        lote = limpiar_lote(fila.get("LOTE", "")) if mz != "BLANCO" else ""
-        resultado[origen] = {"mz": mz, "lote": lote}
+        lote   = limpiar_lote(row.get("LOTE", "")) if mz != "BLANCO" else ""
+        monto  = row.get("MONTO_ASIGNADO", "")
+        resultado[origen] = {"mz": mz, "lote": lote, "monto": monto}
     return resultado
 
 
-def leer_correcciones() -> dict:
+def _leer_hoja_multiples(wb) -> dict:
     """
-    1. Lee correcciones_acumuladas.xlsx (todo lo corregido hasta ahora)
-    2. Lee pendientes.xlsx (lo que acabas de completar este ciclo)
-    3. Fusiona: las nuevas correcciones se agregan a acumuladas
-    4. Guarda acumuladas actualizado
-    5. Retorna el dict completo para el matching
+    Lee hoja Pagos_multiples — una fila por lote.
+    Solo lee filas con AUTORIZADO=1.
+    Retorna dict: origen_upper → lista de {mz, lote, monto}
+    donde monto = MONTO_MANUAL si existe, sino MONTO_SISTEMA
+    """
+    nombre = "Pagos_multiples"
+    if nombre not in wb.sheetnames:
+        return {}
+    ws   = wb[nombre]
+    data = list(ws.values)
+    if len(data) < 2:
+        return {}
+    # Fila 1 = instrucción, fila 2 = cabecera
+    headers = [str(h).strip().upper() if h else "" for h in data[1]]
+    resultado = {}
+    for fila in data[2:]:
+        if not fila:
+            continue
+        row = dict(zip(headers, fila))
+        # Solo filas autorizadas
+        aut = str(row.get("AUTORIZADO","")).strip()
+        if aut != "1":
+            continue
+        origen = str(row.get("ORIGEN","")).strip().upper()
+        mz     = str(row.get("MZ","")).strip().upper()
+        if not origen or not mz or origen in ("NAN","") or mz in ("NAN",""):
+            continue
+        lote = limpiar_lote(row.get("LOTE",""))
+        # Prioridad: MONTO_MANUAL sobre MONTO_SISTEMA
+        monto_manual  = row.get("MONTO_MANUAL","")
+        monto_sistema = row.get("MONTO_SISTEMA","")
+        try:
+            monto = float(str(monto_manual).replace(",",".")) if monto_manual and str(monto_manual).strip() not in ("","nan","None") else float(str(monto_sistema).replace(",","."))
+        except:
+            monto = 0.0
+        if origen not in resultado:
+            resultado[origen] = []
+        resultado[origen].append({"mz": mz, "lote": lote, "monto": monto})
+
+
+def leer_correcciones() -> tuple[dict, dict, dict]:
+    """
+    Lee correcciones_acumuladas.xlsx (3 hojas) + pendientes.xlsx (3 hojas).
+    Fusiona y guarda acumuladas.
+    Retorna: (corr_simples, corr_ambiguos, corr_multiples)
+      corr_simples   → origen → {mz, lote}
+      corr_ambiguos  → origen → {mz, lote}
+      corr_multiples → origen → [{mz, lote, monto}, ...]
     """
     ruta_acum = CORRECCIONES_DIR / ACUMULADAS_FILE
     ruta_pend = CORRECCIONES_DIR / PENDIENTES_FILE
 
-    # Leer acumuladas existente
-    acumuladas = _parsear_excel_correcciones(ruta_acum, tiene_header_instruccion=False)
+    # Leer acumuladas
+    corr_simples   = {}
+    corr_ambiguos  = {}
+    corr_multiples = {}
 
-    # Leer pendientes que el usuario acaba de completar
-    nuevas = _parsear_excel_correcciones(ruta_pend, tiene_header_instruccion=True)
+    if ruta_acum.exists():
+        try:
+            wb_acum = load_workbook(ruta_acum, read_only=True, data_only=True)
+            corr_simples   = _leer_hoja_acumuladas(wb_acum, "Sin_identificar")
+            corr_ambiguos  = _leer_hoja_acumuladas(wb_acum, "Ambiguos")
+            corr_multiples = _leer_hoja_multiples(wb_acum)
+            wb_acum.close()
+        except Exception as e:
+            print(f"  ⚠ No se pudo leer acumuladas: {e}")
 
-    # Filtrar solo las que tienen MZ completado
-    nuevas_validas = {k: v for k, v in nuevas.items()
-                      if v["mz"] and v["mz"] not in ("NAN", "NONE", "")}
-
-    # Fusionar — nuevas sobrescriben si ya existían (corrección de corrección)
+    # Leer pendientes completados por el usuario
     n_nuevas = 0
-    for origen, datos in nuevas_validas.items():
-        if origen not in acumuladas:
-            n_nuevas += 1
-        acumuladas[origen] = datos
+    if ruta_pend.exists():
+        try:
+            wb_pend = load_workbook(ruta_pend, read_only=True, data_only=True)
 
-    # Guardar acumuladas actualizado si hay cambios
+            # Hoja Sin_identificar
+            nuevas_si = _leer_hoja_acumuladas(wb_pend, "Sin_identificar")
+            for k, v in nuevas_si.items():
+                if v["mz"] and v["mz"] not in ("NAN","NONE",""):
+                    if k not in corr_simples:
+                        n_nuevas += 1
+                    corr_simples[k] = v
+
+            # Hoja Ambiguos
+            nuevas_amb = _leer_hoja_acumuladas(wb_pend, "Ambiguos")
+            for k, v in nuevas_amb.items():
+                if v["mz"] and v["mz"] not in ("NAN","NONE",""):
+                    if k not in corr_ambiguos:
+                        n_nuevas += 1
+                    corr_ambiguos[k] = v
+
+            # Hoja Pagos_multiples
+            nuevas_mult = _leer_hoja_multiples(wb_pend)
+            for k, lista in nuevas_mult.items():
+                if lista:
+                    if k not in corr_multiples:
+                        n_nuevas += 1
+                    corr_multiples[k] = lista
+
+            wb_pend.close()
+        except Exception as e:
+            print(f"  ⚠ No se pudo leer pendientes: {e}")
+
     if n_nuevas > 0:
-        _guardar_acumuladas(acumuladas)
+        _guardar_acumuladas(corr_simples, corr_ambiguos, corr_multiples)
 
-    # Reporte
-    if acumuladas:
-        n_blanco = sum(1 for v in acumuladas.values() if v["mz"] == "BLANCO")
-        n_real   = len(acumuladas) - n_blanco
-        print(f"  Acumuladas: {n_real} identificados + {n_blanco} blanco ({n_nuevas} nuevas este ciclo)")
-    else:
-        print("  Sin correcciones acumuladas")
-
-    return acumuladas
+    n_si   = len(corr_simples)
+    n_amb  = len(corr_ambiguos)
+    n_mult = len(corr_multiples)
+    print(f"  Acumuladas: {n_si} sin_id + {n_amb} ambiguos + {n_mult} multiples ({n_nuevas} nuevas)")
+    return corr_simples, corr_ambiguos, corr_multiples
 
 
-def _guardar_acumuladas(acumuladas: dict):
-    """Guarda correcciones_acumuladas.xlsx — sin fila de instrucción, cabecera simple"""
-    from openpyxl import Workbook as WB
-    ruta = CORRECCIONES_DIR / ACUMULADAS_FILE
+def _guardar_acumuladas(corr_simples: dict, corr_ambiguos: dict, corr_multiples: dict):
+    """Guarda correcciones_acumuladas.xlsx con 3 hojas"""
     CORRECCIONES_DIR.mkdir(exist_ok=True)
+    ruta = CORRECCIONES_DIR / ACUMULADAS_FILE
+    fecha_hoy = datetime.now().strftime("%d/%m/%Y %H:%M")
 
-    wb = WB()
-    ws = wb.active
-    ws.title = "Acumuladas"
+    wb = Workbook()
 
-    cols = ["ORIGEN", "MZ", "LOTE"]
-    for ci, col in enumerate(cols, 1):
-        cabecera_celda(ws.cell(1, ci), col)
-    ws.row_dimensions[1].height = 20
+    def _escribir_hoja_simple(ws, datos: dict):
+        for ci, h in enumerate(["ORIGEN","MZ","LOTE","FECHA"], 1):
+            cabecera_celda(ws.cell(1, ci), h)
+        ws.row_dimensions[1].height = 18
+        for ri, (origen, v) in enumerate(datos.items(), 2):
+            ws.cell(ri, 1, value=origen)
+            ws.cell(ri, 2, value=v.get("mz",""))
+            ws.cell(ri, 3, value=v.get("lote",""))
+            ws.cell(ri, 4, value=v.get("fecha", fecha_hoy))
+            ws.row_dimensions[ri].height = 16
+        for ci, w in enumerate([35,8,8,18], 1):
+            ws.column_dimensions[get_column_letter(ci)].width = w
 
-    anchos = {"ORIGEN": 35, "MZ": 10, "LOTE": 10}
-    for ri, (origen, datos) in enumerate(acumuladas.items(), 2):
-        ws.cell(ri, 1, value=origen)
-        ws.cell(ri, 2, value=datos["mz"])
-        ws.cell(ri, 3, value=datos["lote"])
-        ws.row_dimensions[ri].height = 17
+    # Hoja 1: Sin_identificar
+    ws1 = wb.active
+    ws1.title = "Sin_identificar"
+    _escribir_hoja_simple(ws1, corr_simples)
 
-    for ci, col in enumerate(cols, 1):
-        ws.column_dimensions[get_column_letter(ci)].width = anchos.get(col, 14)
+    # Hoja 2: Ambiguos
+    ws2 = wb.create_sheet("Ambiguos")
+    _escribir_hoja_simple(ws2, corr_ambiguos)
+
+    # Hoja 3: Pagos_multiples
+    ws3 = wb.create_sheet("Pagos_multiples")
+    for ci, h in enumerate(["ORIGEN","MZ","LOTE","MONTO_ASIGNADO","FECHA"], 1):
+        cabecera_celda(ws3.cell(1, ci), h)
+    ws3.row_dimensions[1].height = 18
+    ri = 2
+    for origen, lista in corr_multiples.items():
+        for item in lista:
+            ws3.cell(ri, 1, value=origen)
+            ws3.cell(ri, 2, value=item.get("mz",""))
+            ws3.cell(ri, 3, value=item.get("lote",""))
+            ws3.cell(ri, 4, value=item.get("monto",""))
+            ws3.cell(ri, 5, value=item.get("fecha", fecha_hoy))
+            ws3.row_dimensions[ri].height = 16
+            ri += 1
+    for ci, w in enumerate([35,8,8,14,18], 1):
+        ws3.column_dimensions[get_column_letter(ci)].width = w
 
     wb.save(ruta)
+
 
 
 # ====================VALIDACION=============================
@@ -563,16 +699,17 @@ def validar_reporte(df: pd.DataFrame, mapa: dict) -> pd.DataFrame:
 # ====================PROCESAMIENTO==========================
 def ejecutar_matching(df: pd.DataFrame, mapa: dict,
                       indice: dict, planilla: dict,
-                      correcciones: dict = None,
+                      corr_simples: dict = None,
+                      corr_ambiguos: dict = None,
+                      corr_multiples: dict = None,
                       mzs_validas: set = None,
                       ciclo: int = 1,
                       indice_ambiguo: dict = None) -> list:
-    if correcciones is None:
-        correcciones = {}
-    if indice_ambiguo is None:
-        indice_ambiguo = {}
-    if mzs_validas is None:
-        mzs_validas = set(k[0] for k in planilla.keys()) if planilla else set()
+    if corr_simples   is None: corr_simples   = {}
+    if corr_ambiguos  is None: corr_ambiguos  = {}
+    if corr_multiples is None: corr_multiples = {}
+    if indice_ambiguo is None: indice_ambiguo = {}
+    if mzs_validas    is None: mzs_validas    = set(k[0] for k in planilla.keys()) if planilla else set()
     todos = []
 
     for _, fila in df.iterrows():
@@ -581,63 +718,95 @@ def ejecutar_matching(df: pd.DataFrame, mapa: dict,
         monto_pago = limpiar_monto(fila[mapa["monto"]]) if mapa.get("monto") else 0.0
         mensaje    = str(fila[mapa["mensaje"]]) if mapa.get("mensaje") and mapa["mensaje"] in fila.index else ""
         fecha      = str(fila[mapa["fecha"]])   if mapa.get("fecha")   and mapa["fecha"]   in fila.index else ""
-
         mensaje = "" if mensaje == "None" else mensaje
         fecha   = "" if fecha   == "None" else fecha
 
-        base = {
-            "origen":     origen,
-            "monto_pago": monto_pago,
-            "mensaje":    mensaje,
-            "fecha":      fecha,
-        }
+        base = {"origen": origen, "monto_pago": monto_pago, "mensaje": mensaje, "fecha": fecha}
 
-        corr         = correcciones.get(origen_key)
+        # Unir todas las correcciones para este origen
+        corr_simple  = corr_simples.get(origen_key) or corr_ambiguos.get(origen_key)
+        corr_mult    = corr_multiples.get(origen_key)
         match_origen = indice.get(origen_key)
 
         # ── Ciclo 2+: corrección manual tiene prioridad máxima ──
-        if ciclo > 1 and corr:
-            if corr["mz"] == "BLANCO":
+        if ciclo > 1 and corr_mult:
+            # Pago múltiple ya corregido → generar una fila por lote
+            for item in corr_mult:
+                mz   = item["mz"]
+                lote = item["lote"]
+                monto_item = float(item.get("monto") or 0)
+                datos_p    = planilla.get((mz, lote), {})
+                deuda      = datos_p.get("deuda_total", 0.0)
+                nombre     = datos_p.get("nombre", "")
+                diferencia = round(monto_item - deuda, 2) if deuda else 0.0
+                estado_p   = "exacto" if diferencia==0 else ("exceso" if diferencia>0 else "parcial")
                 todos.append({
                     **base,
-                    "user_id": "", "nombre": "", "mz": "BLANCO", "lote": "",
-                    "nivel_confianza": "", "deuda_total": "", "mes_anterior": "",
-                    "diferencia": "", "estado_pago": "", "fuente": "blanco",
-                    "motivo": "marcado como blanco",
-                    "estado": "pendiente",
+                    "monto_pago": monto_item,
+                    "user_id": "", "nombre": nombre, "mz": mz, "lote": lote,
+                    "nivel_confianza": "multiple_corregido",
+                    "deuda_total": deuda, "mes_anterior": datos_p.get("mes_anterior",0),
+                    "diferencia": diferencia, "estado_pago": estado_p,
+                    "fuente": "multiple_corregido", "motivo": "", "estado": "identificado",
                 })
+            continue
+
+        if ciclo > 1 and corr_simple:
+            if corr_simple["mz"] == "BLANCO":
+                todos.append({**base, "user_id":"","nombre":"","mz":"BLANCO","lote":"",
+                    "nivel_confianza":"","deuda_total":"","mes_anterior":"",
+                    "diferencia":"","estado_pago":"","fuente":"blanco",
+                    "motivo":"marcado como blanco","estado":"pendiente"})
                 continue
-            elif corr["mz"] and corr["lote"]:
-                mz     = corr["mz"]
-                lote   = corr["lote"]
-                uid    = match_origen["user_id"] if match_origen else ""
-                nivel  = "correccion"
-                fuente = "correccion"
-                # salta directo al cruce con planilla
-                datos_p      = planilla.get((mz, lote), {})
-                deuda_total  = datos_p.get("deuda_total",  0.0)
-                mes_anterior = datos_p.get("mes_anterior", 0.0)
-                nombre       = datos_p.get("nombre", "")
-                if deuda_total > 0:
-                    diferencia = round(monto_pago - deuda_total, 2)
-                    if diferencia == 0:   estado_pago = "exacto"
-                    elif diferencia > 0:  estado_pago = "exceso"
-                    else:                 estado_pago = "parcial"
+            elif corr_simple["mz"] and corr_simple["lote"]:
+                mz = corr_simple["mz"]; lote = corr_simple["lote"]
+                datos_p = planilla.get((mz,lote),{})
+                deuda   = datos_p.get("deuda_total",0.0)
+                nombre  = datos_p.get("nombre","")
+                mes_ant = datos_p.get("mes_anterior",0.0)
+                if deuda > 0:
+                    dif = round(monto_pago - deuda, 2)
+                    ep  = "exacto" if dif==0 else ("exceso" if dif>0 else "parcial")
                 else:
-                    diferencia  = 0.0
-                    estado_pago = "sin deuda en planilla"
-                todos.append({
-                    **base,
-                    "user_id": uid, "nombre": nombre, "mz": mz, "lote": lote,
-                    "nivel_confianza": nivel, "deuda_total": deuda_total,
-                    "mes_anterior": mes_anterior, "diferencia": diferencia,
-                    "estado_pago": estado_pago, "fuente": fuente,
-                    "motivo": "", "estado": "identificado",
-                })
+                    dif = 0.0; ep = "sin deuda en planilla"
+                todos.append({**base, "user_id":"","nombre":nombre,"mz":mz,"lote":lote,
+                    "nivel_confianza":"correccion","deuda_total":deuda,"mes_anterior":mes_ant,
+                    "diferencia":dif,"estado_pago":ep,"fuente":"correccion",
+                    "motivo":"","estado":"identificado"})
                 continue
 
         # ── Ciclo 1 o sin corrección: flujo normal ───────────────
-        # Capa 1: mensaje primero — siempre
+        # Capa 1: detectar pagos múltiples en mensaje — siempre a pendientes
+        multiples = extraer_multiples(mensaje)
+        if len(multiples) >= 2:
+            # Calcular deudas para mostrar al usuario
+            deudas = []
+            for mz_m, lote_m in multiples:
+                lote_m  = limpiar_lote(lote_m)
+                datos_c = planilla.get((mz_m, lote_m), {})
+                deudas.append({
+                    "mz":     mz_m,
+                    "lote":   lote_m,
+                    "nombre": datos_c.get("nombre", ""),
+                    "deuda":  datos_c.get("deuda_total", 0.0),
+                })
+            total_deudas   = sum(d["deuda"] for d in deudas)
+            candidatos_str = " | ".join(
+                f"{d['mz']}-{d['lote']} {d['nombre']} deuda:{d['deuda']}"
+                for d in deudas
+            )
+            cuadra = "CUADRA EXACTO" if round(total_deudas,2)==round(monto_pago,2) else f"NO CUADRA (deudas:{total_deudas})"
+            todos.append({
+                **base,
+                "user_id":"","nombre":"","mz":"","lote":"",
+                "nivel_confianza":"","deuda_total":"","mes_anterior":"",
+                "diferencia":"","estado_pago":"","fuente":"multiple",
+                "motivo": f"pago multiple [{cuadra}] — {candidatos_str}",
+                "estado":"pendiente",
+            })
+            continue
+
+        # Capa 2: mensaje simple → regex extrae 1 MZ-LOTE
         mz_msg, lote_msg = extraer_mz_lote_mensaje(mensaje)
         if mz_msg:
             mz_msg = normalizar_mz(mz_msg, mzs_validas)
@@ -650,7 +819,7 @@ def ejecutar_matching(df: pd.DataFrame, mapa: dict,
             nivel  = "por mensaje"
             fuente = "mensaje"
 
-        # Capa 2: sin mensaje → revisar ambiguo o maestro único
+        # Capa 3: sin mensaje → revisar ambiguo o maestro único
         elif origen_key in indice_ambiguo:
             # Sin mensaje y maestro tiene 2+ lotes → pendiente ambiguo
             candidatos = indice_ambiguo[origen_key]
@@ -672,12 +841,6 @@ def ejecutar_matching(df: pd.DataFrame, mapa: dict,
             })
             continue
 
-        elif match_origen:
-            mz     = match_origen["mz"]
-            lote   = match_origen["lote"]
-            uid    = match_origen["user_id"]
-            nivel  = match_origen["nivel_confianza"]
-            fuente = "maestro"
         elif match_origen:
             mz     = match_origen["mz"]
             lote   = match_origen["lote"]
@@ -823,8 +986,9 @@ def exportar_pendientes(todos: list):
         return
 
     # Separar por tipo
-    sin_id   = [r for r in sin_resolver if r.get("fuente", "") != "ambiguo"]
-    ambiguos = [r for r in sin_resolver if r.get("fuente", "") == "ambiguo"]
+    sin_id    = [r for r in sin_resolver if r.get("fuente","") not in ("ambiguo","multiple")]
+    ambiguos  = [r for r in sin_resolver if r.get("fuente","") == "ambiguo"]
+    multiples = [r for r in sin_resolver if r.get("fuente","") == "multiple"]
 
     wb = Workbook()
 
@@ -893,8 +1057,86 @@ def exportar_pendientes(todos: list):
     for ci, col in enumerate(cols2, 1):
         ws2.column_dimensions[get_column_letter(ci)].width = anchos2.get(col, 14)
 
+    # ── Hoja 3: Pagos multiples — una fila por lote ──────────
+    ws3 = wb.create_sheet("Pagos_multiples")
+    ws3.freeze_panes = "A3"
+
+    cols3 = ["ORIGEN","MONTO_TOTAL","MZ","LOTE","NOMBRE","DEUDA","MONTO_SISTEMA","MONTO_MANUAL","ESTADO","AUTORIZADO"]
+    _instruccion(ws3,
+        "👉 Revisa MONTO_SISTEMA. Si cuadra pon 1 en AUTORIZADO. Si no cuadra escribe en MONTO_MANUAL y pon 1. Guarda y vuelve a correr.",
+        len(cols3))
+
+    for ci, col in enumerate(cols3, 1):
+        cabecera_celda(ws3.cell(2, ci), col)
+    ws3.row_dimensions[2].height = 20
+
+    anchos3 = {"ORIGEN":30,"MONTO_TOTAL":12,"MZ":7,"LOTE":7,"NOMBRE":25,
+               "DEUDA":10,"MONTO_SISTEMA":14,"MONTO_MANUAL":13,"ESTADO":12,"AUTORIZADO":11}
+
+    ri = 3
+    for reg in multiples:
+        motivo     = reg.get("motivo","")
+        monto_total= reg.get("monto_pago", 0)
+        origen     = reg.get("origen","")
+
+        # Parsear candidatos del motivo
+        # formato: "pago multiple [CUADRA EXACTO] — E-7 Gregorio deuda:17.0 | P-11A Julia deuda:13.0"
+        cuadra = "CUADRA" if "CUADRA EXACTO" in motivo else "NO CUADRA"
+        parte  = motivo.split("—",1)[1].strip() if "—" in motivo else ""
+        lotes  = [l.strip() for l in parte.split("|") if l.strip()]
+
+        for lote_str in lotes:
+            # Parsear "E-7 Gregorio Trujillo deuda:17.0"
+            mz_lote = ""
+            nombre  = ""
+            deuda   = 0.0
+            m_lote  = re.match(r'([A-Z][A-Z0-9]*)-(\w+)\s+(.*?)\s+deuda:([\d.]+)', lote_str, re.IGNORECASE)
+            if m_lote:
+                mz_lote  = m_lote.group(1).upper()
+                lote_val = m_lote.group(2).upper()
+                nombre   = m_lote.group(3).strip()
+                try: deuda = float(m_lote.group(4))
+                except: deuda = 0.0
+            else:
+                lote_val = ""
+
+            vals = {
+                "ORIGEN":        origen,
+                "MONTO_TOTAL":   monto_total,
+                "MZ":            mz_lote,
+                "LOTE":          lote_val,
+                "NOMBRE":        nombre,
+                "DEUDA":         deuda,
+                "MONTO_SISTEMA": deuda,  # sistema sugiere la deuda
+                "MONTO_MANUAL":  "",
+                "ESTADO":        cuadra,
+                "AUTORIZADO":    "",
+            }
+            for ci, col in enumerate(cols3, 1):
+                c = ws3.cell(ri, ci, value=vals[col])
+                if col == "AUTORIZADO":
+                    bg = "FFF9C4"
+                elif col == "MONTO_MANUAL":
+                    bg = "FFF9C4"
+                elif col == "MONTO_SISTEMA":
+                    bg = "D1FAE5"
+                elif col == "ESTADO":
+                    bg = "D1FAE5" if cuadra == "CUADRA" else "FEF3C7"
+                elif col in ("ORIGEN","MONTO_TOTAL"):
+                    bg = COLOR_PENDIENTE
+                else:
+                    bg = "F8FAFC"
+                estilo_celda(c, bg_color=bg)
+                if col in ("DEUDA","MONTO_SISTEMA","MONTO_TOTAL") and isinstance(vals[col], float):
+                    c.number_format = '#,##0.00'
+            ws3.row_dimensions[ri].height = 17
+            ri += 1
+
+    for ci, col in enumerate(cols3, 1):
+        ws3.column_dimensions[get_column_letter(ci)].width = anchos3.get(col, 14)
+
     wb.save(ruta)
-    print(f"  ⚠ Pendientes: {len(sin_id)} sin identificar + {len(ambiguos)} ambiguos → {PENDIENTES_FILE}")
+    print(f"  ⚠ Pendientes: {len(sin_id)} sin_id + {len(ambiguos)} ambiguos + {len(multiples)} multiples → {PENDIENTES_FILE}")
 
 # ======================MAIN=================================
 def main():
@@ -933,10 +1175,12 @@ def main():
     df = validar_reporte(df, mapa)
 
     print("\n[7] Leyendo correcciones manuales...")
-    correcciones = leer_correcciones()
+    corr_simples, corr_ambiguos, corr_multiples = leer_correcciones()
 
     print("\n[8] Ejecutando matching...")
-    todos = ejecutar_matching(df, mapa, indice, planilla, correcciones, mzs_validas, ciclo, indice_ambiguo)
+    todos = ejecutar_matching(df, mapa, indice, planilla,
+                              corr_simples, corr_ambiguos, corr_multiples,
+                              mzs_validas, ciclo, indice_ambiguo)
 
     print("\n[9] Exportando resultados...")
     exportar_excel(todos)
