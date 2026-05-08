@@ -1,0 +1,156 @@
+
+<style>
+  .wrap { font-family: var(--font-sans); padding: .5rem 0 1rem; }
+  .title { font-size: 18px; font-weight: 600; color: var(--color-text-primary); margin: 0 0 2px; }
+  .sub   { font-size: 12px; color: var(--color-text-secondary); margin: 0 0 20px; }
+
+  .modules { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media(max-width:520px){ .modules { grid-template-columns: 1fr; } }
+
+  .mod { border-radius: 12px; border: 0.5px solid var(--color-border-tertiary); overflow: hidden; }
+
+  .mod-head { padding: 12px 16px 10px; }
+  .mod-badge { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px; display: inline-block; margin-bottom: 6px; }
+  .mod-name { font-size: 15px; font-weight: 600; color: var(--color-text-primary); margin: 0 0 2px; }
+  .mod-desc { font-size: 11px; color: var(--color-text-secondary); margin: 0; }
+
+  .mod-body { padding: 10px 16px 14px; }
+
+  .tree { font-family: var(--font-mono); font-size: 11.5px; line-height: 2; }
+  .tree-root { font-weight: 700; }
+  .f-folder { font-weight: 500; }
+  .f-file   { color: var(--color-text-secondary); }
+  .f-out    { color: #1D9E75; font-weight: 500; }
+  .f-note   { font-size: 10px; color: var(--color-text-tertiary); font-family: var(--font-sans); }
+
+  .io-section { margin-top: 10px; }
+  .io-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px; }
+  .io-item { font-size: 11px; line-height: 1.9; display: flex; align-items: flex-start; gap: 5px; }
+  .io-dot { width: 5px; height: 5px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+
+  /* Colores módulo 1 */
+  .m1 .mod-head { background: #EBF5FB; }
+  .m1 .mod-badge { background: #D5F5E3; color: #1E8449; }
+  .m1 .mod-body { background: var(--color-background-primary); }
+  .m1 .tree-root { color: #1A5276; }
+  .m1 .f-folder { color: #2E86C1; }
+  .m1 .io-dot-in  { background: #2E86C1; }
+  .m1 .io-dot-out { background: #1D9E75; }
+
+  /* Colores módulo 2 */
+  .m2 .mod-head { background: #F4ECF7; }
+  .m2 .mod-badge { background: #D6EAF8; color: #1A5276; }
+  .m2 .mod-body { background: var(--color-background-primary); }
+  .m2 .tree-root { color: #512E5F; }
+  .m2 .f-folder { color: #6C3483; }
+  .m2 .io-dot-in  { background: #6C3483; }
+  .m2 .io-dot-out { background: #1D9E75; }
+
+  /* Flecha central */
+  .flow-arrow { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 0 4px; }
+  .arrow-line { width: 2px; flex: 1; background: linear-gradient(to bottom, #D5D8DC, #BA7517); border-radius: 2px; min-height: 40px; }
+  .arrow-label { font-size: 10px; color: #784212; background: #FDEBD0; border: 0.5px solid #F0B27A; border-radius: 6px; padding: 4px 8px; text-align: center; line-height: 1.4; white-space: nowrap; }
+  .arrow-tip { color: #BA7517; font-size: 14px; }
+
+  .connector { grid-column: 1 / -1; display: flex; align-items: center; gap: 0; margin: 4px 0; }
+  .conn-line { flex: 1; height: 1.5px; background: linear-gradient(to right, #AED6F1, #BA7517, #D7BDE2); }
+  .conn-mid  { background: #FDEBD0; border: 0.5px solid #F0B27A; border-radius: 8px; padding: 5px 14px; font-size: 11px; color: #784212; font-weight: 500; white-space: nowrap; }
+</style>
+
+<div class="wrap">
+  <p class="title">03_pagos / yape</p>
+  <p class="sub">Dos módulos — uno construye el maestro, el otro lo usa cada mes para identificar pagos</p>
+
+  <div class="modules">
+
+    <!-- MÓDULO 1: construir_maestro -->
+    <div class="mod m1">
+      <div class="mod-head">
+        <span class="mod-badge">hecho ✓</span>
+        <p class="mod-name">construir_maestro</p>
+        <p class="mod-desc">Aprende orígenes de pagos históricos y construye el maestro de usuarios</p>
+      </div>
+      <div class="mod-body">
+        <div class="tree">
+          <div class="tree-root">construir_maestro/</div>
+          <div>├── <span class="f-folder">Inputs/</span></div>
+          <div>│&nbsp;&nbsp; ├── <span class="f-folder">Planilla/</span></div>
+          <div>│&nbsp;&nbsp; │&nbsp;&nbsp; <span class="f-file f-note">← 7 planillas históricas</span></div>
+          <div>│&nbsp;&nbsp; └── <span class="f-folder">Usuario id/</span></div>
+          <div>│&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; <span class="f-file f-note">← usuarios_id.xlsx</span></div>
+          <div>├── <span class="f-folder">Outputs/</span></div>
+          <div>│&nbsp;&nbsp; └── <span class="f-out">maestro_yape.xlsx</span></div>
+          <div>└── <span class="f-file">main.py</span></div>
+        </div>
+
+        <div class="io-section">
+          <div class="io-label" style="color:#2E86C1">Inputs</div>
+          <div class="io-item"><div class="io-dot io-dot-in"></div><span>Planillas históricas del banco (.xlsx)</span></div>
+          <div class="io-item"><div class="io-dot io-dot-in"></div><span>usuarios_id.xlsx con mz y lote</span></div>
+        </div>
+        <div class="io-section">
+          <div class="io-label" style="color:#1D9E75">Output</div>
+          <div class="io-item"><div class="io-dot io-dot-out"></div><span>maestro_yape.xlsx — orígenes + nivel confianza</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MÓDULO 2: motor_matching -->
+    <div class="mod m2">
+      <div class="mod-head">
+        <span class="mod-badge">siguiente →</span>
+        <p class="mod-name">motor_matching</p>
+        <p class="mod-desc">Cada mes identifica a qué mz y lote corresponde cada pago Yape recibido</p>
+      </div>
+      <div class="mod-body">
+        <div class="tree">
+          <div class="tree-root">motor_matching/</div>
+          <div>├── <span class="f-folder">Inputs/</span></div>
+          <div>│&nbsp;&nbsp; ├── <span class="f-folder">Reporte_mes/</span></div>
+          <div>│&nbsp;&nbsp; │&nbsp;&nbsp; <span class="f-file f-note">← reporte banco mes actual</span></div>
+          <div>│&nbsp;&nbsp; └── <span class="f-folder">Maestro/</span></div>
+          <div>│&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; <span class="f-file f-note">← copias manual aquí</span></div>
+          <div>├── <span class="f-folder">Outputs/</span></div>
+          <div>│&nbsp;&nbsp; ├── <span class="f-out">pagos_identificados.xlsx</span></div>
+          <div>│&nbsp;&nbsp; └── <span class="f-out">pendientes.xlsx</span></div>
+          <div>└── <span class="f-file">main.py</span></div>
+        </div>
+
+        <div class="io-section">
+          <div class="io-label" style="color:#6C3483">Inputs</div>
+          <div class="io-item"><div class="io-dot io-dot-in"></div><span>Reporte banco del mes (.xlsx)</span></div>
+          <div class="io-item"><div class="io-dot io-dot-in"></div><span>maestro_yape.xlsx (copiado manual)</span></div>
+        </div>
+        <div class="io-section">
+          <div class="io-label" style="color:#1D9E75">Outputs</div>
+          <div class="io-item"><div class="io-dot io-dot-out"></div><span>pagos_identificados.xlsx — con mz y lote</span></div>
+          <div class="io-item"><div class="io-dot io-dot-out"></div><span>pendientes.xlsx — revisión manual</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CONECTOR -->
+    <div class="connector">
+      <div class="conn-line"></div>
+      <div class="conn-mid">maestro_yape.xlsx se copia manualmente de Outputs → Inputs/Maestro</div>
+      <div class="conn-line"></div>
+    </div>
+
+    <!-- FLUJO MENSUAL -->
+    <div style="grid-column:1/-1; background:var(--color-background-secondary); border:0.5px solid var(--color-border-tertiary); border-radius:10px; padding:12px 16px;">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-secondary);margin-bottom:8px;">Flujo mensual</div>
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+        <span style="font-size:11px;background:#EBF5FB;border:0.5px solid #AED6F1;border-radius:6px;padding:4px 10px;color:#1A5276">1. Descargar reporte banco</span>
+        <span style="color:var(--color-text-tertiary)">→</span>
+        <span style="font-size:11px;background:#EBF5FB;border:0.5px solid #AED6F1;border-radius:6px;padding:4px 10px;color:#1A5276">2. Pegar en Reporte_mes/</span>
+        <span style="color:var(--color-text-tertiary)">→</span>
+        <span style="font-size:11px;background:#F4ECF7;border:0.5px solid #D7BDE2;border-radius:6px;padding:4px 10px;color:#512E5F">3. Correr motor_matching</span>
+        <span style="color:var(--color-text-tertiary)">→</span>
+        <span style="font-size:11px;background:#D5F5E3;border:0.5px solid #A9DFBF;border-radius:6px;padding:4px 10px;color:#1E8449">4. Revisar outputs</span>
+        <span style="color:var(--color-text-tertiary)">→</span>
+        <span style="font-size:11px;background:#FDEBD0;border:0.5px solid #F0B27A;border-radius:6px;padding:4px 10px;color:#784212">5. Actualizar maestro si hay nuevos</span>
+      </div>
+    </div>
+
+  </div>
+</div>

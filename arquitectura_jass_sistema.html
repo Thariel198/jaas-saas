@@ -1,0 +1,322 @@
+
+<style>
+  body { font-family: var(--font-sans); }
+  .wrap { padding: .5rem 0 1rem; }
+  .title { font-size: 20px; font-weight: 600; color: var(--color-text-primary); margin: 0 0 2px; }
+  .sub   { font-size: 12px; color: var(--color-text-secondary); margin: 0 0 16px; }
+
+  /* LEGEND */
+  .legend { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:18px; }
+  .leg { display:flex; align-items:center; gap:5px; font-size:11px; color:var(--color-text-secondary); }
+  .dot { width:10px; height:10px; border-radius:50%; }
+
+  /* PIPELINE */
+  .pipeline { display:flex; flex-direction:column; gap:0; }
+
+  /* MODULE CARD */
+  .mod { border-radius:10px; border:0.5px solid var(--color-border-tertiary); margin-bottom:4px; overflow:hidden; }
+  .mod-header { display:flex; align-items:center; gap:10px; padding:9px 14px; cursor:pointer; user-select:none; }
+  .mod-num  { font-size:11px; font-weight:700; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .mod-name { font-size:13px; font-weight:600; flex:1; color:var(--color-text-primary); }
+  .mod-desc { font-size:11px; color:var(--color-text-secondary); }
+  .mod-tags { display:flex; gap:4px; }
+  .tag { font-size:10px; font-weight:500; padding:1px 6px; border-radius:4px; white-space:nowrap; }
+
+  /* MODULE BODY */
+  .mod-body { padding:0 14px 12px; display:none; }
+  .mod-body.open { display:block; }
+  .io-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:8px; }
+  .io-box { background:var(--color-background-secondary); border-radius:8px; padding:8px 10px; }
+  .io-label { font-size:10px; font-weight:600; color:var(--color-text-secondary); text-transform:uppercase; letter-spacing:.05em; margin-bottom:4px; }
+  .io-item  { font-size:11px; color:var(--color-text-primary); line-height:1.8; }
+  .io-item::before { content:'→ '; color:var(--color-text-tertiary); }
+  .flow-note { font-size:11px; color:var(--color-text-secondary); margin-top:8px; padding:6px 10px; background:var(--color-background-secondary); border-radius:6px; border-left:3px solid #BA7517; }
+
+  /* ARROW */
+  .arrow { text-align:center; font-size:16px; color:var(--color-text-tertiary); margin:2px 0; line-height:1; }
+
+  /* STATUS COLORS */
+  .hecho   { background:#D5F5E3; color:#1E8449; }
+  .next    { background:#D6EAF8; color:#1A5276; }
+  .futuro  { background:#FDEBD0; color:#784212; }
+  .ia      { background:#E8DAEF; color:#512E5F; }
+
+  .m1 { background:#EBF5FB; border-color:#AED6F1; } .m1 .mod-num { background:#2E86C1; color:#fff; }
+  .m2 { background:#E9F7EF; border-color:#A9DFBF; } .m2 .mod-num { background:#1E8449; color:#fff; }
+  .m3y{ background:#FEF9E7; border-color:#F9E79F; } .m3y .mod-num { background:#B7950B; color:#fff; }
+  .m3e{ background:#FDFEFE; border-color:#D5D8DC; } .m3e .mod-num { background:#717D7E; color:#fff; }
+  .m4 { background:#F4ECF7; border-color:#D7BDE2; } .m4 .mod-num { background:#6C3483; color:#fff; }
+  .m5 { background:#FDEDEC; border-color:#F1948A; } .m5 .mod-num { background:#CB4335; color:#fff; }
+  .m6 { background:#FEF5E7; border-color:#FAD7A0; } .m6 .mod-num { background:#CA6F1E; color:#fff; }
+  .m7 { background:#EBF5FB; border-color:#85C1E9; } .m7 .mod-num { background:#1A5276; color:#fff; }
+
+  .shared { border:0.5px dashed #BA7517; border-radius:10px; padding:10px 14px; margin-top:12px; }
+  .shared-title { font-size:12px; font-weight:600; color:#784212; margin-bottom:6px; }
+  .shared-items { display:flex; gap:8px; flex-wrap:wrap; }
+  .shared-item  { font-size:11px; background:#FDEBD0; color:#784212; padding:3px 8px; border-radius:4px; }
+</style>
+
+<div class="wrap">
+  <p class="title">jass_system</p>
+  <p class="sub">Sistema de gestión de agua potable — arquitectura modular completa · clic en cada módulo para ver detalle</p>
+
+  <div class="legend">
+    <div class="leg"><div class="dot" style="background:#1E8449"></div>hecho</div>
+    <div class="leg"><div class="dot" style="background:#1A5276"></div>siguiente</div>
+    <div class="leg"><div class="dot" style="background:#CA6F1E"></div>futuro</div>
+    <div class="leg"><div class="dot" style="background:#512E5F"></div>usa IA</div>
+  </div>
+
+  <div class="pipeline">
+
+    <!-- 01 LECTURAS -->
+    <div class="mod m1" onclick="toggle(this)">
+      <div class="mod-header">
+        <div class="mod-num">01</div>
+        <div class="mod-name">lecturas</div>
+        <div class="mod-desc">Operario → foto → OCR → tabla final</div>
+        <div class="mod-tags">
+          <span class="tag futuro">futuro</span>
+          <span class="tag ia">IA</span>
+        </div>
+      </div>
+      <div class="mod-body">
+        <div class="io-row">
+          <div class="io-box">
+            <div class="io-label">Inputs</div>
+            <div class="io-item">Fotos / escaneos del operario</div>
+            <div class="io-item">Lecturas del mes anterior</div>
+          </div>
+          <div class="io-box">
+            <div class="io-label">Outputs</div>
+            <div class="io-item">lecturas_final.xlsx</div>
+            <div class="io-item">usuario · mz · lote · lectura · consumo</div>
+          </div>
+        </div>
+        <div class="flow-note">IA1 + IA2 leen la foto por separado → Python compara → si coinciden: aprobado · si difieren: alerta manual</div>
+      </div>
+    </div>
+
+    <div class="arrow">↓</div>
+
+    <!-- 02 PLANILLA -->
+    <div class="mod m2" onclick="toggle(this)">
+      <div class="mod-header">
+        <div class="mod-num">02</div>
+        <div class="mod-name">planilla</div>
+        <div class="mod-desc">Consumo + deudas → planilla base del mes</div>
+        <div class="mod-tags"><span class="tag futuro">futuro</span></div>
+      </div>
+      <div class="mod-body">
+        <div class="io-row">
+          <div class="io-box">
+            <div class="io-label">Inputs</div>
+            <div class="io-item">lecturas_final.xlsx (de 01)</div>
+            <div class="io-item">planilla_anterior.xlsx</div>
+            <div class="io-item">tarifas y penalidades</div>
+          </div>
+          <div class="io-box">
+            <div class="io-label">Outputs</div>
+            <div class="io-item">planilla_base.xlsx</div>
+            <div class="io-item">deuda total por usuario</div>
+          </div>
+        </div>
+        <div class="flow-note">Consumo = Lectura actual − Lectura anterior · suma deuda arrastrada del mes pasado</div>
+      </div>
+    </div>
+
+    <div class="arrow">↓</div>
+
+    <!-- 03 PAGOS YAPE -->
+    <div class="mod m3y" onclick="toggle(this)">
+      <div class="mod-header">
+        <div class="mod-num">03</div>
+        <div class="mod-name">pagos · yape</div>
+        <div class="mod-desc">Reporte banco → matching → mz y lote identificados</div>
+        <div class="mod-tags">
+          <span class="tag next">siguiente</span>
+          <span class="tag hecho">maestro listo</span>
+        </div>
+      </div>
+      <div class="mod-body">
+        <div class="io-row">
+          <div class="io-box">
+            <div class="io-label">Inputs</div>
+            <div class="io-item">reporte_banco.xlsx (mensual)</div>
+            <div class="io-item">maestro_yape.xlsx</div>
+            <div class="io-item">usuarios_id.xlsx (shared)</div>
+          </div>
+          <div class="io-box">
+            <div class="io-label">Outputs</div>
+            <div class="io-item">pagos_yape.xlsx</div>
+            <div class="io-item">origen · mz · lote · monto · estado</div>
+            <div class="io-item">pendientes_yape.xlsx</div>
+          </div>
+        </div>
+        <div class="flow-note">Motor de matching: busca origen en maestro → asigna mz+lote → valida monto → los que no matchean van a pendientes para revisión manual</div>
+      </div>
+    </div>
+
+    <div class="arrow">↓ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ↓</div>
+
+    <!-- 03 PAGOS EFECTIVO -->
+    <div class="mod m3e" onclick="toggle(this)">
+      <div class="mod-header">
+        <div class="mod-num">03</div>
+        <div class="mod-name">pagos · efectivo</div>
+        <div class="mod-desc">Foto papel cobro → OCR → tabla pagos</div>
+        <div class="mod-tags">
+          <span class="tag futuro">futuro</span>
+          <span class="tag ia">IA</span>
+        </div>
+      </div>
+      <div class="mod-body">
+        <div class="io-row">
+          <div class="io-box">
+            <div class="io-label">Inputs</div>
+            <div class="io-item">Fotos del papel de cobro</div>
+            <div class="io-item">usuarios_id.xlsx (shared)</div>
+          </div>
+          <div class="io-box">
+            <div class="io-label">Outputs</div>
+            <div class="io-item">pagos_efectivo.xlsx</div>
+            <div class="io-item">usuario · mz · lote · monto</div>
+          </div>
+        </div>
+        <div class="flow-note">Mismo patrón OCR que módulo 01 — IA1 + IA2 leen el papel → Python compara y valida</div>
+      </div>
+    </div>
+
+    <div class="arrow">↓</div>
+
+    <!-- 04 COBRANZA -->
+    <div class="mod m4" onclick="toggle(this)">
+      <div class="mod-header">
+        <div class="mod-num">04</div>
+        <div class="mod-name">cobranza</div>
+        <div class="mod-desc">Unifica pagos → concilia → genera lista de corte</div>
+        <div class="mod-tags"><span class="tag futuro">futuro</span></div>
+      </div>
+      <div class="mod-body">
+        <div class="io-row">
+          <div class="io-box">
+            <div class="io-label">Inputs</div>
+            <div class="io-item">pagos_yape.xlsx (de 03)</div>
+            <div class="io-item">pagos_efectivo.xlsx (de 03)</div>
+            <div class="io-item">planilla_base.xlsx (de 02)</div>
+          </div>
+          <div class="io-box">
+            <div class="io-label">Outputs</div>
+            <div class="io-item">cobranza_final.xlsx</div>
+            <div class="io-item">lista_corte.xlsx</div>
+            <div class="io-item">resumen_recaudacion.xlsx</div>
+          </div>
+        </div>
+        <div class="flow-note">Descuenta pagos de la deuda · los que quedan con saldo → lista de corte · penalidad: S/ 20</div>
+      </div>
+    </div>
+
+    <div class="arrow">↓</div>
+
+    <!-- 05 CORTE -->
+    <div class="mod m5" onclick="toggle(this)">
+      <div class="mod-header">
+        <div class="mod-num">05</div>
+        <div class="mod-name">corte</div>
+        <div class="mod-desc">2 días para pagar S/20 · si no → corte físico S/40</div>
+        <div class="mod-tags"><span class="tag futuro">futuro</span></div>
+      </div>
+      <div class="mod-body">
+        <div class="io-row">
+          <div class="io-box">
+            <div class="io-label">Inputs</div>
+            <div class="io-item">lista_corte.xlsx (de 04)</div>
+            <div class="io-item">pagos de penalidad (Yape/efectivo)</div>
+          </div>
+          <div class="io-box">
+            <div class="io-label">Outputs</div>
+            <div class="io-item">pagaron_penalidad.xlsx</div>
+            <div class="io-item">corte_fisico.xlsx → operario</div>
+            <div class="io-item">reconexion_pendiente.xlsx</div>
+          </div>
+        </div>
+        <div class="flow-note">Día 1-2: pagan S/20 → se salvan · Día 3+: operario corta físicamente → para reconectar deben pagar S/40</div>
+      </div>
+    </div>
+
+    <div class="arrow">↓</div>
+
+    <!-- 06 BOLETAS -->
+    <div class="mod m6" onclick="toggle(this)">
+      <div class="mod-header">
+        <div class="mod-num">06</div>
+        <div class="mod-name">boletas</div>
+        <div class="mod-desc">Genera PDF por usuario con deuda actualizada</div>
+        <div class="mod-tags"><span class="tag hecho">hecho</span></div>
+      </div>
+      <div class="mod-body">
+        <div class="io-row">
+          <div class="io-box">
+            <div class="io-label">Inputs</div>
+            <div class="io-item">DATA_boletas.xlsx</div>
+            <div class="io-item">PLANTILLA_boletas.docx</div>
+            <div class="io-item">imágenes (logo, QR, caritas)</div>
+          </div>
+          <div class="io-box">
+            <div class="io-label">Outputs</div>
+            <div class="io-item">RECIBO_XXXX.pdf por usuario</div>
+            <div class="io-item">CONSOLIDADO.pdf (todos juntos)</div>
+          </div>
+        </div>
+        <div class="flow-note">Ya construido — genera boleta Word + convierte a PDF + consolida en un solo archivo</div>
+      </div>
+    </div>
+
+    <div class="arrow">↓</div>
+
+    <!-- 07 NUEVA PLANILLA -->
+    <div class="mod m7" onclick="toggle(this)">
+      <div class="mod-header">
+        <div class="mod-num">07</div>
+        <div class="mod-name">nueva planilla</div>
+        <div class="mod-desc">Actualiza deudas → base para el mes siguiente</div>
+        <div class="mod-tags"><span class="tag futuro">futuro</span></div>
+      </div>
+      <div class="mod-body">
+        <div class="io-row">
+          <div class="io-box">
+            <div class="io-label">Inputs</div>
+            <div class="io-item">cobranza_final.xlsx (de 04)</div>
+            <div class="io-item">corte_fisico.xlsx (de 05)</div>
+            <div class="io-item">reconexion_pendiente.xlsx (de 05)</div>
+          </div>
+          <div class="io-box">
+            <div class="io-label">Outputs</div>
+            <div class="io-item">planilla_nuevo_mes.xlsx</div>
+            <div class="io-item">→ alimenta 02_planilla del mes siguiente</div>
+          </div>
+        </div>
+        <div class="flow-note">Cierra el ciclo mensual — la deuda actualizada se convierte en el input de 02_planilla del próximo mes</div>
+      </div>
+    </div>
+
+    <!-- SHARED -->
+    <div class="shared">
+      <div class="shared-title">shared/ — recursos compartidos por todos los módulos</div>
+      <div class="shared-items">
+        <span class="shared-item">usuarios_id.xlsx</span>
+        <span class="shared-item">maestro_yape.xlsx</span>
+        <span class="shared-item">config.py</span>
+        <span class="shared-item">tarifas.xlsx</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+function toggle(el) {
+  const body = el.querySelector('.mod-body');
+  body.classList.toggle('open');
+}
+</script>

@@ -1,0 +1,296 @@
+
+<style>
+  .wrap { font-family: var(--font-sans); padding: .5rem 0 1.5rem; }
+  .pg-title { font-size: 17px; font-weight: 500; color: var(--color-text-primary); margin: 0 0 2px; }
+  .pg-sub { font-size: 12px; color: var(--color-text-secondary); margin: 0 0 20px; }
+  .sec { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--color-text-tertiary); margin: 16px 0 5px; }
+
+  .card { border-radius: 10px; border: 0.5px solid var(--color-border-tertiary); overflow: hidden; margin-bottom: 2px; }
+  .card-head { padding: 10px 14px 8px; }
+  .badge { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px; display: inline-block; margin-bottom: 4px; }
+  .card-name { font-size: 14px; font-weight: 500; color: var(--color-text-primary); margin: 0 0 2px; }
+  .card-desc { font-size: 11px; color: var(--color-text-secondary); margin: 0; }
+  .card-body { padding: 8px 14px 12px; background: var(--color-background-primary); }
+
+  .io-row { display: flex; gap: 14px; margin-top: 6px; flex-wrap: wrap; }
+  .io-col { flex: 1; min-width: 120px; }
+  .io-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; }
+  .io-item { font-size: 11px; line-height: 1.85; display: flex; align-items: flex-start; gap: 5px; color: var(--color-text-secondary); }
+  .dot { width: 5px; height: 5px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+
+  .rules { margin-top: 8px; border-top: 0.5px solid var(--color-border-tertiary); padding-top: 8px; }
+  .rl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--color-text-tertiary); margin-bottom: 4px; }
+  .rule { font-size: 11px; line-height: 1.85; display: flex; gap: 6px; color: var(--color-text-secondary); }
+  .ri { flex-shrink: 0; }
+  .mtag { font-size: 10px; background: #FEF3C7; color: #92400E; border: 0.5px solid #FCD34D; border-radius: 4px; padding: 1px 6px; margin-left: 3px; display: inline-block; }
+  .atag { font-size: 10px; background: #E1F5EE; color: #0F6E56; border: 0.5px solid #5DCAA5; border-radius: 4px; padding: 1px 6px; margin-left: 3px; display: inline-block; }
+  .otag { font-size: 10px; background: #EDE9FE; color: #5B21B6; border: 0.5px solid #C4B5FD; border-radius: 4px; padding: 1px 6px; margin-left: 3px; display: inline-block; }
+
+  .arrow { display: flex; flex-direction: column; align-items: center; padding: 2px 0; }
+  .arrow-v { width: 1.5px; height: 14px; background: var(--color-border-secondary); }
+  .arrow-tip { color: var(--color-text-tertiary); font-size: 11px; line-height: 1; }
+  .arrow-pill { font-size: 10px; background: var(--color-background-secondary); border: 0.5px solid var(--color-border-tertiary); border-radius: 6px; padding: 3px 10px; color: var(--color-text-secondary); margin: 2px 0; white-space: nowrap; text-align: center; }
+
+  /* Colores tarjetas */
+  .c-done .card-head  { background: var(--color-background-secondary); }
+  .c-done .badge      { background: #D1FAE5; color: #065F46; }
+  .c-anchor .card-head { background: #FFF7ED; }
+  .c-anchor .badge    { background: #FED7AA; color: #9A3412; }
+  .c-corr .card-head  { background: #FFFBEB; }
+  .c-corr .badge      { background: #FDE68A; color: #78350F; }
+  .c-new .card-head   { background: #E1F5EE; }
+  .c-new .badge       { background: #9FE1CB; color: #0F6E56; }
+  .c-val .card-head   { background: #EFF6FF; }
+  .c-val .badge       { background: #BFDBFE; color: #1E40AF; }
+  .c-ok .card-head    { background: #EEEDFE; }
+  .c-ok .badge        { background: #CECBF6; color: #3C3489; }
+  .c-loop .card-head  { background: #FDF4FF; }
+  .c-loop .badge      { background: #E9D5FF; color: #6B21A8; }
+
+  /* Caja del bucle */
+  .loop-wrap { border: 1.5px dashed #C4B5FD; border-radius: 12px; padding: 10px 12px; margin: 4px 0; position: relative; }
+  .loop-tag { position: absolute; top: -10px; left: 14px; background: var(--color-background-primary); padding: 0 6px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: #6B21A8; }
+
+  /* Condición de cierre */
+  .close-box { background: var(--color-background-secondary); border: 0.5px solid var(--color-border-tertiary); border-radius: 8px; padding: 8px 12px; margin-top: 6px; }
+  .close-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--color-text-tertiary); margin-bottom: 5px; }
+  .close-item { font-size: 11px; line-height: 1.85; display: flex; gap: 6px; color: var(--color-text-secondary); }
+
+  /* Árbol carpetas */
+  .tree { font-family: var(--font-mono); font-size: 11px; line-height: 2; background: var(--color-background-secondary); border-radius: 8px; padding: 10px 14px; }
+  .t-root   { font-weight: 700; color: var(--color-text-primary); }
+  .t-new    { color: #0F6E56; font-weight: 500; }
+  .t-corr   { color: #78350F; font-weight: 500; }
+  .t-note   { font-size: 10px; color: var(--color-text-tertiary); font-family: var(--font-sans); }
+  .t-dim    { color: var(--color-text-tertiary); }
+
+  /* Flujo mensual */
+  .flow { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; padding: 10px 12px; background: var(--color-background-secondary); border: 0.5px solid var(--color-border-tertiary); border-radius: 8px; }
+  .fp { font-size: 10.5px; border-radius: 5px; padding: 3px 9px; white-space: nowrap; }
+  .fs { color: var(--color-text-tertiary); font-size: 11px; }
+  .f-done   { background: #D1FAE5; color: #065F46; border: 0.5px solid #6EE7B7; }
+  .f-anchor { background: #FED7AA; color: #9A3412; border: 0.5px solid #FDBA74; }
+  .f-new    { background: #E1F5EE; color: #0F6E56; border: 0.5px solid #5DCAA5; }
+  .f-loop   { background: #EDE9FE; color: #5B21B6; border: 0.5px solid #C4B5FD; }
+  .f-man    { background: #FEF3C7; color: #92400E; border: 0.5px solid #FCD34D; }
+  .f-ok     { background: #EEEDFE; color: #3C3489; border: 0.5px solid #AFA9EC; }
+</style>
+
+<div class="wrap">
+  <p class="pg-title">cargar_planilla — bucle de validación</p>
+  <p class="pg-sub">03_pagos / yape / cargar_planilla · cada capa valida su propio output</p>
+
+  <!-- INPUTS -->
+  <div class="sec">inputs</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+
+    <div class="card c-done">
+      <div class="card-head">
+        <span class="badge">existe ✓</span>
+        <p class="card-name">pagos_yape.xlsx</p>
+        <p class="card-desc">Original del banco — nunca se toca</p>
+      </div>
+      <div class="card-body">
+        <div class="io-item"><div class="dot" style="background:#065F46"></div>MZ · LOTE · MONTO · ESTADO</div>
+        <div class="io-item"><div class="dot" style="background:#065F46"></div>FECHA · identificado / pendiente</div>
+      </div>
+    </div>
+
+    <div class="card c-anchor">
+      <div class="card-head">
+        <span class="badge">ancla 📌</span>
+        <p class="card-name">planilla anterior</p>
+        <p class="card-desc">Último datetime → corte temporal</p>
+      </div>
+      <div class="card-body">
+        <div class="io-item"><div class="dot" style="background:#9A3412"></div>Hoja Reporte → max(datetime)</div>
+        <div class="io-item"><div class="dot" style="background:#9A3412"></div>Todo lo posterior → mes actual</div>
+      </div>
+    </div>
+
+    <div class="card c-done">
+      <div class="card-head">
+        <span class="badge">existe ✓</span>
+        <p class="card-name">planilla mes actual</p>
+        <p class="card-desc">Hoja Cobranza a rellenar</p>
+      </div>
+      <div class="card-body">
+        <div class="io-item"><div class="dot" style="background:#065F46"></div>LLAVE (Mz, Lt) · Total</div>
+        <div class="io-item"><div class="dot" style="background:#065F46"></div>Yape rep · Ajuste · Medio · Estado</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- PASO 1 -->
+  <div class="arrow"><div class="arrow-v"></div><div class="arrow-pill">paso 1 — filtro por ancla temporal</div><div class="arrow-v"></div><div class="arrow-tip">▾</div></div>
+
+  <div class="card c-anchor">
+    <div class="card-head">
+      <span class="badge">automático ⚙</span>
+      <p class="card-name">Filtro temporal</p>
+      <p class="card-desc">Extrae solo los pagos posteriores al último registro de la planilla anterior</p>
+    </div>
+    <div class="card-body">
+      <div class="rules">
+        <div class="rule"><span class="ri">1.</span><span>Lee hoja Reporte planilla anterior → extrae max(Fecha de operación)</span></div>
+        <div class="rule"><span class="ri">2.</span><span>Filtra pagos_yape donde FECHA > ese datetime → pagos del mes actual</span></div>
+        <div class="rule"><span class="ri">⚠</span><span>Si ancla no se encuentra → detiene el proceso y avisa al usuario</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PASO 2 -->
+  <div class="arrow"><div class="arrow-v"></div><div class="arrow-pill">paso 2 — separar identificados y pendientes</div><div class="arrow-v"></div><div class="arrow-tip">▾</div></div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+    <div class="card c-new">
+      <div class="card-head">
+        <span class="badge">automático ⚙</span>
+        <p class="card-name">Identificados</p>
+        <p class="card-desc">ESTADO = identificado → van a Cobranza</p>
+      </div>
+      <div class="card-body">
+        <div class="rules">
+          <div class="rule"><span class="ri">⚙</span><span><b>Yape rep</b> <span class="atag">auto</span> — suma por llave</span></div>
+          <div class="rule"><span class="ri">⚙</span><span><b>Ajuste</b> <span class="atag">auto</span> — exacto→0 · exceso→(−) · parcial→(+)</span></div>
+          <div class="rule"><span class="ri">⚙</span><span><b>Medio</b> <span class="atag">auto</span> — "Y"</span></div>
+          <div class="rule"><span class="ri">⚙</span><span><b>Estado</b> <span class="atag">auto</span> — "C"</span></div>
+          <div class="rule"><span class="ri">✋</span><span><b>Fecha · Comentario</b> <span class="mtag">manual</span></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card c-corr">
+      <div class="card-head">
+        <span class="badge">correction layer 📝</span>
+        <p class="card-name">pendientes.xlsx</p>
+        <p class="card-desc">ESTADO = pendiente → tú agregas MZ y LOTE</p>
+      </div>
+      <div class="card-body">
+        <div class="rules">
+          <div class="rule"><span class="ri">✋</span><span>Abres el archivo · preguntas de quién es cada pago</span></div>
+          <div class="rule"><span class="ri">✋</span><span>Escribes MZ y LOTE en cada fila</span></div>
+          <div class="rule"><span class="ri">✋</span><span>Guardas → vuelves a correr el sistema</span></div>
+          <div class="rule"><span class="ri">🔒</span><span>pagos_yape.xlsx original nunca se modifica</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BUCLE -->
+  <div class="arrow"><div class="arrow-v"></div><div class="arrow-pill">paso 3 — validación iterativa (bucle)</div><div class="arrow-v"></div><div class="arrow-tip">▾</div></div>
+
+  <div class="loop-wrap">
+    <span class="loop-tag">bucle — corre hasta que todo cierra</span>
+
+    <div class="card c-val" style="margin-bottom:8px;">
+      <div class="card-head">
+        <span class="badge">validación ⚙</span>
+        <p class="card-name">Chequeo 1 — pendientes sin MZ/LOTE</p>
+        <p class="card-desc">¿Quedan filas en pendientes.xlsx sin MZ y LOTE asignados?</p>
+      </div>
+      <div class="card-body">
+        <div class="rule"><span class="ri">✅</span><span>Todos tienen MZ y LOTE → pasa al chequeo 2</span></div>
+        <div class="rule"><span class="ri">🔄</span><span>Hay filas vacías → genera reporte · espera que completes · vuelve a correr</span></div>
+      </div>
+    </div>
+
+    <div class="card c-val">
+      <div class="card-head">
+        <span class="badge">validación ⚙</span>
+        <p class="card-name">Chequeo 2 — saldos Yape por MZ</p>
+        <p class="card-desc">¿Todos los saldos (Planilla-A − Reporte Yape-M) son 0?</p>
+      </div>
+      <div class="card-body">
+        <div class="rules">
+          <div class="rule"><span class="ri">✅</span><span>Todos en 0 → cierra el bucle</span></div>
+          <div class="rule"><span class="ri">✋</span><span>Saldo ≠ 0 → tú investigas · escribes comentario explicando por qué</span></div>
+          <div class="rule"><span class="ri">⚙</span><span>Saldo ≠ 0 + comentario + <b>AUTORIZADO = 1</b> <span class="otag">override</span> → el sistema acepta y cierra esa fila</span></div>
+          <div class="rule"><span class="ri">🔄</span><span>Saldo ≠ 0 sin autorizar → no cierra · vuelves a correr</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Condición de cierre -->
+    <div class="close-box">
+      <div class="close-title">condición de cierre del bucle</div>
+      <div class="close-item"><span>✅</span><span>Chequeo 1: cero pendientes sin MZ/LOTE</span></div>
+      <div class="close-item"><span>✅</span><span>Chequeo 2: todos los saldos Yape por MZ son 0 o tienen AUTORIZADO = 1</span></div>
+      <div class="close-item" style="margin-top:4px;"><span>🔒</span><span style="color:var(--color-text-tertiary)">Efectivo y Medidor por MZ — validados en sus propios módulos, no aquí</span></div>
+    </div>
+  </div>
+
+  <!-- OUTPUT FINAL -->
+  <div class="arrow"><div class="arrow-v"></div><div class="arrow-pill">output final — bucle cerrado</div><div class="arrow-v"></div><div class="arrow-tip">▾</div></div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+    <div class="card c-ok">
+      <div class="card-head">
+        <span class="badge">output principal ✓</span>
+        <p class="card-name">planilla_cargada.xlsx</p>
+        <p class="card-desc">Cobranza + Yape por MZ completos y validados</p>
+      </div>
+      <div class="card-body">
+        <div class="io-item"><div class="dot" style="background:#7F77DD"></div>Yape rep · Ajuste · Medio · Estado escritos</div>
+        <div class="io-item"><div class="dot" style="background:#7F77DD"></div>Yape por MZ con saldos y autorizaciones</div>
+        <div class="io-item"><div class="dot" style="background:#7F77DD"></div>Trazabilidad completa de correcciones</div>
+      </div>
+    </div>
+
+    <div class="card c-corr">
+      <div class="card-head">
+        <span class="badge">log de cierre 📋</span>
+        <p class="card-name">resumen_validacion.txt</p>
+        <p class="card-desc">Registro de cuántas iteraciones tomó cerrar</p>
+      </div>
+      <div class="card-body">
+        <div class="io-item"><div class="dot" style="background:#78350F"></div>N° de ciclos corridos</div>
+        <div class="io-item"><div class="dot" style="background:#78350F"></div>Pendientes resueltos vs autorizados</div>
+        <div class="io-item"><div class="dot" style="background:#78350F"></div>Saldos con override y su comentario</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CARPETAS -->
+  <div class="sec">estructura de carpetas</div>
+  <div class="tree">
+    <div class="t-root">03_pagos / yape /</div>
+    <div class="t-dim">├── construir_maestro/</div>
+    <div class="t-dim">├── motor_matching/</div>
+    <div><span class="t-new">├── cargar_planilla/</span> <span class="t-note">← nuevo</span></div>
+    <div>│&nbsp;&nbsp; ├── Inputs/</div>
+    <div>│&nbsp;&nbsp; │&nbsp;&nbsp; ├── pagos_yape/ <span class="t-note">← original banco, nunca se toca</span></div>
+    <div>│&nbsp;&nbsp; │&nbsp;&nbsp; ├── planilla_anterior/ <span class="t-note">← para ancla de corte</span></div>
+    <div>│&nbsp;&nbsp; │&nbsp;&nbsp; └── planilla_mes/ <span class="t-note">← planilla del mes a cargar</span></div>
+    <div>│&nbsp;&nbsp; ├── <span class="t-corr">Correcciones/</span> <span class="t-note">← tú trabajas aquí en el bucle</span></div>
+    <div>│&nbsp;&nbsp; │&nbsp;&nbsp; └── <span class="t-corr">pendientes.xlsx</span> <span class="t-note">← agregas MZ/LOTE · autorizas saldos</span></div>
+    <div>│&nbsp;&nbsp; ├── Outputs/</div>
+    <div>│&nbsp;&nbsp; │&nbsp;&nbsp; ├── <span class="t-new">planilla_cargada.xlsx</span></div>
+    <div>│&nbsp;&nbsp; │&nbsp;&nbsp; └── <span class="t-new">resumen_validacion.txt</span></div>
+    <div>│&nbsp;&nbsp; └── <span class="t-new">main.py</span></div>
+  </div>
+
+  <!-- FLUJO MENSUAL -->
+  <div class="sec">flujo mensual</div>
+  <div class="flow">
+    <span class="fp f-done">1. motor_matching</span>
+    <span class="fs">→</span>
+    <span class="fp f-done">2. pagos_yape.xlsx</span>
+    <span class="fs">→</span>
+    <span class="fp f-anchor">3. copiar inputs</span>
+    <span class="fs">→</span>
+    <span class="fp f-new">4. correr main.py</span>
+    <span class="fs">→</span>
+    <span class="fp f-loop">5. completar pendientes.xlsx</span>
+    <span class="fs">→</span>
+    <span class="fp f-loop">6. autorizar saldos ≠ 0</span>
+    <span class="fs">→</span>
+    <span class="fp f-loop">7. volver a correr hasta cerrar</span>
+    <span class="fs">→</span>
+    <span class="fp f-man">8. fecha · comentario manual</span>
+    <span class="fs">→</span>
+    <span class="fp f-ok">9. planilla_cargada ✓</span>
+  </div>
+
+</div>
