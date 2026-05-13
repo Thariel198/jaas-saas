@@ -1,0 +1,240 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+#w{font-family:var(--font-sans);padding:4px 0 16px}
+.instruc{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-left:3px solid #C2410C;border-radius:0 var(--border-radius-md) var(--border-radius-md) 0;padding:9px 13px;font-size:12px;color:var(--color-text-secondary);margin-bottom:12px;line-height:1.7}
+.instruc strong{color:var(--color-text-primary)}
+.tab-excel{display:inline-flex;align-items:center;gap:5px;background:#FEF3E8;border:0.5px solid #FDBA74;border-bottom:none;border-radius:6px 6px 0 0;padding:5px 14px;font-size:12px;font-weight:500;color:#7C3003;margin-bottom:-1px}
+.tw{border:0.5px solid var(--color-border-tertiary);border-radius:0 var(--border-radius-md) var(--border-radius-md) var(--border-radius-md);overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:11px;min-width:1100px}
+th{padding:6px 8px;font-size:10px;font-weight:500;text-align:left;border-bottom:0.5px solid var(--color-border-tertiary);border-right:0.5px solid var(--color-border-tertiary);white-space:nowrap}
+th:last-child{border-right:none}
+td{padding:5px 8px;border-bottom:0.5px solid var(--color-border-tertiary);border-right:0.5px solid var(--color-border-tertiary);vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+td:last-child{border-right:none}
+tr:last-child td{border-bottom:none}
+.num{width:24px;background:var(--color-background-secondary);color:var(--color-text-tertiary);font-size:10px;font-family:var(--font-mono);text-align:center;border-right:0.5px solid var(--color-border-tertiary)}
+.th-mes   {background:#FEF3E8;color:#7C3003}
+.th-quien {background:#F4ECF7;color:#5B21B6}
+.th-banco {background:#E6F1FB;color:#0C447C}
+.th-lote  {background:#E1F5EE;color:#085041}
+.th-est   {background:#FEF9E7;color:#7D6608}
+.th-sep   {width:4px;background:var(--color-background-secondary);padding:0;border-right:2px solid var(--color-border-secondary)}
+.td-mes   {background:#FEF3E8;font-family:var(--font-mono);font-size:10px;color:#7C3003;font-weight:500}
+.td-quien {background:#FAF5FF;font-family:var(--font-mono);font-size:10px;color:#5B21B6}
+.td-nombre{background:#FAF5FF;font-size:11px;color:var(--color-text-primary)}
+.td-banco {background:#F0F8FF;color:#185FA5;font-family:var(--font-mono);font-size:10px}
+.td-monto {background:#F0F8FF;color:#065F46;font-family:var(--font-mono);font-size:11px;font-weight:500}
+.td-msg   {background:#F0F8FF;color:var(--color-text-secondary);font-size:10px;font-style:italic}
+.td-sep   {width:4px;background:var(--color-background-secondary);padding:0;border-right:2px solid var(--color-border-secondary)}
+.td-lote  {background:#F0FFF8;font-family:var(--font-mono);font-size:11px;font-weight:500;color:#065F46}
+.td-lote-e{background:#F0FFF8;color:var(--color-text-tertiary);font-style:italic;font-size:10px;text-align:center}
+.td-concepto{background:#F0FFF8;font-size:10px;color:var(--color-text-secondary)}
+.td-est-p {background:#FAEEDA;color:#854F0B;font-size:10px;font-weight:500;padding:1px 6px;border-radius:3px;font-family:var(--font-mono)}
+.td-est-a {background:#E1F5EE;color:#085041;font-size:10px;font-weight:500;padding:1px 6px;border-radius:3px;font-family:var(--font-mono)}
+.td-est-c {background:#FEFCE8;color:#7D6608;font-size:10px;font-weight:500;padding:1px 6px;border-radius:3px;font-family:var(--font-mono)}
+.mul-row  {background:rgba(124,58,237,.02)}
+.gh{font-size:9px;font-weight:600;text-align:center;padding:3px 0;letter-spacing:.05em;text-transform:uppercase;border-bottom:0.5px solid var(--color-border-tertiary)}
+.caso{font-size:9px;color:var(--color-text-tertiary);font-style:italic;padding:3px 8px;background:var(--color-background-secondary);border-bottom:0.5px solid var(--color-border-tertiary)}
+.legend{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center}
+.leg{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--color-text-secondary)}
+.ld{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+</style>
+
+<div id="w">
+  <div class="instruc">
+    Archivo <strong>permanente</strong> — nunca se borra · crece mes a mes · acumula todos los PAGASTE del sistema.<br>
+    <strong>ESTADO</strong> lo actualiza <strong>04_cobranza</strong> cuando aplica el descuento — no lo toques.<br>
+    Devoluciones múltiples aparecen como <strong>una fila por lote</strong> con el mismo MONTO_PAGO.
+  </div>
+
+  <div class="tab-excel">devoluciones_acumulados</div>
+  <div class="tw">
+    <table>
+      <thead>
+        <tr>
+          <th class="num"></th>
+          <th class="th-mes gh">¿De qué mes?</th>
+          <th class="th-sep"></th>
+          <th class="th-quien gh" colspan="2">¿Quién es?</th>
+          <th class="th-sep"></th>
+          <th class="th-banco gh" colspan="7">¿Qué hizo el banco?</th>
+          <th class="th-sep"></th>
+          <th class="th-lote gh" colspan="3">¿A qué lote?</th>
+          <th class="th-sep"></th>
+          <th class="th-est gh">¿Ya se aplicó?</th>
+        </tr>
+        <tr>
+          <th class="num"></th>
+          <th class="th-mes">MES</th>
+          <th class="th-sep"></th>
+          <th class="th-quien">USER_ID</th>
+          <th class="th-quien">NOMBRE</th>
+          <th class="th-sep"></th>
+          <th class="th-banco">TIPO</th>
+          <th class="th-banco">ORIGEN</th>
+          <th class="th-banco">DESTINO</th>
+          <th class="th-banco">MONTO_PAGO</th>
+          <th class="th-banco">MONTO_ASIGNADO</th>
+          <th class="th-banco">MENSAJE</th>
+          <th class="th-banco">FECHA</th>
+          <th class="th-sep"></th>
+          <th class="th-lote">MZ</th>
+          <th class="th-lote">LOTE</th>
+          <th class="th-lote">CONCEPTO</th>
+          <th class="th-sep"></th>
+          <th class="th-est">ESTADO</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- devolución simple — aplicada -->
+        <tr><td colspan="20" class="caso">Mayo 2026 — devolución simple · ya aplicada por 04_cobranza</td></tr>
+        <tr>
+          <td class="num">1</td>
+          <td class="td-mes">2026-05</td>
+          <td class="td-sep"></td>
+          <td class="td-quien">U0199</td>
+          <td class="td-nombre">NELLY MORALES</td>
+          <td class="td-sep"></td>
+          <td class="td-banco">PAGASTE</td>
+          <td class="td-banco">Janet Vil*</td>
+          <td class="td-banco">Nelly Mor*</td>
+          <td class="td-monto">S/35.00</td>
+          <td class="td-banco" style="text-align:center;font-style:italic;color:var(--color-text-tertiary)">—</td>
+          <td class="td-msg">devolucion W20</td>
+          <td class="td-banco">09/05/2026 10:31</td>
+          <td class="td-sep"></td>
+          <td class="td-lote">W</td>
+          <td class="td-lote">20</td>
+          <td class="td-lote-e">—</td>
+          <td class="td-sep"></td>
+          <td><span class="td-est-a">aplicado</span></td>
+        </tr>
+
+        <!-- devolución múltiple — pendiente -->
+        <tr><td colspan="20" class="caso">Mayo 2026 — devolución múltiple · una fila por lote · pendiente</td></tr>
+        <tr class="mul-row">
+          <td class="num">2</td>
+          <td class="td-mes">2026-05</td>
+          <td class="td-sep"></td>
+          <td class="td-quien">U0087</td>
+          <td class="td-nombre">GREGORIO TRUJILLO</td>
+          <td class="td-sep"></td>
+          <td class="td-banco">PAGASTE</td>
+          <td class="td-banco">Janet Vil*</td>
+          <td class="td-banco">Rosa Tor*</td>
+          <td class="td-monto">S/75.00</td>
+          <td class="td-monto">S/35.00</td>
+          <td class="td-msg">devolucion W20, A12, B19</td>
+          <td class="td-banco">09/05/2026 12:00</td>
+          <td class="td-sep"></td>
+          <td class="td-lote">W</td>
+          <td class="td-lote">20</td>
+          <td class="td-lote-e">—</td>
+          <td class="td-sep"></td>
+          <td><span class="td-est-p">pendiente</span></td>
+        </tr>
+        <tr class="mul-row">
+          <td class="num">3</td>
+          <td class="td-mes">2026-05</td>
+          <td class="td-sep"></td>
+          <td class="td-quien">U0311</td>
+          <td class="td-nombre">ANA PAZ TORRES</td>
+          <td class="td-sep"></td>
+          <td class="td-banco">PAGASTE</td>
+          <td class="td-banco">Janet Vil*</td>
+          <td class="td-banco">Rosa Tor*</td>
+          <td class="td-monto">S/75.00</td>
+          <td class="td-monto">S/20.00</td>
+          <td class="td-msg">devolucion W20, A12, B19</td>
+          <td class="td-banco">09/05/2026 12:00</td>
+          <td class="td-sep"></td>
+          <td class="td-lote">A</td>
+          <td class="td-lote">12</td>
+          <td class="td-lote-e">—</td>
+          <td class="td-sep"></td>
+          <td><span class="td-est-p">pendiente</span></td>
+        </tr>
+        <tr class="mul-row">
+          <td class="num">4</td>
+          <td class="td-mes">2026-05</td>
+          <td class="td-sep"></td>
+          <td class="td-quien">U0156</td>
+          <td class="td-nombre">CARLOS MEDINA</td>
+          <td class="td-sep"></td>
+          <td class="td-banco">PAGASTE</td>
+          <td class="td-banco">Janet Vil*</td>
+          <td class="td-banco">Rosa Tor*</td>
+          <td class="td-monto">S/75.00</td>
+          <td class="td-monto">S/20.00</td>
+          <td class="td-msg">devolucion W20, A12, B19</td>
+          <td class="td-banco">09/05/2026 12:00</td>
+          <td class="td-sep"></td>
+          <td class="td-lote">B</td>
+          <td class="td-lote">19</td>
+          <td class="td-lote-e">—</td>
+          <td class="td-sep"></td>
+          <td><span class="td-est-p">pendiente</span></td>
+        </tr>
+
+        <!-- gasto JASS -->
+        <tr><td colspan="20" class="caso">Mayo 2026 — gasto JASS · CONCEPTO en vez de MZ-LOTE</td></tr>
+        <tr>
+          <td class="num">5</td>
+          <td class="td-mes">2026-05</td>
+          <td class="td-sep"></td>
+          <td class="td-quien">—</td>
+          <td class="td-nombre">—</td>
+          <td class="td-sep"></td>
+          <td class="td-banco">PAGASTE</td>
+          <td class="td-banco">Janet Vil*</td>
+          <td class="td-banco">Carlos Me*</td>
+          <td class="td-monto">S/80.00</td>
+          <td class="td-banco" style="text-align:center;font-style:italic;color:var(--color-text-tertiary)">—</td>
+          <td class="td-msg">alquiler local</td>
+          <td class="td-banco">08/05/2026 14:02</td>
+          <td class="td-sep"></td>
+          <td class="td-lote-e">—</td>
+          <td class="td-lote-e">—</td>
+          <td class="td-concepto">alquiler local</td>
+          <td class="td-sep"></td>
+          <td><span class="td-est-c">no aplica</span></td>
+        </tr>
+
+        <!-- mes anterior — ya aplicado -->
+        <tr><td colspan="20" class="caso">Abril 2026 — mes anterior · ya archivado · ESTADO aplicado</td></tr>
+        <tr style="opacity:.7">
+          <td class="num">6</td>
+          <td class="td-mes">2026-04</td>
+          <td class="td-sep"></td>
+          <td class="td-quien">U0303</td>
+          <td class="td-nombre">JUAN RIOS BLAS</td>
+          <td class="td-sep"></td>
+          <td class="td-banco">PAGASTE</td>
+          <td class="td-banco">Janet Vil*</td>
+          <td class="td-banco">Juan Rio*</td>
+          <td class="td-monto">S/40.00</td>
+          <td class="td-banco" style="text-align:center;font-style:italic;color:var(--color-text-tertiary)">—</td>
+          <td class="td-msg">devolucion C14</td>
+          <td class="td-banco">15/04/2026 09:20</td>
+          <td class="td-sep"></td>
+          <td class="td-lote">C</td>
+          <td class="td-lote">14</td>
+          <td class="td-lote-e">—</td>
+          <td class="td-sep"></td>
+          <td><span class="td-est-a">aplicado</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="legend">
+    <div class="leg"><div class="ld" style="background:#FEF3E8;border:0.5px solid #FDBA74"></div>mes de origen</div>
+    <div class="leg"><div class="ld" style="background:#FAF5FF;border:0.5px solid #C4B5FD"></div>¿Quién es?</div>
+    <div class="leg"><div class="ld" style="background:#F0F8FF;border:0.5px solid #AED6F1"></div>banco</div>
+    <div class="leg"><div class="ld" style="background:#F0FFF8;border:0.5px solid #9FE1CB"></div>lote o concepto</div>
+    <div class="leg"><div class="ld" style="background:rgba(124,58,237,.04);border:0.5px solid #C4B5FD"></div>devolución múltiple</div>
+    <div class="leg"><span class="td-est-p">pendiente</span> esperando 04_cobranza</div>
+    <div class="leg"><span class="td-est-a">aplicado</span> descuento ya aplicado</div>
+    <div class="leg"><span class="td-est-c">no aplica</span> gasto JASS · no genera descuento</div>
+  </div>
+</div>

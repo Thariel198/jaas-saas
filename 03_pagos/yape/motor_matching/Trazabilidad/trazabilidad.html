@@ -1,0 +1,484 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+#w{font-family:var(--font-sans);padding:4px 0 16px}
+.tabs{display:flex;gap:0;border-bottom:0.5px solid var(--color-border-tertiary);margin-bottom:14px;overflow-x:auto}
+.tab{padding:7px 14px;font-size:12px;font-weight:500;cursor:pointer;border-bottom:2px solid transparent;color:var(--color-text-secondary);transition:all .15s;white-space:nowrap;flex-shrink:0}
+.tab.t1.active{color:#A32D2D;border-bottom-color:#E24B4A}
+.tab.t2.active{color:#854F0B;border-bottom-color:#BA7517}
+.tab.t3.active{color:#185FA5;border-bottom-color:#378ADD}
+.sheet{display:none}.sheet.active{display:block}
+.instruc{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-left:3px solid #7C3AED;border-radius:0 var(--border-radius-md) var(--border-radius-md) 0;padding:9px 13px;font-size:12px;color:var(--color-text-secondary);margin-bottom:12px;line-height:1.7}
+.instruc strong{color:var(--color-text-primary)}
+.tab-excel{display:inline-flex;align-items:center;gap:5px;border-radius:6px 6px 0 0;padding:5px 14px;font-size:12px;font-weight:500;margin-bottom:-1px}
+.te-red  {background:#FCEBEB;border:0.5px solid #F09595;border-bottom:none;color:#A32D2D}
+.te-amber{background:#FAEEDA;border:0.5px solid #EF9F27;border-bottom:none;color:#854F0B}
+.te-blue {background:#EBF5FB;border:0.5px solid #AED6F1;border-bottom:none;color:#185FA5}
+.tw{border:0.5px solid var(--color-border-tertiary);border-radius:0 var(--border-radius-md) var(--border-radius-md) var(--border-radius-md);overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:11px}
+th{padding:6px 8px;font-size:10px;font-weight:500;text-align:left;border-bottom:0.5px solid var(--color-border-tertiary);border-right:0.5px solid var(--color-border-tertiary);white-space:nowrap}
+th:last-child{border-right:none}
+td{padding:5px 8px;border-bottom:0.5px solid var(--color-border-tertiary);border-right:0.5px solid var(--color-border-tertiary);vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+td:last-child{border-right:none}
+tr:last-child td{border-bottom:none}
+.num{width:24px;background:var(--color-background-secondary);color:var(--color-text-tertiary);font-size:10px;font-family:var(--font-mono);text-align:center;border-right:0.5px solid var(--color-border-tertiary)}
+.th-quien {background:#F4ECF7;color:#5B21B6}
+.th-banco {background:#E6F1FB;color:#0C447C}
+.th-res   {background:#E1F5EE;color:#085041}
+.th-cand  {background:#FAEEDA;color:#854F0B}
+.th-fin   {background:#E1F5EE;color:#085041}
+.th-cuando{background:#FEF3E8;color:#7C3003}
+.th-sep   {width:4px;background:var(--color-background-secondary);padding:0;border-right:2px solid var(--color-border-secondary)}
+.td-quien {background:#FAF5FF;font-family:var(--font-mono);font-size:10px;color:#5B21B6}
+.td-nombre{background:#FAF5FF;font-size:11px;color:var(--color-text-primary)}
+.td-banco {background:#F0F8FF;color:#185FA5;font-family:var(--font-mono);font-size:10px}
+.td-monto {background:#F0F8FF;color:#065F46;font-family:var(--font-mono);font-size:11px;font-weight:500}
+.td-msg   {background:#F0F8FF;color:var(--color-text-secondary);font-size:10px;font-style:italic}
+.td-res   {background:#F0FFF8;font-family:var(--font-mono);font-size:11px;font-weight:500;color:#065F46}
+.td-res-t {background:#F0FFF8;font-size:10px;color:var(--color-text-secondary)}
+.td-res-e {background:#F0FFF8;color:var(--color-text-tertiary);font-style:italic;font-size:10px;text-align:center}
+.td-cand  {background:#FFFBF0;font-family:var(--font-mono);font-size:11px;font-weight:500;color:#854F0B}
+.td-cand-t{background:#FFFBF0;font-size:10px;color:var(--color-text-secondary)}
+.td-blank {background:#FAEEDA;color:#854F0B;font-family:var(--font-mono);font-size:11px;font-weight:500}
+.td-cuando{background:#FEF3E8;font-family:var(--font-mono);font-size:10px;color:#7C3003;text-align:center}
+.td-sep   {width:4px;background:var(--color-background-secondary);padding:0;border-right:2px solid var(--color-border-secondary)}
+.si-badge {background:#E1F5EE;color:#085041;border:0.5px solid #5DCAA5;border-radius:3px;padding:1px 6px;font-size:10px;font-weight:500}
+.no-badge {background:var(--color-background-secondary);color:var(--color-text-tertiary);border:0.5px solid var(--color-border-tertiary);border-radius:3px;padding:1px 6px;font-size:10px}
+.tipo-te  {background:#E1F5EE;color:#085041;font-size:10px;font-weight:500;padding:1px 5px;border-radius:3px;font-family:var(--font-mono)}
+.tipo-pa  {background:#FAEEDA;color:#854F0B;font-size:10px;font-weight:500;padding:1px 5px;border-radius:3px;font-family:var(--font-mono)}
+.diff-ok  {background:#E1F5EE;color:#085041;border-radius:3px;padding:1px 5px;font-size:10px;font-family:var(--font-mono)}
+.diff-pos {background:#FAEEDA;color:#633806;border-radius:3px;padding:1px 5px;font-size:10px;font-family:var(--font-mono)}
+.diff-neg {background:#FCEBEB;color:#791F1F;border-radius:3px;padding:1px 5px;font-size:10px;font-family:var(--font-mono)}
+.cand-elegido{background:rgba(110,231,183,.06)}
+.gh{font-size:9px;font-weight:600;text-align:center;padding:3px 0;letter-spacing:.05em;text-transform:uppercase;border-bottom:0.5px solid var(--color-border-tertiary)}
+.legend{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center}
+.leg{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--color-text-secondary)}
+.ld{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+</style>
+
+<div id="w">
+  <div class="tabs">
+    <div class="tab t1 active" onclick="show('si',0)">Sin_identificar</div>
+    <div class="tab t2" onclick="show('amb',1)">Ambiguos</div>
+    <div class="tab t3" onclick="show('mult',2)">Pagos_multiples</div>
+  </div>
+
+  <!-- HOJA 1: SIN_IDENTIFICAR -->
+  <div id="si" class="sheet active">
+    <div class="instruc">
+      Registra todos los pagos que necesitaron intervención manual · TE PAGÓ y PAGASTE · se acumula cada ciclo sin borrar filas anteriores.
+    </div>
+    <div class="tab-excel te-red">Sin_identificar</div>
+    <div class="tw">
+      <table style="min-width:1100px">
+        <thead>
+          <tr>
+            <th class="num"></th>
+            <th class="th-quien gh" colspan="2">¿Quién es?</th>
+            <th class="th-sep"></th>
+            <th class="th-banco gh" colspan="6">¿Qué hizo el banco?</th>
+            <th class="th-sep"></th>
+            <th class="th-res gh" colspan="4">¿Cómo se resolvió?</th>
+            <th class="th-sep"></th>
+            <th class="th-cuando gh" colspan="2">¿Cuándo?</th>
+          </tr>
+          <tr>
+            <th class="num"></th>
+            <th class="th-quien">USER_ID</th>
+            <th class="th-quien">NOMBRE</th>
+            <th class="th-sep"></th>
+            <th class="th-banco">TIPO</th>
+            <th class="th-banco">ORIGEN</th>
+            <th class="th-banco">DESTINO</th>
+            <th class="th-banco">MONTO</th>
+            <th class="th-banco">MENSAJE</th>
+            <th class="th-banco">FECHA</th>
+            <th class="th-sep"></th>
+            <th class="th-res">MZ</th>
+            <th class="th-res">LOTE</th>
+            <th class="th-res">CONCEPTO</th>
+            <th class="th-res">MOTIVO</th>
+            <th class="th-sep"></th>
+            <th class="th-cuando">CICLO</th>
+            <th class="th-cuando">FECHA_CORRECCION</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="num">1</td>
+            <td class="td-quien">U0303</td>
+            <td class="td-nombre">PEDRO PALMADERA</td>
+            <td class="td-sep"></td>
+            <td><span class="tipo-te">TE PAGÓ</span></td>
+            <td class="td-banco">Pedro Pal*</td>
+            <td class="td-banco">Janet Vil*</td>
+            <td class="td-monto">S/35.00</td>
+            <td class="td-msg">—</td>
+            <td class="td-banco">09/05/2026 10:31</td>
+            <td class="td-sep"></td>
+            <td class="td-res">H</td>
+            <td class="td-res">7</td>
+            <td class="td-res-e">—</td>
+            <td class="td-res-t">vecino informó</td>
+            <td class="td-sep"></td>
+            <td class="td-cuando">2</td>
+            <td class="td-cuando">09/05/2026 12:00</td>
+          </tr>
+          <tr>
+            <td class="num">2</td>
+            <td class="td-quien">—</td>
+            <td class="td-nombre">DESCONOCIDO</td>
+            <td class="td-sep"></td>
+            <td><span class="tipo-te">TE PAGÓ</span></td>
+            <td class="td-banco">Numero Des*</td>
+            <td class="td-banco">Janet Vil*</td>
+            <td class="td-monto">S/40.00</td>
+            <td class="td-msg">pago agua</td>
+            <td class="td-banco">09/05/2026 11:20</td>
+            <td class="td-sep"></td>
+            <td class="td-blank">BLANCO</td>
+            <td class="td-res-e">—</td>
+            <td class="td-res-e">—</td>
+            <td class="td-res-t">sin información</td>
+            <td class="td-sep"></td>
+            <td class="td-cuando">2</td>
+            <td class="td-cuando">09/05/2026 12:00</td>
+          </tr>
+          <tr>
+            <td class="num">3</td>
+            <td class="td-quien">U0199</td>
+            <td class="td-nombre">ANA PAZ TORRES</td>
+            <td class="td-sep"></td>
+            <td><span class="tipo-pa">PAGASTE</span></td>
+            <td class="td-banco">Janet Vil*</td>
+            <td class="td-banco">Ana Paz*</td>
+            <td class="td-monto">S/15.00</td>
+            <td class="td-msg">—</td>
+            <td class="td-banco">08/05/2026 15:30</td>
+            <td class="td-sep"></td>
+            <td class="td-res">B</td>
+            <td class="td-res">5</td>
+            <td class="td-res-e">—</td>
+            <td class="td-res-t">llamada confirmó</td>
+            <td class="td-sep"></td>
+            <td class="td-cuando">3</td>
+            <td class="td-cuando">09/05/2026 15:30</td>
+          </tr>
+          <tr>
+            <td class="num">4</td>
+            <td class="td-quien">—</td>
+            <td class="td-nombre">CARLOS MEDINA</td>
+            <td class="td-sep"></td>
+            <td><span class="tipo-pa">PAGASTE</span></td>
+            <td class="td-banco">Janet Vil*</td>
+            <td class="td-banco">Carlos Me*</td>
+            <td class="td-monto">S/80.00</td>
+            <td class="td-msg">—</td>
+            <td class="td-banco">08/05/2026 16:10</td>
+            <td class="td-sep"></td>
+            <td class="td-res-e">—</td>
+            <td class="td-res-e">—</td>
+            <td class="td-res-t">alquiler local</td>
+            <td class="td-res-t">reunión confirmó</td>
+            <td class="td-sep"></td>
+            <td class="td-cuando">2</td>
+            <td class="td-cuando">09/05/2026 12:00</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="legend">
+      <div class="leg"><div class="ld" style="background:#FAF5FF;border:0.5px solid #C4B5FD"></div>¿Quién es?</div>
+      <div class="leg"><div class="ld" style="background:#F0F8FF;border:0.5px solid #AED6F1"></div>banco</div>
+      <div class="leg"><div class="ld" style="background:#F0FFF8;border:0.5px solid #9FE1CB"></div>resolución</div>
+      <div class="leg"><div class="ld" style="background:#FEF3E8;border:0.5px solid #FDBA74"></div>cuándo</div>
+      <div class="leg"><div class="ld" style="background:#FAEEDA;border:0.5px solid #EF9F27"></div>BLANCO</div>
+    </div>
+  </div>
+
+  <!-- HOJA 2: AMBIGUOS -->
+  <div id="amb" class="sheet">
+    <div class="instruc">
+      Una fila por candidato · ELEGIDO = SI marca el que quedó · MZ_FINAL y LOTE_FINAL se repiten en todas las filas del mismo origen · resuelto automáticamente.
+    </div>
+    <div class="tab-excel te-amber">Ambiguos</div>
+    <div class="tw">
+      <table style="min-width:1200px">
+        <thead>
+          <tr>
+            <th class="num"></th>
+            <th class="th-quien gh" colspan="2">¿Quién es?</th>
+            <th class="th-sep"></th>
+            <th class="th-banco gh" colspan="4">¿Qué hizo el banco?</th>
+            <th class="th-sep"></th>
+            <th class="th-cand gh" colspan="5">Candidatos evaluados</th>
+            <th class="th-sep"></th>
+            <th class="th-fin gh" colspan="3">Resultado final</th>
+            <th class="th-sep"></th>
+            <th class="th-cuando gh" colspan="2">¿Cuándo?</th>
+          </tr>
+          <tr>
+            <th class="num"></th>
+            <th class="th-quien">USER_ID</th>
+            <th class="th-quien">NOMBRE</th>
+            <th class="th-sep"></th>
+            <th class="th-banco">ORIGEN</th>
+            <th class="th-banco">MONTO</th>
+            <th class="th-banco">MENSAJE</th>
+            <th class="th-banco">FECHA</th>
+            <th class="th-sep"></th>
+            <th class="th-cand">MZ_CAND</th>
+            <th class="th-cand">LOTE_CAND</th>
+            <th class="th-cand">NOMBRE_CAND</th>
+            <th class="th-cand">DEUDA_CAND</th>
+            <th class="th-cand">DIFF_CAND</th>
+            <th class="th-sep"></th>
+            <th class="th-fin">ELEGIDO</th>
+            <th class="th-fin">MZ_FINAL</th>
+            <th class="th-fin">LOTE_FINAL</th>
+            <th class="th-sep"></th>
+            <th class="th-cuando">CICLO</th>
+            <th class="th-cuando">FECHA_CORRECCION</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="cand-elegido">
+            <td class="num">1</td>
+            <td class="td-quien">U0199</td>
+            <td class="td-nombre">ROSA VICTORIA MILLA</td>
+            <td class="td-sep"></td>
+            <td class="td-banco">Rosa Vic*</td>
+            <td class="td-monto">S/35.00</td>
+            <td class="td-msg">—</td>
+            <td class="td-banco">09/05/2026 10:45</td>
+            <td class="td-sep"></td>
+            <td class="td-res">B</td>
+            <td class="td-res">6</td>
+            <td class="td-cand-t">Rosa Victoria Milla</td>
+            <td class="td-monto">S/35.00</td>
+            <td><span class="diff-ok">0.00</span></td>
+            <td class="td-sep"></td>
+            <td style="text-align:center"><span class="si-badge">SI</span></td>
+            <td class="td-res">B</td>
+            <td class="td-res">6</td>
+            <td class="td-sep"></td>
+            <td class="td-cuando">1</td>
+            <td class="td-cuando">09/05/2026 10:45</td>
+          </tr>
+          <tr>
+            <td class="num">2</td>
+            <td class="td-quien">U0199</td>
+            <td class="td-nombre">ROSA VICTORIA MILLA</td>
+            <td class="td-sep"></td>
+            <td class="td-banco">Rosa Vic*</td>
+            <td class="td-monto">S/35.00</td>
+            <td class="td-msg">—</td>
+            <td class="td-banco">09/05/2026 10:45</td>
+            <td class="td-sep"></td>
+            <td class="td-cand">M</td>
+            <td class="td-cand">8</td>
+            <td class="td-cand-t">Rosa Lopez Cerna</td>
+            <td class="td-monto">S/40.00</td>
+            <td><span class="diff-neg">-5.00</span></td>
+            <td class="td-sep"></td>
+            <td style="text-align:center"><span class="no-badge">NO</span></td>
+            <td class="td-res">B</td>
+            <td class="td-res">6</td>
+            <td class="td-sep"></td>
+            <td class="td-cuando">1</td>
+            <td class="td-cuando">09/05/2026 10:45</td>
+          </tr>
+          <tr class="cand-elegido">
+            <td class="num">3</td>
+            <td class="td-quien">U0046</td>
+            <td class="td-nombre">ALEJANDRO GASPAR</td>
+            <td class="td-sep"></td>
+            <td class="td-banco">Alejand*</td>
+            <td class="td-monto">S/40.00</td>
+            <td class="td-msg">—</td>
+            <td class="td-banco">09/05/2026 11:10</td>
+            <td class="td-sep"></td>
+            <td class="td-res">H</td>
+            <td class="td-res">8</td>
+            <td class="td-cand-t">Alejandro Gaspar</td>
+            <td class="td-monto">S/38.00</td>
+            <td><span class="diff-pos">+2.00</span></td>
+            <td class="td-sep"></td>
+            <td style="text-align:center"><span class="si-badge">SI</span></td>
+            <td class="td-res">H</td>
+            <td class="td-res">8</td>
+            <td class="td-sep"></td>
+            <td class="td-cuando">1</td>
+            <td class="td-cuando">09/05/2026 11:10</td>
+          </tr>
+          <tr>
+            <td class="num">4</td>
+            <td class="td-quien">U0046</td>
+            <td class="td-nombre">ALEJANDRO GASPAR</td>
+            <td class="td-sep"></td>
+            <td class="td-banco">Alejand*</td>
+            <td class="td-monto">S/40.00</td>
+            <td class="td-msg">—</td>
+            <td class="td-banco">09/05/2026 11:10</td>
+            <td class="td-sep"></td>
+            <td class="td-cand">A1</td>
+            <td class="td-cand">7</td>
+            <td class="td-cand-t">Alan Garcia</td>
+            <td class="td-monto">S/35.00</td>
+            <td><span class="diff-pos">+5.00</span></td>
+            <td class="td-sep"></td>
+            <td style="text-align:center"><span class="no-badge">NO</span></td>
+            <td class="td-res">H</td>
+            <td class="td-res">8</td>
+            <td class="td-sep"></td>
+            <td class="td-cuando">1</td>
+            <td class="td-cuando">09/05/2026 11:10</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="legend">
+      <div class="leg"><div class="ld" style="background:#FAF5FF;border:0.5px solid #C4B5FD"></div>¿Quién es?</div>
+      <div class="leg"><div class="ld" style="background:#F0F8FF;border:0.5px solid #AED6F1"></div>banco</div>
+      <div class="leg"><div class="ld" style="background:#FFFBF0;border:0.5px solid #EF9F27"></div>candidatos</div>
+      <div class="leg"><div class="ld" style="background:#F0FFF8;border:0.5px solid #9FE1CB"></div>resultado final</div>
+      <div class="leg"><div class="ld" style="background:rgba(110,231,183,.06);border:0.5px solid #9FE1CB"></div>elegido</div>
+    </div>
+  </div>
+
+  <!-- HOJA 3: PAGOS_MULTIPLES -->
+  <div id="mult" class="sheet">
+    <div class="instruc">
+      Una fila por lote · ORIGEN y MONTO_TOTAL se repiten · resuelto automáticamente desde el mensaje · nunca va a pendientes.
+    </div>
+    <div class="tab-excel te-blue">Pagos_multiples</div>
+    <div class="tw">
+      <table style="min-width:1000px">
+        <thead>
+          <tr>
+            <th class="num"></th>
+            <th class="th-quien gh" colspan="2">¿Quién es?</th>
+            <th class="th-sep"></th>
+            <th class="th-banco gh" colspan="4">¿Qué hizo el banco?</th>
+            <th class="th-sep"></th>
+            <th class="th-res gh" colspan="5">Asignación por lote</th>
+            <th class="th-sep"></th>
+            <th class="th-cuando gh" colspan="2">¿Cuándo?</th>
+          </tr>
+          <tr>
+            <th class="num"></th>
+            <th class="th-quien">USER_ID</th>
+            <th class="th-quien">NOMBRE</th>
+            <th class="th-sep"></th>
+            <th class="th-banco">ORIGEN</th>
+            <th class="th-banco">MONTO_TOTAL</th>
+            <th class="th-banco">MENSAJE</th>
+            <th class="th-banco">FECHA</th>
+            <th class="th-sep"></th>
+            <th class="th-res">MZ</th>
+            <th class="th-res">LOTE</th>
+            <th class="th-res">DEUDA</th>
+            <th class="th-res">MONTO_ASIGNADO</th>
+            <th class="th-res">DIFF</th>
+            <th class="th-sep"></th>
+            <th class="th-cuando">CICLO</th>
+            <th class="th-cuando">FECHA_CORRECCION</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="num">1</td>
+            <td class="td-quien">U0087</td>
+            <td class="td-nombre">GREGORIO TRUJILLO</td>
+            <td class="td-sep"></td>
+            <td class="td-banco">Victor Tru*</td>
+            <td class="td-monto">S/75.00</td>
+            <td class="td-msg">MzE Lt7, MzP Lt11A</td>
+            <td class="td-banco">04/05/2026 10:52</td>
+            <td class="td-sep"></td>
+            <td class="td-res">E</td>
+            <td class="td-res">7</td>
+            <td class="td-monto">S/35.00</td>
+            <td class="td-monto">S/35.00</td>
+            <td><span class="diff-ok">0.00</span></td>
+            <td class="td-sep"></td>
+            <td class="td-cuando">1</td>
+            <td class="td-cuando">04/05/2026 10:52</td>
+          </tr>
+          <tr>
+            <td class="num">2</td>
+            <td class="td-quien">U0311</td>
+            <td class="td-nombre">JULIA ROSALES</td>
+            <td class="td-sep"></td>
+            <td class="td-banco">Victor Tru*</td>
+            <td class="td-monto">S/75.00</td>
+            <td class="td-msg">MzE Lt7, MzP Lt11A</td>
+            <td class="td-banco">04/05/2026 10:52</td>
+            <td class="td-sep"></td>
+            <td class="td-res">P</td>
+            <td class="td-res">11A</td>
+            <td class="td-monto">S/40.00</td>
+            <td class="td-monto">S/40.00</td>
+            <td><span class="diff-ok">0.00</span></td>
+            <td class="td-sep"></td>
+            <td class="td-cuando">1</td>
+            <td class="td-cuando">04/05/2026 10:52</td>
+          </tr>
+          <tr>
+            <td class="num">3</td>
+            <td class="td-quien">U0156</td>
+            <td class="td-nombre">YULY TRUJILLO CRUZ</td>
+            <td class="td-sep"></td>
+            <td class="td-banco">Felix Poz*</td>
+            <td class="td-monto">S/83.00</td>
+            <td class="td-msg">Mz K 3 y 4</td>
+            <td class="td-banco">04/05/2026 13:20</td>
+            <td class="td-sep"></td>
+            <td class="td-res">K</td>
+            <td class="td-res">3</td>
+            <td class="td-monto">S/40.00</td>
+            <td class="td-monto">S/40.00</td>
+            <td><span class="diff-ok">0.00</span></td>
+            <td class="td-sep"></td>
+            <td class="td-cuando">1</td>
+            <td class="td-cuando">04/05/2026 13:20</td>
+          </tr>
+          <tr>
+            <td class="num">4</td>
+            <td class="td-quien">U0203</td>
+            <td class="td-nombre">EMILIA CRUZ</td>
+            <td class="td-sep"></td>
+            <td class="td-banco">Felix Poz*</td>
+            <td class="td-monto">S/83.00</td>
+            <td class="td-msg">Mz K 3 y 4</td>
+            <td class="td-banco">04/05/2026 13:20</td>
+            <td class="td-sep"></td>
+            <td class="td-res">K</td>
+            <td class="td-res">4</td>
+            <td class="td-monto">S/40.00</td>
+            <td class="td-monto">S/43.00</td>
+            <td><span class="diff-pos">+3.00</span></td>
+            <td class="td-sep"></td>
+            <td class="td-cuando">1</td>
+            <td class="td-cuando">04/05/2026 13:20</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="legend">
+      <div class="leg"><div class="ld" style="background:#FAF5FF;border:0.5px solid #C4B5FD"></div>¿Quién es?</div>
+      <div class="leg"><div class="ld" style="background:#F0F8FF;border:0.5px solid #AED6F1"></div>banco</div>
+      <div class="leg"><div class="ld" style="background:#F0FFF8;border:0.5px solid #9FE1CB"></div>asignación por lote</div>
+      <div class="leg"><div class="ld" style="background:#FEF3E8;border:0.5px solid #FDBA74"></div>cuándo</div>
+    </div>
+  </div>
+</div>
+
+<script>
+function show(id,idx){
+  document.querySelectorAll('.sheet').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('.tab')[idx].classList.add('active');
+}
+</script>

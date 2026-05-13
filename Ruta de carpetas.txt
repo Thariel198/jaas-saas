@@ -1,0 +1,37 @@
+jass_system/
+├── .idea/
+├── .gitignore
+├── arquitectura_jass_sistema.html
+│
+├── 01_lecturas/
+├── 02_planilla/
+├── 03_pagos/
+│   └── yape/
+│       └── motor_matching/
+│           ├── Inputs/
+│           ├── Correcciones/
+│           ├── Outputs/
+│           ├── Overrides/        ← se elimina de aquí
+│           ├── Trazabilidad/
+│           ├── Blancos/
+│           ├── main.py
+│           └── README.md
+│
+├── 04_cobranza/
+├── 04b_validacion/               ← nuevo
+├── 05_corte/
+├── 05b_override/                 ← nuevo
+│   ├── overrides.xlsx
+│   ├── backup/
+│   ├── apply_overrides.py
+│   └── README.md
+│
+├── 06_boletas/
+├── 07_nueva_planilla/
+│
+└── shared/
+    ├── usuarios_id.xlsx
+    ├── maestro_yape.xlsx
+    ├── blancos_acumulados.xlsx   ← se mueve aquí
+    ├── tarifas.xlsx
+    └── config.py

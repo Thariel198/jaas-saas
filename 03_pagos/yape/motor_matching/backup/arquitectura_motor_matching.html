@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>motor_matching — arquitectura</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+
+  :root {
+    --bg:      #0F1117;
+    --bg2:     #161B27;
+    --bg3:     #1E2535;
+    --border:  #2A3347;
+    --text:    #E2E8F0;
+    --text2:   #94A3B8;
+    --text3:   #475569;
+    --blue2:   #93C5FD;
+    --amber2:  #FCD34D;
+    --green2:  #6EE7B7;
+    --red2:    #FDA4AF;
+    --purple2: #A78BFA;
+    --cyan2:   #67E8F9;
+    --teal2:   #5EEAD4;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 13px;
+    line-height: 1.6;
+    padding: 28px 24px 56px;
+    max-width: 860px;
+    margin: 0 auto;
+  }
+
+  .header { margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+  .path  { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--text3); margin-bottom: 6px; }
+  .title { font-size: 20px; font-weight: 600; color: var(--text); margin-bottom: 3px; }
+  .sub   { font-size: 12px; color: var(--text2); }
+
+  .sec { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .1em; color: var(--text3); margin: 22px 0 8px; display: flex; align-items: center; gap: 8px; }
+  .sec::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  /* PIPELINE */
+  .pipeline { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; padding: 10px 14px; background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; }
+  .pp { font-family: 'IBM Plex Mono', monospace; font-size: 11px; padding: 3px 10px; border-radius: 4px; white-space: nowrap; }
+  .pp-here { background: rgba(147,197,253,.15); color: var(--blue2); border: 1px solid rgba(147,197,253,.3); font-weight: 600; }
+  .pp-next { background: var(--bg3); color: var(--text2); border: 1px solid var(--border); }
+  .pp-arr  { color: var(--text3); font-size: 12px; }
+
+  /* CARPETAS */
+  .folders { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  @media(max-width:600px){ .folders { grid-template-columns: 1fr; } }
+  .folder { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+  .folder-name { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; margin-bottom: 6px; }
+  .ftag { font-size: 9px; font-weight: 600; padding: 1px 5px; border-radius: 3px; margin-left: 5px; vertical-align: middle; }
+  .t-temp   { background: rgba(253,164,175,.12); color: var(--red2); }
+  .t-perm   { background: rgba(167,139,250,.12); color: var(--purple2); }
+  .t-mes    { background: rgba(147,197,253,.12); color: var(--blue2); }
+  .fi { font-size: 11px; color: var(--text2); line-height: 1.9; }
+  .fi::before { content: '→ '; color: var(--text3); font-family: 'IBM Plex Mono', monospace; }
+
+  /* PRIORIDADES */
+  .prios { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .prio  { display: flex; gap: 10px; padding: 8px 14px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--text2); align-items: flex-start; }
+  .prio:last-child { border-bottom: none; }
+  .pn  { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; width: 18px; flex-shrink: 0; padding-top: 1px; color: var(--blue2); }
+  .pn-p { color: var(--red2); }
+  .prio strong { color: var(--text); }
+  .atag { font-size: 9px; background: rgba(110,231,183,.12); color: var(--green2); border-radius: 3px; padding: 1px 5px; margin-left: 4px; font-weight: 600; }
+  .mtag { font-size: 9px; background: rgba(253,164,175,.12); color: var(--red2);   border-radius: 3px; padding: 1px 5px; margin-left: 4px; font-weight: 600; }
+
+  /* CALCULO */
+  .calcs { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 6px; }
+  @media(max-width:500px){ .calcs { grid-template-columns: 1fr 1fr; } }
+  .calc { background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; text-align: center; }
+  .calc-name { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; margin-bottom: 3px; }
+  .calc-cond { font-size: 10px; color: var(--text2); }
+  .cg { border-top: 2px solid #6EE7B7; } .cg .calc-name { color: var(--green2); }
+  .ca { border-top: 2px solid #FCD34D; } .ca .calc-name { color: var(--amber2); }
+  .cr { border-top: 2px solid #FDA4AF; } .cr .calc-name { color: var(--red2); }
+  .cx { border-top: 2px solid #475569; } .cx .calc-name { color: var(--text3); }
+
+  /* CICLOS */
+  .ciclos { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  @media(max-width:500px){ .ciclos { grid-template-columns: 1fr; } }
+  .ciclo { border-radius: 8px; padding: 10px 12px; font-size: 12px; color: var(--text2); line-height: 1.7; }
+  .ciclo-title { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; margin-bottom: 4px; }
+  .ci1 { background: rgba(253,164,175,.06); border: 1px solid rgba(253,164,175,.2); }
+  .ci1 .ciclo-title { color: var(--red2); }
+  .ci2 { background: rgba(110,231,183,.06); border: 1px solid rgba(110,231,183,.2); }
+  .ci2 .ciclo-title { color: var(--green2); }
+
+  /* FLUJO */
+  .flujo { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; padding: 10px 14px; background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; }
+  .fs { font-family: 'IBM Plex Mono', monospace; font-size: 10px; padding: 3px 8px; border-radius: 4px; white-space: nowrap; border: 1px solid; }
+  .fs-in  { background: rgba(147,197,253,.08); color: var(--blue2);   border-color: rgba(147,197,253,.2); }
+  .fs-run { background: rgba(167,139,250,.08); color: var(--purple2); border-color: rgba(167,139,250,.2); }
+  .fs-man { background: rgba(253,164,175,.08); color: var(--red2);    border-color: rgba(253,164,175,.2); }
+  .fs-ok  { background: rgba(110,231,183,.08); color: var(--green2);  border-color: rgba(110,231,183,.2); }
+  .fs-out { background: rgba(103,232,249,.08); color: var(--cyan2);   border-color: rgba(103,232,249,.2); }
+  .arr { color: var(--text3); font-size: 11px; }
+
+  /* LIFECYCLE */
+  .lc { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .lc th { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; padding: 6px 10px; border-bottom: 1px solid var(--border); text-align: left; color: var(--text3); }
+  .lc td { padding: 6px 10px; border-bottom: 1px solid var(--border); color: var(--text2); font-size: 11px; }
+  .lc tr:last-child td { border-bottom: none; }
+  .lc-mono { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--text); }
+  .keep { color: var(--green2); font-weight: 600; }
+  .del  { color: var(--red2);   font-weight: 600; }
+  .rep  { color: var(--amber2); font-weight: 600; }
+
+  /* TRAZABILIDAD */
+  .traz { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  @media(max-width:500px){ .traz { grid-template-columns: 1fr; } }
+  .th { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 11px; color: var(--text2); line-height: 1.7; }
+  .th-title { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; margin-bottom: 4px; }
+  .th1 { border-top: 2px solid var(--red2);   } .th1 .th-title { color: var(--red2); }
+  .th2 { border-top: 2px solid var(--amber2); } .th2 .th-title { color: var(--amber2); }
+  .th3 { border-top: 2px solid var(--blue2);  } .th3 .th-title { color: var(--blue2); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="path">jass_system / 03_pagos / yape / motor_matching</div>
+  <div class="title">motor_matching</div>
+  <div class="sub">Identifica MZ-LOTE de cada pago Yape · ciclos hasta pendientes = 0 · solo Sin_identificar es manual · ver README.md para detalle</div>
+</div>
+
+<div class="sec">posición en el pipeline</div>
+<div class="pipeline">
+  <span class="pp pp-next">01_lecturas</span><span class="pp-arr">→</span>
+  <span class="pp pp-next">02_planilla</span><span class="pp-arr">→</span>
+  <span class="pp pp-here">motor_matching ←</span><span class="pp-arr">→</span>
+  <span class="pp pp-next">04_cobranza</span><span class="pp-arr">→</span>
+  <span class="pp pp-next">04b_validacion</span><span class="pp-arr">→</span>
+  <span class="pp pp-next">05_corte</span><span class="pp-arr">→</span>
+  <span class="pp pp-next">05b_override</span><span class="pp-arr">→</span>
+  <span class="pp pp-next">06_boletas</span>
+</div>
+
+<div class="sec">estructura de carpetas</div>
+<div class="folders">
+  <div class="folder">
+    <div class="folder-name" style="color:var(--blue2)">Inputs/ <span class="ftag t-mes">cada mes</span></div>
+    <div class="fi">Maestro/ → maestro_yape.xlsx</div>
+    <div class="fi">Planilla_anterior/ → ancla de corte</div>
+    <div class="fi">Planilla_mes/ → deuda por MZ-LOTE</div>
+    <div class="fi">Reporte_mes/ → banco</div>
+  </div>
+  <div class="folder">
+    <div class="folder-name" style="color:var(--amber2)">Correcciones/ <span class="ftag t-temp">temporal</span></div>
+    <div class="fi">pendientes.xlsx → 1 hoja: Sin_identificar</div>
+    <div class="fi">se borra en Ciclo 1</div>
+  </div>
+  <div class="folder">
+    <div class="folder-name" style="color:var(--green2)">Outputs/ <span class="ftag t-temp">temporal</span></div>
+    <div class="fi">pagos_yape.xlsx → 04_cobranza</div>
+    <div class="fi">resumen_validacion.txt</div>
+    <div class="fi">se borra en Ciclo 1</div>
+  </div>
+  <div class="folder">
+    <div class="folder-name" style="color:var(--purple2)">Trazabilidad/ <span class="ftag t-perm">permanente</span></div>
+    <div class="fi">trazabilidad_YYYY_MM.xlsx</div>
+    <div class="fi">un archivo por mes · nunca se borra</div>
+  </div>
+  <div class="folder">
+    <div class="folder-name" style="color:var(--cyan2)">Blancos/ <span class="ftag t-perm">permanente</span></div>
+    <div class="fi">blancos_acumulados.xlsx</div>
+    <div class="fi">crece mes a mes · → 04_cobranza</div>
+  </div>
+  <div class="folder">
+    <div class="folder-name" style="color:var(--teal2)">Scripts</div>
+    <div class="fi">main.py → ciclo de matching</div>
+    <div class="fi">README.md → fuente de verdad</div>
+  </div>
+</div>
+
+<div class="sec">prioridad de identificación</div>
+<div class="prios">
+  <div class="prio"><span class="pn">1.</span><span><strong>Corrección acumulada</strong><span class="atag">auto</span> — ciclo 2+ · prioridad máxima</span></div>
+  <div class="prio"><span class="pn">2.</span><span><strong>Múltiples en mensaje</strong><span class="atag">auto</span> — "MzE Lt7, MzP Lt11A" · va a trazabilidad</span></div>
+  <div class="prio"><span class="pn">3.</span><span><strong>Mensaje simple</strong><span class="atag">auto</span> — regex extrae 1 MZ-LOTE</span></div>
+  <div class="prio"><span class="pn">4.</span><span><strong>Maestro ambiguo</strong><span class="atag">auto</span> — elige menor diff · va a trazabilidad</span></div>
+  <div class="prio"><span class="pn">5.</span><span><strong>Maestro único</strong><span class="atag">auto</span> — 1 solo lote en maestro</span></div>
+  <div class="prio"><span class="pn pn-p">P.</span><span><strong>Sin identificar</strong><span class="mtag">manual</span> — va a pendientes.xlsx</span></div>
+</div>
+
+<div class="sec">después de identificar — diferencia calculada</div>
+<div class="calcs">
+  <div class="calc cg"><div class="calc-name">exacto</div><div class="calc-cond">monto = deuda</div></div>
+  <div class="calc ca"><div class="calc-name">exceso</div><div class="calc-cond">monto > deuda</div></div>
+  <div class="calc cr"><div class="calc-name">parcial</div><div class="calc-cond">monto < deuda</div></div>
+  <div class="calc cx"><div class="calc-name">pendiente</div><div class="calc-cond">MZ-LOTE no existe</div></div>
+</div>
+
+<div class="sec">ciclos</div>
+<div class="ciclos">
+  <div class="ciclo ci1">
+    <div class="ciclo-title">Ciclo 1 — mes nuevo</div>
+    pagos_yape.xlsx NO existe · limpia Correcciones/ y Outputs/ · Trazabilidad/ y Blancos/ intactos
+  </div>
+  <div class="ciclo ci2">
+    <div class="ciclo-title">Ciclo 2+ — correcciones</div>
+    pagos_yape.xlsx SÍ existe · lee correcciones · actualiza trazabilidad · regenera pendientes
+  </div>
+</div>
+
+<div class="sec">flujo mensual</div>
+<div class="flujo">
+  <span class="fs fs-in">1. copiar inputs</span><span class="arr">→</span>
+  <span class="fs fs-run">2. python main.py</span><span class="arr">→</span>
+  <span class="fs fs-man">3. completar Sin_identificar</span><span class="arr">→</span>
+  <span class="fs fs-run">4. python main.py</span><span class="arr">→</span>
+  <span class="fs fs-man">5. repetir hasta pendientes = 0</span><span class="arr">→</span>
+  <span class="fs fs-ok">6. pagos_yape.xlsx listo ✓</span><span class="arr">→</span>
+  <span class="fs fs-out">7. → 04_cobranza</span>
+</div>
+
+<div class="sec">lifecycle</div>
+<table class="lc">
+  <thead><tr><th>Archivo</th><th>¿Qué pasa?</th><th>Motivo</th></tr></thead>
+  <tbody>
+    <tr><td class="lc-mono">Trazabilidad/*.xlsx</td><td><span class="keep">PERMANECE</span></td><td>historial mensual permanente</td></tr>
+    <tr><td class="lc-mono">Blancos/blancos_acumulados.xlsx</td><td><span class="keep">PERMANECE</span></td><td>acumulado de todos los BLANCO</td></tr>
+    <tr><td class="lc-mono">Outputs/pagos_yape.xlsx</td><td><span class="del">SE BORRA</span></td><td>ya consumido por 04_cobranza</td></tr>
+    <tr><td class="lc-mono">Correcciones/pendientes.xlsx</td><td><span class="del">SE BORRA</span></td><td>correcciones ya en trazabilidad</td></tr>
+    <tr><td class="lc-mono">Inputs/ (todas)</td><td><span class="rep">TÚ REEMPLAZAS</span></td><td>archivos del mes nuevo</td></tr>
+  </tbody>
+</table>
+
+<div class="sec">trazabilidad — 3 hojas por mes</div>
+<div class="traz">
+  <div class="th th1">
+    <div class="th-title">Sin_identificar</div>
+    pagos resueltos manualmente · MZ/LOTE o BLANCO · motivo · ciclo · fecha
+  </div>
+  <div class="th th2">
+    <div class="th-title">Ambiguos</div>
+    todos los candidatos · elegido · diff de cada uno · automático
+  </div>
+  <div class="th th3">
+    <div class="th-title">Pagos_multiples</div>
+    una fila por lote · monto asignado · diff · automático
+  </div>
+</div>
+
+</body>
+</html>

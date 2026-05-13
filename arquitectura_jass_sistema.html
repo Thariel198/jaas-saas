@@ -1,24 +1,34 @@
-
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>jass_system — arquitectura</title>
 <style>
-  body { font-family: var(--font-sans); }
-  .wrap { padding: .5rem 0 1rem; }
-  .title { font-size: 20px; font-weight: 600; color: var(--color-text-primary); margin: 0 0 2px; }
-  .sub   { font-size: 12px; color: var(--color-text-secondary); margin: 0 0 16px; }
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body { font-family: 'IBM Plex Sans', sans-serif; background: var(--bg, #fff); }
+
+  .wrap { padding: .5rem 0 2rem; max-width: 680px; margin: 0 auto; }
+  .title { font-size: 20px; font-weight: 600; color: var(--color-text-primary, #111); margin: 0 0 2px; }
+  .sub   { font-size: 12px; color: var(--color-text-secondary, #666); margin: 0 0 16px; }
 
   /* LEGEND */
   .legend { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:18px; }
-  .leg { display:flex; align-items:center; gap:5px; font-size:11px; color:var(--color-text-secondary); }
-  .dot { width:10px; height:10px; border-radius:50%; }
+  .leg { display:flex; align-items:center; gap:5px; font-size:11px; color:var(--color-text-secondary,#666); }
+  .ldot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
 
   /* PIPELINE */
   .pipeline { display:flex; flex-direction:column; gap:0; }
 
   /* MODULE CARD */
-  .mod { border-radius:10px; border:0.5px solid var(--color-border-tertiary); margin-bottom:4px; overflow:hidden; }
+  .mod { border-radius:10px; border:0.5px solid var(--color-border-tertiary,#ddd); margin-bottom:4px; overflow:hidden; }
   .mod-header { display:flex; align-items:center; gap:10px; padding:9px 14px; cursor:pointer; user-select:none; }
   .mod-num  { font-size:11px; font-weight:700; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-  .mod-name { font-size:13px; font-weight:600; flex:1; color:var(--color-text-primary); }
-  .mod-desc { font-size:11px; color:var(--color-text-secondary); }
+  .mod-name { font-size:13px; font-weight:600; flex:1; color:var(--color-text-primary,#111); }
+  .mod-desc { font-size:11px; color:var(--color-text-secondary,#666); }
   .mod-tags { display:flex; gap:4px; }
   .tag { font-size:10px; font-weight:500; padding:1px 6px; border-radius:4px; white-space:nowrap; }
 
@@ -26,45 +36,58 @@
   .mod-body { padding:0 14px 12px; display:none; }
   .mod-body.open { display:block; }
   .io-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:8px; }
-  .io-box { background:var(--color-background-secondary); border-radius:8px; padding:8px 10px; }
-  .io-label { font-size:10px; font-weight:600; color:var(--color-text-secondary); text-transform:uppercase; letter-spacing:.05em; margin-bottom:4px; }
-  .io-item  { font-size:11px; color:var(--color-text-primary); line-height:1.8; }
-  .io-item::before { content:'→ '; color:var(--color-text-tertiary); }
-  .flow-note { font-size:11px; color:var(--color-text-secondary); margin-top:8px; padding:6px 10px; background:var(--color-background-secondary); border-radius:6px; border-left:3px solid #BA7517; }
+  .io-box { background:var(--color-background-secondary,#f5f5f5); border-radius:8px; padding:8px 10px; }
+  .io-label { font-size:10px; font-weight:600; color:var(--color-text-secondary,#666); text-transform:uppercase; letter-spacing:.05em; margin-bottom:4px; }
+  .io-item  { font-size:11px; color:var(--color-text-primary,#111); line-height:1.8; }
+  .io-item::before { content:'→ '; color:var(--color-text-tertiary,#aaa); }
+  .flow-note { font-size:11px; color:var(--color-text-secondary,#666); margin-top:8px; padding:6px 10px; background:var(--color-background-secondary,#f5f5f5); border-radius:6px; border-left:3px solid #BA7517; }
 
   /* ARROW */
-  .arrow { text-align:center; font-size:16px; color:var(--color-text-tertiary); margin:2px 0; line-height:1; }
+  .arrow { text-align:center; font-size:16px; color:var(--color-text-tertiary,#aaa); margin:2px 0; line-height:1; }
 
   /* STATUS COLORS */
   .hecho   { background:#D5F5E3; color:#1E8449; }
   .next    { background:#D6EAF8; color:#1A5276; }
   .futuro  { background:#FDEBD0; color:#784212; }
   .ia      { background:#E8DAEF; color:#512E5F; }
+  .nuevo   { background:#FDEDEC; color:#922B21; }
 
-  .m1 { background:#EBF5FB; border-color:#AED6F1; } .m1 .mod-num { background:#2E86C1; color:#fff; }
-  .m2 { background:#E9F7EF; border-color:#A9DFBF; } .m2 .mod-num { background:#1E8449; color:#fff; }
-  .m3y{ background:#FEF9E7; border-color:#F9E79F; } .m3y .mod-num { background:#B7950B; color:#fff; }
-  .m3e{ background:#FDFEFE; border-color:#D5D8DC; } .m3e .mod-num { background:#717D7E; color:#fff; }
-  .m4 { background:#F4ECF7; border-color:#D7BDE2; } .m4 .mod-num { background:#6C3483; color:#fff; }
-  .m5 { background:#FDEDEC; border-color:#F1948A; } .m5 .mod-num { background:#CB4335; color:#fff; }
-  .m6 { background:#FEF5E7; border-color:#FAD7A0; } .m6 .mod-num { background:#CA6F1E; color:#fff; }
-  .m7 { background:#EBF5FB; border-color:#85C1E9; } .m7 .mod-num { background:#1A5276; color:#fff; }
+  /* MODULE COLORS */
+  .m1  { background:#EBF5FB; border-color:#AED6F1; } .m1  .mod-num { background:#2E86C1; color:#fff; }
+  .m2  { background:#E9F7EF; border-color:#A9DFBF; } .m2  .mod-num { background:#1E8449; color:#fff; }
+  .m3y { background:#FEF9E7; border-color:#F9E79F; } .m3y .mod-num { background:#B7950B; color:#fff; }
+  .m3e { background:#FDFEFE; border-color:#D5D8DC; } .m3e .mod-num { background:#717D7E; color:#fff; }
+  .m4  { background:#F4ECF7; border-color:#D7BDE2; } .m4  .mod-num { background:#6C3483; color:#fff; }
+  .mval{ background:#FEF2F2; border-color:#FECACA; } .mval .mod-num { background:#DC2626; color:#fff; }
+  .m5  { background:#FDEDEC; border-color:#F1948A; } .m5  .mod-num { background:#CB4335; color:#fff; }
+  .mov { background:#FFF7ED; border-color:#FED7AA; } .mov  .mod-num { background:#C2410C; color:#fff; }
+  .m6  { background:#FEF5E7; border-color:#FAD7A0; } .m6  .mod-num { background:#CA6F1E; color:#fff; }
+  .m7  { background:#EBF5FB; border-color:#85C1E9; } .m7  .mod-num { background:#1A5276; color:#fff; }
 
+  /* SHARED */
   .shared { border:0.5px dashed #BA7517; border-radius:10px; padding:10px 14px; margin-top:12px; }
   .shared-title { font-size:12px; font-weight:600; color:#784212; margin-bottom:6px; }
   .shared-items { display:flex; gap:8px; flex-wrap:wrap; }
   .shared-item  { font-size:11px; background:#FDEBD0; color:#784212; padding:3px 8px; border-radius:4px; }
-</style>
 
+  /* NUEVO badge highlight */
+  .mod-new-label {
+    font-size:9px; font-weight:700; background:#DC2626; color:#fff;
+    padding:1px 5px; border-radius:3px; letter-spacing:.05em; text-transform:uppercase;
+  }
+</style>
+</head>
+<body>
 <div class="wrap">
   <p class="title">jass_system</p>
   <p class="sub">Sistema de gestión de agua potable — arquitectura modular completa · clic en cada módulo para ver detalle</p>
 
   <div class="legend">
-    <div class="leg"><div class="dot" style="background:#1E8449"></div>hecho</div>
-    <div class="leg"><div class="dot" style="background:#1A5276"></div>siguiente</div>
-    <div class="leg"><div class="dot" style="background:#CA6F1E"></div>futuro</div>
-    <div class="leg"><div class="dot" style="background:#512E5F"></div>usa IA</div>
+    <div class="leg"><div class="ldot" style="background:#1E8449"></div>hecho</div>
+    <div class="leg"><div class="ldot" style="background:#1A5276"></div>siguiente</div>
+    <div class="leg"><div class="ldot" style="background:#CA6F1E"></div>futuro</div>
+    <div class="leg"><div class="ldot" style="background:#512E5F"></div>usa IA</div>
+    <div class="leg"><div class="ldot" style="background:#DC2626"></div>nuevo módulo</div>
   </div>
 
   <div class="pipeline">
@@ -150,14 +173,15 @@
             <div class="io-label">Outputs</div>
             <div class="io-item">pagos_yape.xlsx</div>
             <div class="io-item">origen · mz · lote · monto · estado</div>
-            <div class="io-item">pendientes_yape.xlsx</div>
+            <div class="io-item">blancos_acumulados.xlsx (Blancos/)</div>
+            <div class="io-item">trazabilidad_YYYY_MM.xlsx (Trazabilidad/)</div>
           </div>
         </div>
-        <div class="flow-note">Motor de matching: busca origen en maestro → asigna mz+lote → valida monto → los que no matchean van a pendientes para revisión manual</div>
+        <div class="flow-note">Motor matching: 5 prioridades de identificación → ciclos hasta pendientes=0 → Ambiguos y Pagos_multiples se resuelven solos → Solo Sin_identificar requiere intervención manual → BLANCO va a blancos_acumulados</div>
       </div>
     </div>
 
-    <div class="arrow">↓ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ↓</div>
+    <div class="arrow">↓ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ↓</div>
 
     <!-- 03 PAGOS EFECTIVO -->
     <div class="mod m3e" onclick="toggle(this)">
@@ -204,6 +228,7 @@
             <div class="io-item">pagos_yape.xlsx (de 03)</div>
             <div class="io-item">pagos_efectivo.xlsx (de 03)</div>
             <div class="io-item">planilla_base.xlsx (de 02)</div>
+            <div class="io-item">blancos_acumulados.xlsx → DESCUENTO_YAPE_BLANCO</div>
           </div>
           <div class="io-box">
             <div class="io-label">Outputs</div>
@@ -212,7 +237,38 @@
             <div class="io-item">resumen_recaudacion.xlsx</div>
           </div>
         </div>
-        <div class="flow-note">Descuenta pagos de la deuda · los que quedan con saldo → lista de corte · penalidad: S/ 20</div>
+        <div class="flow-note">Descuenta pagos de la deuda · aplica DESCUENTO_YAPE_BLANCO si hay blancos identificados · los que quedan con saldo → lista de corte · penalidad: S/20</div>
+      </div>
+    </div>
+
+    <div class="arrow">↓</div>
+
+    <!-- 04B VALIDACION — NUEVO -->
+    <div class="mod mval" onclick="toggle(this)">
+      <div class="mod-header">
+        <div class="mod-num">04b</div>
+        <div class="mod-name">validación &nbsp;<span class="mod-new-label">nuevo</span></div>
+        <div class="mod-desc">Verifica que el dinero registrado cuadra con el real</div>
+        <div class="mod-tags">
+          <span class="tag futuro">futuro</span>
+          <span class="tag nuevo">nuevo módulo</span>
+        </div>
+      </div>
+      <div class="mod-body">
+        <div class="io-row">
+          <div class="io-box">
+            <div class="io-label">Inputs</div>
+            <div class="io-item">cobranza_final.xlsx (de 04)</div>
+            <div class="io-item">pagos_yape.xlsx (de 03) — total real Yape</div>
+            <div class="io-item">pagos_efectivo.xlsx (de 03) — total real efectivo</div>
+          </div>
+          <div class="io-box">
+            <div class="io-label">Outputs</div>
+            <div class="io-item">validacion_ok → continúa el pipeline</div>
+            <div class="io-item">validacion_error.xlsx → diferencias encontradas</div>
+          </div>
+        </div>
+        <div class="flow-note">Yape: suma pagos_yape.xlsx vs suma registrada en cobranza_final · Efectivo: suma pagos_efectivo.xlsx vs suma registrada · Si cuadra → pipeline continúa · Si no cuadra → se detiene y muestra diferencias</div>
       </div>
     </div>
 
@@ -241,6 +297,39 @@
           </div>
         </div>
         <div class="flow-note">Día 1-2: pagan S/20 → se salvan · Día 3+: operario corta físicamente → para reconectar deben pagar S/40</div>
+      </div>
+    </div>
+
+    <div class="arrow">↓</div>
+
+    <!-- OVERRIDE — NUEVO -->
+    <div class="mod mov" onclick="toggle(this)">
+      <div class="mod-header">
+        <div class="mod-num">05b</div>
+        <div class="mod-name">override &nbsp;<span class="mod-new-label">nuevo</span></div>
+        <div class="mod-desc">Corrección de pagos mal asignados antes de boletas</div>
+        <div class="mod-tags">
+          <span class="tag futuro">futuro</span>
+          <span class="tag nuevo">nuevo módulo</span>
+        </div>
+      </div>
+      <div class="mod-body">
+        <div class="io-row">
+          <div class="io-box">
+            <div class="io-label">Inputs</div>
+            <div class="io-item">overrides.xlsx → FECHA · MZ_ANTERIOR · MZ_NUEVO · MOTIVO</div>
+            <div class="io-item">pagos_yape.xlsx (de 03) — a corregir</div>
+            <div class="io-item">cobranza_final.xlsx (de 04) — a corregir</div>
+          </div>
+          <div class="io-box">
+            <div class="io-label">Outputs</div>
+            <div class="io-item">pagos_yape.xlsx — sobreescrito</div>
+            <div class="io-item">cobranza_final.xlsx — sobreescrito</div>
+            <div class="io-item">trazabilidad_YYYY_MM.xlsx hoja Overrides</div>
+            <div class="io-item">backup/ → archivos antes del cambio</div>
+          </div>
+        </div>
+        <div class="flow-note">El dinero ya cuadró en validación · Solo hay confusión de usuarios · Se corrige el MZ-LOTE de un pago · Se sobreescriben pagos_yape y cobranza_final · Backup automático antes de cada cambio · Identificar BLANCO histórico también pasa por aquí</div>
       </div>
     </div>
 
@@ -308,6 +397,7 @@
         <span class="shared-item">maestro_yape.xlsx</span>
         <span class="shared-item">config.py</span>
         <span class="shared-item">tarifas.xlsx</span>
+        <span class="shared-item">blancos_acumulados.xlsx</span>
       </div>
     </div>
 
@@ -320,3 +410,5 @@ function toggle(el) {
   body.classList.toggle('open');
 }
 </script>
+</body>
+</html>
