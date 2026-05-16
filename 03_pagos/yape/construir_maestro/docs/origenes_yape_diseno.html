@@ -1,0 +1,147 @@
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+#w{font-family:var(--font-sans);padding:4px 0 16px}
+.instruc{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-left:3px solid #1D4ED8;border-radius:0 var(--border-radius-md) var(--border-radius-md) 0;padding:9px 13px;font-size:12px;color:var(--color-text-secondary);margin-bottom:12px;line-height:1.7}
+.instruc strong{color:var(--color-text-primary)}
+.tab-excel{display:inline-flex;align-items:center;gap:5px;background:#EFF6FF;border:0.5px solid #93C5FD;border-bottom:none;border-radius:6px 6px 0 0;padding:5px 14px;font-size:12px;font-weight:500;color:#1D4ED8;margin-bottom:-1px}
+.tw{border:0.5px solid var(--color-border-tertiary);border-radius:0 var(--border-radius-md) var(--border-radius-md) var(--border-radius-md);overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:11px;min-width:900px}
+th{padding:6px 8px;font-size:10px;font-weight:500;text-align:left;border-bottom:0.5px solid var(--color-border-tertiary);border-right:0.5px solid var(--color-border-tertiary);white-space:nowrap}
+th:last-child{border-right:none}
+td{padding:5px 8px;border-bottom:0.5px solid var(--color-border-tertiary);border-right:0.5px solid var(--color-border-tertiary);vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+td:last-child{border-right:none}
+tr:last-child td{border-bottom:none}
+.num{width:24px;background:var(--color-background-secondary);color:var(--color-text-tertiary);font-size:10px;font-family:var(--font-mono);text-align:center;border-right:0.5px solid var(--color-border-tertiary)}
+.gh{font-size:9px;font-weight:600;text-align:center;padding:3px 0;letter-spacing:.05em;text-transform:uppercase;border-bottom:0.5px solid var(--color-border-tertiary)}
+.caso{font-size:9px;color:var(--color-text-tertiary);font-style:italic;padding:3px 8px;background:var(--color-background-secondary);border-bottom:0.5px solid var(--color-border-tertiary)}
+
+/* separador visual entre grupos */
+.th-sep{width:4px;background:var(--color-background-secondary);padding:0;border-right:2px solid var(--color-border-secondary)}
+.td-sep{width:4px;background:var(--color-background-secondary);padding:0;border-right:2px solid var(--color-border-secondary)}
+
+/* grupos cabecera */
+.th-id  {background:#F4ECF7;color:#5B21B6}
+.th-ubi {background:#E1F5EE;color:#085041}
+.th-ori {background:#FEF3E2;color:#92400E}
+.th-met {background:#EFF6FF;color:#1D4ED8}
+.th-ctl {background:#F9FAFB;color:#374151}
+
+/* celdas identidad */
+.td-uid {background:#FAF5FF;font-family:var(--font-mono);font-size:10px;font-weight:500;color:#5B21B6}
+.td-nom {background:#FAF5FF;font-size:11px;color:var(--color-text-primary)}
+
+/* celdas ubicacion */
+.td-ubi {background:#F0FFF8;font-family:var(--font-mono);font-size:11px;font-weight:500;color:#065F46}
+
+/* celdas origenes */
+.td-ori {background:#FFFBF0;font-family:var(--font-mono);font-size:10px;color:#92400E}
+.td-ori-e{background:#FFFBF0;color:var(--color-text-tertiary);font-style:italic;font-size:10px;text-align:center}
+
+/* celdas metricas */
+.td-met {background:#EFF6FF;font-family:var(--font-mono);font-size:11px;font-weight:500;color:#1D4ED8;text-align:center}
+
+/* celdas control */
+.td-ctl {background:#F9FAFB;font-family:var(--font-mono);font-size:10px;color:var(--color-text-secondary)}
+
+/* leyenda */
+.legend{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center}
+.leg{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--color-text-secondary)}
+.ld{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+</style>
+
+<div id="w">
+  <div class="instruc">
+    Archivo <strong>de auditoría</strong> — generado por <strong>crear_origenes</strong> · acumula todos los orígenes brutos vistos por MZ-LOTE sin filtrar ni juzgar.<br>
+    <strong>Solo incluye MZ-LOTE que existen en usuarios_id.xlsx</strong> — los que no existen van a <strong>mz_no_encontradas.xlsx</strong> para revisión.<br>
+    <strong>No tomar decisiones con este archivo</strong> — es insumo para <strong>crear_maestro</strong> que produce el maestro_yape.xlsx final.<br>
+    Se regenera completo cada vez que corre <strong>crear_origenes</strong> — no lo edites manualmente.
+  </div>
+
+  <div class="tab-excel">origenes_yape</div>
+  <div class="tw">
+    <table>
+      <thead>
+        <tr>
+          <th class="num"></th>
+          <th class="th-id  gh" colspan="2">¿Quién es?</th>
+          <th class="th-sep"></th>
+          <th class="th-ubi gh" colspan="2">¿Dónde vive?</th>
+          <th class="th-sep"></th>
+          <th class="th-ori gh" colspan="3">¿Quién ha pagado desde este lote?</th>
+          <th class="th-sep"></th>
+          <th class="th-met gh" colspan="2">¿Cuánto lo hemos visto?</th>
+          <th class="th-sep"></th>
+          <th class="th-ctl gh">¿Cuándo se registró?</th>
+        </tr>
+        <tr>
+          <th class="num"></th>
+          <th class="th-id">USER_ID</th>
+          <th class="th-id">NOMBRE</th>
+          <th class="th-sep"></th>
+          <th class="th-ubi">MZ</th>
+          <th class="th-ubi">LOTE</th>
+          <th class="th-sep"></th>
+          <th class="th-ori">ORIGEN_1</th>
+          <th class="th-ori">ORIGEN_2</th>
+          <th class="th-ori">ORIGEN_3</th>
+          <th class="th-sep"></th>
+          <th class="th-met">TOTAL_APARICIONES</th>
+          <th class="th-met">MESES_EN_REGISTROS</th>
+          <th class="th-sep"></th>
+          <th class="th-ctl">FECHA_REGISTRO</th>
+        </tr>
+      </thead>
+      <tbody>
+
+        <!-- caso normal — 2 origenes similares, usuario conocido -->
+        <tr><td colspan="16" class="caso">Caso normal — usuario conocido · 2 orígenes similares · el consolidador los agrupará</td></tr>
+        <tr>
+          <td class="num">1</td>
+          <td class="td-uid">U0101</td>
+          <td class="td-nom">JUANA MAYO SALINAS</td>
+          <td class="td-sep"></td>
+          <td class="td-ubi">E</td>
+          <td class="td-ubi">7</td>
+          <td class="td-sep"></td>
+          <td class="td-ori">Juana C. Mayo S.</td>
+          <td class="td-ori">Juana May*</td>
+          <td class="td-ori-e">—</td>
+          <td class="td-sep"></td>
+          <td class="td-met">2</td>
+          <td class="td-met">2</td>
+          <td class="td-sep"></td>
+          <td class="td-ctl">13/05/2026</td>
+        </tr>
+
+        <!-- caso con 3 origenes distintos — posible error o multiples pagadores -->
+        <tr><td colspan="16" class="caso">Alerta de auditoría — 3 orígenes muy distintos · puede haber error de asignación o múltiples pagadores</td></tr>
+        <tr>
+          <td class="num">2</td>
+          <td class="td-uid">U0205</td>
+          <td class="td-nom">PEDRO PALMA QUISPE</td>
+          <td class="td-sep"></td>
+          <td class="td-ubi">H</td>
+          <td class="td-ubi">3</td>
+          <td class="td-sep"></td>
+          <td class="td-ori">Pedro Pal*</td>
+          <td class="td-ori">Rosa Vic*</td>
+          <td class="td-ori">Luis Tor*</td>
+          <td class="td-sep"></td>
+          <td class="td-met">5</td>
+          <td class="td-met">3</td>
+          <td class="td-sep"></td>
+          <td class="td-ctl">13/05/2026</td>
+        </tr>
+
+      </tbody>
+    </table>
+  </div>
+
+  <div class="legend">
+    <div class="leg"><div class="ld" style="background:#FAF5FF;border:0.5px solid #C4B5FD"></div>¿Quién es? — siempre lleno · MZ-LOTE sin match van a mz_no_encontradas.xlsx</div>
+    <div class="leg"><div class="ld" style="background:#F0FFF8;border:0.5px solid #9FE1CB"></div>¿Dónde vive?</div>
+    <div class="leg"><div class="ld" style="background:#FFFBF0;border:0.5px solid #FCD34D"></div>¿Quién ha pagado? — orígenes brutos sin filtrar</div>
+    <div class="leg"><div class="ld" style="background:#EFF6FF;border:0.5px solid #93C5FD"></div>¿Cuánto lo hemos visto? — insumo para consolidador</div>
+    <div class="leg"><div class="ld" style="background:#F9FAFB;border:0.5px solid #D1D5DB"></div>¿Cuándo se registró?</div>
+  </div>
+</div>

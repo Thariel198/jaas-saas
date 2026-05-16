@@ -1,0 +1,282 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+#w{font-family:var(--font-sans);padding:4px 0 16px}
+.instruc{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-left:3px solid #1D9E75;border-radius:0 var(--border-radius-md) var(--border-radius-md) 0;padding:9px 13px;font-size:12px;color:var(--color-text-secondary);margin-bottom:12px;line-height:1.7}
+.instruc strong{color:var(--color-text-primary)}
+.tab-excel{display:inline-flex;align-items:center;gap:5px;background:#E1F5EE;border:0.5px solid #5DCAA5;border-bottom:none;border-radius:6px 6px 0 0;padding:5px 14px;font-size:12px;font-weight:500;color:#085041;margin-bottom:-1px}
+.tw{border:0.5px solid var(--color-border-tertiary);border-radius:0 var(--border-radius-md) var(--border-radius-md) var(--border-radius-md);overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:11px;min-width:1200px}
+th{padding:6px 8px;font-size:10px;font-weight:500;text-align:left;border-bottom:0.5px solid var(--color-border-tertiary);border-right:0.5px solid var(--color-border-tertiary);white-space:nowrap}
+th:last-child{border-right:none}
+td{padding:5px 8px;border-bottom:0.5px solid var(--color-border-tertiary);border-right:0.5px solid var(--color-border-tertiary);vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+td:last-child{border-right:none}
+tr:last-child td{border-bottom:none}
+.num{width:24px;background:var(--color-background-secondary);color:var(--color-text-tertiary);font-size:10px;font-family:var(--font-mono);text-align:center;border-right:0.5px solid var(--color-border-tertiary)}
+
+.th-quien {background:#F4ECF7;color:#5B21B6}
+.th-banco {background:#E6F1FB;color:#0C447C}
+.th-donde {background:#E1F5EE;color:#085041}
+.th-cuanto{background:#FEF9E7;color:#7D6608}
+.th-ciclo {background:#FEF3E8;color:#7C3003}
+.th-sep   {width:4px;background:var(--color-background-secondary);padding:0;border-right:2px solid var(--color-border-secondary)}
+
+.td-quien {background:#FAF5FF;font-family:var(--font-mono);font-size:10px;color:#5B21B6}
+.td-nombre{background:#FAF5FF;font-size:11px;color:var(--color-text-primary)}
+.td-banco {background:#F0F8FF;color:#185FA5;font-family:var(--font-mono);font-size:10px}
+.td-monto {background:#F0F8FF;color:#065F46;font-family:var(--font-mono);font-size:11px;font-weight:500}
+.td-msg   {background:#F0F8FF;color:var(--color-text-secondary);font-size:10px;font-style:italic}
+.td-donde {background:#F0FFF8;font-family:var(--font-mono);font-size:11px;font-weight:500;color:#065F46}
+.td-sep   {width:4px;background:var(--color-background-secondary);padding:0;border-right:2px solid var(--color-border-secondary)}
+.td-deuda {background:#FEFCE8;font-family:var(--font-mono);font-size:11px;color:#7D6608}
+.td-ciclo {background:#FEF3E8;font-family:var(--font-mono);font-size:11px;color:#7C3003;text-align:center}
+.td-empty {color:var(--color-text-tertiary);font-style:italic;font-size:10px;text-align:center}
+
+.b-exacto {background:#E1F5EE;color:#085041;font-size:10px;font-weight:500;padding:1px 6px;border-radius:3px}
+.b-exceso {background:#FAEEDA;color:#854F0B;font-size:10px;font-weight:500;padding:1px 6px;border-radius:3px}
+.b-parcial{background:#FCEBEB;color:#A32D2D;font-size:10px;font-weight:500;padding:1px 6px;border-radius:3px}
+
+.b-msg{background:#E1F5EE;color:#085041;font-size:9px;font-weight:500;padding:1px 5px;border-radius:3px}
+.b-mae{background:#E6F1FB;color:#0C447C;font-size:9px;font-weight:500;padding:1px 5px;border-radius:3px}
+.b-amb{background:#FAEEDA;color:#854F0B;font-size:9px;font-weight:500;padding:1px 5px;border-radius:3px}
+.b-mul{background:#F4ECF7;color:#5B21B6;font-size:9px;font-weight:500;padding:1px 5px;border-radius:3px}
+.b-man{background:#FEF3E8;color:#7C3003;font-size:9px;font-weight:500;padding:1px 5px;border-radius:3px}
+
+.gh{font-size:9px;font-weight:600;text-align:center;padding:2px 0;letter-spacing:.05em;text-transform:uppercase;border-bottom:0.5px solid var(--color-border-tertiary)}
+
+.mul-row{background:rgba(124,58,237,.03)}
+
+.legend{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center}
+.leg{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--color-text-secondary)}
+.ld{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+</style>
+
+<div id="w">
+  <div class="instruc">
+    Archivo de solo lectura — generado automáticamente por <strong>main.py</strong>. No se edita manualmente.<br>
+    Todo lo que llega aquí está identificado. Los pendientes viven en <strong>correcciones/pendientes.xlsx</strong>.<br>
+    Pagos múltiples aparecen como <strong>una fila por lote</strong> con el mismo MONTO_PAGO.<br>
+    <strong>Temporal durante el mes:</strong> vive en <strong>motor_matching/outputs/pagos_yape_tepago.xlsx</strong> · lo consumen <strong>04_cobranza</strong> y <strong>04b_validacion</strong>.<br>
+    <strong>Definitivo al archivar:</strong> se copia a <strong>shared/reporte_acumulado_procesado/reporte_tepago_YYYY_MM.xlsx</strong> · lo leen <strong>crear_origenes</strong> (para construir maestro) y <strong>balance</strong> (para validación de montos).
+  </div>
+
+  <div class="tab-excel">pagos_yape_tepago → reporte_tepago_YYYY_MM</div>
+  <div class="tw">
+    <table>
+      <thead>
+        <tr>
+          <th class="num" rowspan="2"></th>
+          <th class="th-quien gh" colspan="3">¿Quién es?</th>
+          <th class="th-sep" rowspan="2"></th>
+          <th class="th-banco gh" colspan="7">¿Qué hizo el banco?</th>
+          <th class="th-sep" rowspan="2"></th>
+          <th class="th-donde gh" colspan="2">¿Dónde vive?</th>
+          <th class="th-sep" rowspan="2"></th>
+          <th class="th-cuanto gh" colspan="3">¿Cuánto debe?</th>
+          <th class="th-sep" rowspan="2"></th>
+          <th class="th-ciclo gh">¿Cuándo?</th>
+        </tr>
+        <tr>
+          <th class="th-quien">USER_ID</th>
+          <th class="th-quien">NOMBRE</th>
+          <th class="th-quien">FUENTE</th>
+          <th class="th-banco">TIPO</th>
+          <th class="th-banco">ORIGEN</th>
+          <th class="th-banco">DESTINO</th>
+          <th class="th-banco">MONTO_PAGO</th>
+          <th class="th-banco">MONTO_ASIGNADO</th>
+          <th class="th-banco">MENSAJE</th>
+          <th class="th-banco">FECHA</th>
+          <th class="th-donde">MZ</th>
+          <th class="th-donde">LOTE</th>
+          <th class="th-cuanto">DEUDA_TOTAL</th>
+          <th class="th-cuanto">DIFERENCIA</th>
+          <th class="th-cuanto">ESTADO_PAGO</th>
+          <th class="th-ciclo">CICLO</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- fila 1: mensaje exacto -->
+        <tr>
+          <td class="num">1</td>
+          <td class="td-quien">U0429</td>
+          <td class="td-nombre">ERIKA AMBROSIO</td>
+          <td><span class="b-msg">mensaje</span></td>
+          <td class="td-sep"></td>
+          <td class="td-banco">TE PAGÓ</td>
+          <td class="td-banco">Erika Amb*</td>
+          <td class="td-banco">Janet Vil*</td>
+          <td class="td-monto">S/10.00</td>
+          <td class="td-banco td-empty">—</td>
+          <td class="td-msg">Mz.A1 lt .8</td>
+          <td class="td-banco">05/05/2026 07:51</td>
+          <td class="td-sep"></td>
+          <td class="td-donde">A1</td>
+          <td class="td-donde">8</td>
+          <td class="td-sep"></td>
+          <td class="td-deuda">S/10.00</td>
+          <td class="td-deuda">0.00</td>
+          <td><span class="b-exacto">exacto</span></td>
+          <td class="td-sep"></td>
+          <td class="td-ciclo">1</td>
+        </tr>
+        <!-- fila 2: maestro exacto -->
+        <tr>
+          <td class="num">2</td>
+          <td class="td-quien">U0416</td>
+          <td class="td-nombre">MILAGROS SIGUEÑAS</td>
+          <td><span class="b-mae">maestro</span></td>
+          <td class="td-sep"></td>
+          <td class="td-banco">TE PAGÓ</td>
+          <td class="td-banco">Milagros Sig*</td>
+          <td class="td-banco">Janet Vil*</td>
+          <td class="td-monto">S/16.00</td>
+          <td class="td-banco td-empty">—</td>
+          <td class="td-msg">—</td>
+          <td class="td-banco">04/05/2026 16:32</td>
+          <td class="td-sep"></td>
+          <td class="td-donde">Z</td>
+          <td class="td-donde">13</td>
+          <td class="td-sep"></td>
+          <td class="td-deuda">S/16.00</td>
+          <td class="td-deuda">0.00</td>
+          <td><span class="b-exacto">exacto</span></td>
+          <td class="td-sep"></td>
+          <td class="td-ciclo">1</td>
+        </tr>
+        <!-- fila 3: mensaje exceso -->
+        <tr>
+          <td class="num">3</td>
+          <td class="td-quien">U0046</td>
+          <td class="td-nombre">JUAN RIOS BLAS</td>
+          <td><span class="b-msg">mensaje</span></td>
+          <td class="td-sep"></td>
+          <td class="td-banco">TE PAGÓ</td>
+          <td class="td-banco">Luis Rio*</td>
+          <td class="td-banco">Janet Vil*</td>
+          <td class="td-monto">S/50.00</td>
+          <td class="td-banco td-empty">—</td>
+          <td class="td-msg">mz C lote 14</td>
+          <td class="td-banco">04/05/2026 09:59</td>
+          <td class="td-sep"></td>
+          <td class="td-donde">C</td>
+          <td class="td-donde">14</td>
+          <td class="td-sep"></td>
+          <td class="td-deuda">S/42.00</td>
+          <td class="td-deuda">+8.00</td>
+          <td><span class="b-exceso">exceso</span></td>
+          <td class="td-sep"></td>
+          <td class="td-ciclo">1</td>
+        </tr>
+        <!-- fila 4: manual parcial ciclo 2 -->
+        <tr>
+          <td class="num">4</td>
+          <td class="td-quien">U0303</td>
+          <td class="td-nombre">JUANA MORALES</td>
+          <td><span class="b-man">manual</span></td>
+          <td class="td-sep"></td>
+          <td class="td-banco">TE PAGÓ</td>
+          <td class="td-banco">Jessica Mor*</td>
+          <td class="td-banco">Janet Vil*</td>
+          <td class="td-monto">S/30.00</td>
+          <td class="td-banco td-empty">—</td>
+          <td class="td-msg">—</td>
+          <td class="td-banco">04/05/2026 08:33</td>
+          <td class="td-sep"></td>
+          <td class="td-donde">Q</td>
+          <td class="td-donde">12</td>
+          <td class="td-sep"></td>
+          <td class="td-deuda">S/43.00</td>
+          <td class="td-deuda">-13.00</td>
+          <td><span class="b-parcial">parcial</span></td>
+          <td class="td-sep"></td>
+          <td class="td-ciclo">2</td>
+        </tr>
+        <!-- fila 5: ambiguo exacto -->
+        <tr>
+          <td class="num">5</td>
+          <td class="td-quien">U0199</td>
+          <td class="td-nombre">ROSA VICTORIA MILLA</td>
+          <td><span class="b-amb">ambiguo</span></td>
+          <td class="td-sep"></td>
+          <td class="td-banco">TE PAGÓ</td>
+          <td class="td-banco">Rosa Vic*</td>
+          <td class="td-banco">Janet Vil*</td>
+          <td class="td-monto">S/35.00</td>
+          <td class="td-banco td-empty">—</td>
+          <td class="td-msg">—</td>
+          <td class="td-banco">04/05/2026 11:10</td>
+          <td class="td-sep"></td>
+          <td class="td-donde">B</td>
+          <td class="td-donde">6</td>
+          <td class="td-sep"></td>
+          <td class="td-deuda">S/35.00</td>
+          <td class="td-deuda">0.00</td>
+          <td><span class="b-exacto">exacto</span></td>
+          <td class="td-sep"></td>
+          <td class="td-ciclo">1</td>
+        </tr>
+        <!-- filas 6-7: pago múltiple — 1 fila por lote -->
+        <tr class="mul-row">
+          <td class="num">6</td>
+          <td class="td-quien">—</td>
+          <td class="td-nombre">VICTOR TRUJILLO</td>
+          <td><span class="b-mul">múltiple</span></td>
+          <td class="td-sep"></td>
+          <td class="td-banco">TE PAGÓ</td>
+          <td class="td-banco">Victor Tru*</td>
+          <td class="td-banco">Janet Vil*</td>
+          <td class="td-monto">S/75.00</td>
+          <td class="td-monto">S/35.00</td>
+          <td class="td-msg">MzE Lt7, MzP Lt11A</td>
+          <td class="td-banco">04/05/2026 10:52</td>
+          <td class="td-sep"></td>
+          <td class="td-donde">E</td>
+          <td class="td-donde">7</td>
+          <td class="td-sep"></td>
+          <td class="td-deuda">S/35.00</td>
+          <td class="td-deuda">0.00</td>
+          <td><span class="b-exacto">exacto</span></td>
+          <td class="td-sep"></td>
+          <td class="td-ciclo">1</td>
+        </tr>
+        <tr class="mul-row">
+          <td class="num">7</td>
+          <td class="td-quien">—</td>
+          <td class="td-nombre">VICTOR TRUJILLO</td>
+          <td><span class="b-mul">múltiple</span></td>
+          <td class="td-sep"></td>
+          <td class="td-banco">TE PAGÓ</td>
+          <td class="td-banco">Victor Tru*</td>
+          <td class="td-banco">Janet Vil*</td>
+          <td class="td-monto">S/75.00</td>
+          <td class="td-monto">S/40.00</td>
+          <td class="td-msg">MzE Lt7, MzP Lt11A</td>
+          <td class="td-banco">04/05/2026 10:52</td>
+          <td class="td-sep"></td>
+          <td class="td-donde">P</td>
+          <td class="td-donde">11A</td>
+          <td class="td-sep"></td>
+          <td class="td-deuda">S/40.00</td>
+          <td class="td-deuda">0.00</td>
+          <td><span class="b-exacto">exacto</span></td>
+          <td class="td-sep"></td>
+          <td class="td-ciclo">1</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="legend">
+    <div class="leg"><div class="ld" style="background:#FAF5FF;border:0.5px solid #C4B5FD"></div>¿Quién es? — sistema</div>
+    <div class="leg"><div class="ld" style="background:#F0F8FF;border:0.5px solid #AED6F1"></div>banco — no editar</div>
+    <div class="leg"><div class="ld" style="background:#F0FFF8;border:0.5px solid #9FE1CB"></div>¿Dónde vive? — matching</div>
+    <div class="leg"><div class="ld" style="background:#FEFCE8;border:0.5px solid #FCD34D"></div>¿Cuánto debe? — calculado</div>
+    <div class="leg"><div class="ld" style="background:rgba(124,58,237,.06);border:0.5px solid #C4B5FD"></div>pago múltiple — una fila por lote</div>
+    <div class="leg"><span class="b-msg">mensaje</span> regex detectó MZ-LOTE</div>
+    <div class="leg"><span class="b-mae">maestro</span> identificado por historial</div>
+    <div class="leg"><span class="b-amb">ambiguo</span> sistema eligió entre candidatos</div>
+    <div class="leg"><span class="b-mul">múltiple</span> dividido por lote</div>
+    <div class="leg"><span class="b-man">manual</span> tú lo completaste</div>
+  </div>
+</div>

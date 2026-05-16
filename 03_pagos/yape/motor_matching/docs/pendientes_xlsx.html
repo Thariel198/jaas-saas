@@ -1,0 +1,180 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+#w{font-family:var(--font-sans);padding:4px 0 16px}
+.instruc{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-left:3px solid #EF9F27;border-radius:0 var(--border-radius-md) var(--border-radius-md) 0;padding:9px 13px;font-size:12px;color:var(--color-text-secondary);margin-bottom:12px;line-height:1.7}
+.instruc strong{color:var(--color-text-primary)}
+.tab-excel{display:inline-flex;align-items:center;gap:5px;background:#FCEBEB;border:0.5px solid #F09595;border-bottom:none;border-radius:6px 6px 0 0;padding:5px 14px;font-size:12px;font-weight:500;color:#A32D2D;margin-bottom:-1px}
+.tw{border:0.5px solid var(--color-border-tertiary);border-radius:0 var(--border-radius-md) var(--border-radius-md) var(--border-radius-md);overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:11px;min-width:900px}
+th{padding:6px 8px;font-size:10px;font-weight:500;text-align:left;border-bottom:0.5px solid var(--color-border-tertiary);border-right:0.5px solid var(--color-border-tertiary);white-space:nowrap}
+th:last-child{border-right:none}
+td{padding:5px 8px;border-bottom:0.5px solid var(--color-border-tertiary);border-right:0.5px solid var(--color-border-tertiary);vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+td:last-child{border-right:none}
+tr:last-child td{border-bottom:none}
+.num{width:24px;background:var(--color-background-secondary);color:var(--color-text-tertiary);font-size:10px;font-family:var(--font-mono);text-align:center;border-right:0.5px solid var(--color-border-tertiary)}
+
+.th-banco{background:#E6F1FB;color:#0C447C}
+.th-sep{width:4px;background:var(--color-background-secondary);padding:0;border-right:2px solid var(--color-border-secondary)}
+.th-user{background:#E1F5EE;color:#085041}
+
+.td-banco{background:#F0F8FF;color:#185FA5;font-family:var(--font-mono);font-size:10px}
+.td-monto{background:#F0F8FF;color:#065F46;font-family:var(--font-mono);font-size:11px;font-weight:500}
+.td-msg{background:#F0F8FF;color:var(--color-text-secondary);font-size:10px;font-style:italic}
+.td-sep{width:4px;background:var(--color-background-secondary);padding:0;border-right:2px solid var(--color-border-secondary)}
+.td-user{background:#F0FFF8;font-family:var(--font-mono);font-size:11px;font-weight:500;color:#065F46}
+.td-user-e{background:#F0FFF8;color:var(--color-text-tertiary);font-style:italic;font-size:10px;text-align:center}
+.td-motivo{background:#F0FFF8;font-size:10px;color:var(--color-text-secondary)}
+.td-concepto{background:#F0FFF8;font-size:10px;color:var(--color-text-secondary)}
+.td-blank{background:#FAEEDA;color:#854F0B;font-family:var(--font-mono);font-size:11px;font-weight:500}
+
+.tipo-te{background:#E1F5EE;color:#085041;font-size:10px;font-weight:500;padding:1px 6px;border-radius:3px;font-family:var(--font-mono)}
+.tipo-pa{background:#FAEEDA;color:#854F0B;font-size:10px;font-weight:500;padding:1px 6px;border-radius:3px;font-family:var(--font-mono)}
+
+.gh{font-size:9px;font-weight:600;text-align:center;padding:2px 0;letter-spacing:.05em;text-transform:uppercase;border-bottom:0.5px solid var(--color-border-tertiary)}
+.caso{font-size:9px;color:var(--color-text-tertiary);font-style:italic;padding:3px 8px;background:var(--color-background-secondary);border-bottom:0.5px solid var(--color-border-tertiary)}
+
+.legend{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap}
+.leg{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--color-text-secondary)}
+.ld{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+</style>
+
+<div id="w">
+  <div class="instruc">
+    El sistema llena <strong>TIPO · ORIGEN · DESTINO · MONTO · MENSAJE · FECHA</strong> automáticamente.<br>
+    Tú completas <strong>MZ · LOTE</strong> del dueño. Si no sabes → escribe <strong>BLANCO</strong> en MZ.<br>
+    Si es <strong>PAGASTE gasto JASS</strong> → escribe el <strong>CONCEPTO</strong> en vez de MZ-LOTE.<br>
+    <strong>MOTIVO</strong> es opcional — texto libre para dejar contexto de cómo lo identificaste.
+  </div>
+
+  <div class="tab-excel">Sin_identificar</div>
+  <div class="tw">
+    <table>
+      <thead>
+        <tr>
+          <th class="num" rowspan="2"></th>
+          <th class="th-banco gh" colspan="6">← banco — no editar</th>
+          <th class="th-sep" rowspan="2"></th>
+          <th class="th-user gh" colspan="4">← tú completas</th>
+        </tr>
+        <tr>
+          <th class="th-banco">TIPO</th>
+          <th class="th-banco">ORIGEN</th>
+          <th class="th-banco">DESTINO</th>
+          <th class="th-banco">MONTO</th>
+          <th class="th-banco">MENSAJE</th>
+          <th class="th-banco">FECHA</th>
+          <th class="th-user">MZ</th>
+          <th class="th-user">LOTE</th>
+          <th class="th-user">CONCEPTO</th>
+          <th class="th-user">MOTIVO</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- TE PAGÓ sin maestro ni mensaje -->
+        <tr><td colspan="12" class="caso">TE PAGÓ · sin mensaje ni maestro · tú pones MZ-LOTE</td></tr>
+        <tr>
+          <td class="num">1</td>
+          <td><span class="tipo-te">TE PAGÓ</span></td>
+          <td class="td-banco">Pedro Palm*</td>
+          <td class="td-banco">Janet Vil*</td>
+          <td class="td-monto">S/35.00</td>
+          <td class="td-msg">—</td>
+          <td class="td-banco">09/05/2026 10:31</td>
+          <td class="td-sep"></td>
+          <td class="td-user">H</td>
+          <td class="td-user">7</td>
+          <td class="td-user-e">—</td>
+          <td class="td-motivo">vecino informó — MZ H lote 7</td>
+        </tr>
+
+        <!-- TE PAGÓ BLANCO -->
+        <tr><td colspan="12" class="caso">TE PAGÓ · no sabe quién es · escribe BLANCO</td></tr>
+        <tr>
+          <td class="num">2</td>
+          <td><span class="tipo-te">TE PAGÓ</span></td>
+          <td class="td-banco">Numero Des*</td>
+          <td class="td-banco">Janet Vil*</td>
+          <td class="td-monto">S/40.00</td>
+          <td class="td-msg">pago agua</td>
+          <td class="td-banco">09/05/2026 11:20</td>
+          <td class="td-sep"></td>
+          <td class="td-blank">BLANCO</td>
+          <td class="td-user-e">—</td>
+          <td class="td-user-e">—</td>
+          <td class="td-motivo">no hay información del pagador</td>
+        </tr>
+
+        <!-- PAGASTE devolución → tú pones MZ-LOTE -->
+        <tr><td colspan="12" class="caso">PAGASTE · devolución sin mensaje claro · tú decides MZ-LOTE</td></tr>
+        <tr>
+          <td class="num">3</td>
+          <td><span class="tipo-pa">PAGASTE</span></td>
+          <td class="td-banco">Janet Vil*</td>
+          <td class="td-banco">Ana Paz*</td>
+          <td class="td-monto">S/15.00</td>
+          <td class="td-msg">—</td>
+          <td class="td-banco">08/05/2026 15:30</td>
+          <td class="td-sep"></td>
+          <td class="td-user">B</td>
+          <td class="td-user">5</td>
+          <td class="td-user-e">—</td>
+          <td class="td-motivo">llamada confirmó — devolución MZ B lote 5</td>
+        </tr>
+
+        <!-- PAGASTE gasto JASS → tú pones CONCEPTO -->
+        <tr><td colspan="12" class="caso">PAGASTE · gasto JASS · tú pones CONCEPTO</td></tr>
+        <tr>
+          <td class="num">4</td>
+          <td><span class="tipo-pa">PAGASTE</span></td>
+          <td class="td-banco">Janet Vil*</td>
+          <td class="td-banco">Carlos Me*</td>
+          <td class="td-monto">S/80.00</td>
+          <td class="td-msg">—</td>
+          <td class="td-banco">08/05/2026 16:10</td>
+          <td class="td-sep"></td>
+          <td class="td-user-e">—</td>
+          <td class="td-user-e">—</td>
+          <td class="td-concepto">alquiler local</td>
+          <td class="td-motivo">reunión confirmó — pago alquiler local</td>
+        </tr>
+
+        <!-- PAGASTE BLANCO — aún no sabe -->
+        <tr><td colspan="12" class="caso">PAGASTE · sin mensaje · aún no sabe → BLANCO en CONCEPTO</td></tr>
+        <tr>
+          <td class="num">5</td>
+          <td><span class="tipo-pa">PAGASTE</span></td>
+          <td class="td-banco">Janet Vil*</td>
+          <td class="td-banco">Maria Gar*</td>
+          <td class="td-monto">S/20.00</td>
+          <td class="td-msg">—</td>
+          <td class="td-banco">08/05/2026 17:00</td>
+          <td class="td-sep"></td>
+          <td class="td-user-e">—</td>
+          <td class="td-user-e">—</td>
+          <td class="td-blank">BLANCO</td>
+          <td class="td-motivo">sin información — pendiente consultar</td>
+        </tr>
+
+        <!-- fila vacía -->
+        <tr>
+          <td class="num">6</td>
+          <td style="background:#F0F8FF"></td><td style="background:#F0F8FF"></td>
+          <td style="background:#F0F8FF"></td><td style="background:#F0F8FF"></td>
+          <td style="background:#F0F8FF"></td><td style="background:#F0F8FF"></td>
+          <td class="td-sep"></td>
+          <td style="background:#F0FFF8"></td><td style="background:#F0FFF8"></td>
+          <td style="background:#F0FFF8"></td><td style="background:#F0FFF8"></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="legend">
+    <div class="leg"><div class="ld" style="background:#F0F8FF;border:0.5px solid #B5D4F4"></div>banco — no editar</div>
+    <div class="leg"><div class="ld" style="background:#F0FFF8;border:0.5px solid #9FE1CB"></div>tú completas</div>
+    <div class="leg"><span class="tipo-te">TE PAGÓ</span> pago de usuario</div>
+    <div class="leg"><span class="tipo-pa">PAGASTE</span> salida de cuenta JASS</div>
+    <div class="leg"><div class="ld" style="background:#FAEEDA;border:0.5px solid #EF9F27"></div>BLANCO — sin identificar</div>
+  </div>
+</div>

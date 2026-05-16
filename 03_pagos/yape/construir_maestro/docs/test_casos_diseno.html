@@ -1,0 +1,222 @@
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+#w{font-family:var(--font-sans);padding:4px 0 16px}
+.instruc{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-left:3px solid #1D4ED8;border-radius:0 var(--border-radius-md) var(--border-radius-md) 0;padding:9px 13px;font-size:12px;color:var(--color-text-secondary);margin-bottom:12px;line-height:1.7}
+.instruc strong{color:var(--color-text-primary)}
+.tab-excel{display:inline-flex;align-items:center;gap:5px;background:#EFF6FF;border:0.5px solid #93C5FD;border-bottom:none;border-radius:6px 6px 0 0;padding:5px 14px;font-size:12px;font-weight:500;color:#1D4ED8;margin-bottom:-1px}
+.tw{border:0.5px solid var(--color-border-tertiary);border-radius:0 var(--border-radius-md) var(--border-radius-md) var(--border-radius-md);overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:11px;min-width:1100px}
+th{padding:6px 8px;font-size:10px;font-weight:500;text-align:left;border-bottom:0.5px solid var(--color-border-tertiary);border-right:0.5px solid var(--color-border-tertiary);white-space:nowrap}
+th:last-child{border-right:none}
+td{padding:5px 8px;border-bottom:0.5px solid var(--color-border-tertiary);border-right:0.5px solid var(--color-border-tertiary);vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+td:last-child{border-right:none}
+tr:last-child td{border-bottom:none}
+.num{width:24px;background:var(--color-background-secondary);color:var(--color-text-tertiary);font-size:10px;font-family:var(--font-mono);text-align:center;border-right:0.5px solid var(--color-border-tertiary)}
+.gh{font-size:9px;font-weight:600;text-align:center;padding:3px 0;letter-spacing:.05em;text-transform:uppercase;border-bottom:0.5px solid var(--color-border-tertiary)}
+.caso{font-size:9px;color:var(--color-text-tertiary);font-style:italic;padding:3px 8px;background:var(--color-background-secondary);border-bottom:0.5px solid var(--color-border-tertiary)}
+
+/* separadores */
+.th-sep{width:4px;background:var(--color-background-secondary);padding:0;border-right:2px solid var(--color-border-secondary)}
+.td-sep{width:4px;background:var(--color-background-secondary);padding:0;border-right:2px solid var(--color-border-secondary)}
+
+/* grupos cabecera */
+.th-ctl {background:#F9FAFB;color:#374151}
+.th-inp {background:#EFF6FF;color:#1D4ED8}
+.th-esp {background:#E1F5EE;color:#085041}
+.th-res {background:#F4ECF7;color:#5B21B6}
+
+/* celdas control */
+.td-ctl-id  {background:#F9FAFB;font-family:var(--font-mono);font-size:10px;font-weight:600;color:#374151}
+.td-ctl-desc{background:#F9FAFB;font-size:10px;color:var(--color-text-secondary);font-style:italic}
+
+/* celdas input */
+.td-inp     {background:#EFF6FF;font-family:var(--font-mono);font-size:10px;color:#1D4ED8}
+.td-inp-num {background:#EFF6FF;font-family:var(--font-mono);font-size:10px;color:#1D4ED8;text-align:center}
+
+/* celdas esperado */
+.td-esp     {background:#F0FFF8;font-family:var(--font-mono);font-size:10px;color:#065F46}
+.td-esp-niv {background:#F0FFF8;font-family:var(--font-mono);font-size:10px;font-weight:600;color:#065F46;text-align:center}
+
+/* celdas resultado — las llena test.py */
+.td-res-vacio{background:#FAF5FF;color:var(--color-text-tertiary);font-style:italic;font-size:10px;text-align:center}
+
+/* veredictos */
+.v-ok  {background:#D1FAE5;color:#065F46;font-size:11px;font-weight:600;text-align:center;padding:1px 6px;border-radius:3px;font-family:var(--font-mono)}
+.v-fail{background:#FEE2E2;color:#991B1B;font-size:10px;font-weight:600;text-align:center;padding:1px 6px;border-radius:3px;font-family:var(--font-mono)}
+
+/* leyenda */
+.legend{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center}
+.leg{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--color-text-secondary)}
+.ld{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+</style>
+
+<div id="w">
+  <div class="instruc">
+    Archivo de <strong>casos de prueba</strong> — tú completas <strong>¿Qué caso es?</strong> y <strong>¿Qué esperamos?</strong> · <strong>test.py</strong> completa <strong>¿Qué obtuvo?</strong><br>
+    Orígenes separados por <strong>|</strong> dentro de una celda · ej: <code>Linda Paj*|Linda F. Pajuelo C.|Janet Vil*</code><br>
+    Agrega casos nuevos libremente — una fila por caso · no importa cuántos orígenes tenga.<br>
+    <strong>ORIGENES_OBTENIDOS · NIVEL_OBTENIDO · VEREDICTO</strong> — no los edites · los sobreescribe test.py cada vez que corre.
+  </div>
+
+  <div class="tab-excel">test_casos</div>
+  <div class="tw">
+    <table>
+      <thead>
+        <tr>
+          <th class="num"></th>
+          <th class="th-ctl gh" colspan="2">¿Qué caso es?</th>
+          <th class="th-sep"></th>
+          <th class="th-inp gh" colspan="3">¿Qué le damos?</th>
+          <th class="th-sep"></th>
+          <th class="th-esp gh" colspan="2">¿Qué esperamos?</th>
+          <th class="th-sep"></th>
+          <th class="th-res gh" colspan="3">¿Qué obtuvo?</th>
+        </tr>
+        <tr>
+          <th class="num"></th>
+          <th class="th-ctl">CASO_ID</th>
+          <th class="th-ctl">DESCRIPCION</th>
+          <th class="th-sep"></th>
+          <th class="th-inp">NOMBRE</th>
+          <th class="th-inp">ORIGENES_BRUTOS</th>
+          <th class="th-inp">MESES_EN_REGISTROS</th>
+          <th class="th-sep"></th>
+          <th class="th-esp">ORIGENES_ESPERADOS</th>
+          <th class="th-esp">NIVEL_ESPERADO</th>
+          <th class="th-sep"></th>
+          <th class="th-res">ORIGENES_OBTENIDOS</th>
+          <th class="th-res">NIVEL_OBTENIDO</th>
+          <th class="th-res">VEREDICTO</th>
+        </tr>
+      </thead>
+      <tbody>
+
+        <!-- CASO 1 — intruso sin par -->
+        <tr><td colspan="14" class="caso">CASO_001 — intruso sin par · Janet Villanueva no tiene par con nadie → se descarta</td></tr>
+        <tr>
+          <td class="num">1</td>
+          <td class="td-ctl-id">CASO_001</td>
+          <td class="td-ctl-desc">intruso sin par</td>
+          <td class="td-sep"></td>
+          <td class="td-inp">LINDA PAJUELO COCHACHIN</td>
+          <td class="td-inp">Linda Paj*|Linda F. Pajuelo C.|Janet Villanueva A.</td>
+          <td class="td-inp-num">6</td>
+          <td class="td-sep"></td>
+          <td class="td-esp">Linda Paj*|Linda F. Pajuelo C.</td>
+          <td class="td-esp-niv">alto</td>
+          <td class="td-sep"></td>
+          <td class="td-res-vacio">—</td>
+          <td class="td-res-vacio">—</td>
+          <td class="td-res-vacio">—</td>
+        </tr>
+
+        <!-- CASO 2 — 1 origen similar al nombre -->
+        <tr><td colspan="14" class="caso">CASO_002 — 1 origen similar al nombre · resto intrusos sin par</td></tr>
+        <tr>
+          <td class="num">2</td>
+          <td class="td-ctl-id">CASO_002</td>
+          <td class="td-ctl-desc">1 origen similar al nombre</td>
+          <td class="td-sep"></td>
+          <td class="td-inp">CAMILA HIDALGO</td>
+          <td class="td-inp">Maria Maz*|Camile Hid*|Edison A. Raprey T.|Paul R. Trujillo C.</td>
+          <td class="td-inp-num">7</td>
+          <td class="td-sep"></td>
+          <td class="td-esp">Camile Hid*</td>
+          <td class="td-esp-niv">alto</td>
+          <td class="td-sep"></td>
+          <td class="td-res-vacio">—</td>
+          <td class="td-res-vacio">—</td>
+          <td class="td-res-vacio">—</td>
+        </tr>
+
+        <!-- CASO 3 — origen similar al nombre + par entre origenes -->
+        <tr><td colspan="14" class="caso">CASO_003 — origen similar al nombre + BCP forma par con él · Angeles y Janet intrusos</td></tr>
+        <tr>
+          <td class="num">3</td>
+          <td class="td-ctl-id">CASO_003</td>
+          <td class="td-ctl-desc">origen similar al nombre + par BCP</td>
+          <td class="td-sep"></td>
+          <td class="td-inp">MELISSA ISABEL PILLACA GARCIA</td>
+          <td class="td-inp">Melissa Pil*|Angeles M. Huerta P.|BCP - HUERTA PILLACA ANGELES MELISSA|Janet Vil*</td>
+          <td class="td-inp-num">5</td>
+          <td class="td-sep"></td>
+          <td class="td-esp">Melissa Pil*|BCP - HUERTA PILLACA ANGELES MELISSA</td>
+          <td class="td-esp-niv">alto</td>
+          <td class="td-sep"></td>
+          <td class="td-res-vacio">—</td>
+          <td class="td-res-vacio">—</td>
+          <td class="td-res-vacio">—</td>
+        </tr>
+
+        <!-- CASO 4 — origen similar al nombre + familia forma par -->
+        <tr><td colspan="14" class="caso">CASO_004 — Janet Eva* similar al nombre · Cristina y Amancio Cochachin forman par (familia) · Wagner intruso</td></tr>
+        <tr>
+          <td class="num">4</td>
+          <td class="td-ctl-id">CASO_004</td>
+          <td class="td-ctl-desc">nombre + familia como par</td>
+          <td class="td-sep"></td>
+          <td class="td-inp">JANET FERNANDEZ MINAYA</td>
+          <td class="td-inp">Wagner Tru*|Janet Eva*|Cristina S. Cochachin F.|Amancio C. Cochachin M.</td>
+          <td class="td-inp-num">4</td>
+          <td class="td-sep"></td>
+          <td class="td-esp">Janet Eva*|Cristina S. Cochachin F.|Amancio C. Cochachin M.</td>
+          <td class="td-esp-niv">medio</td>
+          <td class="td-sep"></td>
+          <td class="td-res-vacio">—</td>
+          <td class="td-res-vacio">—</td>
+          <td class="td-res-vacio">—</td>
+        </tr>
+
+        <!-- CASO 5 — familia forma par · ninguno similar al nombre -->
+        <tr><td colspan="14" class="caso">CASO_005 — familia Cochachin forma par · Fernando y BCP intrusos sin par</td></tr>
+        <tr>
+          <td class="num">5</td>
+          <td class="td-ctl-id">CASO_005</td>
+          <td class="td-ctl-desc">familia forma par · intrusos sin par</td>
+          <td class="td-sep"></td>
+          <td class="td-inp">LIRIA PARIAMACHI DE PAZ</td>
+          <td class="td-inp">Fernando Gar*|Adelina Chi*|Marylie Chi*|BCP - LOZANO AYALA JHON KENNEDY</td>
+          <td class="td-inp-num">4</td>
+          <td class="td-sep"></td>
+          <td class="td-esp">Adelina Chi*|Marylie Chi*</td>
+          <td class="td-esp-niv">medio</td>
+          <td class="td-sep"></td>
+          <td class="td-res-vacio">—</td>
+          <td class="td-res-vacio">—</td>
+          <td class="td-res-vacio">—</td>
+        </tr>
+
+        <!-- CASO 6 — familia Romero todos forman par -->
+        <tr><td colspan="14" class="caso">CASO_006 — familia Romero · todos forman par entre sí · todos válidos</td></tr>
+        <tr>
+          <td class="num">6</td>
+          <td class="td-ctl-id">CASO_006</td>
+          <td class="td-ctl-desc">familia completa · todos válidos</td>
+          <td class="td-sep"></td>
+          <td class="td-inp">ANTONIA MAYO TRUJILLO</td>
+          <td class="td-inp">Janet J. Romero M.|Janet Rom*|Percy N. Romero M.</td>
+          <td class="td-inp-num">3</td>
+          <td class="td-sep"></td>
+          <td class="td-esp">Janet J. Romero M.|Janet Rom*|Percy N. Romero M.</td>
+          <td class="td-esp-niv">medio</td>
+          <td class="td-sep"></td>
+          <td class="td-res-vacio">—</td>
+          <td class="td-res-vacio">—</td>
+          <td class="td-res-vacio">—</td>
+        </tr>
+
+      </tbody>
+    </table>
+  </div>
+
+  <div class="legend">
+    <div class="leg"><div class="ld" style="background:#F9FAFB;border:0.5px solid #D1D5DB"></div>¿Qué caso es? — tú lo defines</div>
+    <div class="leg"><div class="ld" style="background:#EFF6FF;border:0.5px solid #93C5FD"></div>¿Qué le damos? — input al algoritmo · orígenes separados por |</div>
+    <div class="leg"><div class="ld" style="background:#F0FFF8;border:0.5px solid #9FE1CB"></div>¿Qué esperamos? — tú defines el resultado correcto</div>
+    <div class="leg"><div class="ld" style="background:#FAF5FF;border:0.5px solid #C4B5FD"></div>¿Qué obtuvo? — lo llena test.py · no edites</div>
+    <div class="leg"><span class="v-ok">✅</span> pasó</div>
+    <div class="leg"><span class="v-fail">❌ origenes</span> orígenes incorrectos</div>
+    <div class="leg"><span class="v-fail">❌ nivel</span> nivel incorrecto</div>
+    <div class="leg"><span class="v-fail">❌ ambos</span> ambos incorrectos</div>
+  </div>
+</div>
