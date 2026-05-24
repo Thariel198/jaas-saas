@@ -112,8 +112,9 @@ def exportar_pagos_tepago(todos: list, ciclo: int):
         ("FECHA",          C_BAN_C, C_BAN_T, True,  "left"),
         "__SEP__",
         # donde
-        ("MZ",   C_UBI_C, C_UBI_T, True, "center"),
-        ("LOTE", C_UBI_C, C_UBI_T, True, "center"),
+        ("MZ",      C_UBI_C, C_UBI_T, True,  "center"),
+        ("LOTE",    C_UBI_C, C_UBI_T, True,  "center"),
+        ("CONCEPTO",C_UBI_C, C_UBI_T, False, "left"),
         "__SEP__",
         # cuanto
         ("DEUDA_TOTAL",  C_DED_C, C_DED_T, True, "right"),
@@ -129,7 +130,7 @@ def exportar_pagos_tepago(todos: list, ciclo: int):
         None,
         ("¿QUÉ HIZO EL BANCO?", 7, C_BAN_H, C_BAN_T),
         None,
-        ("¿DÓNDE VIVE?",      2, C_UBI_H, C_UBI_T),
+        ("¿DÓNDE VIVE?",      3, C_UBI_H, C_UBI_T),
         None,
         ("¿CUÁNTO DEBE?",     3, C_DED_H, C_DED_T),
         None,
@@ -143,25 +144,26 @@ def exportar_pagos_tepago(todos: list, ciclo: int):
         "TIPO":10, "ORIGEN":22, "DESTINO":22,
         "MONTO_PAGO":12, "MONTO_ASIGNADO":14,
         "MENSAJE":35, "FECHA":20,
-        "MZ":6, "LOTE":7,
+        "MZ":6, "LOTE":7, "CONCEPTO":25,
         "DEUDA_TOTAL":12, "DIFERENCIA":12, "ESTADO_PAGO":14,
         "CICLO":7,
     }
 
     fuente_colores = {
-        "mensaje":   (FUENTE_MSG, FUENTE_MSG_T),
-        "maestro":   (FUENTE_MAE, FUENTE_MAE_T),
-        "ambiguo_auto": (FUENTE_AMB, FUENTE_AMB_T),
-        "multiple_auto": (FUENTE_MUL, FUENTE_MUL_T),
-        "multiple_corregido": (FUENTE_MUL, FUENTE_MUL_T),
-        "correccion": (FUENTE_MAN, FUENTE_MAN_T),
-        "blanco":    (EST_EXCESO, EST_EXCESO_T),
+        "mensaje":             (FUENTE_MSG, FUENTE_MSG_T),
+        "maestro":             (FUENTE_MAE, FUENTE_MAE_T),
+        "manual":              (FUENTE_MAN, FUENTE_MAN_T),
+        "maestro_inexacto":    (FUENTE_MAN, FUENTE_MAN_T),
+        "ambiguo_auto":        (FUENTE_MAN, FUENTE_MAN_T),
+        "correccion":          (FUENTE_MAN, FUENTE_MAN_T),
+        "blanco":              (EST_EXCESO, EST_EXCESO_T),
     }
 
     estado_colores = {
-        "exacto":  (EST_EXACTO,  EST_EXACTO_T),
-        "exceso":  (EST_EXCESO,  EST_EXCESO_T),
-        "parcial": (EST_PARCIAL, EST_PARCIAL_T),
+        "exacto":   (EST_EXACTO,  EST_EXACTO_T),
+        "exceso":   (EST_EXCESO,  EST_EXCESO_T),
+        "parcial":  (EST_PARCIAL, EST_PARCIAL_T),
+        "concepto": ("EFF6FF",    "1D4ED8"),
     }
 
     for ri, reg in enumerate(identificados, start=3):
@@ -183,6 +185,7 @@ def exportar_pagos_tepago(todos: list, ciclo: int):
             "FECHA":          reg.get("fecha", ""),
             "MZ":             reg.get("mz", ""),
             "LOTE":           reg.get("lote", ""),
+            "CONCEPTO":       reg.get("concepto", ""),
             "DEUDA_TOTAL":    reg.get("deuda_total", ""),
             "DIFERENCIA":     reg.get("diferencia", ""),
             "ESTADO_PAGO":    ep,
@@ -216,17 +219,27 @@ def exportar_pagos_tepago(todos: list, ciclo: int):
     return wb
 
 # ========================EXPORTAR pendientes================
-def exportar_pendientes_diseño(sin_resolver: list) -> Workbook:
+def exportar_pendientes_diseño(sin_resolver: list, ambiguos: list = None,
+                               maestro_inexacto: list = None) -> Workbook:
     """
-    Exporta pendientes.xlsx siguiendo pendientes_xlsx.html
-    Narrativa: banco (no editar) | tú completas
+    Exporta pendientes.xlsx con 3 hojas siguiendo pendientes_xlsx.html:
+    - Sin_identificar: sin maestro ni mensaje válido
+    - Ambiguos: maestro encontró 2+ candidatos
+    - Maestro_inexacto: maestro encontró 1 candidato pero diff != 0
     """
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Sin_identificar"
-    ws.freeze_panes = "A3"
+    if ambiguos       is None: ambiguos       = []
+    if maestro_inexacto is None: maestro_inexacto = []
 
-    cols = [
+    C_SUG_H = "FAEEDA"; C_SUG_C = "FFFBF0"; C_SUG_T = "854F0B"
+
+    wb = Workbook()
+
+    # ── Hoja 1: Sin_identificar ──────────────────────────────
+    ws1 = wb.active
+    ws1.title = "Sin_identificar"
+    ws1.freeze_panes = "A3"
+
+    cols_si = [
         ("TIPO",    C_BAN_C, C_BAN_T, True,  "left"),
         ("ORIGEN",  C_BAN_C, C_BAN_T, True,  "left"),
         ("DESTINO", C_BAN_C, C_BAN_T, True,  "left"),
@@ -239,61 +252,178 @@ def exportar_pendientes_diseño(sin_resolver: list) -> Workbook:
         ("CONCEPTO",C_USR_C, C_USR_T, False, "left"),
         ("MOTIVO",  C_USR_C, C_USR_T, False, "left"),
     ]
-
-    grupos = [
+    grupos_si = [
         ("← BANCO — NO EDITAR", 6, C_BAN_H, C_BAN_T),
         None,
         ("← TÚ COMPLETAS",      4, C_USR_H, C_USR_T),
     ]
-
-    _escribir_cabecera_doble(ws, cols, grupos)
-
-    anchos = {
+    anchos_si = {
         "TIPO":10, "ORIGEN":28, "DESTINO":22,
         "MONTO":12, "MENSAJE":35, "FECHA":20,
         "MZ":10, "LOTE":10, "CONCEPTO":25, "MOTIVO":30,
     }
-
-    tipo_col = {"TE PAGÓ": (EST_EXACTO, EST_EXACTO_T),
-                "PAGASTE": (EST_EXCESO, EST_EXCESO_T)}
-
+    _escribir_cabecera_doble(ws1, cols_si, grupos_si)
+    tipo_col = {"TE PAGÓ": (EST_EXACTO, EST_EXACTO_T), "PAGASTE": (EST_EXCESO, EST_EXCESO_T)}
     for ri, reg in enumerate(sin_resolver, start=3):
-        tipo = str(reg.get("tipo", reg.get("fuente", "TE PAGÓ"))).upper()
-        if "PAGASTE" in tipo:
-            tipo_str = "PAGASTE"
-        else:
-            tipo_str = "TE PAGÓ"
+        tipo_str = "PAGASTE" if "PAGASTE" in str(reg.get("tipo", reg.get("fuente",""))).upper() else "TE PAGÓ"
         t_bg, t_txt = tipo_col.get(tipo_str, (C_BAN_C, C_BAN_T))
-
         valores = {
-            "TIPO":    tipo_str,
-            "ORIGEN":  reg.get("origen", ""),
-            "DESTINO": reg.get("destino", ""),
-            "MONTO":   reg.get("monto_pago", reg.get("monto", "")),
-            "MENSAJE": reg.get("mensaje", ""),
-            "FECHA":   reg.get("fecha", ""),
-            "MZ":      "",
-            "LOTE":    "",
-            "CONCEPTO":"",
-            "MOTIVO":  reg.get("motivo", ""),
+            "TIPO": tipo_str, "ORIGEN": reg.get("origen",""),
+            "DESTINO": reg.get("destino",""),
+            "MONTO": reg.get("monto_pago", reg.get("monto","")),
+            "MENSAJE": reg.get("mensaje",""), "FECHA": reg.get("fecha",""),
+            "MZ":"", "LOTE":"", "CONCEPTO":"", "MOTIVO": reg.get("motivo",""),
         }
-
         ci = 1
-        for col in cols:
-            if col == "__SEP__":
-                _sep_col(ws, ri, ci)
-                ci += 1
-                continue
+        for col in cols_si:
+            if col == "__SEP__": _sep_col(ws1, ri, ci); ci += 1; continue
             nombre, bg, txt, mono, align = col
             val = valores.get(nombre, "")
-            if nombre == "TIPO":
-                bg, txt = t_bg, t_txt
-            c = ws.cell(row=ri, column=ci, value=val)
-            _cel(c, bg, txt, mono=mono, align=align)
+            if nombre == "TIPO": bg, txt = t_bg, t_txt
+            _cel(ws1.cell(row=ri, column=ci, value=val), bg, txt, mono=mono, align=align)
             ci += 1
-        ws.row_dimensions[ri].height = 18
+        ws1.row_dimensions[ri].height = 18
+    _aplicar_anchos(ws1, cols_si, anchos_si)
 
-    _aplicar_anchos(ws, cols, anchos)
+    # ── Hoja 2: Ambiguos ─────────────────────────────────────
+    ws2 = wb.create_sheet("Ambiguos")
+    ws2.freeze_panes = "A3"
+    cols_amb = [
+        ("USER_ID",  C_ID_C,  C_ID_T,  True,  "left"),
+        ("NOMBRE",   C_ID_C,  C_ID_T,  False, "left"),
+        "__SEP__",
+        ("TIPO",     C_BAN_C, C_BAN_T, True,  "left"),
+        ("ORIGEN",   C_BAN_C, C_BAN_T, True,  "left"),
+        ("DESTINO",  C_BAN_C, C_BAN_T, True,  "left"),
+        ("MONTO",    C_BAN_C, MONTO_T, True,  "right"),
+        ("MENSAJE",  C_BAN_C, C_BAN_T, False, "left"),
+        ("FECHA",    C_BAN_C, C_BAN_T, True,  "left"),
+        "__SEP__",
+        ("MZ_SUG",   C_SUG_H, C_SUG_T, True,  "center"),
+        ("LOTE_SUG", C_SUG_H, C_SUG_T, True,  "center"),
+        ("CANDIDATOS",C_SUG_H,C_SUG_T, False, "left"),
+        "__SEP__",
+        ("MZ",       C_USR_C, C_USR_T, True,  "center"),
+        ("LOTE",     C_USR_C, C_USR_T, True,  "center"),
+        ("MOTIVO",   C_USR_C, C_USR_T, False, "left"),
+        "__SEP__",
+        ("OK",       C_ID_C,  C_ID_T,  True,  "center"),
+    ]
+    grupos_amb = [
+        ("¿QUIÉN PAGÓ?",        2, C_ID_H,  C_ID_T),
+        None,
+        ("← BANCO — NO EDITAR", 6, C_BAN_H, C_BAN_T),
+        None,
+        ("← SISTEMA SUGIERE",   3, C_SUG_H, C_SUG_T),
+        None,
+        ("← TÚ COMPLETAS",      3, C_USR_H, C_USR_T),
+        None,
+        ("✓",                   1, C_ID_H,  C_ID_T),
+    ]
+    anchos_amb = {
+        "USER_ID":10, "NOMBRE":24,
+        "TIPO":10, "ORIGEN":28, "DESTINO":20,
+        "MONTO":12, "MENSAJE":28, "FECHA":20,
+        "MZ_SUG":8, "LOTE_SUG":9, "CANDIDATOS":32,
+        "MZ":8, "LOTE":8, "MOTIVO":25, "OK":6,
+    }
+    _escribir_cabecera_doble(ws2, cols_amb, grupos_amb)
+    for ri, reg in enumerate(ambiguos, start=3):
+        candidatos = reg.get("candidatos", [])
+        partes = []
+        for c in candidatos:
+            deu = c.get("deuda", ""); dif = c.get("dif", "")
+            deu_s = str(int(deu)) if isinstance(deu, (int,float)) and deu else str(deu)
+            dif_s = (f"+{int(dif)}" if dif > 0 else str(int(dif))) if isinstance(dif, (int,float)) else str(dif)
+            partes.append(f"{c.get('mz','')}-{c.get('lote','')}({deu_s},{dif_s})")
+        valores = {
+            "USER_ID": reg.get("user_id",""), "NOMBRE": reg.get("nombre",""),
+            "TIPO": "TE PAGÓ", "ORIGEN": reg.get("origen",""),
+            "DESTINO": reg.get("destino",""),
+            "MONTO": reg.get("monto_pago", reg.get("monto","")),
+            "MENSAJE": reg.get("mensaje",""), "FECHA": reg.get("fecha",""),
+            "MZ_SUG": reg.get("mz_sug",""), "LOTE_SUG": reg.get("lote_sug",""),
+            "CANDIDATOS": " · ".join(partes),
+            "MZ":"", "LOTE":"", "MOTIVO":"", "OK":"",
+        }
+        ci = 1
+        for col in cols_amb:
+            if col == "__SEP__": _sep_col(ws2, ri, ci); ci += 1; continue
+            nombre, bg, txt, mono, align = col
+            _cel(ws2.cell(row=ri, column=ci, value=valores.get(nombre,"")), bg, txt, mono=mono, align=align)
+            ci += 1
+        ws2.row_dimensions[ri].height = 18
+    _aplicar_anchos(ws2, cols_amb, anchos_amb)
+
+    # ── Hoja 3: Maestro_inexacto ─────────────────────────────
+    ws3 = wb.create_sheet("Maestro_inexacto")
+    ws3.freeze_panes = "A3"
+    cols_mix = [
+        ("USER_ID",  C_ID_C,  C_ID_T,  True,  "left"),
+        ("NOMBRE",   C_ID_C,  C_ID_T,  False, "left"),
+        "__SEP__",
+        ("TIPO",     C_BAN_C, C_BAN_T, True,  "left"),
+        ("ORIGEN",   C_BAN_C, C_BAN_T, True,  "left"),
+        ("DESTINO",  C_BAN_C, C_BAN_T, True,  "left"),
+        ("MONTO",    C_BAN_C, MONTO_T, True,  "right"),
+        ("MENSAJE",  C_BAN_C, C_BAN_T, False, "left"),
+        ("FECHA",    C_BAN_C, C_BAN_T, True,  "left"),
+        "__SEP__",
+        ("MZ_SUG",   C_SUG_H, C_SUG_T, True,  "center"),
+        ("LOTE_SUG", C_SUG_H, C_SUG_T, True,  "center"),
+        ("DEUDA",    C_SUG_H, C_SUG_T, True,  "right"),
+        ("DIFF",     C_SUG_H, C_SUG_T, True,  "right"),
+        "__SEP__",
+        ("MZ",       C_USR_C, C_USR_T, True,  "center"),
+        ("LOTE",     C_USR_C, C_USR_T, True,  "center"),
+        ("MOTIVO",   C_USR_C, C_USR_T, False, "left"),
+        "__SEP__",
+        ("OK",       C_ID_C,  C_ID_T,  True,  "center"),
+    ]
+    grupos_mix = [
+        ("¿QUIÉN PAGÓ?",        2, C_ID_H,  C_ID_T),
+        None,
+        ("← BANCO — NO EDITAR", 6, C_BAN_H, C_BAN_T),
+        None,
+        ("← SISTEMA ENCONTRÓ",  4, C_SUG_H, C_SUG_T),
+        None,
+        ("← TÚ COMPLETAS",      3, C_USR_H, C_USR_T),
+        None,
+        ("✓",                   1, C_ID_H,  C_ID_T),
+    ]
+    anchos_mix = {
+        "USER_ID":10, "NOMBRE":24,
+        "TIPO":10, "ORIGEN":28, "DESTINO":20,
+        "MONTO":12, "MENSAJE":28, "FECHA":20,
+        "MZ_SUG":8, "LOTE_SUG":9, "DEUDA":12, "DIFF":10,
+        "MZ":8, "LOTE":8, "MOTIVO":25, "OK":6,
+    }
+    _escribir_cabecera_doble(ws3, cols_mix, grupos_mix)
+    for ri, reg in enumerate(maestro_inexacto, start=3):
+        diff_val = reg.get("diferencia", reg.get("diff", ""))
+        valores = {
+            "USER_ID": reg.get("user_id",""), "NOMBRE": reg.get("nombre",""),
+            "TIPO": "TE PAGÓ", "ORIGEN": reg.get("origen",""),
+            "DESTINO": reg.get("destino",""),
+            "MONTO": reg.get("monto_pago", reg.get("monto","")),
+            "MENSAJE": reg.get("mensaje",""), "FECHA": reg.get("fecha",""),
+            "MZ_SUG": reg.get("mz",""), "LOTE_SUG": reg.get("lote",""),
+            "DEUDA": reg.get("deuda_total",""), "DIFF": diff_val,
+            "MZ":"", "LOTE":"", "MOTIVO":"", "OK":"",
+        }
+        ci = 1
+        for col in cols_mix:
+            if col == "__SEP__": _sep_col(ws3, ri, ci); ci += 1; continue
+            nombre, bg, txt, mono, align = col
+            val = valores.get(nombre, "")
+            # DIFF en rojo si negativo, verde si positivo
+            if nombre == "DIFF" and isinstance(val, (int, float)):
+                txt = "065F46" if val >= 0 else "A32D2D"
+            _cel(ws3.cell(row=ri, column=ci, value=val), bg, txt, mono=mono, align=align)
+            ci += 1
+        ws3.row_dimensions[ri].height = 18
+    _aplicar_anchos(ws3, cols_mix, anchos_mix)
+
     return wb
 
 # ========================EXPORTAR blancos_acumulados========
@@ -315,11 +445,12 @@ def exportar_blancos_acumulados(wb_existente, nuevo_blanco: dict, mes: str) -> W
         ("MENSAJE", C_BAN_C, C_BAN_T, False, "left"),
         ("FECHA",   C_BAN_C, C_BAN_T, True,  "left"),
         "__SEP__",
-        ("MZ",      C_UBI_C, C_UBI_T, True,  "center"),
-        ("LOTE",    C_UBI_C, C_UBI_T, True,  "center"),
-        ("MOTIVO",  C_UBI_C, C_UBI_T, False, "left"),
+        ("MZ",       C_UBI_C, C_UBI_T, True,  "center"),
+        ("LOTE",     C_UBI_C, C_UBI_T, True,  "center"),
+        ("CONCEPTO", C_UBI_C, C_UBI_T, False, "left"),
+        ("MOTIVO",   C_UBI_C, C_UBI_T, False, "left"),
         "__SEP__",
-        ("ESTADO",  C_EST_H, C_EST_T, True,  "center"),
+        ("ESTADO",   C_EST_H, C_EST_T, True,  "center"),
     ]
 
     grupos = [
@@ -329,7 +460,7 @@ def exportar_blancos_acumulados(wb_existente, nuevo_blanco: dict, mes: str) -> W
         None,
         ("¿QUÉ HIZO EL BANCO?",  6, C_BAN_H, C_BAN_T),
         None,
-        ("¿CÓMO SE IDENTIFICÓ?", 3, C_UBI_H, C_UBI_T),
+        ("¿CÓMO SE IDENTIFICÓ?", 4, C_UBI_H, C_UBI_T),
         None,
         ("¿YA SE APLICÓ?",       1, C_EST_H, C_EST_T),
     ]
@@ -338,7 +469,7 @@ def exportar_blancos_acumulados(wb_existente, nuevo_blanco: dict, mes: str) -> W
         "MES":10, "USER_ID":10, "NOMBRE":28,
         "TIPO":10, "ORIGEN":22, "DESTINO":22,
         "MONTO":12, "MENSAJE":30, "FECHA":20,
-        "MZ":6, "LOTE":7, "MOTIVO":30, "ESTADO":12,
+        "MZ":6, "LOTE":7, "CONCEPTO":25, "MOTIVO":30, "ESTADO":12,
     }
 
     # Si el workbook existe, leer filas existentes
@@ -368,7 +499,7 @@ def exportar_blancos_acumulados(wb_existente, nuevo_blanco: dict, mes: str) -> W
                 ci += 1
                 continue
             nombre, bg, txt, mono, align = col
-            val = fila_vals[ci - 1 - cols[:ci-1].count("__SEP__")] if ci <= len(fila_vals) else ""
+            val = fila_vals[ci - 1] if ci - 1 < len(fila_vals) else ""
             # Color estado
             if nombre == "ESTADO":
                 bg, txt = _color_estado_blanco(str(val))
@@ -389,10 +520,11 @@ def exportar_blancos_acumulados(wb_existente, nuevo_blanco: dict, mes: str) -> W
         "MONTO":   nuevo_blanco.get("monto_pago", ""),
         "MENSAJE": nuevo_blanco.get("mensaje", ""),
         "FECHA":   nuevo_blanco.get("fecha", ""),
-        "MZ":      "",
-        "LOTE":    "",
-        "MOTIVO":  "",
-        "ESTADO":  "pendiente",
+        "MZ":       "",
+        "LOTE":     "",
+        "CONCEPTO": "",
+        "MOTIVO":   "",
+        "ESTADO":   "pendiente",
     }
 
     ci = 1
@@ -483,18 +615,15 @@ def agregar_devoluciones_acumulados(wb_existente, nuevas: list, mes: str) -> Wor
 
     ri = 3
     # Reescribir existentes
-    col_names = [c[0] if c != "__SEP__" else "__SEP__" for c in cols]
     for fila_vals in filas_existentes:
         ci = 1
-        idx = 0
         for col in cols:
             if col == "__SEP__":
                 _sep_col(ws, ri, ci)
                 ci += 1
                 continue
             nombre, bg, txt, mono, align = col
-            val = fila_vals[idx] if idx < len(fila_vals) else ""
-            idx += 1
+            val = fila_vals[ci - 1] if ci - 1 < len(fila_vals) else ""
             if nombre == "ESTADO":
                 bg, txt = _color_estado_dev(str(val))
             c = ws.cell(row=ri, column=ci, value=val)
@@ -600,7 +729,7 @@ C_RES_H = "E1F5EE"; C_RES_C = "F0FFF8"; C_RES_T = "085041"
 C_CAN_H = "FAEEDA"; C_CAN_C = "FFFBF0"; C_CAN_T = "854F0B"
 C_CUA_H = "FEF3E8"; C_CUA_C = "FEF3E8"; C_CUA_T = "7C3003"
 
-def exportar_trazabilidad(ruta, corr_simples: dict, corr_ambiguos: dict,
+def exportar_trazabilidad(ruta, corr_simples: dict, ambiguos_list: list,
                            corr_multiples: dict, ciclo: int, fecha_hoy: str):
     """
     Genera trazabilidad_YYYY_MM.xlsx con 3 hojas siguiendo trazabilidad.html
@@ -687,30 +816,26 @@ def exportar_trazabilidad(ruta, corr_simples: dict, corr_ambiguos: dict,
     _aplicar_anchos(ws1, cols_si, anchos_si)
 
     # ── Hoja 2: Ambiguos ─────────────────────────────────────
+    # Una fila por pago · CANDIDATOS = texto MZ-LOTE(deuda,diff) · siguiendo trazabilidad.html
     ws2 = wb.create_sheet("Ambiguos")
     ws2.freeze_panes = "A3"
 
     cols_amb = [
-        ("USER_ID", C_ID_C,  C_ID_T,  True,  "left"),
-        ("NOMBRE",  C_ID_C,  C_ID_T,  False, "left"),
+        ("USER_ID",          C_ID_C,  C_ID_T,  True,  "left"),
+        ("NOMBRE",           C_ID_C,  C_ID_T,  False, "left"),
         "__SEP__",
-        ("ORIGEN",  C_BAN_C, C_BAN_T, True,  "left"),
-        ("MONTO",   C_BAN_C, MONTO_T, True,  "right"),
-        ("MENSAJE", C_BAN_C, C_BAN_T, False, "left"),
-        ("FECHA",   C_BAN_C, C_BAN_T, True,  "left"),
+        ("ORIGEN",           C_BAN_C, C_BAN_T, True,  "left"),
+        ("MONTO",            C_BAN_C, MONTO_T, True,  "right"),
+        ("MENSAJE",          C_BAN_C, C_BAN_T, False, "left"),
+        ("FECHA",            C_BAN_C, C_BAN_T, True,  "left"),
         "__SEP__",
-        ("MZ_CAND",   C_CAN_C, C_CAN_T, True, "center"),
-        ("LOTE_CAND", C_CAN_C, C_CAN_T, True, "center"),
-        ("NOMBRE_CAND",C_CAN_C,C_CAN_T, False,"left"),
-        ("DEUDA_CAND", C_CAN_C, C_CAN_T, True, "right"),
-        ("DIFF_CAND",  C_CAN_C, C_CAN_T, True, "right"),
+        ("CANDIDATOS",       C_CAN_C, C_CAN_T, False, "left"),
         "__SEP__",
-        ("ELEGIDO",  C_RES_C, C_RES_T, True, "center"),
-        ("MZ_FINAL", C_RES_C, C_RES_T, True, "center"),
-        ("LOTE_FINAL",C_RES_C,C_RES_T, True, "center"),
+        ("MZ_FINAL",         C_RES_C, C_RES_T, True,  "center"),
+        ("LOTE_FINAL",       C_RES_C, C_RES_T, True,  "center"),
         "__SEP__",
-        ("CICLO",          C_CUA_C, C_CUA_T, True, "center"),
-        ("FECHA_CORRECCION",C_CUA_C,C_CUA_T, True, "left"),
+        ("CICLO",            C_CUA_C, C_CUA_T, True,  "center"),
+        ("FECHA_CORRECCION", C_CUA_C, C_CUA_T, True,  "left"),
     ]
 
     grupos_amb = [
@@ -718,9 +843,9 @@ def exportar_trazabilidad(ruta, corr_simples: dict, corr_ambiguos: dict,
         None,
         ("¿QUÉ HIZO EL BANCO?", 4, C_BAN_H, C_BAN_T),
         None,
-        ("CANDIDATOS EVALUADOS",5, C_CAN_H, C_CAN_T),
+        ("CANDIDATOS",          1, C_CAN_H, C_CAN_T),
         None,
-        ("RESULTADO FINAL",     3, C_RES_H, C_RES_T),
+        ("ELEGIDO",             2, C_RES_H, C_RES_T),
         None,
         ("¿CUÁNDO?",            2, C_CUA_H, C_CUA_T),
     ]
@@ -728,53 +853,48 @@ def exportar_trazabilidad(ruta, corr_simples: dict, corr_ambiguos: dict,
     _escribir_cabecera_doble(ws2, cols_amb, grupos_amb)
 
     anchos_amb = {
-        "USER_ID":10, "NOMBRE":24,
-        "ORIGEN":28, "MONTO":12, "MENSAJE":30, "FECHA":20,
-        "MZ_CAND":8, "LOTE_CAND":8, "NOMBRE_CAND":20,
-        "DEUDA_CAND":12, "DIFF_CAND":10,
-        "ELEGIDO":8, "MZ_FINAL":8, "LOTE_FINAL":8,
+        "USER_ID":10, "NOMBRE":26,
+        "ORIGEN":30, "MONTO":12, "MENSAJE":28, "FECHA":20,
+        "CANDIDATOS":35,
+        "MZ_FINAL":10, "LOTE_FINAL":10,
         "CICLO":7, "FECHA_CORRECCION":16,
     }
 
     ri = 3
-    for origen, v in corr_ambiguos.items():
-        candidatos = v.get("candidatos", [{"mz": v.get("mz",""), "lote": v.get("lote",""),
-                                            "nombre":"", "deuda":0, "diff":0}])
-        mz_final   = v.get("mz", "")
-        lote_final = v.get("lote", "")
-        for cand in candidatos:
-            elegido = "✅" if (cand.get("mz","") == mz_final and
-                              cand.get("lote","") == lote_final) else ""
-            valores = {
-                "USER_ID":          v.get("user_id", ""),
-                "NOMBRE":           v.get("nombre", ""),
-                "ORIGEN":           origen,
-                "MONTO":            v.get("monto", ""),
-                "MENSAJE":          v.get("mensaje", ""),
-                "FECHA":            v.get("fecha", ""),
-                "MZ_CAND":          cand.get("mz", ""),
-                "LOTE_CAND":        cand.get("lote", ""),
-                "NOMBRE_CAND":      cand.get("nombre", ""),
-                "DEUDA_CAND":       cand.get("deuda", ""),
-                "DIFF_CAND":        cand.get("diff", ""),
-                "ELEGIDO":          elegido,
-                "MZ_FINAL":         mz_final,
-                "LOTE_FINAL":       lote_final,
-                "CICLO":            ciclo,
-                "FECHA_CORRECCION": fecha_hoy,
-            }
-            ci = 1
-            for col in cols_amb:
-                if col == "__SEP__":
-                    _sep_col(ws2, ri, ci)
-                    ci += 1
-                    continue
-                nombre, bg, txt, mono, align = col
-                c = ws2.cell(row=ri, column=ci, value=valores.get(nombre, ""))
-                _cel(c, bg, txt, mono=mono, align=align)
+    for reg in ambiguos_list:
+        candidatos = reg.get("candidatos", [])
+        partes = []
+        for c in candidatos:
+            mz_c  = c.get("mz", ""); lt_c  = c.get("lote", "")
+            deu_c = c.get("deuda", ""); dif_c = c.get("dif", "")
+            deu_s = str(int(deu_c)) if isinstance(deu_c, (int, float)) and deu_c else str(deu_c)
+            dif_s = (f"+{int(dif_c)}" if dif_c > 0 else str(int(dif_c))) if isinstance(dif_c, (int, float)) else str(dif_c)
+            partes.append(f"{mz_c}-{lt_c}({deu_s},{dif_s})")
+        valores = {
+            "USER_ID":          reg.get("user_id", ""),
+            "NOMBRE":           reg.get("nombre", ""),
+            "ORIGEN":           reg.get("origen", ""),
+            "MONTO":            reg.get("monto_pago", ""),
+            "MENSAJE":          reg.get("mensaje", ""),
+            "FECHA":            reg.get("fecha", ""),
+            "CANDIDATOS":       " · ".join(partes),
+            "MZ_FINAL":         reg.get("mz_sug", reg.get("mz", "")),
+            "LOTE_FINAL":       reg.get("lote_sug", reg.get("lote", "")),
+            "CICLO":            ciclo,
+            "FECHA_CORRECCION": fecha_hoy,
+        }
+        ci = 1
+        for col in cols_amb:
+            if col == "__SEP__":
+                _sep_col(ws2, ri, ci)
                 ci += 1
-            ws2.row_dimensions[ri].height = 18
-            ri += 1
+                continue
+            nombre, bg, txt, mono, align = col
+            c = ws2.cell(row=ri, column=ci, value=valores.get(nombre, ""))
+            _cel(c, bg, txt, mono=mono, align=align)
+            ci += 1
+        ws2.row_dimensions[ri].height = 18
+        ri += 1
 
     _aplicar_anchos(ws2, cols_amb, anchos_amb)
 
