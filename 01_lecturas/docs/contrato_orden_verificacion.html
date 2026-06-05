@@ -1,0 +1,518 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+#w{font-family:var(--font-sans);padding:4px 0 16px;color:#1a1a1a}
+.instruc{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-left:3px solid #DC2626;border-radius:0 var(--border-radius-md) var(--border-radius-md) 0;padding:9px 13px;font-size:12px;color:var(--color-text-secondary);margin-bottom:16px;line-height:1.7}
+.instruc strong{color:var(--color-text-primary)}
+.instruc code{font-family:var(--font-mono);background:#fff;padding:1px 5px;border-radius:3px;font-size:10.5px}
+
+/* PÁGINA SIMULADA */
+.page{background:#fff;border:1px solid #cfcfcf;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:30px 36px;margin-bottom:18px;max-width:780px;margin-left:auto;margin-right:auto;font-size:12.5px;line-height:1.5}
+.page-num{text-align:right;font-size:10px;color:#888;font-style:italic;margin-bottom:8px}
+
+/* PORTADA */
+.cover-head{text-align:center;border-bottom:2px solid #1a1a1a;padding-bottom:14px;margin-bottom:18px}
+.cover-title{font-size:20px;font-weight:700;letter-spacing:.02em;margin-bottom:4px}
+.cover-sub{font-size:14px;color:#444}
+.cover-meta{display:grid;grid-template-columns:max-content 1fr;gap:6px 18px;font-size:12px;margin-bottom:20px}
+.cover-meta dt{font-weight:600;color:#444}
+.cover-meta dd{color:#1a1a1a;border-bottom:0.5px dotted #aaa;padding-bottom:2px;min-height:18px}
+.cover-meta dd.filled{font-family:var(--font-mono);font-size:11.5px}
+
+.resumen{border:1.5px solid #1a1a1a;border-radius:4px;padding:14px 18px;margin-top:18px}
+.resumen-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;color:#1a1a1a}
+.resumen-row{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:0.5px solid #ddd;font-size:13px}
+.resumen-row:last-child{border-bottom:none}
+.dot{width:10px;height:10px;border-radius:50%;background:#DC2626;flex-shrink:0}
+.resumen-tipo{font-weight:600;min-width:140px;font-family:var(--font-mono);font-size:12px;letter-spacing:.02em}
+.resumen-cnt{font-weight:700;font-size:14px;min-width:30px;text-align:right}
+.resumen-act{color:#555;font-size:12px;font-style:italic}
+.resumen-total{margin-top:12px;padding-top:10px;border-top:1.5px solid #1a1a1a;display:flex;justify-content:space-between;font-weight:700;font-size:14px}
+
+.instrucciones{margin-top:18px;padding:12px 14px;background:#FEF9E7;border:0.5px solid #F0CC52;border-radius:4px;font-size:12px;line-height:1.6}
+.instrucciones strong{color:#7C5E04}
+
+/* TARJETA POR CASO */
+.caso{border:1.5px solid #1a1a1a;border-radius:4px;margin-bottom:18px;overflow:hidden}
+.caso-head{padding:10px 14px;display:flex;justify-content:space-between;align-items:center;color:#fff}
+.caso-head.t-sin{background:#3730A3}
+.caso-head.t-inv{background:#7F1D1D}
+.caso-head.t-cmb{background:#5B21B6}
+.caso-head.t-exc{background:#9A3412}
+.caso-id{font-size:18px;font-weight:700;font-family:var(--font-mono);letter-spacing:.04em}
+.caso-nombre{font-size:14px;font-weight:500}
+.caso-tipo{font-size:11px;font-weight:700;background:#fff;color:#1a1a1a;padding:3px 8px;border-radius:3px;letter-spacing:.04em}
+
+.caso-body{padding:14px 18px}
+
+.bloque{margin-bottom:14px}
+.bloque-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#666;margin-bottom:6px;padding-bottom:3px;border-bottom:0.5px solid #ddd}
+
+.datos-sistema{display:grid;grid-template-columns:repeat(4,1fr);gap:10px 14px;font-size:12px}
+.dato{display:flex;flex-direction:column;gap:2px}
+.dato-label{font-size:10px;color:#666;text-transform:uppercase;letter-spacing:.04em}
+.dato-valor{font-family:var(--font-mono);font-size:13px;font-weight:600;color:#1a1a1a}
+.dato-valor.empty{color:#aaa;font-style:italic;font-weight:400}
+
+.mensaje{background:#FEF2F2;border-left:3px solid #DC2626;padding:8px 12px;border-radius:0 4px 4px 0;font-size:12.5px;color:#1a1a1a;margin-bottom:8px}
+.mensaje strong{color:#7F1D1D}
+
+.causas{font-size:11.5px;color:#555;margin-bottom:8px}
+.causas strong{color:#1a1a1a}
+.causas-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.causa-tag{background:#F3F4F6;border:0.5px solid #D1D5DB;border-radius:3px;padding:2px 8px;font-size:11px;color:#374151}
+
+.accion{background:#EFF6FF;border-left:3px solid #1E40AF;padding:8px 12px;border-radius:0 4px 4px 0;font-size:12.5px;color:#1a1a1a;margin-bottom:10px}
+.accion strong{color:#1E40AF}
+
+/* ZONA PARA ESCRIBIR */
+.campo{background:#FFFBEB;border:1px dashed #B45309;border-radius:4px;padding:12px 14px}
+.campo-title{font-size:11px;font-weight:700;color:#78350F;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
+.campo-row{display:grid;grid-template-columns:max-content 1fr;gap:6px 14px;font-size:12.5px;align-items:end;margin-bottom:8px}
+.campo-row:last-child{margin-bottom:0}
+.campo-label{font-weight:600;color:#1a1a1a;font-size:12px;padding-bottom:2px}
+.campo-input{border-bottom:1.2px solid #1a1a1a;min-height:22px;font-family:var(--font-mono)}
+.campo-input.small{max-width:120px}
+.campo-input.tiny{max-width:60px;text-align:center}
+.campo-help{font-size:10.5px;color:#666;font-style:italic;grid-column:2;margin-top:-4px}
+
+/* PIE DE FIRMAS */
+.firmas{margin-top:30px;padding-top:20px;border-top:1.5px solid #1a1a1a}
+.firmas-row{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-bottom:24px}
+.firma{display:flex;flex-direction:column;gap:4px}
+.firma-line{border-bottom:1.2px solid #1a1a1a;height:30px}
+.firma-label{font-size:11px;text-align:center;color:#444;font-weight:500}
+.firma-fecha{display:flex;justify-content:center;gap:6px;font-size:11px;color:#666;margin-top:4px}
+.firma-fecha .slot{border-bottom:0.8px solid #888;min-width:30px;display:inline-block;padding:0 4px;font-family:var(--font-mono)}
+
+.label-note{font-size:11px;color:#888;font-style:italic;text-align:center;margin-top:6px}
+</style>
+
+<div id="w">
+  <div class="instruc">
+    <strong>orden_verificacion_YYYY-MM.pdf</strong> · documento que el operario lleva al campo para verificar anomalías físicamente.<br>
+    Solo incluye los <strong>4 tipos de anomalía que requieren ir al predio</strong>: SIN_LECTURA · MEDIDOR_INVERTIDO · POSIBLE_CAMBIO_MEDIDOR · EXCESIVO.<br>
+    Las demás (DIFERENCIA_M3, MARC_ACT_NO_NUMERICO, DUPLICADO, USUARIO_FANTASMA) se resuelven en escritorio y van solo a <code>correcciones.xlsx</code>.<br>
+    <strong>Flujo:</strong> supervisor imprime → operario va al predio → llena los espacios en blanco a mano → devuelve al supervisor → supervisor transcribe a <code>correcciones.xlsx</code>.<br>
+    Este HTML es un mockup visual del PDF — el documento real se genera con python-docx + docx2pdf u otra librería.
+  </div>
+
+  <!-- ==================== PÁGINA 1 — PORTADA ==================== -->
+  <div class="page">
+    <div class="page-num">Página 1 de 5</div>
+
+    <div class="cover-head">
+      <div class="cover-title">JASS — Orden de Verificación</div>
+      <div class="cover-sub">Ciclo 2026-06</div>
+    </div>
+
+    <dl class="cover-meta">
+      <dt>Emitido:</dt>     <dd class="filled">04/06/2026 09:15</dd>
+      <dt>Operario:</dt>    <dd>&nbsp;</dd>
+      <dt>Casos a verificar:</dt> <dd class="filled">12</dd>
+      <dt>Fecha entrega al operario:</dt> <dd>&nbsp;</dd>
+      <dt>Fecha de devolución:</dt> <dd>&nbsp;</dd>
+    </dl>
+
+    <div class="resumen">
+      <div class="resumen-title">Resumen de casos</div>
+
+      <div class="resumen-row">
+        <span class="dot" style="background:#3730A3"></span>
+        <span class="resumen-tipo">SIN_LECTURA</span>
+        <span class="resumen-cnt">3</span>
+        <span class="resumen-act">→ ir al predio y leer el medidor</span>
+      </div>
+
+      <div class="resumen-row">
+        <span class="dot" style="background:#7F1D1D"></span>
+        <span class="resumen-tipo">MEDIDOR_INVERTIDO</span>
+        <span class="resumen-cnt">3</span>
+        <span class="resumen-act">→ verificar si el medidor está al revés</span>
+      </div>
+
+      <div class="resumen-row">
+        <span class="dot" style="background:#5B21B6"></span>
+        <span class="resumen-tipo">POSIBLE_CAMBIO_MEDIDOR</span>
+        <span class="resumen-cnt">2</span>
+        <span class="resumen-act">→ confirmar si cambiaron el medidor</span>
+      </div>
+
+      <div class="resumen-row">
+        <span class="dot" style="background:#9A3412"></span>
+        <span class="resumen-tipo">EXCESIVO</span>
+        <span class="resumen-cnt">4</span>
+        <span class="resumen-act">→ revisar si hay fuga visible</span>
+      </div>
+
+      <div class="resumen-total">
+        <span>TOTAL</span>
+        <span>12 casos</span>
+      </div>
+    </div>
+
+    <div class="instrucciones">
+      <strong>Instrucciones para el operario:</strong><br>
+      1. Cada caso ocupa una página · llevar el documento al predio.<br>
+      2. Confirmar el número del medidor y leer la marcación actual.<br>
+      3. Anotar el valor en el recuadro amarillo (escribir con lapicero).<br>
+      4. Si hay fuga visible escribir <strong>F</strong> en obs · si el predio está cerrado escribir <strong>P</strong> · si se cambió el medidor escribir <strong>M</strong>.<br>
+      5. Al volver, devolver el documento firmado al supervisor.
+    </div>
+  </div>
+
+  <!-- ==================== PÁGINA 2 — SIN_LECTURA ==================== -->
+  <div class="page">
+    <div class="page-num">Página 2 de 5 · caso 1 de 12</div>
+
+    <div class="caso">
+      <div class="caso-head t-sin">
+        <div>
+          <div class="caso-id">B-3</div>
+          <div class="caso-nombre">PEDRO SOTO</div>
+        </div>
+        <div class="caso-tipo">SIN LECTURA</div>
+      </div>
+
+      <div class="caso-body">
+
+        <div class="bloque">
+          <div class="bloque-title">¿Qué dice el sistema?</div>
+          <div class="datos-sistema">
+            <div class="dato">
+              <span class="dato-label">Lectura del mes pasado</span>
+              <span class="dato-valor">90</span>
+            </div>
+            <div class="dato">
+              <span class="dato-label">Lectura actual registrada</span>
+              <span class="dato-valor empty">— sin dato —</span>
+            </div>
+            <div class="dato">
+              <span class="dato-label">M3 registrado</span>
+              <span class="dato-valor empty">— sin dato —</span>
+            </div>
+            <div class="dato">
+              <span class="dato-label">Fecha del registro</span>
+              <span class="dato-valor">02/06/2026</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="bloque">
+          <div class="bloque-title">¿Qué pasa con este predio?</div>
+          <div class="mensaje">
+            <strong>No se registró la lectura este mes.</strong> El operario no anotó el valor del medidor, o el predio estaba cerrado al momento de la visita.
+          </div>
+          <div class="causas">
+            <strong>Causas posibles:</strong>
+            <div class="causas-list">
+              <span class="causa-tag">Predio cerrado</span>
+              <span class="causa-tag">Medidor sin display visible</span>
+              <span class="causa-tag">Omisión del operario</span>
+            </div>
+          </div>
+          <div class="accion">
+            <strong>Acción:</strong> Ir al predio, anotar el número del medidor abajo. Si el predio sigue cerrado, escribir <strong>P</strong> en obs.
+          </div>
+        </div>
+
+        <div class="campo">
+          <div class="campo-title">✏️ Qué encontraste en campo</div>
+          <div class="campo-row">
+            <span class="campo-label">Lectura verificada:</span>
+            <span class="campo-input small">&nbsp;</span>
+          </div>
+          <div class="campo-row">
+            <span class="campo-label">M3 calculado:</span>
+            <span class="campo-input small">&nbsp;</span>
+            <span class="campo-help">M3 = lectura verificada − 90</span>
+          </div>
+          <div class="campo-row">
+            <span class="campo-label">obs (M / F / P / —):</span>
+            <span class="campo-input tiny">&nbsp;</span>
+          </div>
+          <div class="campo-row">
+            <span class="campo-label">Notas:</span>
+            <span class="campo-input">&nbsp;</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== PÁGINA 3 — MEDIDOR_INVERTIDO ==================== -->
+  <div class="page">
+    <div class="page-num">Página 3 de 5 · caso 2 de 12</div>
+
+    <div class="caso">
+      <div class="caso-head t-inv">
+        <div>
+          <div class="caso-id">A-4</div>
+          <div class="caso-nombre">YOLANDA ESPINOZA JAIMES</div>
+        </div>
+        <div class="caso-tipo">MEDIDOR INVERTIDO</div>
+      </div>
+
+      <div class="caso-body">
+
+        <div class="bloque">
+          <div class="bloque-title">¿Qué dice el sistema?</div>
+          <div class="datos-sistema">
+            <div class="dato">
+              <span class="dato-label">Lectura del mes pasado</span>
+              <span class="dato-valor">80</span>
+            </div>
+            <div class="dato">
+              <span class="dato-label">Lectura actual registrada</span>
+              <span class="dato-valor">75</span>
+            </div>
+            <div class="dato">
+              <span class="dato-label">M3 registrado</span>
+              <span class="dato-valor">0</span>
+            </div>
+            <div class="dato">
+              <span class="dato-label">Fecha del registro</span>
+              <span class="dato-valor">02/06/2026</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="bloque">
+          <div class="bloque-title">¿Qué pasa con este predio?</div>
+          <div class="mensaje">
+            <strong>El medidor marca un poco menos que el mes pasado.</strong> Lectura actual <strong>75</strong> vs <strong>80</strong> del mes pasado · diferencia de <strong>−5 m³</strong>. Es posible que el medidor esté instalado al revés.
+          </div>
+          <div class="causas">
+            <strong>Causas posibles:</strong>
+            <div class="causas-list">
+              <span class="causa-tag">Medidor instalado al revés</span>
+              <span class="causa-tag">Lectura mal anotada</span>
+              <span class="causa-tag">Medidor en mal estado</span>
+            </div>
+          </div>
+          <div class="accion">
+            <strong>Acción:</strong> Ir al predio y verificar si el medidor está al revés. Anotar la lectura correcta. Si se confirma cambio de medidor, escribir <strong>M</strong> en obs.
+          </div>
+        </div>
+
+        <div class="campo">
+          <div class="campo-title">✏️ Qué encontraste en campo</div>
+          <div class="campo-row">
+            <span class="campo-label">Lectura verificada:</span>
+            <span class="campo-input small">&nbsp;</span>
+          </div>
+          <div class="campo-row">
+            <span class="campo-label">M3 calculado:</span>
+            <span class="campo-input small">&nbsp;</span>
+            <span class="campo-help">M3 = lectura verificada − 80</span>
+          </div>
+          <div class="campo-row">
+            <span class="campo-label">obs (M / F / P / —):</span>
+            <span class="campo-input tiny">&nbsp;</span>
+          </div>
+          <div class="campo-row">
+            <span class="campo-label">Notas:</span>
+            <span class="campo-input">&nbsp;</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== PÁGINA 4 — POSIBLE_CAMBIO_MEDIDOR ==================== -->
+  <div class="page">
+    <div class="page-num">Página 4 de 5 · caso 3 de 12</div>
+
+    <div class="caso">
+      <div class="caso-head t-cmb">
+        <div>
+          <div class="caso-id">D-5</div>
+          <div class="caso-nombre">LUIS GARCIA</div>
+        </div>
+        <div class="caso-tipo">POSIBLE CAMBIO MEDIDOR</div>
+      </div>
+
+      <div class="caso-body">
+
+        <div class="bloque">
+          <div class="bloque-title">¿Qué dice el sistema?</div>
+          <div class="datos-sistema">
+            <div class="dato">
+              <span class="dato-label">Lectura del mes pasado</span>
+              <span class="dato-valor">1600</span>
+            </div>
+            <div class="dato">
+              <span class="dato-label">Lectura actual registrada</span>
+              <span class="dato-valor">12</span>
+            </div>
+            <div class="dato">
+              <span class="dato-label">M3 registrado</span>
+              <span class="dato-valor">0</span>
+            </div>
+            <div class="dato">
+              <span class="dato-label">Fecha del registro</span>
+              <span class="dato-valor">02/06/2026</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="bloque">
+          <div class="bloque-title">¿Qué pasa con este predio?</div>
+          <div class="mensaje">
+            <strong>El medidor marca mucho menos que el mes pasado.</strong> Lectura actual <strong>12</strong> vs <strong>1600</strong> del mes pasado · diferencia de <strong>−1588 m³</strong>. Probablemente se cambió el medidor sin reportar.
+          </div>
+          <div class="causas">
+            <strong>Causas posibles:</strong>
+            <div class="causas-list">
+              <span class="causa-tag">Medidor cambiado y no reportado</span>
+              <span class="causa-tag">Lectura tomada en medidor equivocado</span>
+              <span class="causa-tag">Error de transcripción grave</span>
+            </div>
+          </div>
+          <div class="accion">
+            <strong>Acción:</strong> Ir al predio, confirmar con el usuario si se cambió el medidor. Anotar la lectura del nuevo medidor. Si se cambió, escribir <strong>M</strong> en obs.
+          </div>
+        </div>
+
+        <div class="campo">
+          <div class="campo-title">✏️ Qué encontraste en campo</div>
+          <div class="campo-row">
+            <span class="campo-label">Lectura verificada:</span>
+            <span class="campo-input small">&nbsp;</span>
+          </div>
+          <div class="campo-row">
+            <span class="campo-label">M3 calculado:</span>
+            <span class="campo-input small">&nbsp;</span>
+            <span class="campo-help">M3 = lectura verificada − 1600 (o lo que el operario declare si se cambió)</span>
+          </div>
+          <div class="campo-row">
+            <span class="campo-label">obs (M / F / P / —):</span>
+            <span class="campo-input tiny">&nbsp;</span>
+          </div>
+          <div class="campo-row">
+            <span class="campo-label">Notas:</span>
+            <span class="campo-input">&nbsp;</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== PÁGINA 5 — EXCESIVO ==================== -->
+  <div class="page">
+    <div class="page-num">Página 5 de 5 · caso 4 de 12</div>
+
+    <div class="caso">
+      <div class="caso-head t-exc">
+        <div>
+          <div class="caso-id">B-2</div>
+          <div class="caso-nombre">ROSA DIAZ</div>
+        </div>
+        <div class="caso-tipo">EXCESIVO</div>
+      </div>
+
+      <div class="caso-body">
+
+        <div class="bloque">
+          <div class="bloque-title">¿Qué dice el sistema?</div>
+          <div class="datos-sistema">
+            <div class="dato">
+              <span class="dato-label">Lectura del mes pasado</span>
+              <span class="dato-valor">300</span>
+            </div>
+            <div class="dato">
+              <span class="dato-label">Lectura actual registrada</span>
+              <span class="dato-valor">365</span>
+            </div>
+            <div class="dato">
+              <span class="dato-label">M3 registrado</span>
+              <span class="dato-valor">65</span>
+            </div>
+            <div class="dato">
+              <span class="dato-label">Fecha del registro</span>
+              <span class="dato-valor">02/06/2026</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="bloque">
+          <div class="bloque-title">¿Qué pasa con este predio?</div>
+          <div class="mensaje">
+            <strong>Consumo muy alto.</strong> Este predio registró <strong>65 m³</strong> este mes · el umbral normal es 50 m³. Puede haber fuga.
+          </div>
+          <div class="causas">
+            <strong>Causas posibles:</strong>
+            <div class="causas-list">
+              <span class="causa-tag">Fuga visible o en cisterna</span>
+              <span class="causa-tag">Medidor en mal estado</span>
+              <span class="causa-tag">Uso intensivo legítimo</span>
+              <span class="causa-tag">Lectura mal anotada</span>
+            </div>
+          </div>
+          <div class="accion">
+            <strong>Acción:</strong> Ir al predio, revisar si hay fuga visible (caños, tanque, cisterna). Confirmar el número del medidor. Si hay fuga, escribir <strong>F</strong> en obs.
+          </div>
+        </div>
+
+        <div class="campo">
+          <div class="campo-title">✏️ Qué encontraste en campo</div>
+          <div class="campo-row">
+            <span class="campo-label">Lectura verificada:</span>
+            <span class="campo-input small">&nbsp;</span>
+          </div>
+          <div class="campo-row">
+            <span class="campo-label">M3 calculado:</span>
+            <span class="campo-input small">&nbsp;</span>
+            <span class="campo-help">M3 = lectura verificada − 300</span>
+          </div>
+          <div class="campo-row">
+            <span class="campo-label">¿Vio fuga visible?</span>
+            <span class="campo-input small">&nbsp;</span>
+            <span class="campo-help">SÍ / NO · si SÍ, escribir F en obs</span>
+          </div>
+          <div class="campo-row">
+            <span class="campo-label">obs (M / F / P / —):</span>
+            <span class="campo-input tiny">&nbsp;</span>
+          </div>
+          <div class="campo-row">
+            <span class="campo-label">Notas:</span>
+            <span class="campo-input">&nbsp;</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- FIRMAS al final de la última página -->
+    <div class="firmas">
+      <div class="firmas-row">
+        <div class="firma">
+          <div class="firma-line">&nbsp;</div>
+          <div class="firma-label">Firma operario</div>
+          <div class="firma-fecha">
+            Fecha:
+            <span class="slot">&nbsp;</span> /
+            <span class="slot">&nbsp;</span> /
+            <span class="slot">&nbsp;</span>
+          </div>
+        </div>
+        <div class="firma">
+          <div class="firma-line">&nbsp;</div>
+          <div class="firma-label">Firma supervisor (recibió)</div>
+          <div class="firma-fecha">
+            Fecha:
+            <span class="slot">&nbsp;</span> /
+            <span class="slot">&nbsp;</span> /
+            <span class="slot">&nbsp;</span>
+          </div>
+        </div>
+      </div>
+      <div class="label-note">Devolver este documento firmado al supervisor cuando termines.</div>
+    </div>
+
+  </div>
+
+</div>

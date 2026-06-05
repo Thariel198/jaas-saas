@@ -1,7 +1,10 @@
 # =========================IMPORTS===========================
 import os
+import re
+import unicodedata
 import pandas as pd
 import shutil
+import fitz
 from pathlib import Path
 from docxtpl import DocxTemplate, InlineImage
 from docx2pdf import convert
@@ -12,6 +15,7 @@ from PyPDF2 import PdfMerger
 BASE_DIR=Path(".")
 INPUT_DIR=BASE_DIR/"Inputs"
 OUTPUT_DIR=BASE_DIR/"Outputs"
+IMAGES_DIR=OUTPUT_DIR/"Imagenes"
 
 DATA_BOLETAS_PATH=INPUT_DIR/"DATA_boletas.xlsx"
 PLANTILLA_BOLETAS_PATH=INPUT_DIR/"PLANTILLA_boletas.docx"
@@ -28,14 +32,19 @@ LECTURA_ACTUAL = "10/01/2026"
 PERIODO = "11/02/2026 al 10/03/2026"
 FECHA_VENCIMIENTO = "07/02/2026"
 FECHA_EMISION = "27/03/2026"
-FECHA_PAGO = "04/04"
-HORA_PAGO = "4-6 pm"
+FECHA_PAGO = "05-06/06"
+HORA_PAGO = "16:00-20:00 y 10:00-13:00 hrs"
 LUGAR_PAGO = "LOCAL DEL PUEBLO"
 TELEFONO =  "948 227 636"
 
 SHEET_DATA_BOLETAS="Data"
 
 #=====================UTILIDADES=========================
+def sanitize(s):
+    s = unicodedata.normalize("NFKD", str(s))
+    s = "".join(c for c in s if not unicodedata.combining(c))
+    return re.sub(r"[^\w]", "_", s).strip("_")
+
 # Elimina carpeta y crea otra
 def reset_output_folder(path: Path):
     if path.exists():
@@ -45,7 +54,7 @@ def reset_output_folder(path: Path):
 #====================CARGA DE DATOS========================
 def load_data():
     data_boletas_df = pd.read_excel(DATA_BOLETAS_PATH, sheet_name=SHEET_DATA_BOLETAS)
-
+    data_boletas_df = data_boletas_df.dropna(subset=["NUMERO DE RECIBO", "NOMBRES"]).reset_index(drop=True)
     return data_boletas_df
 
 #=====================VALIDACION DE DATOS====================
@@ -91,14 +100,22 @@ def validate_data(df: pd.DataFrame):
         invalid_period = df[df["PERIODO"].astype(str).str.contains("2167|2099|3000")]
 
         if not invalid_period.empty:
-            print("⚠️ Periodos inválidos detectados:")
+            print("[AVISO] Periodos invalidos detectados:")
             print(invalid_period[["NUMERO DE RECIBO", "PERIODO"]])
             raise ValueError("Hay fechas incorrectas en PERIODO")
 
-    print("✔ Datos validados correctamente")
+    print("[OK] Datos validados correctamente")
 #==================PROCESAMIENTO CON PANDAS==================
 def process_data(df: pd.DataFrame):
-    # No se requiere procesamiento adicional
+    numeric_cols = [
+        "Marcación anterior", "Marcacion altual", "M3",
+        "Total mes actual", "MES ANTERIOR", "Corte y reconexion",
+        "Convenio", "Mantenimiento", "Multa (faena + reunión)",
+        "Cuota directa", "Importe a pagar",
+    ]
+    for col in numeric_cols:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
     return df
 #======================AGRUPACION==================
 def group_data(df: pd.DataFrame):
@@ -135,6 +152,14 @@ def generate_boletas(grouped, limit=None):
         else:
             carita = InlineImage(doc, str(IMG_CARITA_FELIZ_PATH), width=Mm(26))
 
+        def _rv(col, fallback=""):
+            v = row.get(col, fallback)
+            if str(v).strip() in ("", "nan", "None", "NaT"):
+                return fallback
+            if hasattr(v, "strftime"):
+                return v.strftime("%d/%m/%Y")
+            return str(v).strip()
+
         context = {
             "nu_reci": recibo,
             "nombre_usuario": row["NOMBRES"],
@@ -154,35 +179,47 @@ def generate_boletas(grouped, limit=None):
             "icono_estado": carita,
             "imagen_qr": imagen_qr,
 
-            # Datos constantes
+            # Datos del mes — leídos del row si 06a los puso; fallback a constantes
             "nombre_jaas": NOMBRE_JAAS,
             "sector": SECTOR,
-            "lectura_anterior": LECTURA_ANTERIOR,
-            "lectura_actual": LECTURA_ACTUAL,
-            "periodo": PERIODO,
-            "fv": FECHA_VENCIMIENTO,
-            "fe": FECHA_EMISION,
-            "fecha_pago": FECHA_PAGO,
-            "hora_pago": HORA_PAGO,
+            "lectura_anterior": _rv("LECTURA ANTERIOR", LECTURA_ANTERIOR),
+            "lectura_actual":   _rv("LECTURA ACTUAL",   LECTURA_ACTUAL),
+            "periodo":          _rv("PERIODO",           PERIODO),
+            "fv":               _rv("FECHA DE VENCIMIENTO", FECHA_VENCIMIENTO),
+            "fe":               _rv("FECHA DE EMISIÓN",  FECHA_EMISION),
+            "fecha_pago":       _rv("FECHA_PAGO",        FECHA_PAGO),
+            "hora_pago":        HORA_PAGO,
             "telefono": TELEFONO,
             "logo_jaas": logo_jaas,
         }
 
         doc.render(context)
 
-        filename = f"RECIBO_{recibo}.docx"
-        output_docx = OUTPUT_DIR / filename
+        mz = str(row["MZ"]).strip().replace(" ", "")
+        lt = str(row["LT"]).strip().replace(" ", "")
+        base_name = f"RECIBO_{recibo}_{mz}_{lt}"
 
+        output_docx = OUTPUT_DIR / f"{base_name}.docx"
         doc.save(output_docx)
 
-        output_pdf = OUTPUT_DIR / f"RECIBO_{recibo}.pdf"
+        output_pdf = OUTPUT_DIR / f"{base_name}.pdf"
 
         try:
             convert(str(output_docx), str(output_pdf))
         except Exception as e:
-            print(f"❌ Error en recibo {recibo}: {e}")
+            print(f"[ERROR PDF] Recibo {recibo}: {e}")
+            continue
 
-    print("✔ Boletas generadas en PDF correctamente")
+        try:
+            img_name = f"{sanitize(mz)}_{sanitize(lt)}_{sanitize(row['NOMBRES'])}.jpg"
+            pdf_doc = fitz.open(str(output_pdf))
+            pix = pdf_doc[0].get_pixmap(matrix=fitz.Matrix(150/72, 150/72))
+            pix.save(str(IMAGES_DIR / img_name))
+            pdf_doc.close()
+        except Exception as e:
+            print(f"[ERROR IMG] Recibo {recibo}: {e}")
+
+    print("[OK] Boletas generadas en PDF correctamente")
 #========================CONSOLIDACION DE DOCUMENTOS==========================
 def merge_pdfs(output_dir: Path, output_name="CONSOLIDADO.pdf"):
     merger = PdfMerger()
@@ -195,12 +232,13 @@ def merge_pdfs(output_dir: Path, output_name="CONSOLIDADO.pdf"):
     merger.write(str(output_dir / output_name))
     merger.close()
 
-    print("✔ Consolidado generado")
+    print("[OK] Consolidado generado")
 
 #======================FUNCION PRINCIPAL====================
 def main():
     # 1. Resetear carpeta de salida
     reset_output_folder(OUTPUT_DIR)
+    IMAGES_DIR.mkdir()
 
     # 2. Cargar datos
     df = load_data()

@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contrato — registro_operario_acumulado.xlsx</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'IBM Plex Sans', sans-serif; background: #fff; color: #111; }
+  .wrap { padding: 1.5rem 1rem 3rem; max-width: 920px; margin: 0 auto; }
+
+  .title { font-size: 22px; font-weight: 600; color: #111; margin: 0 0 2px; }
+  .sub   { font-size: 12px; color: #666; margin: 0 0 24px; }
+
+  .section { margin-bottom: 28px; }
+  .sec-title {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .08em; color: #2E86C1; border-bottom: 1.5px solid #AED6F1;
+    padding-bottom: 4px; margin-bottom: 12px;
+  }
+
+  /* OPINIÓN BOX */
+  .opinion {
+    background: #FEF9E7; border-left: 4px solid #B7950B;
+    padding: 10px 14px; margin-bottom: 24px; border-radius: 4px;
+    font-size: 12px; line-height: 1.5;
+  }
+  .opinion strong { color: #7D6608; }
+
+  /* TABLE — doble header con merge */
+  table.contrato {
+    width: 100%; border-collapse: collapse; font-size: 11px;
+    border: 1px solid #1E3A5F;
+    margin-bottom: 8px;
+  }
+  table.contrato th, table.contrato td {
+    border: 0.5px solid #d0d7de; padding: 6px 8px; text-align: center;
+  }
+  table.contrato th.h-azul {
+    background: #1E3A5F; color: #fff; font-weight: 600;
+  }
+  table.contrato th.h-mes-old {
+    background: #5DADE2; color: #fff; font-weight: 600;
+  }
+  table.contrato th.h-mes-actual {
+    background: #0369A1; color: #fff; font-weight: 700;
+  }
+  table.contrato th.h-sub {
+    background: #D6EAF8; color: #1A5276; font-weight: 600; font-size: 10px;
+  }
+  table.contrato th.h-sub-actual {
+    background: #AED6F1; color: #1A5276; font-weight: 700; font-size: 10px;
+  }
+  table.contrato td.id-cell {
+    background: #F8F9FA; font-weight: 500; color: #111;
+    font-family: 'IBM Plex Mono', monospace; font-size: 11px;
+  }
+  table.contrato td.dato-cell {
+    font-family: 'IBM Plex Mono', monospace; color: #333;
+  }
+  table.contrato td.vacio {
+    background: #FDEDEC; color: #C0392B; font-style: italic; font-size: 10px;
+  }
+  table.contrato td.nuevo {
+    background: #E9F7EF; color: #1E6B3C; font-weight: 600;
+  }
+
+  .table-caption {
+    font-size: 10.5px; color: #666; margin-top: 4px; margin-bottom: 14px;
+    font-style: italic;
+  }
+
+  /* COMPARACIÓN */
+  .compare {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+    margin-bottom: 16px;
+  }
+  .compare-box {
+    border: 0.5px solid #ddd; border-radius: 6px; padding: 10px 12px;
+  }
+  .compare-box h4 {
+    font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
+    color: #555; margin-bottom: 8px;
+  }
+  .compare-box.actual h4 { color: #922B21; }
+  .compare-box.propuesto h4 { color: #1E6B3C; }
+  .compare-box table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
+  .compare-box th, .compare-box td {
+    border: 0.5px solid #e5e7eb; padding: 4px 6px; text-align: center;
+  }
+  .compare-box th { background: #1E3A5F; color: #fff; font-size: 10px; }
+
+  /* REGLAS — bloques */
+  .rule {
+    border-left: 3px solid #2E86C1; background: #EBF5FB;
+    padding: 8px 12px; margin-bottom: 8px; font-size: 11.5px;
+    border-radius: 0 4px 4px 0;
+  }
+  .rule strong { color: #1A5276; }
+  .rule code {
+    font-family: 'IBM Plex Mono', monospace; font-size: 10.5px;
+    background: #fff; padding: 1px 4px; border-radius: 2px;
+  }
+
+  /* IMPACTO BOX */
+  .impacto {
+    background: #FDEBD0; border-left: 4px solid #B7530B;
+    padding: 10px 14px; margin-bottom: 8px; font-size: 11.5px;
+    border-radius: 0 4px 4px 0;
+  }
+  .impacto strong { color: #7D3F0B; }
+
+  /* BADGES */
+  .badge {
+    display: inline-block; font-size: 9px; font-weight: 700;
+    padding: 1px 6px; border-radius: 3px;
+    text-transform: uppercase; letter-spacing: .04em;
+  }
+  .badge.sistema  { background: #D6EAF8; color: #1A5276; }
+  .badge.operario { background: #FEF9C3; color: #7D6608; }
+
+  .legend {
+    display: flex; gap: 14px; font-size: 10.5px; color: #555;
+    margin-top: 6px; align-items: center;
+  }
+  .legend-item { display: flex; align-items: center; gap: 4px; }
+  .swatch { width: 14px; height: 14px; border-radius: 2px; border: 0.5px solid #aaa; }
+  .swatch.s-old { background: #5DADE2; }
+  .swatch.s-actual { background: #0369A1; }
+  .swatch.s-vacio { background: #FDEDEC; }
+  .swatch.s-nuevo { background: #E9F7EF; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1 class="title">Contrato — registro_operario_acumulado.xlsx</h1>
+  <p class="sub">Ubicación: <code>01_lecturas/inputs/registro_operario_acumulado.xlsx</code> · Doble header (MARCACION + M3 por ciclo)</p>
+
+  <!-- OPINIÓN -->
+  <div class="opinion">
+    <strong>Decisión registrada:</strong> el archivo conserva tanto la marcación como el M3 declarado por el operario por cada ciclo.
+    El M3 no es derivable de <code>MARC_ACT − MARC_ANT</code> en todos los casos: puede aplicar mínimo de cobro, ajustes o correcciones manuales del operario.
+    Guardarlo es lo que habilita anomalías históricas (ej: <code>SALTO_HISTORICO</code>).
+    <br><br>
+    <strong>Tradeoffs:</strong> el archivo crece a ~2N columnas (24 columnas/año en vez de 12). El doble header requiere merge de celdas,
+    y <em>los módulos 02–06 que lean este archivo deben adaptarse</em> (impacto al final).
+    <br><br>
+    <strong>Vive en <code>inputs/</code></strong> porque <code>main.py</code> lo lee al inicio (historial) y lo actualiza al final (nueva columna del ciclo).
+    Es input para <code>crear_template.py</code> también.
+  </div>
+
+  <!-- ESTRUCTURA VISUAL -->
+  <div class="section">
+    <div class="sec-title">1 · Estructura visual propuesta</div>
+
+    <table class="contrato">
+      <thead>
+        <tr>
+          <th class="h-azul" rowspan="2">MZ</th>
+          <th class="h-azul" rowspan="2">LT</th>
+          <th class="h-azul" rowspan="2">NOMBRE</th>
+          <th class="h-mes-old" colspan="2">2026-04</th>
+          <th class="h-mes-old" colspan="2">2026-05</th>
+          <th class="h-mes-actual" colspan="2">2026-06</th>
+        </tr>
+        <tr>
+          <th class="h-sub">MARCACION</th>
+          <th class="h-sub">M3</th>
+          <th class="h-sub">MARCACION</th>
+          <th class="h-sub">M3</th>
+          <th class="h-sub-actual">MARCACION</th>
+          <th class="h-sub-actual">M3</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="id-cell">A</td><td class="id-cell">1</td>
+          <td class="id-cell" style="text-align:left;">MARCELINA OBREGON DE AVILA</td>
+          <td class="dato-cell">11</td><td class="dato-cell">8</td>
+          <td class="dato-cell">19</td><td class="dato-cell">8</td>
+          <td class="nuevo">26</td><td class="nuevo">7</td>
+        </tr>
+        <tr>
+          <td class="id-cell">A</td><td class="id-cell">2</td>
+          <td class="id-cell" style="text-align:left;">ROSA AURORA ROCA VIDAL</td>
+          <td class="dato-cell">2703</td><td class="dato-cell">20</td>
+          <td class="dato-cell">2723</td><td class="dato-cell">20</td>
+          <td class="nuevo">2741</td><td class="nuevo">18</td>
+        </tr>
+        <tr>
+          <td class="id-cell">A</td><td class="id-cell">3</td>
+          <td class="id-cell" style="text-align:left;">LINDA PAJUELO COCHACHIN</td>
+          <td class="dato-cell">22</td><td class="dato-cell">0</td>
+          <td class="dato-cell">22</td><td class="dato-cell">5</td>
+          <td class="nuevo">22</td><td class="nuevo">5</td>
+        </tr>
+        <tr>
+          <td class="id-cell">A</td><td class="id-cell">6A</td>
+          <td class="id-cell" style="text-align:left;">GABY REYES JUAREZ</td>
+          <td class="vacio">— sin alta —</td><td class="vacio">—</td>
+          <td class="vacio">— sin alta —</td><td class="vacio">—</td>
+          <td class="vacio">SIN_LECTURA</td><td class="vacio">—</td>
+        </tr>
+        <tr>
+          <td class="id-cell">A</td><td class="id-cell">9</td>
+          <td class="id-cell" style="text-align:left;">ALEJANDRO MELGAREJO ESPINOZA</td>
+          <td class="dato-cell">2185</td><td class="dato-cell">55</td>
+          <td class="dato-cell">2288</td><td class="dato-cell">48</td>
+          <td class="nuevo">2340</td><td class="nuevo">52</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="table-caption">Fila 1 = mes (merge horizontal de 2 columnas). Fila 2 = sub-columna (MARCACION o M3). Identificación (MZ, LT, NOMBRE) hace merge vertical.</div>
+
+    <div class="legend">
+      <div class="legend-item"><span class="swatch s-old"></span> Mes histórico</div>
+      <div class="legend-item"><span class="swatch s-actual"></span> Mes actual (último procesado)</div>
+      <div class="legend-item"><span class="swatch s-nuevo"></span> Celda escrita en la última corrida</div>
+      <div class="legend-item"><span class="swatch s-vacio"></span> Vacío (sin alta o SIN_LECTURA bloqueado)</div>
+    </div>
+  </div>
+
+  <!-- COMPARACIÓN actual vs propuesto -->
+  <div class="section">
+    <div class="sec-title">2 · Antes / después</div>
+    <div class="compare">
+      <div class="compare-box actual">
+        <h4>Actual (lo que existe hoy)</h4>
+        <table>
+          <thead><tr><th>MZ</th><th>LT</th><th>NOMBRE</th><th>2026-05</th><th>2026-06</th></tr></thead>
+          <tbody>
+            <tr><td>A</td><td>1</td><td>MARCELINA</td><td>19</td><td>26</td></tr>
+            <tr><td>A</td><td>2</td><td>ROSA</td><td>2723</td><td>2741</td></tr>
+          </tbody>
+        </table>
+        <p style="font-size:10.5px; color:#666; margin-top:6px;">Solo marcación. El M3 se pierde (se recalcula como <code>act − ant</code>, pero eso no respeta mínimos ni el M3 declarado).</p>
+      </div>
+      <div class="compare-box propuesto">
+        <h4>Propuesto (con doble header)</h4>
+        <table>
+          <thead>
+            <tr><th rowspan="2">MZ</th><th rowspan="2">LT</th><th rowspan="2">NOMBRE</th>
+                <th colspan="2">2026-05</th><th colspan="2">2026-06</th></tr>
+            <tr><th>MARC</th><th>M3</th><th>MARC</th><th>M3</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>A</td><td>1</td><td>MARCELINA</td><td>19</td><td>8</td><td>26</td><td>7</td></tr>
+            <tr><td>A</td><td>2</td><td>ROSA</td><td>2723</td><td>20</td><td>2741</td><td>18</td></tr>
+          </tbody>
+        </table>
+        <p style="font-size:10.5px; color:#666; margin-top:6px;">Conserva el M3 declarado por el operario. Trazabilidad completa por ciclo.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- REGLAS -->
+  <div class="section">
+    <div class="sec-title">3 · Reglas del contrato</div>
+
+    <div class="rule">
+      <strong>R1 — Identificación inmutable.</strong> Las columnas <code>MZ</code>, <code>LT</code>, <code>NOMBRE</code>
+      hacen merge vertical (ocupan filas 1 y 2). Identifican al usuario; no cambian entre ciclos.
+      <span class="badge sistema">Sistema</span>
+    </div>
+
+    <div class="rule">
+      <strong>R2 — Un par de columnas por ciclo.</strong> Cada mes <code>YYYY-MM</code> ocupa exactamente
+      2 sub-columnas: <code>MARCACION</code> (lectura del medidor) y <code>M3</code> (consumo declarado por el operario).
+      El nombre del mes va en fila 1 con merge horizontal.
+      <span class="badge sistema">Sistema</span>
+    </div>
+
+    <div class="rule">
+      <strong>R3 — Solo se escriben confirmados.</strong> Una celda <code>{mes}.MARCACION</code> /
+      <code>{mes}.M3</code> solo recibe valor si la lectura pasó como confirmada por el módulo 01.
+      Si la lectura quedó bloqueada (SIN_LECTURA, MEDIDOR_INVERTIDO, POSIBLE_CAMBIO_MEDIDOR, DIFERENCIA_M3, EXCESIVO, DUPLICADO, USUARIO_FANTASMA, MARC_ACT_NO_NUMERICO) el par queda vacío.
+      <span class="badge sistema">Sistema</span>
+    </div>
+
+    <div class="rule">
+      <strong>R4 — Vacío significa "sin dato".</strong> Celda vacía = el usuario no tenía alta ese ciclo
+      o la lectura quedó bloqueada. Nunca se rellena con <code>0</code> ni <code>"-"</code>.
+    </div>
+
+    <div class="rule">
+      <strong>R5 — Mes nuevo se agrega al final.</strong> Los ciclos se acumulan a la derecha en orden cronológico.
+      Nunca se borra ni reordena un mes existente.
+    </div>
+
+    <div class="rule">
+      <strong>R6 — El último mes va resaltado.</strong> La columna <code>{mes}.MARCACION</code> y <code>{mes}.M3</code>
+      del ciclo más reciente se pintan en azul oscuro (<code>#0369A1</code>) para indicar "este es el ciclo que recién se procesó".
+    </div>
+
+    <div class="rule">
+      <strong>R7 — Re-correr el mismo mes sobrescribe ese par de columnas.</strong> Si el supervisor corrige y vuelve a
+      correr el módulo 01 con el mismo <code>MES_ANO</code>, las celdas de ese par se reemplazan; los meses anteriores
+      no se tocan.
+    </div>
+
+    <div class="rule">
+      <strong>R8 — Usuario nuevo se agrega como fila nueva.</strong> Si aparece un (MZ, LT) que no existe, se agrega
+      al final, con las columnas de meses anteriores vacías y solo el par del ciclo actual lleno.
+    </div>
+  </div>
+
+  <!-- LIFECYCLE -->
+  <div class="section">
+    <div class="sec-title">4 · Cómo crece el archivo mes a mes</div>
+    <table class="contrato">
+      <thead>
+        <tr><th class="h-azul">Mes procesado</th><th class="h-azul">Columnas resultantes</th><th class="h-azul">Tamaño</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="dato-cell">Primer mes (2026-05)</td>
+          <td class="dato-cell" style="text-align:left;">MZ, LT, NOMBRE, <strong>2026-05.MARC, 2026-05.M3</strong></td>
+          <td class="dato-cell">3 + 2 = 5 cols</td>
+        </tr>
+        <tr>
+          <td class="dato-cell">2026-06</td>
+          <td class="dato-cell" style="text-align:left;">+ <strong>2026-06.MARC, 2026-06.M3</strong></td>
+          <td class="dato-cell">3 + 4 = 7 cols</td>
+        </tr>
+        <tr>
+          <td class="dato-cell">2026-12 (6 meses)</td>
+          <td class="dato-cell" style="text-align:left;">+ 5 pares más</td>
+          <td class="dato-cell">3 + 16 = 19 cols</td>
+        </tr>
+        <tr>
+          <td class="dato-cell">2027-05 (1 año)</td>
+          <td class="dato-cell" style="text-align:left;">+ otros 6 pares</td>
+          <td class="dato-cell">3 + 28 = <strong>31 cols/año</strong></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- IMPACTO -->
+  <div class="section">
+    <div class="sec-title">5 · Impacto en otros módulos</div>
+
+    <div class="impacto">
+      <strong>crear_template.py (módulo 01):</strong> hoy lee la última columna del archivo como MARC_ANT.
+      Debe pasar a leer la sub-columna <code>{último_mes}.MARCACION</code> (no <code>{último_mes}.M3</code>).
+    </div>
+
+    <div class="impacto">
+      <strong>main.py (módulo 01):</strong> <code>_cargar_acumulada</code> debe entender el doble header
+      (saltar fila 1 de meses, leer fila 2 de sub-columnas). <code>_actualizar_acumulada</code> debe escribir
+      el par MARC + M3 en vez de solo MARC. Necesita acceso a M3 histórico para evaluar <code>SALTO_HISTORICO</code>.
+    </div>
+
+    <div class="impacto">
+      <strong>Módulos 02–06:</strong> cualquier código que abra <code>registro_operario_acumulado.xlsx</code> y lea
+      columnas con formato <code>YYYY-MM</code> deja de funcionar. Hay que migrar a leer el par
+      <code>(YYYY-MM, MARCACION)</code>. <em>Antes de aplicar este contrato hay que auditar qué módulos lo leen.</em>
+    </div>
+  </div>
+
+  <!-- ANOMALÍAS QUE HABILITA -->
+  <div class="section">
+    <div class="sec-title">7 · Anomalías que habilita el doble header</div>
+    <div class="rule">
+      <strong>SALTO_HISTORICO</strong> — Compara el M3 del ciclo actual contra el promedio del M3 de los últimos 4 ciclos.
+      Si <code>M3_actual &gt; 3 × promedio(M3 últimos 4 meses)</code>, marca anomalía informativa.
+      Detecta fugas tempranas antes del umbral EXCESIVO de 50 m³.
+      <em>No es posible sin el M3 histórico — justifica la decisión del doble header.</em>
+    </div>
+    <div class="rule">
+      <strong>CONSUMO_CERO</strong> — <code>MARC_ACT == MARC_ANT</code> y <code>M3 == 0</code> (sin mínimo aplicado).
+      Predio vacío, medidor congelado, by-pass. Se lee de las sub-columnas del último ciclo escrito.
+    </div>
+  </div>
+
+  <!-- LO QUE NO HACE ESTE ARCHIVO -->
+  <div class="section">
+    <div class="sec-title">6 · Lo que este archivo NO contiene</div>
+    <div class="rule">
+      <strong>No contiene cobranza, pagos ni estados.</strong> Solo lecturas y consumo declarado.
+      Lo demás vive en los archivos de los módulos 02–06.
+    </div>
+    <div class="rule">
+      <strong>No contiene tarifas ni totales en S/.</strong> El M3 es solo el consumo en metros cúbicos.
+      La conversión a soles la hace el módulo 02.
+    </div>
+    <div class="rule">
+      <strong>No contiene anomalías.</strong> Las lecturas bloqueadas se quedan en <code>reporte_anomalias.xlsx</code>
+      del módulo 01, no contaminan este archivo.
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

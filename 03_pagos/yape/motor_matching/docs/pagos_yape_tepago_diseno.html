@@ -55,7 +55,8 @@ tr:last-child td{border-bottom:none}
   <div class="instruc">
     Archivo de solo lectura — generado automáticamente por <strong>main.py</strong>. No se edita manualmente.<br>
     Todo lo que llega aquí está identificado. Los pendientes viven en <strong>correcciones/pendientes.xlsx</strong>.<br>
-    Pagos múltiples aparecen como <strong>una fila por lote</strong> con el mismo MONTO_PAGO.<br>
+    Pago de lote → <strong>MZ + LOTE</strong> llenos · CONCEPTO vacío · Otro concepto → <strong>CONCEPTO</strong> lleno · MZ + LOTE vacíos.<br>
+    Pagos múltiples aparecen como <strong>una fila por lote</strong> · MONTO_ASIGNADO suma igual a MONTO_PAGO.<br>
     <strong>Temporal durante el mes:</strong> vive en <strong>motor_matching/outputs/pagos_yape_tepago.xlsx</strong> · lo consumen <strong>04_cobranza</strong> y <strong>04b_validacion</strong>.<br>
     <strong>Definitivo al archivar:</strong> se copia a <strong>shared/reporte_acumulado_procesado/reporte_tepago_YYYY_MM.xlsx</strong> · lo leen <strong>crear_origenes</strong> (para construir maestro) y <strong>balance</strong> (para validación de montos).
   </div>
@@ -70,7 +71,7 @@ tr:last-child td{border-bottom:none}
           <th class="th-sep" rowspan="2"></th>
           <th class="th-banco gh" colspan="7">¿Qué hizo el banco?</th>
           <th class="th-sep" rowspan="2"></th>
-          <th class="th-donde gh" colspan="2">¿Dónde vive?</th>
+          <th class="th-donde gh" colspan="3">¿Dónde vive?</th>
           <th class="th-sep" rowspan="2"></th>
           <th class="th-cuanto gh" colspan="3">¿Cuánto debe?</th>
           <th class="th-sep" rowspan="2"></th>
@@ -89,6 +90,7 @@ tr:last-child td{border-bottom:none}
           <th class="th-banco">FECHA</th>
           <th class="th-donde">MZ</th>
           <th class="th-donde">LOTE</th>
+          <th class="th-donde">CONCEPTO</th>
           <th class="th-cuanto">DEUDA_TOTAL</th>
           <th class="th-cuanto">DIFERENCIA</th>
           <th class="th-cuanto">ESTADO_PAGO</th>
@@ -113,6 +115,7 @@ tr:last-child td{border-bottom:none}
           <td class="td-sep"></td>
           <td class="td-donde">A1</td>
           <td class="td-donde">8</td>
+          <td class="td-banco td-empty">—</td>
           <td class="td-sep"></td>
           <td class="td-deuda">S/10.00</td>
           <td class="td-deuda">0.00</td>
@@ -137,6 +140,7 @@ tr:last-child td{border-bottom:none}
           <td class="td-sep"></td>
           <td class="td-donde">Z</td>
           <td class="td-donde">13</td>
+          <td class="td-banco td-empty">—</td>
           <td class="td-sep"></td>
           <td class="td-deuda">S/16.00</td>
           <td class="td-deuda">0.00</td>
@@ -161,6 +165,7 @@ tr:last-child td{border-bottom:none}
           <td class="td-sep"></td>
           <td class="td-donde">C</td>
           <td class="td-donde">14</td>
+          <td class="td-banco td-empty">—</td>
           <td class="td-sep"></td>
           <td class="td-deuda">S/42.00</td>
           <td class="td-deuda">+8.00</td>
@@ -185,6 +190,7 @@ tr:last-child td{border-bottom:none}
           <td class="td-sep"></td>
           <td class="td-donde">Q</td>
           <td class="td-donde">12</td>
+          <td class="td-banco td-empty">—</td>
           <td class="td-sep"></td>
           <td class="td-deuda">S/43.00</td>
           <td class="td-deuda">-13.00</td>
@@ -192,36 +198,37 @@ tr:last-child td{border-bottom:none}
           <td class="td-sep"></td>
           <td class="td-ciclo">2</td>
         </tr>
-        <!-- fila 5: ambiguo exacto -->
+        <!-- fila 5: manual concepto -->
         <tr>
           <td class="num">5</td>
-          <td class="td-quien">U0199</td>
-          <td class="td-nombre">ROSA VICTORIA MILLA</td>
-          <td><span class="b-amb">ambiguo</span></td>
+          <td class="td-quien">U0197</td>
+          <td class="td-nombre">EMILIA CRUZ OLORTEGUI</td>
+          <td><span class="b-man">manual</span></td>
           <td class="td-sep"></td>
           <td class="td-banco">TE PAGÓ</td>
-          <td class="td-banco">Rosa Vic*</td>
+          <td class="td-banco">Paul Tru*</td>
           <td class="td-banco">Janet Vil*</td>
-          <td class="td-monto">S/35.00</td>
+          <td class="td-monto">S/150.00</td>
           <td class="td-banco td-empty">—</td>
-          <td class="td-msg">—</td>
-          <td class="td-banco">04/05/2026 11:10</td>
+          <td class="td-msg">devolución Rosa Coronado</td>
+          <td class="td-banco">19/04/2026 15:08</td>
           <td class="td-sep"></td>
-          <td class="td-donde">B</td>
-          <td class="td-donde">6</td>
+          <td class="td-banco td-empty">—</td>
+          <td class="td-banco td-empty">—</td>
+          <td class="td-donde" style="font-style:italic;font-size:10px;color:#085041">devolución Rosa Coronado</td>
           <td class="td-sep"></td>
-          <td class="td-deuda">S/35.00</td>
-          <td class="td-deuda">0.00</td>
-          <td><span class="b-exacto">exacto</span></td>
+          <td class="td-banco td-empty">—</td>
+          <td class="td-banco td-empty">—</td>
+          <td><span style="background:#EFF6FF;color:#1D4ED8;font-size:10px;font-weight:500;padding:1px 6px;border-radius:3px">concepto</span></td>
           <td class="td-sep"></td>
-          <td class="td-ciclo">1</td>
+          <td class="td-ciclo">2</td>
         </tr>
         <!-- filas 6-7: pago múltiple — 1 fila por lote -->
         <tr class="mul-row">
           <td class="num">6</td>
-          <td class="td-quien">—</td>
-          <td class="td-nombre">VICTOR TRUJILLO</td>
-          <td><span class="b-mul">múltiple</span></td>
+          <td class="td-quien">U0370</td>
+          <td class="td-nombre">JULIO CHAVARRIA GARCIA</td>
+          <td><span class="b-man">manual</span></td>
           <td class="td-sep"></td>
           <td class="td-banco">TE PAGÓ</td>
           <td class="td-banco">Victor Tru*</td>
@@ -233,6 +240,7 @@ tr:last-child td{border-bottom:none}
           <td class="td-sep"></td>
           <td class="td-donde">E</td>
           <td class="td-donde">7</td>
+          <td class="td-banco td-empty">—</td>
           <td class="td-sep"></td>
           <td class="td-deuda">S/35.00</td>
           <td class="td-deuda">0.00</td>
@@ -242,9 +250,9 @@ tr:last-child td{border-bottom:none}
         </tr>
         <tr class="mul-row">
           <td class="num">7</td>
-          <td class="td-quien">—</td>
-          <td class="td-nombre">VICTOR TRUJILLO</td>
-          <td><span class="b-mul">múltiple</span></td>
+          <td class="td-quien">U0374</td>
+          <td class="td-nombre">YASMINA JAIMES TRUJILLO</td>
+          <td><span class="b-man">manual</span></td>
           <td class="td-sep"></td>
           <td class="td-banco">TE PAGÓ</td>
           <td class="td-banco">Victor Tru*</td>
@@ -256,6 +264,7 @@ tr:last-child td{border-bottom:none}
           <td class="td-sep"></td>
           <td class="td-donde">P</td>
           <td class="td-donde">11A</td>
+          <td class="td-banco td-empty">—</td>
           <td class="td-sep"></td>
           <td class="td-deuda">S/40.00</td>
           <td class="td-deuda">0.00</td>
@@ -275,8 +284,7 @@ tr:last-child td{border-bottom:none}
     <div class="leg"><div class="ld" style="background:rgba(124,58,237,.06);border:0.5px solid #C4B5FD"></div>pago múltiple — una fila por lote</div>
     <div class="leg"><span class="b-msg">mensaje</span> regex detectó MZ-LOTE</div>
     <div class="leg"><span class="b-mae">maestro</span> identificado por historial</div>
-    <div class="leg"><span class="b-amb">ambiguo</span> sistema eligió entre candidatos</div>
-    <div class="leg"><span class="b-mul">múltiple</span> dividido por lote</div>
     <div class="leg"><span class="b-man">manual</span> tú lo completaste</div>
+    <div class="leg"><div class="ld" style="background:#EFF6FF;border:0.5px solid #93C5FD"></div><span style="background:#EFF6FF;color:#1D4ED8;font-size:10px;font-weight:500;padding:1px 6px;border-radius:3px">concepto</span> no es pago de lote</div>
   </div>
 </div>

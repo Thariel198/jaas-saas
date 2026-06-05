@@ -1,0 +1,194 @@
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from main import _float, _norm_lt, _detectar_anomalia, _procesar
+
+M3_MIN = 5.0
+M3_EXC = 50.0
+
+
+# ── _float ────────────────────────────────────────────────────────────────────
+def test_float_normal():
+    assert _float("123.5") == 123.5
+    assert _float(200)     == 200.0
+
+def test_float_coma():
+    assert _float("45,5") == 45.5
+
+def test_float_invalido():
+    assert _float("")    == 0.0
+    assert _float(None)  == 0.0
+    assert _float("abc") == 0.0
+
+
+# ── _norm_lt ──────────────────────────────────────────────────────────────────
+def test_norm_lt_decimal():
+    assert _norm_lt("3.0") == "3"
+    assert _norm_lt("10.0") == "10"
+
+def test_norm_lt_vacio():
+    assert _norm_lt("")   == ""
+    assert _norm_lt(None) == ""
+
+def test_norm_lt_string():
+    assert _norm_lt("A1") == "A1"
+
+
+# ── _detectar_anomalia ────────────────────────────────────────────────────────
+def test_ok_consumo_normal():
+    assert _detectar_anomalia(100.0, 115.0, 15.0) is None
+
+def test_retroceso():
+    # marc_act < marc_ant
+    assert _detectar_anomalia(200.0, 195.0, 5.0) == "RETROCESO"
+
+def test_diferencia_m3_simple():
+    # calc=10, operario dice 8 → diferencia > 0.05
+    assert _detectar_anomalia(100.0, 110.0, 8.0) == "DIFERENCIA_M3"
+
+def test_diferencia_m3_tolerancia():
+    # calc=10.0, operario=10.0 → ok
+    assert _detectar_anomalia(100.0, 110.0, 10.0) is None
+
+def test_diferencia_m3_dentro_tolerancia():
+    # diff = 0.04 → dentro de tolerancia, no anomalía
+    assert _detectar_anomalia(100.0, 110.0, 10.04) is None
+
+def test_excesivo():
+    # calc=55 > M3_EXCESIVO
+    assert _detectar_anomalia(100.0, 155.0, 55.0) == "EXCESIVO"
+
+def test_excesivo_limite_exacto():
+    # calc=50 — no excede (necesita > 50)
+    assert _detectar_anomalia(100.0, 150.0, 50.0) is None
+
+def test_minimo_valido():
+    # calc=3 < 5, operario pone exactamente 5 → mínimo aplicado, no anomalía
+    assert _detectar_anomalia(100.0, 103.0, 5.0) is None
+
+def test_minimo_no_aplica_si_operario_no_es_cinco():
+    # calc=3, operario pone 3 → diferencia es 0, ok también
+    assert _detectar_anomalia(100.0, 103.0, 3.0) is None
+
+def test_minimo_con_diferencia_real():
+    # calc=3, operario pone 6 (no es 5) → diferencia > 0.05
+    assert _detectar_anomalia(100.0, 103.0, 6.0) == "DIFERENCIA_M3"
+
+def test_sin_historial_devuelve_none():
+    # marc_ant=None → siempre None (SIN_HISTORIAL se maneja fuera)
+    assert _detectar_anomalia(None, 120.0, 15.0) is None
+
+def test_cero_consumo_ok():
+    # marc_act == marc_ant → calc=0, no retroceso, operario pone 0 → ok
+    assert _detectar_anomalia(100.0, 100.0, 0.0) is None
+
+
+# ── _procesar ─────────────────────────────────────────────────────────────────
+def _lec(mz="A", lt="1", marc_ant_hist=None, marc_act="110", m3="10", mes_ano="2026-04"):
+    return {
+        "mz": mz, "lt": lt, "nombre": "TEST",
+        "mes_ano": mes_ano,
+        "marc_ant": str(marc_ant_hist) if marc_ant_hist is not None else "",
+        "marc_act": marc_act,
+        "m3": m3,
+    }
+
+def _hist(mz="A", lt="1", mes="2026-03", marc_act="100"):
+    return {(mz, lt): {mes: marc_act}}
+
+def test_procesar_confirmado_normal():
+    lec = _lec(marc_act="110", m3="10")
+    hist = _hist(marc_act="100")
+    conf, an = _procesar([lec], hist)
+    assert len(conf) == 1
+    assert len(an) == 0
+    assert conf[0]["marc_act_float"] == 110.0
+
+def test_procesar_retroceso_bloqueado():
+    lec = _lec(marc_act="95", m3="5")
+    hist = _hist(marc_act="100")
+    conf, an = _procesar([lec], hist)
+    assert len(conf) == 0
+    assert len(an) == 1
+    assert an[0]["anomalia"] == "RETROCESO"
+
+def test_procesar_diferencia_m3_bloqueada():
+    lec = _lec(marc_act="115", m3="8")  # calc=15, op=8
+    hist = _hist(marc_act="100")
+    conf, an = _procesar([lec], hist)
+    assert len(conf) == 0
+    assert len(an) == 1
+    assert an[0]["anomalia"] == "DIFERENCIA_M3"
+
+def test_procesar_excesivo_bloqueado():
+    lec = _lec(marc_act="160", m3="60")
+    hist = _hist(marc_act="100")
+    conf, an = _procesar([lec], hist)
+    assert len(conf) == 0
+    assert len(an) == 1
+    assert an[0]["anomalia"] == "EXCESIVO"
+
+def test_procesar_sin_historial_aceptado_e_informativo():
+    lec = _lec(marc_act="110", m3="10")
+    conf, an = _procesar([lec], {})  # sin historial
+    assert len(conf) == 1            # aceptado
+    assert len(an) == 1              # pero reportado como informativo
+    assert an[0]["anomalia"] == "SIN_HISTORIAL"
+
+def test_procesar_sin_lectura():
+    lec = _lec(marc_act="", m3="")
+    hist = _hist(marc_act="100")
+    conf, an = _procesar([lec], hist)
+    assert len(conf) == 0
+    assert an[0]["anomalia"] == "SIN_LECTURA"
+
+def test_procesar_minimo_valido_confirmado():
+    # calc=3, operario pone M3=5 → mínimo aplicado, no anomalía
+    lec = _lec(marc_act="103", m3="5")
+    hist = _hist(marc_act="100")
+    conf, an = _procesar([lec], hist)
+    assert len(conf) == 1
+    assert len(an) == 0
+
+def test_procesar_multiples_mixto():
+    lec1 = _lec("A", "1", marc_act="110", m3="10")
+    lec2 = _lec("A", "2", marc_act="90",  m3="5")   # retroceso
+    lec3 = _lec("B", "1", marc_act="105", m3="5")
+    h = {("A", "1"): {"2026-03": "100"},
+         ("A", "2"): {"2026-03": "100"},
+         ("B", "1"): {"2026-03": "100"}}
+    conf, an = _procesar([lec1, lec2, lec3], h)
+    assert len(conf) == 2
+    assert len(an)   == 1
+    assert an[0]["anomalia"] == "RETROCESO"
+
+
+if __name__ == "__main__":
+    tests = [
+        test_float_normal, test_float_coma, test_float_invalido,
+        test_norm_lt_decimal, test_norm_lt_vacio, test_norm_lt_string,
+        test_ok_consumo_normal, test_retroceso, test_diferencia_m3_simple,
+        test_diferencia_m3_tolerancia, test_diferencia_m3_dentro_tolerancia,
+        test_excesivo, test_excesivo_limite_exacto,
+        test_minimo_valido, test_minimo_no_aplica_si_operario_no_es_cinco,
+        test_minimo_con_diferencia_real, test_sin_historial_devuelve_none,
+        test_cero_consumo_ok,
+        test_procesar_confirmado_normal, test_procesar_retroceso_bloqueado,
+        test_procesar_diferencia_m3_bloqueada, test_procesar_excesivo_bloqueado,
+        test_procesar_sin_historial_aceptado_e_informativo,
+        test_procesar_sin_lectura, test_procesar_minimo_valido_confirmado,
+        test_procesar_multiples_mixto,
+    ]
+    passed = 0
+    for t in tests:
+        try:
+            t()
+            print(f"  OK  {t.__name__}")
+            passed += 1
+        except AssertionError as e:
+            print(f"  FAIL  {t.__name__} -- {e}")
+        except Exception as e:
+            print(f"  ERROR  {t.__name__} -- {type(e).__name__}: {e}")
+    print(f"\n{passed}/{len(tests)} tests pasaron")

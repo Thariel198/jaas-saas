@@ -1,0 +1,354 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+#w{font-family:var(--font-sans);padding:4px 0 16px}
+.instruc{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-left:3px solid #7C3AED;border-radius:0 var(--border-radius-md) var(--border-radius-md) 0;padding:9px 13px;font-size:12px;color:var(--color-text-secondary);margin-bottom:12px;line-height:1.7}
+.instruc strong{color:var(--color-text-primary)}
+.tab-excel{display:inline-flex;align-items:center;border-radius:6px 6px 0 0;padding:5px 14px;font-size:12px;font-weight:500;margin-bottom:-1px;background:#F4ECF7;border:0.5px solid #C4B5FD;border-bottom:none;color:#5B21B6}
+.tw{border:0.5px solid var(--color-border-tertiary);border-radius:0 var(--border-radius-md) var(--border-radius-md) var(--border-radius-md);overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:11px}
+th{padding:6px 8px;font-size:10px;font-weight:500;text-align:left;border-bottom:0.5px solid var(--color-border-tertiary);border-right:0.5px solid var(--color-border-tertiary);white-space:nowrap}
+th:last-child{border-right:none}
+td{padding:5px 8px;border-bottom:0.5px solid var(--color-border-tertiary);border-right:0.5px solid var(--color-border-tertiary);vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+td:last-child{border-right:none}
+tr:last-child td{border-bottom:none}
+.num{width:24px;background:var(--color-background-secondary);color:var(--color-text-tertiary);font-size:10px;font-family:var(--font-mono);text-align:center;border-right:0.5px solid var(--color-border-tertiary)}
+.th-quien{background:#F4ECF7;color:#5B21B6}
+.th-op   {background:#E6F1FB;color:#0C447C}
+.th-anom {background:#FCEBEB;color:#A32D2D}
+.th-fin  {background:#E1F5EE;color:#085041}
+.th-cuan {background:#FEF3E8;color:#7C3003}
+.th-sep  {width:4px;background:var(--color-background-secondary);padding:0;border-right:2px solid var(--color-border-secondary)}
+.td-quien{background:#FAF5FF;font-family:var(--font-mono);font-size:10px;color:#5B21B6}
+.td-nombre{background:#FAF5FF;font-size:11px;color:var(--color-text-primary)}
+.td-op   {background:#F0F8FF;color:#185FA5;font-family:var(--font-mono);font-size:11px;text-align:center}
+.td-op-e {background:#F0F8FF;color:var(--color-text-tertiary);font-style:italic;font-size:10px;text-align:center}
+.td-anom {background:#FFF5F5;font-family:var(--font-mono);font-size:11px;font-weight:600;color:#A32D2D;text-align:center}
+.td-anom-t{background:#FFF5F5;font-size:10px;color:var(--color-text-secondary);font-style:italic;white-space:normal}
+.td-fin  {background:#F0FFF8;font-family:var(--font-mono);font-size:11px;font-weight:500;color:#065F46;text-align:center}
+.td-fin-e{background:#F0FFF8;color:var(--color-text-tertiary);font-style:italic;font-size:10px;text-align:center}
+.td-fin-t{background:#F0FFF8;font-size:10px;color:var(--color-text-secondary)}
+.td-cuan {background:#FEF3E8;font-family:var(--font-mono);font-size:10px;color:#7C3003;text-align:center}
+.td-sep  {width:4px;background:var(--color-background-secondary);padding:0;border-right:2px solid var(--color-border-secondary)}
+.gh{font-size:9px;font-weight:600;text-align:center;padding:3px 0;letter-spacing:.05em;text-transform:uppercase;border-bottom:0.5px solid var(--color-border-tertiary)}
+.cat{font-size:9px;font-weight:700;padding:1px 6px;border-radius:3px;display:inline-block;text-transform:uppercase;letter-spacing:.04em}
+.cat-bloq{background:#FECACA;color:#7F1D1D}
+.cat-info{background:#FEF3C7;color:#78350F}
+.anomtag{font-size:10px;font-weight:600;padding:1px 6px;border-radius:3px;font-family:var(--font-mono);display:inline-block}
+.atag-inv{background:#FEE2E2;color:#7F1D1D}
+.atag-cmb{background:#DDD6FE;color:#4C1D95}
+.atag-dif{background:#FDE68A;color:#78350F}
+.atag-exc{background:#FCA5A5;color:#7F1D1D}
+.atag-sin{background:#E0E7FF;color:#3730A3}
+.atag-dup{background:#FBCFE8;color:#831843}
+.atag-fan{background:#DDD6FE;color:#4C1D95}
+.atag-non{background:#FED7AA;color:#7C2D12}
+.atag-sh {background:#BFDBFE;color:#1E3A8A}
+.atag-c0 {background:#A7F3D0;color:#064E3B}
+.atag-salt{background:#FCD34D;color:#78350F}
+.atag-medc{background:#C7D2FE;color:#3730A3}
+.legend{display:flex;gap:14px;margin-top:12px;flex-wrap:wrap;align-items:center}
+.leg{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--color-text-secondary)}
+.ld{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+.values{margin-top:14px;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:10px 14px;font-size:11px;color:var(--color-text-secondary)}
+.values strong{color:var(--color-text-primary)}
+.values code{font-family:var(--font-mono);background:#fff;padding:1px 5px;border-radius:3px;color:#065F46;font-size:10.5px}
+.values .row{margin-bottom:4px}
+.values .grp{margin-top:8px;border-top:0.5px dashed var(--color-border-tertiary);padding-top:6px}
+</style>
+<div id="w">
+  <div class="instruc">
+    <strong>trazabilidad_YYYY-MM.xlsx</strong> · registro permanente de auditoría · una fila por cada anomalía del mes.<br>
+    Acumula bloqueantes resueltas y informativas registradas — todas, sin borrar nunca. Permite auditar diferencias entre lo medido y lo facturado.<br>
+    <strong>El bloque azul es inmutable</strong> · refleja exactamente lo que entregó el operario en campo.<br>
+    <strong>Lifecycle:</strong> bloqueantes ingresan cuando se cierran desde correcciones · informativas ingresan al cerrar el ciclo (cuando se genera lecturas_planilla) · el archivo nunca se borra.
+  </div>
+
+  <div class="tab-excel">Trazabilidad</div>
+  <div class="tw"><table style="min-width:1500px">
+    <thead>
+      <tr>
+        <th class="num" rowspan="2"></th>
+        <th class="th-quien gh" colspan="3">¿Quién es?</th>
+        <th class="th-sep" rowspan="2"></th>
+        <th class="th-op gh" colspan="5">¿Qué entregó el operario? <span style="font-weight:400;text-transform:none;letter-spacing:0">— inmutable</span></th>
+        <th class="th-sep" rowspan="2"></th>
+        <th class="th-anom gh" colspan="3">¿Cuál fue la anomalía?</th>
+        <th class="th-sep" rowspan="2"></th>
+        <th class="th-fin gh" colspan="4">¿Cómo se resolvió?</th>
+        <th class="th-sep" rowspan="2"></th>
+        <th class="th-cuan gh" colspan="2">¿Cuándo?</th>
+      </tr>
+      <tr>
+        <th class="th-quien">MZ</th><th class="th-quien">LT</th><th class="th-quien">NOMBRE</th>
+        <th class="th-op">MES_ANO</th><th class="th-op">MARC_ANT</th><th class="th-op">MARC_ACT_original</th><th class="th-op">M3_original</th><th class="th-op">obs_operario_original</th>
+        <th class="th-anom">categoria</th><th class="th-anom">tipo_anomalia</th><th class="th-anom">motivo_detectado</th>
+        <th class="th-fin">MARC_ACT_final</th><th class="th-fin">M3_final</th><th class="th-fin">motivo_correccion</th><th class="th-fin">resuelto_por</th>
+        <th class="th-cuan">ciclo</th><th class="th-cuan">fecha_correccion</th>
+      </tr>
+    </thead>
+    <tbody>
+
+      <!-- 1: MEDIDOR_INVERTIDO resuelto en campo -->
+      <tr>
+        <td class="num">1</td>
+        <td class="td-quien">A</td><td class="td-quien">4</td><td class="td-nombre">YOLANDA ESPINOZA JAIMES</td>
+        <td class="td-sep"></td>
+        <td class="td-op">2026-06</td><td class="td-op">80</td><td class="td-op">75</td><td class="td-op">0</td><td class="td-op-e">—</td>
+        <td class="td-sep"></td>
+        <td class="td-anom"><span class="cat cat-bloq">bloqueante</span></td>
+        <td class="td-anom"><span class="anomtag atag-inv">MEDIDOR_INVERTIDO</span></td>
+        <td class="td-anom-t">MARC_ACT (75) &lt; MARC_ANT (80) · −5 m³ (≤ umbral 50)</td>
+        <td class="td-sep"></td>
+        <td class="td-fin">88</td><td class="td-fin">8</td>
+        <td class="td-fin-t">operario reportó mal el 75, era 88</td>
+        <td class="td-fin">campo</td>
+        <td class="td-sep"></td>
+        <td class="td-cuan">2</td>
+        <td class="td-cuan">15/06/2026 14:22</td>
+      </tr>
+
+      <!-- 1b: POSIBLE_CAMBIO_MEDIDOR resuelto en campo -->
+      <tr>
+        <td class="num">2</td>
+        <td class="td-quien">D</td><td class="td-quien">5</td><td class="td-nombre">LUIS GARCIA</td>
+        <td class="td-sep"></td>
+        <td class="td-op">2026-06</td><td class="td-op">1600</td><td class="td-op">12</td><td class="td-op">0</td><td class="td-op-e">—</td>
+        <td class="td-sep"></td>
+        <td class="td-anom"><span class="cat cat-bloq">bloqueante</span></td>
+        <td class="td-anom"><span class="anomtag atag-cmb">POSIBLE_CAMBIO_MEDIDOR</span></td>
+        <td class="td-anom-t">MARC_ACT (12) &lt;&lt; MARC_ANT (1600) · −1588 m³ (&gt; umbral 50)</td>
+        <td class="td-sep"></td>
+        <td class="td-fin">12</td><td class="td-fin">12</td>
+        <td class="td-fin-t">usuario confirmó cambio · obs=M en próximo ciclo</td>
+        <td class="td-fin">campo</td>
+        <td class="td-sep"></td>
+        <td class="td-cuan">2</td>
+        <td class="td-cuan">15/06/2026 14:23</td>
+      </tr>
+
+      <!-- 2: DIFERENCIA_M3 corregida -->
+      <tr>
+        <td class="num">2</td>
+        <td class="td-quien">B</td><td class="td-quien">1</td><td class="td-nombre">LUIS VEGA</td>
+        <td class="td-sep"></td>
+        <td class="td-op">2026-06</td><td class="td-op">150</td><td class="td-op">160</td><td class="td-op">7</td><td class="td-op-e">—</td>
+        <td class="td-sep"></td>
+        <td class="td-anom"><span class="cat cat-bloq">bloqueante</span></td>
+        <td class="td-anom"><span class="anomtag atag-dif">DIFERENCIA_M3</span></td>
+        <td class="td-anom-t">calc=10 vs operario M3=7</td>
+        <td class="td-sep"></td>
+        <td class="td-fin">160</td><td class="td-fin">10</td>
+        <td class="td-fin-t">error aritmético del operario</td>
+        <td class="td-fin">corrige_dato</td>
+        <td class="td-sep"></td>
+        <td class="td-cuan">2</td>
+        <td class="td-cuan">15/06/2026 14:25</td>
+      </tr>
+
+      <!-- 3: EXCESIVO aceptado real (fuga reportada) -->
+      <tr>
+        <td class="num">3</td>
+        <td class="td-quien">B</td><td class="td-quien">2</td><td class="td-nombre">ROSA DIAZ</td>
+        <td class="td-sep"></td>
+        <td class="td-op">2026-06</td><td class="td-op">300</td><td class="td-op">365</td><td class="td-op">65</td><td class="td-op">F</td>
+        <td class="td-sep"></td>
+        <td class="td-anom"><span class="cat cat-bloq">bloqueante</span></td>
+        <td class="td-anom"><span class="anomtag atag-exc">EXCESIVO</span></td>
+        <td class="td-anom-t">65 m³ &gt; umbral 50 · obs F</td>
+        <td class="td-sep"></td>
+        <td class="td-fin">365</td><td class="td-fin">65</td>
+        <td class="td-fin-t">fuga visible confirmada</td>
+        <td class="td-fin">acepta_original</td>
+        <td class="td-sep"></td>
+        <td class="td-cuan">2</td>
+        <td class="td-cuan">15/06/2026 14:30</td>
+      </tr>
+
+      <!-- 4: EXCESIVO maquillado -->
+      <tr>
+        <td class="num">4</td>
+        <td class="td-quien">A</td><td class="td-quien">9</td><td class="td-nombre">ALEJANDRO MELGAREJO ESPINOZA</td>
+        <td class="td-sep"></td>
+        <td class="td-op">2026-06</td><td class="td-op">2288</td><td class="td-op">2340</td><td class="td-op">52</td><td class="td-op-e">—</td>
+        <td class="td-sep"></td>
+        <td class="td-anom"><span class="cat cat-bloq">bloqueante</span></td>
+        <td class="td-anom"><span class="anomtag atag-exc">EXCESIVO</span></td>
+        <td class="td-anom-t">52 m³ &gt; umbral 50 · sin observación</td>
+        <td class="td-sep"></td>
+        <td class="td-fin">2338</td><td class="td-fin">50</td>
+        <td class="td-fin-t">promedio histórico 48 m³, se ajusta a 50</td>
+        <td class="td-fin">maquillaje</td>
+        <td class="td-sep"></td>
+        <td class="td-cuan">2</td>
+        <td class="td-cuan">15/06/2026 14:32</td>
+      </tr>
+
+      <!-- 5: SIN_LECTURA legitimada con P -->
+      <tr>
+        <td class="num">5</td>
+        <td class="td-quien">B</td><td class="td-quien">3</td><td class="td-nombre">PEDRO SOTO</td>
+        <td class="td-sep"></td>
+        <td class="td-op">2026-06</td><td class="td-op">90</td><td class="td-op-e">—</td><td class="td-op-e">—</td><td class="td-op">P</td>
+        <td class="td-sep"></td>
+        <td class="td-anom"><span class="cat cat-info">informativa</span></td>
+        <td class="td-anom"><span class="anomtag atag-sin">SIN_LECTURA</span></td>
+        <td class="td-anom-t">MARC_ACT vacío · obs P legitima (predio cerrado)</td>
+        <td class="td-sep"></td>
+        <td class="td-fin-e">—</td><td class="td-fin-e">—</td>
+        <td class="td-fin-t">predio cerrado, sin medición posible</td>
+        <td class="td-fin">obs_operario_legitima</td>
+        <td class="td-sep"></td>
+        <td class="td-cuan">1</td>
+        <td class="td-cuan">04/06/2026 09:10</td>
+      </tr>
+
+      <!-- 6: MEDIDOR_CAMBIADO (obs M legitima retroceso) -->
+      <tr>
+        <td class="num">6</td>
+        <td class="td-quien">A</td><td class="td-quien">4</td><td class="td-nombre">YOLANDA ESPINOZA JAIMES</td>
+        <td class="td-sep"></td>
+        <td class="td-op">2026-07</td><td class="td-op">9985</td><td class="td-op">15</td><td class="td-op">15</td><td class="td-op">M</td>
+        <td class="td-sep"></td>
+        <td class="td-anom"><span class="cat cat-info">informativa</span></td>
+        <td class="td-anom"><span class="anomtag atag-medc">MEDIDOR_CAMBIADO</span></td>
+        <td class="td-anom-t">MARC_ACT (15) &lt; MARC_ANT (9985) · obs M legitima</td>
+        <td class="td-sep"></td>
+        <td class="td-fin">15</td><td class="td-fin">15</td>
+        <td class="td-fin-t">medidor reemplazado, M3 declarado válido</td>
+        <td class="td-fin">obs_operario_legitima</td>
+        <td class="td-sep"></td>
+        <td class="td-cuan">1</td>
+        <td class="td-cuan">04/07/2026 11:50</td>
+      </tr>
+
+      <!-- 7: DUPLICADO borrado -->
+      <tr>
+        <td class="num">7</td>
+        <td class="td-quien">C</td><td class="td-quien">7</td><td class="td-nombre">JULIA VEGA</td>
+        <td class="td-sep"></td>
+        <td class="td-op">2026-06</td><td class="td-op">120</td><td class="td-op">128</td><td class="td-op">8</td><td class="td-op-e">—</td>
+        <td class="td-sep"></td>
+        <td class="td-anom"><span class="cat cat-bloq">bloqueante</span></td>
+        <td class="td-anom"><span class="anomtag atag-dup">DUPLICADO</span></td>
+        <td class="td-anom-t">fila C-7 apareció 2 veces · misma identificación</td>
+        <td class="td-sep"></td>
+        <td class="td-fin-e">—</td><td class="td-fin-e">—</td>
+        <td class="td-fin-t">se eliminó la fila duplicada del template</td>
+        <td class="td-fin">borra_duplicado</td>
+        <td class="td-sep"></td>
+        <td class="td-cuan">2</td>
+        <td class="td-cuan">15/06/2026 14:35</td>
+      </tr>
+
+      <!-- 8: USUARIO_FANTASMA marca baja -->
+      <tr>
+        <td class="num">8</td>
+        <td class="td-quien">D</td><td class="td-quien">12</td><td class="td-nombre">CARLOS RUIZ</td>
+        <td class="td-sep"></td>
+        <td class="td-op">2026-06</td><td class="td-op-e">—</td><td class="td-op-e">—</td><td class="td-op-e">—</td><td class="td-op-e">—</td>
+        <td class="td-sep"></td>
+        <td class="td-anom"><span class="cat cat-bloq">bloqueante</span></td>
+        <td class="td-anom"><span class="anomtag atag-fan">USUARIO_FANTASMA</span></td>
+        <td class="td-anom-t">presente en acumulado, no aparece en mes</td>
+        <td class="td-sep"></td>
+        <td class="td-fin-e">—</td><td class="td-fin-e">—</td>
+        <td class="td-fin-t">dado de baja, mudanza confirmada</td>
+        <td class="td-fin">marca_baja</td>
+        <td class="td-sep"></td>
+        <td class="td-cuan">2</td>
+        <td class="td-cuan">15/06/2026 14:40</td>
+      </tr>
+
+      <!-- 9: SIN_HISTORIAL aceptado -->
+      <tr>
+        <td class="num">9</td>
+        <td class="td-quien">A</td><td class="td-quien">6A</td><td class="td-nombre">GABY REYES JUAREZ</td>
+        <td class="td-sep"></td>
+        <td class="td-op">2026-06</td><td class="td-op-e">—</td><td class="td-op">22</td><td class="td-op">5</td><td class="td-op-e">—</td>
+        <td class="td-sep"></td>
+        <td class="td-anom"><span class="cat cat-info">informativa</span></td>
+        <td class="td-anom"><span class="anomtag atag-sh">SIN_HISTORIAL</span></td>
+        <td class="td-anom-t">usuario nuevo, sin ciclos anteriores en acumulado</td>
+        <td class="td-sep"></td>
+        <td class="td-fin">22</td><td class="td-fin">5</td>
+        <td class="td-fin-t">primera lectura registrada, alta confirmada</td>
+        <td class="td-fin">informativa_aceptada</td>
+        <td class="td-sep"></td>
+        <td class="td-cuan">1</td>
+        <td class="td-cuan">04/06/2026 09:10</td>
+      </tr>
+
+      <!-- 10: CONSUMO_CERO -->
+      <tr>
+        <td class="num">10</td>
+        <td class="td-quien">A</td><td class="td-quien">3</td><td class="td-nombre">LINDA PAJUELO COCHACHIN</td>
+        <td class="td-sep"></td>
+        <td class="td-op">2026-06</td><td class="td-op">22</td><td class="td-op">22</td><td class="td-op">0</td><td class="td-op-e">—</td>
+        <td class="td-sep"></td>
+        <td class="td-anom"><span class="cat cat-info">informativa</span></td>
+        <td class="td-anom"><span class="anomtag atag-c0">CONSUMO_CERO</span></td>
+        <td class="td-anom-t">act=ant=22 y M3=0 · sin mínimo aplicado</td>
+        <td class="td-sep"></td>
+        <td class="td-fin">22</td><td class="td-fin">0</td>
+        <td class="td-fin-t">posible predio vacío, monitorear próximos ciclos</td>
+        <td class="td-fin">informativa_aceptada</td>
+        <td class="td-sep"></td>
+        <td class="td-cuan">1</td>
+        <td class="td-cuan">04/06/2026 09:10</td>
+      </tr>
+
+      <!-- 11: SALTO_HISTORICO alerta -->
+      <tr>
+        <td class="num">11</td>
+        <td class="td-quien">C</td><td class="td-quien">1</td><td class="td-nombre">JORGE CRUZ</td>
+        <td class="td-sep"></td>
+        <td class="td-op">2026-06</td><td class="td-op">70</td><td class="td-op">105</td><td class="td-op">35</td><td class="td-op-e">—</td>
+        <td class="td-sep"></td>
+        <td class="td-anom"><span class="cat cat-info">informativa</span></td>
+        <td class="td-anom"><span class="anomtag atag-salt">SALTO_HISTORICO</span></td>
+        <td class="td-anom-t">M3=35 &gt; 3× promedio últimos 4 meses (8 m³)</td>
+        <td class="td-sep"></td>
+        <td class="td-fin">105</td><td class="td-fin">35</td>
+        <td class="td-fin-t">alerta de fuga temprana, derivar a verificación</td>
+        <td class="td-fin">informativa_aceptada</td>
+        <td class="td-sep"></td>
+        <td class="td-cuan">1</td>
+        <td class="td-cuan">04/06/2026 09:10</td>
+      </tr>
+
+    </tbody>
+  </table></div>
+
+  <div class="legend">
+    <div class="leg"><span class="ld" style="background:#F4ECF7"></span> ¿Quién es?</div>
+    <div class="leg"><span class="ld" style="background:#E6F1FB"></span> ¿Qué entregó el operario? (inmutable)</div>
+    <div class="leg"><span class="ld" style="background:#FCEBEB"></span> ¿Cuál fue la anomalía?</div>
+    <div class="leg"><span class="ld" style="background:#E1F5EE"></span> ¿Cómo se resolvió?</div>
+    <div class="leg"><span class="ld" style="background:#FEF3E8"></span> ¿Cuándo?</div>
+  </div>
+
+  <div class="values">
+    <div class="row"><strong>Categorías:</strong>
+      <span class="cat cat-bloq">bloqueante</span> pasó por correcciones antes de llegar aquí
+      ·
+      <span class="cat cat-info">informativa</span> aceptada automáticamente, registrada al cerrar el ciclo
+    </div>
+
+    <div class="grp">
+      <div class="row"><strong>Valores de <code>resuelto_por</code> — heredados de correcciones (bloqueantes):</strong></div>
+      <div class="row"><code>campo</code> · operario fue al predio y confirmó lectura</div>
+      <div class="row"><code>maquillaje</code> · estimación basada en promedio histórico</div>
+      <div class="row"><code>acepta_original</code> · la lectura era correcta tal cual (ej: EXCESIVO real)</div>
+      <div class="row"><code>corrige_dato</code> · se corrigió un dato puntual (M3, MARC_ACT no numérico)</div>
+      <div class="row"><code>borra_duplicado</code> · se eliminó la fila duplicada del template</div>
+      <div class="row"><code>marca_baja</code> · usuario dado de baja en este ciclo</div>
+    </div>
+
+    <div class="grp">
+      <div class="row"><strong>Valores nuevos en trazabilidad (informativas):</strong></div>
+      <div class="row"><code>informativa_aceptada</code> · anomalía informativa registrada sin maquillaje (SIN_HISTORIAL, CONSUMO_CERO, SALTO_HISTORICO)</div>
+      <div class="row"><code>obs_operario_legitima</code> · el operario justificó la anomalía con código (P, M, F)</div>
+    </div>
+  </div>
+</div>

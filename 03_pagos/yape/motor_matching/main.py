@@ -15,7 +15,8 @@ sys.path.insert(0, str(Path(__file__).parent))
 from exportar_motor import (
     exportar_trazabilidad,
     exportar_pagos_tepago, exportar_pendientes_diseño,
-    exportar_blancos_acumulados, agregar_devoluciones_acumulados,
+    exportar_pagos_pagaste, exportar_reporte_procesado,
+    exportar_blancos_acumulados, exportar_blancos_mes,
     _cel, _hdr, _sep, _sep_col, _lado, _escribir_cabecera_doble, _aplicar_anchos,
     C_ID_H, C_ID_C, C_ID_T, C_BAN_H, C_BAN_C, C_BAN_T,
     C_UBI_H, C_UBI_C, C_UBI_T, C_DED_H, C_DED_C, C_DED_T,
@@ -38,14 +39,15 @@ OUTPUT_DIR       = BASE_DIR / "outputs"
 
 MAESTRO_FILE      = "maestro_yape.xlsx"
 OUTPUT_FILE       = "pagos_yape_tepago.xlsx"
+PAGASTE_FILE      = "pagos_yape_pagaste.xlsx"
 PENDIENTES_FILE   = "pendientes.xlsx"
 BLANCOS_FILE      = SHARED_DIR / "blancos_acumulados.xlsx"
-DEVOLUCIONES_FILE = SHARED_DIR / "devoluciones_acumulados.xlsx"
 TIPO_PAGO         = "TE PAGÓ"
 
 ALIAS_BANCO = {
     "tipo":    ["tipo de transacción", "tipo de transaccion"],
     "origen":  ["origen"],
+    "destino": ["destino"],
     "monto":   ["monto"],
     "mensaje": ["mensaje"],
     "fecha":   ["fecha de operación", "fecha de operacion"],
@@ -151,31 +153,41 @@ def obtener_ancla() -> datetime | None:
     Lee reporte_acumulado_crudo/ — toma el archivo más reciente
     y extrae la fecha máxima de sus registros como ancla de corte.
     """
-    archivos = sorted(SHARED_DIR.joinpath("reporte_acumulado_procesado").glob("*.xlsx"))
+    archivos = sorted(SHARED_DIR.joinpath("reporte_acumulado_procesado").glob("*_procesado.xlsx"))
     if not archivos:
-        print(f"  ⚠ No hay archivos en reporte_acumulado_procesado/ — sin ancla de corte")
+        print(f"  ⚠ No hay archivos procesados en reporte_acumulado_procesado/ — sin ancla de corte")
         return None
 
-    # Tomar el más reciente por nombre
+    # Tomar el más reciente por nombre (AAAA-MM_procesado.xlsx)
     archivo = archivos[-1]
     print(f"  Reporte procesado más reciente: {archivo.name}")
 
-    wb    = load_workbook(archivo, read_only=True, data_only=True)
-    ws    = wb.active
+    wb = load_workbook(archivo, read_only=True, data_only=True)
+    # Leer hoja TE_PAGÓ si existe (primera hoja del procesado)
+    ws = wb["TE_PAGÓ"] if "TE_PAGÓ" in wb.sheetnames else wb.active
     datos = list(ws.values)
     wb.close()
 
     if len(datos) < 2:
         return None
 
-    headers   = [str(h).strip().lower() if h else "" for h in datos[0]]
+    # Detectar cabecera doble (procesado) o simple (formato legado)
+    headers = [str(h).strip().lower() if h else "" for h in datos[0]]
     col_fecha = next((i for i, h in enumerate(headers) if "fecha" in h), None)
+    if col_fecha is None and len(datos) > 2:
+        # Intentar fila 1 (formato doble cabecera)
+        headers   = [str(h).strip().lower() if h else "" for h in datos[1]]
+        col_fecha = next((i for i, h in enumerate(headers) if "fecha" in h), None)
+        filas_datos = datos[2:]
+    else:
+        filas_datos = datos[1:]
+
     if col_fecha is None:
         print("  ⚠ No se encontró columna fecha en reporte acumulado — sin ancla")
         return None
 
     fechas = []
-    for fila in datos[1:]:
+    for fila in filas_datos:
         if not fila or col_fecha >= len(fila):
             continue
         val = fila[col_fecha]
@@ -473,9 +485,9 @@ def cargar_reportes(ancla=None) -> tuple:
             print(f"  ⚠ Saltado — columnas faltantes: {faltantes}")
             continue
 
-        df = df[df[mapa["tipo"]].astype(str).str.strip().str.upper() == TIPO_PAGO.upper()].copy()
-        df = df.reset_index(drop=True)
-        print(f"  ✔ {len(df)} filas TE PAGÓ")
+        n_tp = (df[mapa["tipo"]].astype(str).str.strip().str.upper() == "TE PAGÓ").sum()
+        n_pg = (df[mapa["tipo"]].astype(str).str.strip().str.upper() == "PAGASTE").sum()
+        print(f"  ✔ {n_tp} TE PAGÓ · {n_pg} PAGASTE")
         todos.append(df)
         mapa_final = mapa
 
@@ -514,8 +526,13 @@ def cargar_reportes(ancla=None) -> tuple:
         if excluidos:
             print(f"  ⚠ {excluidos} filas anteriores al ancla excluidas")
 
-    print(f"  Total final: {len(df_total)} filas")
-    return df_total, mapa_final
+    # Separar TE PAGÓ y PAGASTE
+    tipo_col   = mapa_final["tipo"]
+    df_tepago  = df_total[df_total[tipo_col].astype(str).str.strip().str.upper() == "TE PAGÓ"].copy().reset_index(drop=True)
+    df_pagaste = df_total[df_total[tipo_col].astype(str).str.strip().str.upper() == "PAGASTE"].copy().reset_index(drop=True)
+
+    print(f"  Total: TE PAGÓ={len(df_tepago)} · PAGASTE={len(df_pagaste)}")
+    return df_tepago, df_pagaste, mapa_final
 
 ACUMULADAS_FILE = "trazabilidad_{}.xlsx".format(datetime.today().strftime("%Y_%m"))
 
@@ -587,8 +604,19 @@ def _leer_hoja_acumuladas(wb, nombre_hoja: str, tiene_instruccion: bool = False)
         mz     = str(row.get("MZ", "")).strip().upper()
         if not origen or not mz or origen in ("NAN","") or mz in ("NAN",""):
             continue
-        lote = limpiar_lote(row.get("LOTE", "")) if mz != "BLANCO" else ""
-        resultado[origen] = {"mz": mz, "lote": lote}
+        lote  = limpiar_lote(row.get("LOTE", "")) if mz != "BLANCO" else ""
+        fecha = str(row.get("FECHA", "")).strip()
+        msg = str(row.get("MENSAJE", "") or "").strip()
+        resultado[f"{origen}|{fecha}"] = {
+            "mz":      mz,
+            "lote":    lote,
+            "user_id": str(row.get("USER_ID",  "") or "").strip(),
+            "nombre":  str(row.get("NOMBRE",   "") or "").strip(),
+            "tipo":    str(row.get("TIPO",     "") or "").strip(),
+            "destino": str(row.get("DESTINO",  "") or "").strip(),
+            "monto":   limpiar_monto(row.get("MONTO")) if row.get("MONTO") else "",
+            "mensaje": "" if msg.lower() in ("nan","none") else msg,
+        }
     return resultado or {}
 
 
@@ -635,6 +663,92 @@ def _leer_hoja_multiples(wb) -> dict:
     return resultado if resultado else {}
 
 
+def _leer_acum_ambiguos_traz(wb) -> list:
+    """Lee hoja Ambiguos de trazabilidad → lista de dicts acumulados (mismo formato que validados_ambiguos)."""
+    if "Ambiguos" not in wb.sheetnames:
+        return []
+    filas = list(wb["Ambiguos"].values)
+    if len(filas) < 3:
+        return []
+    headers = [str(h).strip().upper() if h else "" for h in filas[1]]
+    def idx(n):
+        try: return headers.index(n)
+        except: return None
+    i_uid  = idx("USER_ID"); i_nom  = idx("NOMBRE")
+    i_orig = idx("ORIGEN");  i_mnt  = idx("MONTO")
+    i_msg  = idx("MENSAJE"); i_fec  = idx("FECHA")
+    i_cand = idx("CANDIDATOS")
+    i_mzf  = idx("MZ_FINAL"); i_lotf = idx("LOTE_FINAL")
+    if i_orig is None:
+        return []
+    resultado = []
+    for fila in filas[2:]:
+        if not fila:
+            continue
+        origen = str(fila[i_orig]).strip() if i_orig < len(fila) and fila[i_orig] else ""
+        if not origen or origen.upper() in ("NAN", "NONE", ""):
+            continue
+        mz = str(fila[i_mzf]).strip().upper() if i_mzf is not None and i_mzf < len(fila) and fila[i_mzf] else ""
+        if not mz:
+            continue
+        resultado.append({
+            "user_id":    str(fila[i_uid]).strip()    if i_uid  is not None and i_uid  < len(fila) and fila[i_uid]  else "",
+            "nombre":     str(fila[i_nom]).strip()    if i_nom  is not None and i_nom  < len(fila) and fila[i_nom]  else "",
+            "origen":     origen,
+            "monto":      limpiar_monto(fila[i_mnt])  if i_mnt  is not None and i_mnt  < len(fila) and fila[i_mnt]  else 0.0,
+            "mensaje":    str(fila[i_msg]).strip()    if i_msg  is not None and i_msg  < len(fila) and fila[i_msg]  else "",
+            "fecha":      str(fila[i_fec]).strip()    if i_fec  is not None and i_fec  < len(fila) and fila[i_fec]  else "",
+            "candidatos": str(fila[i_cand]).strip()   if i_cand is not None and i_cand < len(fila) and fila[i_cand] else "",
+            "mz_final":   mz,
+            "lote_final": limpiar_lote(fila[i_lotf])  if i_lotf is not None and i_lotf < len(fila) and fila[i_lotf] else "",
+        })
+    return resultado
+
+
+def _leer_acum_maestro_inexacto_traz(wb) -> list:
+    """Lee hoja Maestro_inexacto de trazabilidad → lista de dicts acumulados (mismo formato que validados_maestro_inexacto)."""
+    if "Maestro_inexacto" not in wb.sheetnames:
+        return []
+    filas = list(wb["Maestro_inexacto"].values)
+    if len(filas) < 3:
+        return []
+    headers = [str(h).strip().upper() if h else "" for h in filas[1]]
+    def idx(n):
+        try: return headers.index(n)
+        except: return None
+    i_uid  = idx("USER_ID"); i_nom  = idx("NOMBRE")
+    i_tipo = idx("TIPO");    i_orig = idx("ORIGEN")
+    i_dest = idx("DESTINO"); i_mnt  = idx("MONTO")
+    i_msg  = idx("MENSAJE"); i_fec  = idx("FECHA")
+    i_mz   = idx("MZ");      i_lote = idx("LOTE")
+    i_conc = idx("CONCEPTO"); i_diff = idx("DIFF"); i_mot = idx("MOTIVO")
+    if i_orig is None:
+        return []
+    resultado = []
+    for fila in filas[2:]:
+        if not fila:
+            continue
+        origen = str(fila[i_orig]).strip() if i_orig < len(fila) and fila[i_orig] else ""
+        if not origen or origen.upper() in ("NAN", "NONE", ""):
+            continue
+        resultado.append({
+            "user_id":  str(fila[i_uid]).strip()    if i_uid  is not None and i_uid  < len(fila) and fila[i_uid]  else "",
+            "nombre":   str(fila[i_nom]).strip()    if i_nom  is not None and i_nom  < len(fila) and fila[i_nom]  else "",
+            "tipo":     str(fila[i_tipo]).strip()   if i_tipo is not None and i_tipo < len(fila) and fila[i_tipo] else "TE PAGÓ",
+            "origen":   origen,
+            "destino":  str(fila[i_dest]).strip()   if i_dest is not None and i_dest < len(fila) and fila[i_dest] else "",
+            "monto":    limpiar_monto(fila[i_mnt])  if i_mnt  is not None and i_mnt  < len(fila) and fila[i_mnt]  else 0.0,
+            "mensaje":  str(fila[i_msg]).strip()    if i_msg  is not None and i_msg  < len(fila) and fila[i_msg]  else "",
+            "fecha":    str(fila[i_fec]).strip()    if i_fec  is not None and i_fec  < len(fila) and fila[i_fec]  else "",
+            "mz":       str(fila[i_mz]).strip().upper() if i_mz is not None and i_mz < len(fila) and fila[i_mz] else "",
+            "lote":     limpiar_lote(fila[i_lote])  if i_lote is not None and i_lote < len(fila) and fila[i_lote] else "",
+            "concepto": str(fila[i_conc]).strip()   if i_conc is not None and i_conc < len(fila) and fila[i_conc] else "",
+            "diff":     limpiar_monto(fila[i_diff]) if i_diff is not None and i_diff < len(fila) and fila[i_diff] else 0.0,
+            "motivo":   str(fila[i_mot]).strip()    if i_mot  is not None and i_mot  < len(fila) and fila[i_mot]  else "",
+        })
+    return resultado
+
+
 def _leer_hoja_ambiguos(wb) -> dict:
     """
     Lee hoja Ambiguos de trazabilidad (formato nuevo: MZ_FINAL, LOTE_FINAL).
@@ -657,8 +771,9 @@ def _leer_hoja_ambiguos(wb) -> dict:
         mz     = str(row.get("MZ_FINAL", "")).strip().upper()
         if not origen or not mz or origen in ("NAN", "") or mz in ("NAN", ""):
             continue
-        lote = limpiar_lote(row.get("LOTE_FINAL", ""))
-        resultado[origen] = {"mz": mz, "lote": lote}
+        lote  = limpiar_lote(row.get("LOTE_FINAL", ""))
+        fecha = str(row.get("FECHA", "")).strip()
+        resultado[f"{origen}|{fecha}"] = {"mz": mz, "lote": lote}
     return resultado
 
 
@@ -687,7 +802,12 @@ def _leer_hoja_pendientes_ok(wb, nombre_hoja: str) -> dict:
     i_lote    = idx("LOTE")
     i_concepto= idx("CONCEPTO")
     i_motivo  = idx("MOTIVO")
+    i_fecha   = idx("FECHA")
     i_ok      = idx("OK")
+    i_tipo    = idx("TIPO")
+    i_destino = idx("DESTINO")
+    i_monto   = idx("MONTO")
+    i_mensaje = idx("MENSAJE")
 
     if i_origen is None:
         return {}
@@ -703,16 +823,229 @@ def _leer_hoja_pendientes_ok(wb, nombre_hoja: str) -> dict:
         origen = str(fila[i_origen]).strip().upper() if i_origen < len(fila) and fila[i_origen] else ""
         if not origen or origen in ("NAN","NONE",""):
             continue
-        resultado[origen] = {
-            "mz":       str(fila[i_mz]).strip().upper()       if i_mz      is not None and i_mz < len(fila)       and fila[i_mz]      else "",
-            "lote":     str(fila[i_lote]).strip()             if i_lote    is not None and i_lote < len(fila)      and fila[i_lote]    else "",
-            "concepto": str(fila[i_concepto]).strip()         if i_concepto is not None and i_concepto < len(fila) and fila[i_concepto] else "",
-            "motivo":   str(fila[i_motivo]).strip()           if i_motivo  is not None and i_motivo < len(fila)    and fila[i_motivo]  else "",
+        fecha = str(fila[i_fecha]).strip() if i_fecha is not None and i_fecha < len(fila) and fila[i_fecha] else ""
+        msg   = str(fila[i_mensaje]).strip() if i_mensaje is not None and i_mensaje < len(fila) and fila[i_mensaje] else ""
+        resultado[f"{origen}|{fecha}"] = {
+            "mz":       str(fila[i_mz]).strip().upper()   if i_mz       is not None and i_mz       < len(fila) and fila[i_mz]       else "",
+            "lote":     str(fila[i_lote]).strip()         if i_lote     is not None and i_lote     < len(fila) and fila[i_lote]     else "",
+            "concepto": str(fila[i_concepto]).strip()     if i_concepto is not None and i_concepto < len(fila) and fila[i_concepto] else "",
+            "motivo":   str(fila[i_motivo]).strip()       if i_motivo   is not None and i_motivo   < len(fila) and fila[i_motivo]   else "",
+            "tipo":     str(fila[i_tipo]).strip()         if i_tipo     is not None and i_tipo     < len(fila) and fila[i_tipo]     else "",
+            "destino":  str(fila[i_destino]).strip()      if i_destino  is not None and i_destino  < len(fila) and fila[i_destino]  else "",
+            "monto":    limpiar_monto(fila[i_monto])      if i_monto    is not None and i_monto    < len(fila) and fila[i_monto]    else "",
+            "mensaje":  "" if msg.lower() in ("nan","none") else msg,
         }
     return resultado
 
 
-def leer_correcciones(planilla: dict = None) -> tuple[dict, dict, dict]:
+def _leer_hoja_pagaste_ok(wb) -> dict:
+    """
+    Lee hoja Pagaste de pendientes (OK=SI).
+    Clave: ORIGEN_UPPER|MONTO_REDONDEADO|FECHA
+    """
+    if "Pagaste" not in wb.sheetnames:
+        return {}
+    filas = list(wb["Pagaste"].values)
+    if len(filas) < 3:
+        return {}
+    headers = [str(h).strip().upper() if h else "" for h in filas[1]]
+
+    def idx(n):
+        try: return headers.index(n)
+        except: return None
+
+    i_origen  = idx("ORIGEN")
+    i_destino = idx("DESTINO")
+    i_monto   = idx("MONTO")
+    i_mensaje = idx("MENSAJE")
+    i_fecha   = idx("FECHA")
+    i_concepto= idx("CONCEPTO")
+    i_motivo  = idx("MOTIVO")
+    i_ok      = idx("OK")
+
+    if i_ok is None or i_origen is None:
+        return {}
+
+    resultado = {}
+    for fila in filas[2:]:
+        if not fila:
+            continue
+        ok_val = str(fila[i_ok]).strip().upper() if i_ok < len(fila) and fila[i_ok] else ""
+        if ok_val != "SI":
+            continue
+        origen  = str(fila[i_origen]).strip().upper() if i_origen < len(fila) and fila[i_origen] else ""
+        monto_v = limpiar_monto(fila[i_monto]) if i_monto is not None and i_monto < len(fila) and fila[i_monto] else 0.0
+        fecha   = str(fila[i_fecha]).strip()    if i_fecha is not None and i_fecha < len(fila) and fila[i_fecha] else ""
+        if not origen:
+            continue
+        clave = f"{origen}|{str(round(monto_v, 2))}|{fecha}"
+        resultado[clave] = {
+            "origen":   origen,
+            "destino":  str(fila[i_destino]).strip() if i_destino is not None and i_destino < len(fila) and fila[i_destino] else "",
+            "monto":    monto_v,
+            "mensaje":  str(fila[i_mensaje]).strip()  if i_mensaje is not None and i_mensaje < len(fila) and fila[i_mensaje]  else "",
+            "fecha":    fecha,
+            "concepto": str(fila[i_concepto]).strip() if i_concepto is not None and i_concepto < len(fila) and fila[i_concepto] else "",
+            "motivo":   str(fila[i_motivo]).strip()   if i_motivo  is not None and i_motivo  < len(fila) and fila[i_motivo]   else "",
+        }
+    return resultado
+
+
+def _cargar_pagaste_existentes() -> list:
+    """Carga pagos_yape_pagaste.xlsx — retorna lista de dicts (cabecera doble)."""
+    ruta = OUTPUT_DIR / PAGASTE_FILE
+    if not ruta.exists():
+        return []
+    wb = load_workbook(ruta, read_only=True, data_only=True)
+    ws = wb.active
+    datos = list(ws.values)
+    wb.close()
+    if len(datos) < 3:
+        return []
+    headers = [str(h).strip().upper() if h else "" for h in datos[1]]
+
+    def idx(n):
+        try: return headers.index(n)
+        except: return None
+
+    i_orig = idx("ORIGEN");  i_dest = idx("DESTINO"); i_mnt  = idx("MONTO")
+    i_msg  = idx("MENSAJE"); i_conc = idx("CONCEPTO"); i_mot  = idx("MOTIVO")
+    i_fec  = idx("FECHA");   i_cic  = idx("CICLO")
+
+    resultado = []
+    for fila in datos[2:]:
+        if not fila or not any(fila):
+            continue
+        origen = str(fila[i_orig]).strip() if i_orig is not None and i_orig < len(fila) and fila[i_orig] else ""
+        if not origen or origen.upper() in ("NAN", "NONE", ""):
+            continue
+        monto_v = limpiar_monto(fila[i_mnt]) if i_mnt is not None and i_mnt < len(fila) and fila[i_mnt] else 0.0
+        fecha_v = str(fila[i_fec]).strip()   if i_fec is not None and i_fec < len(fila) and fila[i_fec] else ""
+        resultado.append({
+            "origen":   origen,
+            "destino":  str(fila[i_dest]).strip() if i_dest is not None and i_dest < len(fila) and fila[i_dest] else "",
+            "monto":    monto_v,
+            "mensaje":  str(fila[i_msg]).strip()  if i_msg  is not None and i_msg  < len(fila) and fila[i_msg]  else "",
+            "concepto": str(fila[i_conc]).strip() if i_conc is not None and i_conc < len(fila) and fila[i_conc] else "",
+            "motivo":   str(fila[i_mot]).strip()  if i_mot  is not None and i_mot  < len(fila) and fila[i_mot]  else "",
+            "fecha":    fecha_v,
+            "ciclo":    fila[i_cic] if i_cic is not None and i_cic < len(fila) and fila[i_cic] else 1,
+            "_clave":   f"{origen.upper()}|{str(round(monto_v, 2))}|{fecha_v}",
+        })
+    return resultado
+
+
+def _leer_validados_ambiguos(wb) -> list:
+    """Lee pendientes Hoja Ambiguos (OK=SI) — campos completos para trazabilidad."""
+    if "Ambiguos" not in wb.sheetnames:
+        return []
+    filas = list(wb["Ambiguos"].values)
+    if len(filas) < 3:
+        return []
+    headers = [str(h).strip().upper() if h else "" for h in filas[1]]
+
+    def idx(nombre):
+        try: return headers.index(nombre)
+        except: return None
+
+    i_uid  = idx("USER_ID");   i_nom  = idx("NOMBRE")
+    i_orig = idx("ORIGEN");    i_mnt  = idx("MONTO")
+    i_msg  = idx("MENSAJE");   i_fec  = idx("FECHA")
+    i_cand = idx("CANDIDATOS")
+    i_mz   = idx("MZ");        i_lote = idx("LOTE")
+    i_ok   = idx("OK")
+
+    if i_orig is None or i_ok is None:
+        return []
+
+    resultado = []
+    for fila in filas[2:]:
+        if not fila:
+            continue
+        ok_val = str(fila[i_ok]).strip().upper() if i_ok < len(fila) and fila[i_ok] else ""
+        if ok_val != "SI":
+            continue
+        origen = str(fila[i_orig]).strip() if i_orig < len(fila) and fila[i_orig] else ""
+        if not origen or origen.upper() in ("NAN", "NONE", ""):
+            continue
+        mz   = str(fila[i_mz]).strip().upper()  if i_mz   is not None and i_mz   < len(fila) and fila[i_mz]   else ""
+        lote = limpiar_lote(fila[i_lote])        if i_lote is not None and i_lote < len(fila) and fila[i_lote] else ""
+        if not mz:
+            continue
+        resultado.append({
+            "user_id":    str(fila[i_uid]).strip()    if i_uid  is not None and i_uid  < len(fila) and fila[i_uid]  else "",
+            "nombre":     str(fila[i_nom]).strip()    if i_nom  is not None and i_nom  < len(fila) and fila[i_nom]  else "",
+            "origen":     origen,
+            "monto":      limpiar_monto(fila[i_mnt]) if i_mnt  is not None and i_mnt  < len(fila) and fila[i_mnt]  else 0.0,
+            "mensaje":    str(fila[i_msg]).strip()    if i_msg  is not None and i_msg  < len(fila) and fila[i_msg]  else "",
+            "fecha":      str(fila[i_fec]).strip()    if i_fec  is not None and i_fec  < len(fila) and fila[i_fec]  else "",
+            "candidatos": str(fila[i_cand]).strip()   if i_cand is not None and i_cand < len(fila) and fila[i_cand] else "",
+            "mz_final":   mz,
+            "lote_final": lote,
+        })
+    return resultado
+
+
+def _leer_validados_maestro_inexacto(wb, planilla: dict) -> list:
+    """Lee pendientes Hoja Maestro_inexacto (OK=SI) — DIFF = monto - deuda(MZ_final, LOTE_final)."""
+    if "Maestro_inexacto" not in wb.sheetnames:
+        return []
+    filas = list(wb["Maestro_inexacto"].values)
+    if len(filas) < 3:
+        return []
+    headers = [str(h).strip().upper() if h else "" for h in filas[1]]
+
+    def idx(nombre):
+        try: return headers.index(nombre)
+        except: return None
+
+    i_uid  = idx("USER_ID");   i_nom  = idx("NOMBRE")
+    i_tipo = idx("TIPO");      i_orig = idx("ORIGEN")
+    i_dest = idx("DESTINO");   i_mnt  = idx("MONTO")
+    i_msg  = idx("MENSAJE");   i_fec  = idx("FECHA")
+    i_mz   = idx("MZ");        i_lote = idx("LOTE")
+    i_conc = idx("CONCEPTO");  i_mot  = idx("MOTIVO");    i_ok   = idx("OK")
+
+    if i_orig is None or i_ok is None:
+        return []
+
+    resultado = []
+    for fila in filas[2:]:
+        if not fila:
+            continue
+        ok_val = str(fila[i_ok]).strip().upper() if i_ok < len(fila) and fila[i_ok] else ""
+        if ok_val != "SI":
+            continue
+        origen = str(fila[i_orig]).strip() if i_orig < len(fila) and fila[i_orig] else ""
+        if not origen or origen.upper() in ("NAN", "NONE", ""):
+            continue
+        mz    = str(fila[i_mz]).strip().upper() if i_mz   is not None and i_mz   < len(fila) and fila[i_mz]   else ""
+        lote  = limpiar_lote(fila[i_lote])      if i_lote is not None and i_lote < len(fila) and fila[i_lote] else ""
+        monto = limpiar_monto(fila[i_mnt])      if i_mnt  is not None and i_mnt  < len(fila) and fila[i_mnt]  else 0.0
+        if mz and lote and planilla:
+            deuda = planilla.get((mz, lote), {}).get("deuda_total", 0.0)
+            diff  = round(monto - deuda, 2) if deuda else 0.0
+        else:
+            diff = 0.0
+        resultado.append({
+            "user_id":  str(fila[i_uid]).strip()   if i_uid  is not None and i_uid  < len(fila) and fila[i_uid]  else "",
+            "nombre":   str(fila[i_nom]).strip()   if i_nom  is not None and i_nom  < len(fila) and fila[i_nom]  else "",
+            "tipo":     str(fila[i_tipo]).strip()  if i_tipo is not None and i_tipo < len(fila) and fila[i_tipo] else "TE PAGÓ",
+            "origen":   origen,
+            "destino":  str(fila[i_dest]).strip()  if i_dest is not None and i_dest < len(fila) and fila[i_dest] else "",
+            "monto":    monto,
+            "mensaje":  str(fila[i_msg]).strip()   if i_msg  is not None and i_msg  < len(fila) and fila[i_msg]  else "",
+            "fecha":    str(fila[i_fec]).strip()   if i_fec  is not None and i_fec  < len(fila) and fila[i_fec]  else "",
+            "mz":       mz,
+            "lote":     lote,
+            "concepto": str(fila[i_conc]).strip() if i_conc is not None and i_conc < len(fila) and fila[i_conc] else "",
+            "diff":     diff,
+            "motivo":   str(fila[i_mot]).strip()   if i_mot  is not None and i_mot  < len(fila) and fila[i_mot]  else "",
+        })
+    return resultado
+
+
+def leer_correcciones(planilla: dict = None) -> tuple[dict, dict, dict, list, list]:
     """
     Lee correcciones_acumuladas.xlsx + pendientes.xlsx.
     Valida MZ-LOTE contra planilla antes de aceptar correcciones manuales.
@@ -722,16 +1055,21 @@ def leer_correcciones(planilla: dict = None) -> tuple[dict, dict, dict]:
     if planilla is None:
         planilla = {}
 
-    corr_simples   = {}
-    corr_ambiguos  = {}
-    corr_multiples = {}
+    corr_simples               = {}
+    corr_ambiguos              = {}
+    corr_multiples             = {}
+    validados_ambiguos         = []
+    validados_maestro_inexacto = []
+    corr_pagaste               = {}
 
     if ruta_acum.exists():
         try:
             wb_acum = load_workbook(ruta_acum, read_only=True, data_only=True)
-            corr_simples   = _leer_hoja_acumuladas(wb_acum, "Sin_identificar", tiene_instruccion=False)
-            corr_ambiguos  = _leer_hoja_ambiguos(wb_acum)
-            corr_multiples = _leer_hoja_multiples(wb_acum)
+            corr_simples               = _leer_hoja_acumuladas(wb_acum, "Sin_identificar", tiene_instruccion=True)
+            corr_ambiguos              = _leer_hoja_ambiguos(wb_acum)
+            corr_multiples             = _leer_hoja_multiples(wb_acum)
+            validados_ambiguos         = _leer_acum_ambiguos_traz(wb_acum)
+            validados_maestro_inexacto = _leer_acum_maestro_inexacto_traz(wb_acum)
             wb_acum.close()
         except Exception as e:
             print(f"  ⚠ No se pudo leer acumuladas: {e}")
@@ -744,26 +1082,26 @@ def leer_correcciones(planilla: dict = None) -> tuple[dict, dict, dict]:
         try:
             wb_pend = load_workbook(ruta_pend, read_only=True, data_only=True)
 
-            # Hoja Sin_identificar
-            nuevas_si = _leer_hoja_acumuladas(wb_pend, "Sin_identificar", tiene_instruccion=True)
+            # Hoja Sin_identificar — filtrar por OK=SI
+            nuevas_si = _leer_hoja_pendientes_ok(wb_pend, "Sin_identificar")
             for k, v in nuevas_si.items():
                 mz   = v.get("mz","")
                 lote = v.get("lote","")
                 if not mz or mz in ("NAN","NONE",""):
                     continue
-                # BLANCO siempre se acepta
                 if mz == "BLANCO":
                     if k not in corr_simples:
                         n_nuevas += 1
+                    v["_fuente"] = "sin_identificar"
                     corr_simples[k] = v
                     continue
-                # Validar contra planilla
                 if planilla and (mz, lote) not in planilla:
                     n_rechazadas += 1
                     print(f"  ✗ Rechazada: {k[:30]} → {mz}-{lote} no existe en planilla")
                     continue
                 if k not in corr_simples:
                     n_nuevas += 1
+                v["_fuente"] = "sin_identificar"
                 corr_simples[k] = v
 
             # Hoja Ambiguos — leer solo filas con OK=SI
@@ -773,9 +1111,9 @@ def leer_correcciones(planilla: dict = None) -> tuple[dict, dict, dict]:
                 lote    = v.get("lote","")
                 concepto = v.get("concepto","")
                 if concepto and concepto.upper() not in ("NAN","NONE",""):
-                    # Es concepto — aceptar siempre
                     if k not in corr_simples:
                         n_nuevas += 1
+                    v["_fuente"] = "ambiguo"
                     corr_simples[k] = v
                     continue
                 if not mz or mz in ("NAN","NONE",""):
@@ -786,6 +1124,7 @@ def leer_correcciones(planilla: dict = None) -> tuple[dict, dict, dict]:
                     continue
                 if k not in corr_simples:
                     n_nuevas += 1
+                v["_fuente"] = "ambiguo"
                 corr_simples[k] = v
 
             # Hoja Maestro_inexacto — leer solo filas con OK=SI
@@ -797,6 +1136,7 @@ def leer_correcciones(planilla: dict = None) -> tuple[dict, dict, dict]:
                 if concepto and concepto.upper() not in ("NAN","NONE",""):
                     if k not in corr_simples:
                         n_nuevas += 1
+                    v["_fuente"] = "maestro_inexacto"
                     corr_simples[k] = v
                     continue
                 if not mz or mz in ("NAN","NONE",""):
@@ -807,7 +1147,28 @@ def leer_correcciones(planilla: dict = None) -> tuple[dict, dict, dict]:
                     continue
                 if k not in corr_simples:
                     n_nuevas += 1
+                v["_fuente"] = "maestro_inexacto"
                 corr_simples[k] = v
+
+            # Merge: acumulados de trazabilidad + nuevos de pendientes (dedup por ORIGEN|FECHA)
+            claves_amb = {f"{r['origen'].upper()}|{r['fecha']}" for r in validados_ambiguos}
+            for r in _leer_validados_ambiguos(wb_pend):
+                clave = f"{r['origen'].upper()}|{r['fecha']}"
+                if clave not in claves_amb:
+                    validados_ambiguos.append(r)
+                    claves_amb.add(clave)
+
+            claves_mix = {f"{r['origen'].upper()}|{r['fecha']}" for r in validados_maestro_inexacto}
+            for r in _leer_validados_maestro_inexacto(wb_pend, planilla):
+                clave = f"{r['origen'].upper()}|{r['fecha']}"
+                if clave not in claves_mix:
+                    validados_maestro_inexacto.append(r)
+                    claves_mix.add(clave)
+
+            # Hoja Pagaste — confirmados por el usuario
+            for clave, v in _leer_hoja_pagaste_ok(wb_pend).items():
+                if clave not in corr_pagaste:
+                    corr_pagaste[clave] = v
 
             wb_pend.close()
         except Exception as e:
@@ -818,8 +1179,9 @@ def leer_correcciones(planilla: dict = None) -> tuple[dict, dict, dict]:
     n_si   = len(corr_simples)
     n_amb  = len(corr_ambiguos)
     n_mult = len(corr_multiples)
-    print(f"  Acumuladas: {n_si} sin_id + {n_amb} ambiguos + {n_mult} multiples ({n_nuevas} nuevas)")
-    return corr_simples, corr_ambiguos, corr_multiples
+    n_pag  = len(corr_pagaste)
+    print(f"  Acumuladas: {n_si} sin_id + {n_amb} ambiguos + {n_mult} multiples + {n_pag} pagaste ({n_nuevas} nuevas)")
+    return corr_simples, corr_ambiguos, corr_multiples, validados_ambiguos, validados_maestro_inexacto, corr_pagaste
 
 
 def _guardar_acumuladas(corr_simples: dict, corr_ambiguos: dict, corr_multiples: dict):
@@ -908,19 +1270,22 @@ def ejecutar_matching(df: pd.DataFrame, mapa: dict,
 
     for _, fila in df.iterrows():
         origen     = str(fila[mapa["origen"]]).strip()
-        origen_key = origen.upper()
         monto_pago = limpiar_monto(fila[mapa["monto"]]) if mapa.get("monto") else 0.0
         mensaje    = str(fila[mapa["mensaje"]]) if mapa.get("mensaje") and mapa["mensaje"] in fila.index else ""
         fecha      = str(fila[mapa["fecha"]])   if mapa.get("fecha")   and mapa["fecha"]   in fila.index else ""
         mensaje = "" if mensaje == "None" else mensaje
         fecha   = "" if fecha   == "None" else fecha
+        # ORIGEN|FECHA como clave compuesta — identifica unívocamente cada pago,
+        # incluyendo el caso de un mismo pagante con varios pagos en el mes.
+        corr_key   = f"{origen.upper()}|{fecha}"
+        match_key  = origen.upper()   # maestro no tiene fecha
 
         base = {"origen": origen, "monto_pago": monto_pago, "mensaje": mensaje, "fecha": fecha}
 
         # Unir todas las correcciones para este origen
-        corr_simple  = corr_simples.get(origen_key) or corr_ambiguos.get(origen_key)
-        corr_mult    = corr_multiples.get(origen_key)
-        match_origen = indice.get(origen_key)
+        corr_simple  = corr_simples.get(corr_key) or corr_ambiguos.get(corr_key)
+        corr_mult    = corr_multiples.get(corr_key)
+        match_origen = indice.get(match_key)
 
         # ── Ciclo 2+: corrección manual tiene prioridad máxima ──
         if ciclo > 1 and corr_mult:
@@ -949,8 +1314,8 @@ def ejecutar_matching(df: pd.DataFrame, mapa: dict,
             if corr_simple["mz"] == "BLANCO":
                 todos.append({**base, "user_id":"","nombre":"","mz":"BLANCO","lote":"",
                     "nivel_confianza":"","deuda_total":"","mes_anterior":"",
-                    "diferencia":"","estado_pago":"","fuente":"blanco",
-                    "motivo":"marcado como blanco","estado":"pendiente"})
+                    "diferencia":"","estado_pago":"concepto","fuente":"blanco",
+                    "concepto":"BLANCO","motivo":"marcado como blanco","estado":"identificado"})
                 continue
             elif corr_simple.get("concepto") and str(corr_simple["concepto"]).strip().upper() not in ("NAN","NONE",""):
                 todos.append({
@@ -1025,8 +1390,8 @@ def ejecutar_matching(df: pd.DataFrame, mapa: dict,
                 })
 
             # Registrar en acumulado
-            if origen_key not in corr_multiples:
-                corr_multiples[origen_key] = [
+            if corr_key not in corr_multiples:
+                corr_multiples[corr_key] = [
                     {"mz": d["mz"], "lote": d["lote"],
                      "monto": round(d["deuda"] + (resto if i==len(deudas)-1 else 0), 2)}
                     for i, d in enumerate(deudas)
@@ -1047,8 +1412,8 @@ def ejecutar_matching(df: pd.DataFrame, mapa: dict,
             fuente = "mensaje"
 
         # Capa 3: sin mensaje → ambiguo → elegir mejor candidato automático
-        elif origen_key in indice_ambiguo:
-            candidatos = indice_ambiguo[origen_key]
+        elif match_key in indice_ambiguo:
+            candidatos = indice_ambiguo[match_key]
 
             # Calcular diferencia de cada candidato
             scored = []
@@ -1202,13 +1567,14 @@ def exportar_excel(todos: list, ciclo: int = 1):
     print(f"     Pendientes    : {n_pen}")
     print(f"     Total         : {n_id + n_pen}")
 
-def exportar_pendientes(todos: list):
+def exportar_pendientes(todos: list, pagaste_pendientes: list = None):
     """
-    Exporta pendientes.xlsx con 3 hojas:
-    - Sin_identificar: sin maestro ni mensaje válido
-    - Ambiguos: maestro encontró 2+ candidatos
-    - Maestro_inexacto: maestro encontró 1 candidato pero diff != 0
+    Exporta pendientes.xlsx con hasta 4 hojas:
+    - Sin_identificar, Ambiguos, Maestro_inexacto (TE PAGÓ)
+    - Pagaste (PAGASTE sin confirmar)
     """
+    if pagaste_pendientes is None:
+        pagaste_pendientes = []
     CORRECCIONES_DIR.mkdir(exist_ok=True)
     ruta = CORRECCIONES_DIR / PENDIENTES_FILE
 
@@ -1216,7 +1582,6 @@ def exportar_pendientes(todos: list):
         r for r in todos
         if r.get("estado") == "pendiente"
         and r.get("fuente") not in ("ambiguo_auto", "maestro_inexacto")
-        and str(r.get("mz", "")).upper() != "BLANCO"
     ]
 
     ambiguos = [
@@ -1231,16 +1596,68 @@ def exportar_pendientes(todos: list):
         and r.get("estado") == "pendiente"
     ]
 
-    total = len(sin_identificar) + len(ambiguos) + len(maestro_inexacto)
+    total = len(sin_identificar) + len(ambiguos) + len(maestro_inexacto) + len(pagaste_pendientes)
     if total == 0:
         print("  ✔ Sin pendientes")
         if ruta.exists():
             ruta.unlink()
         return
 
-    wb = exportar_pendientes_diseño(sin_identificar, ambiguos, maestro_inexacto)
+    wb = exportar_pendientes_diseño(sin_identificar, ambiguos, maestro_inexacto, pagaste_pendientes)
     wb.save(ruta)
-    print(f"  ⚠ Pendientes: {len(sin_identificar)} sin_id · {len(ambiguos)} ambiguos · {len(maestro_inexacto)} maestro_inexacto")
+    print(f"  ⚠ Pendientes: {len(sin_identificar)} sin_id · {len(ambiguos)} ambiguos · {len(maestro_inexacto)} maestro_inexacto · {len(pagaste_pendientes)} pagaste")
+
+def exportar_pagaste_xlsx(pagaste_conf: list, ciclo: int):
+    """Escribe pagos_yape_pagaste.xlsx con todos los PAGASTE confirmados (acumulativo)."""
+    wb = exportar_pagos_pagaste(pagaste_conf, ciclo)
+    wb.save(OUTPUT_DIR / PAGASTE_FILE)
+    print(f"  ✔ {PAGASTE_FILE} — {len(pagaste_conf)} PAGASTE confirmados")
+
+
+def _archivar_ciclo_completo(mes_str: str):
+    """
+    Archiva reporte banco crudo + reporte procesado (TE_PAGÓ + PAGASTE)
+    cuando el ciclo cierra sin pendientes.
+    """
+    acum_dir = SHARED_DIR / "reporte_acumulado_procesado"
+    acum_dir.mkdir(exist_ok=True)
+
+    ruta_banco     = acum_dir / f"{mes_str}_banco.xlsx"
+    ruta_procesado = acum_dir / f"{mes_str}_procesado.xlsx"
+
+    if ruta_procesado.exists():
+        print(f"  ⚠ Ya existe {ruta_procesado.name} — no sobrescrito")
+        return
+
+    # Archivar reporte(s) banco crudo
+    archivos_banco = sorted(REPORTE_DIR.glob("*.xlsx"))
+    if archivos_banco:
+        if len(archivos_banco) == 1:
+            shutil.copy2(archivos_banco[0], ruta_banco)
+        else:
+            from openpyxl import Workbook as _Wb
+            wb_banco = _Wb()
+            ws_banco = wb_banco.active
+            ws_banco.title = "reporte_banco"
+            primera_fila = True
+            for af in archivos_banco:
+                wb_src = load_workbook(af, read_only=True, data_only=True)
+                ws_src = wb_src.active
+                for row in ws_src.iter_rows(values_only=True):
+                    if primera_fila or any(v is not None for v in row):
+                        ws_banco.append(list(row))
+                primera_fila = False
+                wb_src.close()
+            wb_banco.save(ruta_banco)
+        print(f"  ✔ Banco archivado  → {ruta_banco.name}")
+
+    # Construir reporte procesado (TE_PAGÓ + PAGASTE en 2 hojas)
+    ruta_tepago  = OUTPUT_DIR / OUTPUT_FILE
+    ruta_pagaste = OUTPUT_DIR / PAGASTE_FILE
+    wb_proc = exportar_reporte_procesado(ruta_tepago, ruta_pagaste)
+    wb_proc.save(ruta_procesado)
+    print(f"  ✔ Procesado archivado → {ruta_procesado.name}")
+
 
 # ======================MAIN=================================
 def main():
@@ -1273,23 +1690,19 @@ def main():
     planilla, mzs_validas = cargar_planilla()
 
     print("\n[5] Cargando reportes del banco...")
-    df, mapa = cargar_reportes(ancla)
+    df, df_pagaste, mapa = cargar_reportes(ancla)
 
-    print("\n[6] Validando reporte...")
+    print("\n[6] Validando reporte TE PAGÓ...")
     df = validar_reporte(df, mapa)
 
     print("\n[7] Leyendo correcciones manuales...")
-    corr_simples, corr_ambiguos, corr_multiples = leer_correcciones(planilla)
+    corr_simples, corr_ambiguos, corr_multiples, validados_ambiguos, validados_maestro_inexacto, corr_pagaste = leer_correcciones(planilla)
 
-    print("\n[8] Ejecutando matching...")
-    n_simples_antes  = len(corr_simples)
-    n_multiples_antes = len(corr_multiples)
+    print("\n[8] Ejecutando matching (TE PAGÓ)...")
     todos = ejecutar_matching(df, mapa, indice, planilla,
                               corr_simples, corr_ambiguos, corr_multiples,
                               mzs_validas, ciclo, indice_ambiguo)
 
-
-    # Resolver USER_ID faltantes en un solo lugar
     for reg in todos:
         if not reg.get("user_id") and reg.get("mz") and reg.get("lote"):
             uid, nom = buscar_uid(reg["mz"], reg["lote"])
@@ -1297,53 +1710,103 @@ def main():
             if not reg.get("nombre"):
                 reg["nombre"] = nom
 
-    # Resolver USER_ID faltantes — un solo lugar independiente del tipo de matching
-    for reg in todos:
-        if not reg.get("user_id") and reg.get("mz") and reg.get("lote"):
-            uid, nom = buscar_uid(reg["mz"], reg["lote"])
-            reg["user_id"] = uid
-            if not reg.get("nombre"):
-                reg["nombre"] = nom
+    print("\n[8b] Procesando PAGASTE...")
+    pagaste_existentes = _cargar_pagaste_existentes()
+    ya_confirmados     = {r["_clave"] for r in pagaste_existentes}
+    pagaste_pendientes_rows = []
+    nuevos_pagaste          = []
+
+    for _, fila in df_pagaste.iterrows():
+        origen_v  = str(fila.get(mapa.get("origen",  ""), "") or "").strip()
+        destino_v = str(fila.get(mapa.get("destino", ""), "") or "").strip() if mapa.get("destino") else ""
+        monto_v   = limpiar_monto(fila[mapa["monto"]]) if mapa.get("monto") else 0.0
+        mensaje_v = str(fila.get(mapa.get("mensaje", ""), "") or "").strip() if mapa.get("mensaje") else ""
+        fecha_v   = str(fila.get(mapa.get("fecha",   ""), "") or "").strip() if mapa.get("fecha")   else ""
+        clave     = f"{origen_v.upper()}|{str(round(monto_v, 2))}|{fecha_v}"
+
+        if clave in ya_confirmados:
+            continue
+        elif clave in corr_pagaste:
+            v = corr_pagaste[clave]
+            nuevos_pagaste.append({
+                "origen":   origen_v,
+                "destino":  destino_v or v.get("destino", ""),
+                "monto":    monto_v,
+                "mensaje":  mensaje_v,
+                "fecha":    fecha_v,
+                "concepto": v.get("concepto", ""),
+                "motivo":   v.get("motivo",   ""),
+                "ciclo":    ciclo,
+            })
+        else:
+            pagaste_pendientes_rows.append({
+                "origen":  origen_v,
+                "destino": destino_v,
+                "monto":   monto_v,
+                "mensaje": mensaje_v,
+                "fecha":   fecha_v,
+            })
+
+    pagaste_confirmados_todos = pagaste_existentes + nuevos_pagaste
+    print(f"  PAGASTE: {len(df_pagaste)} total · {len(nuevos_pagaste)} nuevos confirmados · {len(pagaste_pendientes_rows)} pendientes")
 
     print("\n[9] Exportando resultados...")
     exportar_excel(todos, ciclo)
+    if pagaste_confirmados_todos:
+        exportar_pagaste_xlsx(pagaste_confirmados_todos, ciclo)
 
     print("\n[10] Exportando pendientes a Correcciones/...")
-    exportar_pendientes(todos)
+    exportar_pendientes(todos, pagaste_pendientes_rows)
 
     print("\n[11] Guardando trazabilidad...")
-    ambiguos_list = [r for r in todos if r.get("fuente") == "ambiguo_auto"]
-    mes_str    = datetime.today().strftime("%Y_%m")
-    ruta_traz  = BASE_DIR / "trazabilidad" / f"trazabilidad_{mes_str}.xlsx"
+    mes_str   = datetime.today().strftime("%Y_%m")
+    ruta_traz = BASE_DIR / "trazabilidad" / f"trazabilidad_{mes_str}.xlsx"
     ruta_traz.parent.mkdir(exist_ok=True)
-    fecha_hoy  = datetime.now().strftime("%d/%m/%Y %H:%M")
-    exportar_trazabilidad(ruta_traz, corr_simples, ambiguos_list, corr_multiples, ciclo, fecha_hoy)
-    print(f"  ✔ {len(corr_simples)} sin_id · {len(ambiguos_list)} ambiguos · {len(corr_multiples)} multiples")
+    fecha_hoy = datetime.now().strftime("%d/%m/%Y %H:%M")
+    for v in corr_simples.values():
+        if v.get("_fuente", "sin_identificar") == "sin_identificar":
+            if not v.get("user_id") and v.get("mz") and v.get("lote") and v.get("mz") != "BLANCO":
+                uid, nom = buscar_uid(v["mz"], v["lote"])
+                v["user_id"] = uid
+                if not v.get("nombre"):
+                    v["nombre"] = nom
+    for items in corr_multiples.values():
+        for item in items:
+            if not item.get("user_id") and item.get("mz") and item.get("lote"):
+                uid, nom = buscar_uid(item["mz"], item["lote"])
+                item["user_id"] = uid
+                if not item.get("nombre"):
+                    item["nombre"] = nom
+    exportar_trazabilidad(ruta_traz, corr_simples, validados_ambiguos, corr_multiples, ciclo, fecha_hoy, validados_maestro_inexacto)
+    print(f"  ✔ {len(corr_simples)} sin_id · {len(validados_ambiguos)} ambiguos · {len(corr_multiples)} multiples · {len(validados_maestro_inexacto)} maestro_inexacto")
 
-    print("\n[12] Actualizando blancos y devoluciones acumulados...")
+    print("\n[12] Actualizando blancos acumulados...")
     mes_str_bd = datetime.today().strftime("%Y-%m")
-
     blancos = [r for r in todos if r.get("fuente") == "blanco"]
     if blancos:
         wb_bl = load_workbook(BLANCOS_FILE) if BLANCOS_FILE.exists() else None
         for r in blancos:
             wb_bl = exportar_blancos_acumulados(wb_bl, r, mes_str_bd)
         wb_bl.save(BLANCOS_FILE)
-        print(f"  ✔ {len(blancos)} blancos → blancos_acumulados.xlsx")
+        wb_mes = exportar_blancos_mes(blancos, ciclo)
+        wb_mes.save(OUTPUT_DIR / "blancos_mes.xlsx")
+        print(f"  ✔ {len(blancos)} blancos → blancos_acumulados.xlsx · blancos_mes.xlsx")
     else:
         print("  Sin blancos nuevos")
 
-    devoluciones = [r for r in todos if str(r.get("tipo", "")).upper() == "PAGASTE"]
-    if devoluciones:
-        wb_dev = load_workbook(DEVOLUCIONES_FILE) if DEVOLUCIONES_FILE.exists() else None
-        wb_dev = agregar_devoluciones_acumulados(wb_dev, devoluciones, mes_str_bd)
-        wb_dev.save(DEVOLUCIONES_FILE)
-        print(f"  ✔ {len(devoluciones)} devoluciones → devoluciones_acumulados.xlsx")
+    print("\n[13] Verificando cierre de ciclo...")
+    pend_ruta      = CORRECCIONES_DIR / PENDIENTES_FILE
+    ciclo_completo = not pend_ruta.exists()
+    if ciclo_completo:
+        print("  ✔ Sin pendientes — ciclo completo, archivando...")
+        _archivar_ciclo_completo(datetime.today().strftime("%Y-%m"))
     else:
-        print("  Sin devoluciones nuevas (PAGASTE no cargado aún)")
+        n_tp = len([r for r in todos if r["estado"] == "pendiente"])
+        n_pg = len(pagaste_pendientes_rows)
+        print(f"  Ciclo abierto — {n_tp} TE PAGÓ + {n_pg} PAGASTE pendientes")
 
-    total = len(todos)
-    n_id  = len([r for r in todos if r["estado"] == "identificado"])
+    total = len(todos) + len(df_pagaste)
+    n_id  = len([r for r in todos if r["estado"] == "identificado"]) + len(pagaste_confirmados_todos)
     pct   = round(n_id / total * 100, 1) if total else 0
 
     print("\n" + "=" * 55)

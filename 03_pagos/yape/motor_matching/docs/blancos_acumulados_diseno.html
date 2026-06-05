@@ -61,7 +61,7 @@ tr:last-child td{border-bottom:none}
           <th class="th-sep"></th>
           <th class="th-banco gh" colspan="6">¿Qué hizo el banco?</th>
           <th class="th-sep"></th>
-          <th class="th-id gh" colspan="3">¿Cómo se identificó?</th>
+          <th class="th-id gh" colspan="4">¿Cómo se identificó?</th>
           <th class="th-sep"></th>
           <th class="th-est gh">¿Ya se aplicó?</th>
         </tr>
@@ -81,6 +81,7 @@ tr:last-child td{border-bottom:none}
           <th class="th-sep"></th>
           <th class="th-id">MZ</th>
           <th class="th-id">LOTE</th>
+          <th class="th-id">CONCEPTO</th>
           <th class="th-id">MOTIVO</th>
           <th class="th-sep"></th>
           <th class="th-est">ESTADO</th>
@@ -88,7 +89,7 @@ tr:last-child td{border-bottom:none}
       </thead>
       <tbody>
         <!-- pendiente — no se sabe quién es -->
-        <tr><td colspan="19" class="caso">Mayo 2026 — BLANCO · aún no se sabe quién es · USER_ID y MZ-LOTE vacíos</td></tr>
+        <tr><td colspan="20" class="caso">Mayo 2026 — BLANCO · aún no se sabe quién es · USER_ID y MZ-LOTE vacíos</td></tr>
         <tr>
           <td class="num">1</td>
           <td class="td-mes">2026-05</td>
@@ -106,12 +107,13 @@ tr:last-child td{border-bottom:none}
           <td class="td-id-e">—</td>
           <td class="td-id-e">—</td>
           <td class="td-id-e">—</td>
+          <td class="td-id-e">—</td>
           <td class="td-sep"></td>
           <td><span class="est-pend">pendiente</span></td>
         </tr>
 
         <!-- identificado — ya se sabe quién es · esperando que cobranza aplique -->
-        <tr><td colspan="19" class="caso">Marzo 2026 — identificado · usuario reclamó · MZ-LOTE llenos · esperando 04_cobranza</td></tr>
+        <tr><td colspan="20" class="caso">Marzo 2026 — identificado · usuario reclamó · MZ-LOTE llenos · esperando 04_cobranza</td></tr>
         <tr>
           <td class="num">2</td>
           <td class="td-mes">2026-03</td>
@@ -128,15 +130,40 @@ tr:last-child td{border-bottom:none}
           <td class="td-sep"></td>
           <td class="td-id">H</td>
           <td class="td-id">7</td>
+          <td class="td-id-e">—</td>
           <td class="td-motivo">reclamó en reunión · mostró comprobante</td>
           <td class="td-sep"></td>
           <td><span class="est-iden">identificado</span></td>
         </tr>
 
-        <!-- aplicado — cobranza ya descontó -->
-        <tr><td colspan="19" class="caso">Enero 2026 — aplicado · 04_cobranza ya descontó de la deuda del usuario</td></tr>
-        <tr style="opacity:.7">
+        <!-- identificado como concepto — no es pago de lote -->
+        <tr><td colspan="20" class="caso">Febrero 2026 — identificado como concepto · devolución · MZ-LOTE vacíos · CONCEPTO lleno</td></tr>
+        <tr>
           <td class="num">3</td>
+          <td class="td-mes">2026-02</td>
+          <td class="td-sep"></td>
+          <td class="td-quien">U0197</td>
+          <td class="td-nombre">EMILIA CRUZ OLORTEGUI</td>
+          <td class="td-sep"></td>
+          <td class="td-banco">TE PAGÓ</td>
+          <td class="td-banco">Paul Tru*</td>
+          <td class="td-banco">Janet Vil*</td>
+          <td class="td-monto">S/150.00</td>
+          <td class="td-msg">devolución Rosa Coronado</td>
+          <td class="td-banco">10/02/2026 15:08</td>
+          <td class="td-sep"></td>
+          <td class="td-id-e">—</td>
+          <td class="td-id-e">—</td>
+          <td class="td-motivo" style="font-style:italic;color:#085041">devolución Rosa Coronado</td>
+          <td class="td-motivo">confirmó por teléfono</td>
+          <td class="td-sep"></td>
+          <td><span class="est-iden">identificado</span></td>
+        </tr>
+
+        <!-- aplicado — cobranza ya descontó -->
+        <tr><td colspan="20" class="caso">Enero 2026 — aplicado · 04_cobranza ya descontó de la deuda del usuario</td></tr>
+        <tr style="opacity:.7">
+          <td class="num">4</td>
           <td class="td-mes">2026-01</td>
           <td class="td-sep"></td>
           <td class="td-quien">U0199</td>
@@ -151,6 +178,7 @@ tr:last-child td{border-bottom:none}
           <td class="td-sep"></td>
           <td class="td-id">B</td>
           <td class="td-id">6</td>
+          <td class="td-id-e">—</td>
           <td class="td-motivo">llamada telefónica · confirmó identidad</td>
           <td class="td-sep"></td>
           <td><span class="est-apli">aplicado</span></td>

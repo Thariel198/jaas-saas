@@ -3,3 +3,12 @@ __pycache__/
 Outputs/
 Correcciones/
 *.log
+
+# Office lock files
+~$*
+
+# Test fixtures temporales
+_tmp_integracion/
+
+# Outputs copiados (archivos grandes que exceden límite de GitHub)
+06_boletas/Outputs - copia/

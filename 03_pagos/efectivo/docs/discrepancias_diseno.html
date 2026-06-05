@@ -1,0 +1,177 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+#w{font-family:var(--font-sans);padding:4px 0 16px}
+.instruc{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-left:3px solid #D97706;border-radius:0 var(--border-radius-md) var(--border-radius-md) 0;padding:9px 13px;font-size:12px;color:var(--color-text-secondary);margin-bottom:12px;line-height:1.7}
+.instruc strong{color:var(--color-text-primary)}
+.tab-excel{display:inline-flex;align-items:center;gap:5px;background:#FEF9E7;border:0.5px solid #FCD34D;border-bottom:none;border-radius:6px 6px 0 0;padding:5px 14px;font-size:12px;font-weight:500;color:#7D6608;margin-bottom:-1px}
+.tw{border:0.5px solid var(--color-border-tertiary);border-radius:0 var(--border-radius-md) var(--border-radius-md) var(--border-radius-md);overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:11px;min-width:820px}
+th{padding:6px 8px;font-size:10px;font-weight:500;text-align:left;border-bottom:0.5px solid var(--color-border-tertiary);border-right:0.5px solid var(--color-border-tertiary);white-space:nowrap}
+th:last-child{border-right:none}
+td{padding:5px 8px;border-bottom:0.5px solid var(--color-border-tertiary);border-right:0.5px solid var(--color-border-tertiary);vertical-align:middle;white-space:nowrap}
+td:last-child{border-right:none}
+tr:last-child td{border-bottom:none}
+.num{width:24px;background:var(--color-background-secondary);color:var(--color-text-tertiary);font-size:10px;font-family:var(--font-mono);text-align:center;border-right:0.5px solid var(--color-border-tertiary)}
+
+.th-lote  {background:#E1F5EE;color:#085041}
+.th-cada  {background:#FEF9E7;color:#7D6608}
+.th-correc{background:#FEF3E8;color:#7C3003}
+.th-cuando{background:#F4ECF7;color:#5B21B6}
+.th-sep   {width:4px;background:var(--color-background-secondary);padding:0;border-right:2px solid var(--color-border-secondary)}
+
+.td-llave  {background:#F0FFF8;font-family:var(--font-mono);font-size:10px;font-weight:500;color:#065F46}
+.td-mz     {background:#F0FFF8;font-family:var(--font-mono);font-size:11px;font-weight:500;color:#065F46}
+.td-cada   {background:#FEFCE8;font-family:var(--font-mono);font-size:11px;color:#7D6608}
+.td-cada-e {background:#FEFCE8;color:var(--color-text-tertiary);font-style:italic;font-size:10px;text-align:center}
+.td-correc {background:#FEF3E8;font-family:var(--font-mono);font-size:11px;font-weight:500;color:#7C3003}
+.td-ok     {background:#FEF3E8;font-size:11px;text-align:center}
+.td-cuando {background:#FAF5FF;font-family:var(--font-mono);font-size:10px;color:#5B21B6;text-align:center}
+.td-fecha  {background:#FAF5FF;font-size:10px;color:var(--color-text-secondary)}
+.td-sep    {width:4px;background:var(--color-background-secondary);padding:0;border-right:2px solid var(--color-border-secondary)}
+
+.b-solo-mia  {background:#DBEAFE;color:#1E40AF;font-size:9px;font-weight:500;padding:1px 6px;border-radius:3px}
+.b-solo-amiga{background:#FCE7F3;color:#9D174D;font-size:9px;font-weight:500;padding:1px 6px;border-radius:3px}
+.b-diff      {background:#FEF3C7;color:#92400E;font-size:9px;font-weight:500;padding:1px 6px;border-radius:3px}
+.b-ok-si     {background:#D1FAE5;color:#065F46;font-size:10px;font-weight:500;padding:1px 6px;border-radius:3px}
+.b-ok-no     {background:#FEF9E7;color:#7D6608;font-size:10px;font-weight:500;padding:1px 6px;border-radius:3px;font-style:italic}
+
+.gh  {font-size:9px;font-weight:600;text-align:center;padding:2px 0;letter-spacing:.05em;text-transform:uppercase;border-bottom:0.5px solid var(--color-border-tertiary)}
+.caso{font-size:9px;color:var(--color-text-tertiary);font-style:italic;padding:3px 8px;background:var(--color-background-secondary);border-bottom:0.5px solid var(--color-border-tertiary)}
+
+.edit-hint{font-size:9px;color:#D97706;font-style:italic}
+
+.legend{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center}
+.leg{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--color-text-secondary)}
+.ld{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+</style>
+
+<div id="w">
+  <div class="instruc">
+    Archivo <strong>interactivo</strong> — lo escribe el motor · tú lo completas · al terminar el ciclo el motor lo vuelve a leer.<br>
+    Cada fila es una diferencia entre tu cuaderno y el de tu compañera que el motor no pudo resolver solo.<br>
+    <strong>MONTO_FINAL</strong> viene pre-llenado con el valor de tu compañera (ella es la referencia) · cámbialo si sabes que es incorrecto.<br>
+    <strong>OK</strong> lo marcas tú como <em>Sí</em> cuando el valor en MONTO_FINAL es correcto · cuando todas las filas dicen Sí el ciclo cierra.<br>
+    Si no quedan discrepancias el archivo no se genera · el motor pasa directamente a exportar <strong>pagos_efectivo.xlsx</strong>.
+  </div>
+
+  <div class="tab-excel">discrepancias</div>
+  <div class="tw">
+    <table>
+      <thead>
+        <tr>
+          <th class="num" rowspan="2"></th>
+          <th class="th-lote gh" colspan="4">¿Cuál es el lote?</th>
+          <th class="th-sep" rowspan="2"></th>
+          <th class="th-cada gh" colspan="2">¿Qué dice cada cuaderno?</th>
+          <th class="th-sep" rowspan="2"></th>
+          <th class="th-correc gh" colspan="2">¿Cuál es el correcto? <span class="edit-hint">← tú editas</span></th>
+          <th class="th-sep" rowspan="2"></th>
+          <th class="th-cuando gh" colspan="2">¿Cuándo?</th>
+        </tr>
+        <tr>
+          <th class="th-lote">TIPO</th>
+          <th class="th-lote">MZ</th>
+          <th class="th-lote">LT</th>
+          <th class="th-lote">LLAVE</th>
+          <th class="th-cada">MONTO_MIA</th>
+          <th class="th-cada">MONTO_AMIGA</th>
+          <th class="th-correc">MONTO_FINAL</th>
+          <th class="th-correc">OK</th>
+          <th class="th-cuando">FECHA</th>
+          <th class="th-cuando">CICLO</th>
+        </tr>
+      </thead>
+      <tbody>
+
+        <!-- caso 1: diff_monto — mismo lote, montos distintos -->
+        <tr><td colspan="13" class="caso">Mismo lote en los dos cuadernos · pero el monto no coincide · ¿quién cobró bien?</td></tr>
+        <tr>
+          <td class="num">1</td>
+          <td><span class="b-diff">diff_monto</span></td>
+          <td class="td-mz">A</td>
+          <td class="td-mz">8C</td>
+          <td class="td-llave">A-8C</td>
+          <td class="td-sep"></td>
+          <td class="td-cada">38.00</td>
+          <td class="td-cada">40.00</td>
+          <td class="td-sep"></td>
+          <td class="td-correc">40.00</td>
+          <td class="td-ok"><span class="b-ok-no">—</span></td>
+          <td class="td-sep"></td>
+          <td class="td-fecha">03/05/2026</td>
+          <td class="td-cuando">1</td>
+        </tr>
+
+        <!-- caso 2: solo_mia — lote que solo yo registré -->
+        <tr><td colspan="13" class="caso">Lote en tu cuaderno que no está en el de tu compañera · ¿ella no lo cobró o lo olvidó registrar?</td></tr>
+        <tr>
+          <td class="num">2</td>
+          <td><span class="b-solo-mia">solo_mia</span></td>
+          <td class="td-mz">H</td>
+          <td class="td-mz">3</td>
+          <td class="td-llave">H-3</td>
+          <td class="td-sep"></td>
+          <td class="td-cada">18.00</td>
+          <td class="td-cada-e">—</td>
+          <td class="td-sep"></td>
+          <td class="td-correc">18.00</td>
+          <td class="td-ok"><span class="b-ok-no">—</span></td>
+          <td class="td-sep"></td>
+          <td class="td-fecha">05/05/2026</td>
+          <td class="td-cuando">1</td>
+        </tr>
+
+        <!-- caso 3: solo_amiga — lote que solo ella registró -->
+        <tr><td colspan="13" class="caso">Lote en el cuaderno de tu compañera que no está en el tuyo · ¿tú no lo cobraste o lo olvidaste?</td></tr>
+        <tr>
+          <td class="num">3</td>
+          <td><span class="b-solo-amiga">solo_amiga</span></td>
+          <td class="td-mz">Z</td>
+          <td class="td-mz">7</td>
+          <td class="td-llave">Z-7</td>
+          <td class="td-sep"></td>
+          <td class="td-cada-e">—</td>
+          <td class="td-cada">25.00</td>
+          <td class="td-sep"></td>
+          <td class="td-correc">25.00</td>
+          <td class="td-ok"><span class="b-ok-no">—</span></td>
+          <td class="td-sep"></td>
+          <td class="td-fecha">06/05/2026</td>
+          <td class="td-cuando">1</td>
+        </tr>
+
+        <!-- caso 4: fila ya resuelta (ciclo 2) -->
+        <tr><td colspan="13" class="caso">Ciclo 2 · ya revisaste y marcaste OK=Sí · esta fila ya no genera nueva discrepancia</td></tr>
+        <tr style="opacity:.65">
+          <td class="num">4</td>
+          <td><span class="b-diff">diff_monto</span></td>
+          <td class="td-mz">E</td>
+          <td class="td-mz">7</td>
+          <td class="td-llave">E-7</td>
+          <td class="td-sep"></td>
+          <td class="td-cada">35.00</td>
+          <td class="td-cada">35.00</td>
+          <td class="td-sep"></td>
+          <td class="td-correc">35.00</td>
+          <td class="td-ok"><span class="b-ok-si">Sí</span></td>
+          <td class="td-sep"></td>
+          <td class="td-fecha">07/05/2026</td>
+          <td class="td-cuando">2</td>
+        </tr>
+
+      </tbody>
+    </table>
+  </div>
+
+  <div class="legend">
+    <div class="leg"><div class="ld" style="background:#F0FFF8;border:0.5px solid #9FE1CB"></div>¿Cuál es el lote? — generado por el motor</div>
+    <div class="leg"><div class="ld" style="background:#FEFCE8;border:0.5px solid #FCD34D"></div>¿Qué dice cada cuaderno? — lectura directa</div>
+    <div class="leg"><div class="ld" style="background:#FEF3E8;border:0.5px solid #FDBA74"></div>¿Cuál es el correcto? — tú editas MONTO_FINAL y marcas OK</div>
+    <div class="leg"><span class="b-diff">diff_monto</span> mismo lote · montos distintos</div>
+    <div class="leg"><span class="b-solo-mia">solo_mia</span> solo en tu cuaderno</div>
+    <div class="leg"><span class="b-solo-amiga">solo_amiga</span> solo en el de tu compañera</div>
+    <div class="leg"><span class="b-ok-si">Sí</span> confirmado · ya no genera discrepancia</div>
+    <div class="leg"><span class="b-ok-no">—</span> pendiente · debes revisar</div>
+  </div>
+</div>
