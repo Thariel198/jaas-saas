@@ -1,0 +1,323 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+#w{font-family:var(--font-sans);padding:4px 0 16px}
+.instruc{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-left:3px solid #DC2626;border-radius:0 var(--border-radius-md) var(--border-radius-md) 0;padding:9px 13px;font-size:12px;color:var(--color-text-secondary);margin-bottom:12px;line-height:1.7}
+.instruc strong{color:var(--color-text-primary)}
+.tab-excel{display:inline-flex;align-items:center;gap:5px;border:0.5px solid;border-bottom:none;border-radius:6px 6px 0 0;padding:5px 14px;font-size:12px;font-weight:500;margin-bottom:-1px}
+.tab-yape{background:#EFF6FF;border-color:#93C5FD;color:#1D4ED8}
+.tab-efec{background:#F0FFF8;border-color:#9FE1CB;color:#085041}
+.tw{border:0.5px solid var(--color-border-tertiary);border-radius:0 var(--border-radius-md) var(--border-radius-md) var(--border-radius-md);overflow-x:auto;margin-bottom:16px}
+table{width:100%;border-collapse:collapse;font-size:11px}
+th{padding:6px 8px;font-size:10px;font-weight:500;text-align:left;border-bottom:0.5px solid var(--color-border-tertiary);border-right:0.5px solid var(--color-border-tertiary);white-space:nowrap}
+th:last-child{border-right:none}
+td{padding:5px 8px;border-bottom:0.5px solid var(--color-border-tertiary);border-right:0.5px solid var(--color-border-tertiary);vertical-align:middle;white-space:nowrap}
+td:last-child{border-right:none}
+tr:last-child td{border-bottom:none}
+.num{width:24px;background:var(--color-background-secondary);color:var(--color-text-tertiary);font-size:10px;font-family:var(--font-mono);text-align:center;border-right:0.5px solid var(--color-border-tertiary)}
+
+/* grupos cabecera */
+.th-periodo {background:#F3F4F6;color:#374151}
+.th-quien   {background:#F4ECF7;color:#5B21B6}
+.th-reporte {background:#E6F1FB;color:#0C447C}
+.th-planilla{background:#FEF9E7;color:#7D6608}
+.th-cuadra  {background:#E1F5EE;color:#085041}
+.th-sep     {width:4px;background:var(--color-background-secondary);padding:0;border-right:2px solid var(--color-border-secondary)}
+
+/* celdas datos */
+.td-periodo {background:#F9FAFB;font-family:var(--font-mono);font-size:10px;color:#374151}
+.td-quien   {background:#FAF5FF;font-family:var(--font-mono);font-size:10px;color:#5B21B6;font-weight:600}
+.td-reporte {background:#F0F8FF;font-family:var(--font-mono);font-size:11px;color:#185FA5}
+.td-planilla{background:#FEFCE8;font-family:var(--font-mono);font-size:11px;color:#7D6608}
+.td-ok      {background:#E1F5EE;font-family:var(--font-mono);font-size:11px;font-weight:600;color:#085041;text-align:right}
+.td-err     {background:#FEF2F2;font-family:var(--font-mono);font-size:11px;font-weight:600;color:#991B1B;text-align:right}
+.td-sep     {width:4px;background:var(--color-background-secondary);padding:0;border-right:2px solid var(--color-border-secondary)}
+
+/* fila de totales */
+.tr-total td{border-top:1.5px solid var(--color-border-secondary);font-weight:700}
+
+.gh{font-size:9px;font-weight:600;text-align:center;padding:2px 0;letter-spacing:.05em;text-transform:uppercase;border-bottom:0.5px solid var(--color-border-tertiary)}
+
+/* badges */
+.b-ok   {background:#E1F5EE;color:#085041;font-size:10px;font-weight:600;padding:1px 7px;border-radius:3px}
+.b-err  {background:#FEF2F2;color:#991B1B;font-size:10px;font-weight:600;padding:1px 7px;border-radius:3px}
+
+/* resumen totales */
+.resumen{border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);overflow:hidden;margin-bottom:16px}
+.res-title{background:#F3F4F6;padding:6px 12px;font-size:10px;font-weight:600;color:#374151;letter-spacing:.05em;text-transform:uppercase;border-bottom:0.5px solid var(--color-border-tertiary)}
+.res-row{display:grid;grid-template-columns:120px 1fr 1fr 1fr 80px;gap:0;border-bottom:0.5px solid var(--color-border-tertiary)}
+.res-row:last-child{border-bottom:none}
+.res-row-2{grid-template-columns:120px 1fr 1fr 80px}
+.res-cell{padding:6px 12px;font-size:11px;border-right:0.5px solid var(--color-border-tertiary)}
+.res-cell:last-child{border-right:none}
+.res-label{background:#F9FAFB;font-weight:500;color:#374151;font-size:10px;display:flex;align-items:center}
+.res-num{font-family:var(--font-mono);color:#185FA5;text-align:right;background:#F0F8FF}
+.res-ok {font-family:var(--font-mono);color:#085041;text-align:right;background:#E1F5EE;font-weight:700}
+.res-err{font-family:var(--font-mono);color:#991B1B;text-align:right;background:#FEF2F2;font-weight:700}
+.res-head{background:var(--color-background-secondary);font-size:9px;font-weight:600;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.05em;display:flex;align-items:center;justify-content:center;text-align:center}
+
+.section-gap{margin-top:20px}
+
+.legend{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center}
+.leg{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--color-text-secondary)}
+.ld{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+</style>
+
+<div id="w">
+  <div class="instruc">
+    Generado por <strong>5b_validacion/main.py</strong> — solo lectura.<br>
+    Compara <strong>reporte banco crudo</strong> (TE PAGÓ, filtrado por fecha del ciclo) → <strong>pagos_yape_tepago</strong> → <strong>cobranza_final</strong>.<br>
+    Período derivado automáticamente desde la fecha mínima y máxima de <strong>pagos_yape_tepago.FECHA</strong>.<br>
+    <strong>Diferencia = PLANILLA − REPORTE</strong> · Positivo: planilla registró más · Negativo: planilla registró menos.
+  </div>
+
+  <!-- RESUMEN DE TOTALES -->
+  <div class="resumen">
+    <div class="res-title">Resumen de totales — 2026-04-11 al 2026-05-10</div>
+
+    <!-- cabeceras -->
+    <div class="res-row" style="background:var(--color-background-secondary)">
+      <div class="res-cell res-label res-head">Medio</div>
+      <div class="res-cell res-head">Crudo banco</div>
+      <div class="res-cell res-head">Procesado (yape_tepago)</div>
+      <div class="res-cell res-head">Planilla (cobranza)</div>
+      <div class="res-cell res-head">¿Cuadra?</div>
+    </div>
+
+    <!-- fila Yape -->
+    <div class="res-row">
+      <div class="res-cell res-label" style="color:#1D4ED8;font-weight:600">Yape</div>
+      <div class="res-cell res-num">7,650.50</div>
+      <div class="res-cell res-num">7,650.50</div>
+      <div class="res-cell res-num">7,654.50</div>
+      <div class="res-cell res-err">+4.00</div>
+    </div>
+
+    <!-- fila Efectivo (2 niveles: no tiene crudo separado) -->
+    <div class="res-row">
+      <div class="res-cell res-label" style="color:#085041;font-weight:600">Efectivo</div>
+      <div class="res-cell res-num" style="color:var(--color-text-tertiary);font-style:italic;font-size:10px;display:flex;align-items:center">— (no aplica)</div>
+      <div class="res-cell res-num">3,557.00</div>
+      <div class="res-cell res-num">3,382.00</div>
+      <div class="res-cell res-err">−175.00</div>
+    </div>
+  </div>
+
+  <!-- TABLA YAPE POR MZ -->
+  <div class="tab-excel tab-yape">yape_por_mz</div>
+  <div class="tw">
+    <table>
+      <thead>
+        <tr>
+          <th class="num" rowspan="2"></th>
+          <th class="th-periodo gh" colspan="1">¿Qué período?</th>
+          <th class="th-sep" rowspan="2"></th>
+          <th class="th-quien gh" colspan="1">¿Quién?</th>
+          <th class="th-sep" rowspan="2"></th>
+          <th class="th-reporte gh" colspan="1">¿Qué entró al sistema?</th>
+          <th class="th-sep" rowspan="2"></th>
+          <th class="th-planilla gh" colspan="1">¿Qué quedó en planilla?</th>
+          <th class="th-sep" rowspan="2"></th>
+          <th class="th-cuadra gh" colspan="2">¿Cuadra?</th>
+        </tr>
+        <tr>
+          <th class="th-periodo">PERIODO</th>
+          <th class="th-quien">MZ</th>
+          <th class="th-reporte">REPORTE_YAPE</th>
+          <th class="th-planilla">PLANILLA_YAPE</th>
+          <th class="th-cuadra">DIFERENCIA</th>
+          <th class="th-cuadra">ESTADO</th>
+        </tr>
+      </thead>
+      <tbody>
+
+        <tr>
+          <td class="num">1</td>
+          <td class="td-periodo">2026-04-11 / 2026-05-10</td>
+          <td class="td-sep"></td>
+          <td class="td-quien">A</td>
+          <td class="td-sep"></td>
+          <td class="td-reporte">404.00</td>
+          <td class="td-sep"></td>
+          <td class="td-planilla">404.00</td>
+          <td class="td-sep"></td>
+          <td class="td-ok">0.00</td>
+          <td><span class="b-ok">OK</span></td>
+        </tr>
+
+        <tr>
+          <td class="num">2</td>
+          <td class="td-periodo">2026-04-11 / 2026-05-10</td>
+          <td class="td-sep"></td>
+          <td class="td-quien">B</td>
+          <td class="td-sep"></td>
+          <td class="td-reporte">196.00</td>
+          <td class="td-sep"></td>
+          <td class="td-planilla">196.00</td>
+          <td class="td-sep"></td>
+          <td class="td-ok">0.00</td>
+          <td><span class="b-ok">OK</span></td>
+        </tr>
+
+        <!-- fila con diferencia — devolucion reconocida -->
+        <tr>
+          <td class="num">3</td>
+          <td class="td-periodo">2026-04-11 / 2026-05-10</td>
+          <td class="td-sep"></td>
+          <td class="td-quien">K</td>
+          <td class="td-sep"></td>
+          <td class="td-reporte">462.00</td>
+          <td class="td-sep"></td>
+          <td class="td-planilla">466.00</td>
+          <td class="td-sep"></td>
+          <td class="td-err">+4.00</td>
+          <td><span class="b-err">ALERTA</span></td>
+        </tr>
+
+        <tr>
+          <td class="num">4</td>
+          <td class="td-periodo">2026-04-11 / 2026-05-10</td>
+          <td class="td-sep"></td>
+          <td class="td-quien">L</td>
+          <td class="td-sep"></td>
+          <td class="td-reporte">429.00</td>
+          <td class="td-sep"></td>
+          <td class="td-planilla">429.00</td>
+          <td class="td-sep"></td>
+          <td class="td-ok">0.00</td>
+          <td><span class="b-ok">OK</span></td>
+        </tr>
+
+        <!-- fila de totales -->
+        <tr class="tr-total">
+          <td class="num"></td>
+          <td class="td-periodo" style="font-weight:700">TOTAL</td>
+          <td class="td-sep"></td>
+          <td class="td-quien"></td>
+          <td class="td-sep"></td>
+          <td class="td-reporte" style="font-weight:700">7,650.50</td>
+          <td class="td-sep"></td>
+          <td class="td-planilla" style="font-weight:700">7,654.50</td>
+          <td class="td-sep"></td>
+          <td class="td-err" style="font-weight:700">+4.00</td>
+          <td><span class="b-err">ALERTA</span></td>
+        </tr>
+
+      </tbody>
+    </table>
+  </div>
+
+  <!-- TABLA EFECTIVO POR MZ -->
+  <div class="section-gap"></div>
+  <div class="tab-excel tab-efec">efectivo_por_mz</div>
+  <div class="tw">
+    <table>
+      <thead>
+        <tr>
+          <th class="num" rowspan="2"></th>
+          <th class="th-periodo gh" colspan="1">¿Qué período?</th>
+          <th class="th-sep" rowspan="2"></th>
+          <th class="th-quien gh" colspan="1">¿Quién?</th>
+          <th class="th-sep" rowspan="2"></th>
+          <th class="th-reporte gh" colspan="1">¿Qué entró al sistema?</th>
+          <th class="th-sep" rowspan="2"></th>
+          <th class="th-planilla gh" colspan="1">¿Qué quedó en planilla?</th>
+          <th class="th-sep" rowspan="2"></th>
+          <th class="th-cuadra gh" colspan="2">¿Cuadra?</th>
+        </tr>
+        <tr>
+          <th class="th-periodo">PERIODO</th>
+          <th class="th-quien">MZ</th>
+          <th class="th-reporte">REPORTE_EFECTIVO</th>
+          <th class="th-planilla">PLANILLA_EFECTIVO</th>
+          <th class="th-cuadra">DIFERENCIA</th>
+          <th class="th-cuadra">ESTADO</th>
+        </tr>
+      </thead>
+      <tbody>
+
+        <tr>
+          <td class="num">1</td>
+          <td class="td-periodo">2026-04-11 / 2026-05-10</td>
+          <td class="td-sep"></td>
+          <td class="td-quien">A</td>
+          <td class="td-sep"></td>
+          <td class="td-reporte">44.00</td>
+          <td class="td-sep"></td>
+          <td class="td-planilla">44.00</td>
+          <td class="td-sep"></td>
+          <td class="td-ok">0.00</td>
+          <td><span class="b-ok">OK</span></td>
+        </tr>
+
+        <!-- diferencia: C20 pagó en efectivo pero quedó en Yape -->
+        <tr>
+          <td class="num">2</td>
+          <td class="td-periodo">2026-04-11 / 2026-05-10</td>
+          <td class="td-sep"></td>
+          <td class="td-quien">C</td>
+          <td class="td-sep"></td>
+          <td class="td-reporte">410.00</td>
+          <td class="td-sep"></td>
+          <td class="td-planilla">385.00</td>
+          <td class="td-sep"></td>
+          <td class="td-err">−25.00</td>
+          <td><span class="b-err">ALERTA</span></td>
+        </tr>
+
+        <tr>
+          <td class="num">3</td>
+          <td class="td-periodo">2026-04-11 / 2026-05-10</td>
+          <td class="td-sep"></td>
+          <td class="td-quien">Q</td>
+          <td class="td-sep"></td>
+          <td class="td-reporte">67.00</td>
+          <td class="td-sep"></td>
+          <td class="td-planilla">17.00</td>
+          <td class="td-sep"></td>
+          <td class="td-err">−50.00</td>
+          <td><span class="b-err">ALERTA</span></td>
+        </tr>
+
+        <tr>
+          <td class="num">4</td>
+          <td class="td-periodo">2026-04-11 / 2026-05-10</td>
+          <td class="td-sep"></td>
+          <td class="td-quien">W</td>
+          <td class="td-sep"></td>
+          <td class="td-reporte">132.00</td>
+          <td class="td-sep"></td>
+          <td class="td-planilla">57.00</td>
+          <td class="td-sep"></td>
+          <td class="td-err">−75.00</td>
+          <td><span class="b-err">ALERTA</span></td>
+        </tr>
+
+        <!-- fila de totales -->
+        <tr class="tr-total">
+          <td class="num"></td>
+          <td class="td-periodo" style="font-weight:700">TOTAL</td>
+          <td class="td-sep"></td>
+          <td class="td-quien"></td>
+          <td class="td-sep"></td>
+          <td class="td-reporte" style="font-weight:700">3,557.00</td>
+          <td class="td-sep"></td>
+          <td class="td-planilla" style="font-weight:700">3,382.00</td>
+          <td class="td-sep"></td>
+          <td class="td-err" style="font-weight:700">−175.00</td>
+          <td><span class="b-err">ALERTA</span></td>
+        </tr>
+
+      </tbody>
+    </table>
+  </div>
+
+  <div class="legend">
+    <div class="leg"><div class="ld" style="background:#F9FAFB;border:0.5px solid #D1D5DB"></div>período del ciclo — derivado de pagos_yape_tepago</div>
+    <div class="leg"><div class="ld" style="background:#FAF5FF;border:0.5px solid #C4B5FD"></div>manzana comparada</div>
+    <div class="leg"><div class="ld" style="background:#F0F8FF;border:0.5px solid #AED6F1"></div>lo que dijo la fuente (banco crudo o pagos_efectivo)</div>
+    <div class="leg"><div class="ld" style="background:#FEFCE8;border:0.5px solid #FCD34D"></div>lo que quedó registrado en cobranza_final</div>
+    <div class="leg"><span class="b-ok">OK</span> diferencia = 0</div>
+    <div class="leg"><span class="b-err">ALERTA</span> diferencia ≠ 0 — revisar causa</div>
+  </div>
+</div>

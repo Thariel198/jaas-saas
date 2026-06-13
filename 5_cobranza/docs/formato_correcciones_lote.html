@@ -1,0 +1,92 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+#w{font-family:var(--font-sans);padding:4px 0 16px}
+.instruc{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-left:3px solid #065F46;border-radius:0 var(--border-radius-md) var(--border-radius-md) 0;padding:9px 13px;font-size:12px;color:var(--color-text-secondary);margin-bottom:12px;line-height:1.7}
+.instruc strong{color:var(--color-text-primary)}
+.tab-excel{display:inline-flex;align-items:center;gap:5px;background:#ECFDF5;border:0.5px solid #6EE7B7;border-bottom:none;border-radius:6px 6px 0 0;padding:5px 14px;font-size:12px;font-weight:500;color:#065F46;margin-bottom:-1px}
+.tw{border:0.5px solid var(--color-border-tertiary);border-radius:0 var(--border-radius-md) var(--border-radius-md) var(--border-radius-md);overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:11px;min-width:620px}
+th{padding:6px 8px;font-size:10px;font-weight:500;text-align:left;border-bottom:0.5px solid var(--color-border-tertiary);border-right:0.5px solid var(--color-border-tertiary);white-space:nowrap}
+th:last-child{border-right:none}
+td{padding:5px 8px;border-bottom:0.5px solid var(--color-border-tertiary);border-right:0.5px solid var(--color-border-tertiary);vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+td:last-child{border-right:none}
+tr:last-child td{border-bottom:none}
+.num{width:24px;background:var(--color-background-secondary);color:var(--color-text-tertiary);font-size:10px;font-family:var(--font-mono);text-align:center;border-right:0.5px solid var(--color-border-tertiary)}
+
+.th-origen  {background:#FEF2F2;color:#991B1B}
+.th-destino {background:#ECFDF5;color:#065F46}
+.th-traz    {background:#FEF9E7;color:#7D6608}
+.th-sep     {width:4px;background:var(--color-background-secondary);padding:0;border-right:2px solid var(--color-border-secondary)}
+
+.td-origen  {background:#FFF5F5;font-family:var(--font-mono);font-size:10px;color:#991B1B;font-weight:600;text-align:center}
+.td-destino {background:#ECFDF5;font-family:var(--font-mono);font-size:11px;color:#065F46;font-weight:600;text-align:center}
+.td-traz    {background:#FEFCE8;font-family:var(--font-mono);font-size:11px;color:#7D6608;text-align:center}
+.td-sep     {width:4px;background:var(--color-background-secondary);padding:0;border-right:2px solid var(--color-border-secondary)}
+
+.gh{font-size:9px;font-weight:600;text-align:center;padding:2px 0;letter-spacing:.05em;text-transform:uppercase;border-bottom:0.5px solid var(--color-border-tertiary)}
+
+.legend{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center}
+.leg{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--color-text-secondary)}
+.ld{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+</style>
+
+<div id="w">
+  <div class="instruc">
+    Mantenido automáticamente por <strong>5_cobranza/main.py</strong> — no editar manualmente.<br>
+    Persiste las correcciones de lote capturadas en <strong>discrepancias_cobranza.xlsx</strong>.<br>
+    Cada fila mapea un <strong>MZ+LT incorrecto</strong> (como llegó del cobrador) al <strong>MZ+LT real</strong> (COFOPRI).<br>
+    Se aplica en todos los ciclos futuros: si un pago llega con MZ_ORIGEN+LT_ORIGEN, se imputa al lote destino.<br>
+    Fuente de consulta: <strong>5_cobranza/inputs/correcciones_lote.xlsx</strong>.
+  </div>
+
+  <div class="tab-excel">correcciones_lote</div>
+  <div class="tw">
+    <table>
+      <thead>
+        <tr>
+          <th class="num" rowspan="2"></th>
+          <th class="th-origen gh"  colspan="2">Lote incorrecto (origen)</th>
+          <th class="th-sep" rowspan="2"></th>
+          <th class="th-destino gh" colspan="2">Lote real (destino)</th>
+          <th class="th-sep" rowspan="2"></th>
+          <th class="th-traz gh"    colspan="2">Trazabilidad</th>
+        </tr>
+        <tr>
+          <th class="th-origen">MZ_ORIGEN</th>
+          <th class="th-origen">LT_ORIGEN</th>
+
+          <th class="th-destino">MZ_DESTINO</th>
+          <th class="th-destino">LT_DESTINO</th>
+
+          <th class="th-traz">CICLO</th>
+          <th class="th-traz">FECHA</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="num">1</td>
+          <td class="td-origen">C1</td><td class="td-origen">16</td>
+          <td class="td-sep"></td>
+          <td class="td-destino">B1</td><td class="td-destino">12</td>
+          <td class="td-sep"></td>
+          <td class="td-traz">2</td><td class="td-traz">26/05/2026</td>
+        </tr>
+        <tr>
+          <td class="num">2</td>
+          <td class="td-origen">B</td><td class="td-origen">21</td>
+          <td class="td-sep"></td>
+          <td class="td-destino">B</td><td class="td-destino">14</td>
+          <td class="td-sep"></td>
+          <td class="td-traz">1</td><td class="td-traz">05/06/2026</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="legend">
+    <div class="leg"><div class="ld" style="background:#FFF5F5;border:0.5px solid #FECACA"></div>MZ+LT incorrecto — tal como llegó en el pago original</div>
+    <div class="leg"><div class="ld" style="background:#ECFDF5;border:0.5px solid #6EE7B7"></div>MZ+LT real (COFOPRI) — destino al que se imputa el pago</div>
+    <div class="leg"><div class="ld" style="background:#FEFCE8;border:0.5px solid #FCD34D"></div>ciclo de cobranza y fecha en que se capturó la corrección</div>
+  </div>
+</div>

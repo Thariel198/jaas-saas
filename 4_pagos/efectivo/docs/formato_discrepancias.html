@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>discrepancias.xlsx — contrato visual</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+
+  :root {
+    --font-sans: 'IBM Plex Sans', sans-serif;
+    --font-mono: 'IBM Plex Mono', monospace;
+    --border: #dee2e6;
+    --bg2: #f8f9fa;
+    --text3: #adb5bd;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font-sans); background: #fff; padding: 28px; font-size: 13px; color: #111; }
+
+  .title { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+  .sub   { font-size: 12px; color: #888; margin-bottom: 8px; }
+
+  .historia {
+    font-size: 11px; color: #555; margin-bottom: 16px;
+    background: #FFF7ED; border-left: 3px solid #FED7AA;
+    padding: 7px 12px; border-radius: 0 5px 5px 0; line-height: 1.7;
+  }
+  .historia strong { color: #9A3412; }
+
+  /* Excel tabs */
+  .tab-wrap { display: inline-flex; gap: 3px; margin-bottom: -1px; }
+  .tab {
+    display: inline-flex; align-items: center;
+    background: #FFF7ED; border: 0.5px solid #FED7AA;
+    border-bottom: none; border-radius: 6px 6px 0 0;
+    padding: 5px 14px; font-size: 12px; font-weight: 500;
+    color: #9A3412; font-family: var(--font-mono);
+  }
+  .tab.inactive {
+    background: #f3f4f6; border-color: #d1d5db;
+    color: #9ca3af;
+  }
+
+  /* Table wrapper */
+  .tw { border: 0.5px solid var(--border); border-radius: 0 8px 8px 8px; overflow-x: auto; margin-bottom: 16px; }
+
+  table { border-collapse: collapse; font-size: 10px; font-family: var(--font-sans); }
+  th, td {
+    padding: 5px 8px;
+    border-bottom: 0.5px solid var(--border);
+    border-right: 0.5px solid var(--border);
+    white-space: nowrap; vertical-align: middle;
+  }
+
+  .num {
+    width: 22px; background: var(--bg2); color: var(--text3);
+    font-size: 9px; font-family: var(--font-mono); text-align: center; padding: 4px 2px;
+  }
+  .th-sep, .td-sep { width: 5px; background: var(--bg2); border-right: 2px solid var(--border); padding: 0; }
+
+  .gh  { font-size: 9px; font-weight: 600; text-align: center; letter-spacing: 0.05em; text-transform: uppercase; padding: 4px 8px; }
+  th.col { font-size: 9px; font-weight: 600; font-family: var(--font-mono); text-align: center; padding: 4px 8px; }
+
+  /* ── ¿Cuál es el predio? (azul) ── */
+  .gh-id  { background: #EBF5FB; color: #1A5276; }
+  .th-id  { background: #EBF5FB; color: #1A5276; }
+  .td-id  { background: #F4FAFF; color: #1A5276; font-family: var(--font-mono); text-align: center; font-weight: 600; }
+
+  /* ── ¿De qué mesa? (amarillo) ── */
+  .gh-mesa { background: #FEF9E7; color: #7D6608; }
+  .th-mesa { background: #FEF9E7; color: #7D6608; }
+  .td-mesa { background: #FFFDF5; color: #7D6608; font-family: var(--font-mono); text-align: center; }
+
+  /* ── ¿Qué dijo cada cobrador? (rojo — alerta) ── */
+  .gh-disc { background: #FEF2F2; color: #991B1B; }
+  .th-disc { background: #FEF2F2; color: #991B1B; }
+  .td-disc-hoja  { background: #FFF5F5; color: #991B1B; font-family: var(--font-mono); text-align: center; font-size: 9px; }
+  .td-disc-monto { background: #FFF5F5; color: #B91C1C; font-family: var(--font-mono); text-align: right; font-weight: 600; }
+  .td-disc-empty { background: #f8f9fa; color: #ccc; font-style: italic; text-align: center; font-size: 9px; }
+
+  /* ── ¿Qué se registró? (verde cobro) ── */
+  .gh-cobro { background: #E9F7EF; color: #1E5C3A; }
+  .th-cobro { background: #E9F7EF; color: #1E5C3A; }
+  .td-cobro       { background: #F4FBF7; color: #1E5C3A; font-family: var(--font-mono); text-align: center; }
+  .td-cobro-monto { background: #F4FBF7; color: #1E5C3A; font-family: var(--font-mono); text-align: right; font-weight: 600; }
+
+  /* ── Resolución (verde acción requerida) ── */
+  .gh-res { background: #ECFDF5; color: #065F46; }
+  .th-res { background: #ECFDF5; color: #065F46; }
+  .td-res-vacio  { background: #F0FFF8; color: #9CA3AF; font-style: italic; text-align: center; }
+  .td-res-lleno  { background: #D1FAE5; color: #065F46; font-family: var(--font-mono); text-align: center; font-weight: 600; font-size: 9px; }
+  .td-monto-corr { background: #ECFDF5; color: #065F46; font-family: var(--font-mono); text-align: right; font-weight: 600; }
+
+  /* ── Leyenda ── */
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; align-items: center; }
+  .ld-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #555; }
+  .ld { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; border: 0.5px solid rgba(0,0,0,.12); }
+
+  /* ── Títulos de hoja ── */
+  .hoja-title {
+    font-size: 13px; font-weight: 700; color: #1A5276;
+    margin-bottom: 8px; margin-top: 28px;
+    border-left: 3px solid #AED6F1; padding-left: 8px;
+  }
+
+  /* ── Reglas ── */
+  .section-title { font-size: 12px; font-weight: 600; color: #333; margin-bottom: 10px; margin-top: 20px; }
+  .rule-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 20px; }
+  .rule-card { border: 0.5px solid var(--border); border-radius: 6px; padding: 10px 12px; font-size: 11px; color: #555; line-height: 1.6; }
+  .rule-card strong { display: block; font-size: 9px; font-weight: 700; margin-bottom: 5px; color: #333; text-transform: uppercase; letter-spacing: 0.05em; }
+  .rule-card code { font-family: var(--font-mono); font-size: 10px; background: #f3f3f3; padding: 1px 4px; border-radius: 2px; }
+
+  .pill {
+    display: inline-block; font-size: 9px; font-weight: 700;
+    padding: 2px 7px; border-radius: 10px; font-family: var(--font-mono);
+  }
+  .pill.ok      { background: #D1FAE5; color: #065F46; }
+  .pill.rechaza { background: #FEE2E2; color: #991B1B; }
+  .pill.corrige { background: #DBEAFE; color: #1E40AF; }
+
+  /* ── Anchos ── */
+  .widths-table { border-collapse: collapse; font-size: 11px; margin-bottom: 20px; }
+  .widths-table th, .widths-table td { border: 0.5px solid var(--border); padding: 4px 10px; text-align: left; }
+  .widths-table th { background: var(--bg2); font-weight: 600; font-size: 10px; }
+  .widths-table code { font-family: var(--font-mono); font-size: 10px; }
+</style>
+</head>
+<body>
+
+<p class="title">discrepancias.xlsx — contrato visual</p>
+<p class="sub">Archivo temporal · 2 hojas (discrepancias · pago_multi_mesa) · desaparece cuando ambas hojas están completamente resueltas</p>
+
+<p class="historia">
+  <strong>Una sola puerta para el supervisor — todos los pendientes aquí:</strong><br>
+  · Hoja <strong>discrepancias</strong> — 2 o más cobradores de la <em>misma mesa</em> registraron montos distintos para el mismo predio (MZ+LT).<br>
+  · Hoja <strong>pago_multi_mesa</strong> — el mismo predio (MZ+LT) aparece cobrado en <em>mesas distintas</em>, riesgo de doble cobro.<br><br>
+  El supervisor abre este archivo, llena la columna de resolución en cada hoja, guarda, cierra y vuelve a correr <code>main.py</code>.<br>
+  · Hoja <strong>discrepancias</strong>: columna <strong>RESOLUCION</strong> (acepta_a / acepta_b / corrige).<br>
+  · Hoja <strong>pago_multi_mesa</strong>: columna <strong>OK</strong> (si / rechaza / dejar vacío = pendiente).<br>
+  Las resoluciones quedan en <code>trazabilidad/trazabilidad_{mes}.xlsx</code> (hojas <code>discrepancias_resueltas</code> y <code>pago_multi_mesa_resueltas</code>).
+  Cuando ambas hojas están completamente resueltas el archivo se elimina automáticamente.
+</p>
+
+<!-- ── Leyenda ── -->
+<div class="legend">
+  <div class="ld-item"><div class="ld" style="background:#EBF5FB;border-color:#AED6F1"></div>¿Cuál es el predio?</div>
+  <div class="ld-item"><div class="ld" style="background:#FEF9E7;border-color:#F9E79F"></div>¿De qué mesa?</div>
+  <div class="ld-item"><div class="ld" style="background:#FEF2F2;border-color:#FECACA"></div>¿Qué dijo cada cobrador?</div>
+  <div class="ld-item"><div class="ld" style="background:#E9F7EF;border-color:#A7F3D0"></div>¿Qué se registró?</div>
+  <div class="ld-item"><div class="ld" style="background:#ECFDF5;border-color:#6EE7B7"></div>Resolución (supervisor llena)</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<p class="hoja-title">Hoja 1 — discrepancias</p>
+<p style="font-size:11px;color:#555;margin-bottom:10px;">
+  Misma mesa, montos distintos para el mismo predio. El supervisor elige qué cobrador tenía razón o ingresa el monto correcto.
+</p>
+
+<div class="tab-wrap">
+  <div class="tab">discrepancias</div>
+  <div class="tab inactive">pago_multi_mesa</div>
+</div>
+
+<div class="tw">
+<table>
+
+  <!-- Fila 1: secciones -->
+  <tr>
+    <th class="num" rowspan="2"></th>
+    <th class="gh gh-id"   colspan="2">¿Cuál es el predio?</th>
+    <th class="th-sep"     rowspan="2"></th>
+    <th class="gh gh-mesa" colspan="1">¿De qué mesa?</th>
+    <th class="th-sep"     rowspan="2"></th>
+    <th class="gh gh-disc" colspan="6">¿Qué dijo cada cobrador?</th>
+    <th class="th-sep"     rowspan="2"></th>
+    <th class="gh gh-res"  colspan="2">Resolución — supervisor llena</th>
+  </tr>
+  <!-- Fila 2: columnas -->
+  <tr>
+    <th class="col th-id">MZ</th>
+    <th class="col th-id">LT</th>
+    <th class="col th-mesa">MESA</th>
+    <th class="col th-disc">COBRADOR_A</th>
+    <th class="col th-disc">MONTO_A</th>
+    <th class="col th-disc">COBRADOR_B</th>
+    <th class="col th-disc">MONTO_B</th>
+    <th class="col th-disc">COBRADOR_C</th>
+    <th class="col th-disc">MONTO_C</th>
+    <th class="col th-res">RESOLUCION</th>
+    <th class="col th-res">MONTO_CORRECTO</th>
+  </tr>
+
+  <!-- sin resolver, 2 cobradores -->
+  <tr>
+    <td class="num">3</td>
+    <td class="td-id">C</td><td class="td-id">5</td>
+    <td class="td-sep"></td>
+    <td class="td-mesa">mesa_3</td>
+    <td class="td-sep"></td>
+    <td class="td-disc-hoja">Ana Mamani</td><td class="td-disc-monto">S/ 38.00</td>
+    <td class="td-disc-hoja">Juan Flores</td><td class="td-disc-monto">S/ 43.00</td>
+    <td class="td-disc-empty">—</td><td class="td-disc-empty">—</td>
+    <td class="td-sep"></td>
+    <td class="td-res-vacio">← llenar</td><td class="td-res-vacio"></td>
+  </tr>
+  <!-- sin resolver, 3 cobradores -->
+  <tr>
+    <td class="num">4</td>
+    <td class="td-id">A</td><td class="td-id">12</td>
+    <td class="td-sep"></td>
+    <td class="td-mesa">mesa_5</td>
+    <td class="td-sep"></td>
+    <td class="td-disc-hoja">Rosa Condori</td><td class="td-disc-monto">S/ 21.00</td>
+    <td class="td-disc-hoja">Luis Huanca</td><td class="td-disc-monto">S/ 21.00</td>
+    <td class="td-disc-hoja">Carmen Ticona</td><td class="td-disc-monto">S/ 25.00</td>
+    <td class="td-sep"></td>
+    <td class="td-res-vacio">← llenar</td><td class="td-res-vacio"></td>
+  </tr>
+  <!-- resuelta con acepta_a -->
+  <tr>
+    <td class="num">5</td>
+    <td class="td-id">B</td><td class="td-id">8</td>
+    <td class="td-sep"></td>
+    <td class="td-mesa">mesa_2</td>
+    <td class="td-sep"></td>
+    <td class="td-disc-hoja">María García</td><td class="td-disc-monto">S/ 38.00</td>
+    <td class="td-disc-hoja">Pedro Quispe</td><td class="td-disc-monto">S/ 35.00</td>
+    <td class="td-disc-empty">—</td><td class="td-disc-empty">—</td>
+    <td class="td-sep"></td>
+    <td class="td-res-lleno"><span class="pill acepta">acepta_a</span></td>
+    <td class="td-monto-corr"></td>
+  </tr>
+  <!-- resuelta con corrige -->
+  <tr>
+    <td class="num">6</td>
+    <td class="td-id">D</td><td class="td-id">2</td>
+    <td class="td-sep"></td>
+    <td class="td-mesa">mesa_6</td>
+    <td class="td-sep"></td>
+    <td class="td-disc-hoja">Juana Roque</td><td class="td-disc-monto">S/ 50.00</td>
+    <td class="td-disc-hoja">Carlos Mamani</td><td class="td-disc-monto">S/ 55.00</td>
+    <td class="td-disc-empty">—</td><td class="td-disc-empty">—</td>
+    <td class="td-sep"></td>
+    <td class="td-res-lleno"><span class="pill corrige">corrige</span></td>
+    <td class="td-monto-corr">S/ 50.00</td>
+  </tr>
+
+</table>
+</div>
+
+<p class="section-title">Valores válidos de RESOLUCION — hoja discrepancias</p>
+<div class="rule-grid">
+  <div class="rule-card">
+    <strong><span class="pill acepta">acepta_a / acepta_b / acepta_c</span></strong>
+    Se toma el monto del cobrador indicado como correcto.
+    Usar <code>acepta_a</code>, <code>acepta_b</code> o <code>acepta_c</code>
+    según cuál cobrador tenía razón.
+  </div>
+  <div class="rule-card">
+    <strong><span class="pill corrige">corrige</span></strong>
+    Ningún cobrador tuvo el monto correcto.
+    Escribir <code>corrige</code> en RESOLUCION
+    y el monto real en <code>MONTO_CORRECTO</code>.
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<p class="hoja-title">Hoja 2 — pago_multi_mesa</p>
+<p style="font-size:11px;color:#555;margin-bottom:10px;">
+  Mismo predio (MZ+LT) registrado en mesas distintas. Una fila por cada aparición.
+  El supervisor resuelve <strong>cada fila de forma independiente</strong>: <code>si</code> acepta el cobro,
+  <code>rechaza</code> lo descarta (queda en trazabilidad para auditoría), vacío = pendiente.
+  Si el predio cobrado estaba mal registrado se corrige con <strong>MZ_CORRECTO / LT_CORRECTO</strong>.
+  Múltiples <code>si</code> en el mismo grupo están permitidos (doble pago legítimo).
+</p>
+
+<div class="tab-wrap">
+  <div class="tab inactive">discrepancias</div>
+  <div class="tab">pago_multi_mesa</div>
+</div>
+
+<div class="tw">
+<table>
+
+  <!-- Fila 1: secciones -->
+  <tr>
+    <th class="num" rowspan="2"></th>
+    <th class="gh gh-id"    colspan="2">¿Cuál es el predio?</th>
+    <th class="th-sep"      rowspan="2"></th>
+    <th class="gh gh-cobro" colspan="4">¿Qué se registró?</th>
+    <th class="th-sep"      rowspan="2"></th>
+    <th class="gh gh-res"   colspan="3">Resolución — supervisor llena</th>
+  </tr>
+  <!-- Fila 2: columnas -->
+  <tr>
+    <th class="col th-id">MZ</th>
+    <th class="col th-id">LT</th>
+    <th class="col th-cobro">MESA</th>
+    <th class="col th-cobro">COBRADOR</th>
+    <th class="col th-cobro">MONTO</th>
+    <th class="col th-cobro">FECHA_COBRO</th>
+    <th class="col th-res">MZ_CORRECTO</th>
+    <th class="col th-res">LT_CORRECTO</th>
+    <th class="col th-res">OK</th>
+  </tr>
+
+  <!-- Grupo 1: predio D-11 en 2 mesas — pendiente -->
+  <tr>
+    <td class="num">3</td>
+    <td class="td-id">D</td><td class="td-id">11</td>
+    <td class="td-sep"></td>
+    <td class="td-cobro">mesa_2</td>
+    <td class="td-cobro">Pedro Quispe</td>
+    <td class="td-cobro-monto">S/ 38.00</td>
+    <td class="td-cobro">05/06/2026</td>
+    <td class="td-sep"></td>
+    <td class="td-res-vacio"></td>
+    <td class="td-res-vacio"></td>
+    <td class="td-res-vacio">← si / rechaza</td>
+  </tr>
+  <tr>
+    <td class="num">4</td>
+    <td class="td-id">D</td><td class="td-id">11</td>
+    <td class="td-sep"></td>
+    <td class="td-cobro">mesa_5</td>
+    <td class="td-cobro">Ana Lima</td>
+    <td class="td-cobro-monto">S/ 38.00</td>
+    <td class="td-cobro">05/06/2026</td>
+    <td class="td-sep"></td>
+    <td class="td-res-vacio"></td>
+    <td class="td-res-vacio"></td>
+    <td class="td-res-vacio"></td>
+  </tr>
+
+  <!-- Grupo 2: A-7B — uno acepta (predio correcto), otro rechaza -->
+  <tr>
+    <td class="num">5</td>
+    <td class="td-id">A</td><td class="td-id">7B</td>
+    <td class="td-sep"></td>
+    <td class="td-cobro">mesa_1</td>
+    <td class="td-cobro">Wilder Trujillo</td>
+    <td class="td-cobro-monto">S/ 42.00</td>
+    <td class="td-cobro">04/06/2026</td>
+    <td class="td-sep"></td>
+    <td class="td-res-vacio"></td>
+    <td class="td-res-vacio"></td>
+    <td class="td-res-lleno"><span class="pill ok">si</span></td>
+  </tr>
+  <tr>
+    <td class="num">6</td>
+    <td class="td-id">A</td><td class="td-id">7B</td>
+    <td class="td-sep"></td>
+    <td class="td-cobro">mesa_3</td>
+    <td class="td-cobro">Carlos Vega</td>
+    <td class="td-cobro-monto">S/ 42.00</td>
+    <td class="td-cobro">04/06/2026</td>
+    <td class="td-sep"></td>
+    <td class="td-res-vacio"></td>
+    <td class="td-res-vacio"></td>
+    <td class="td-res-lleno"><span class="pill rechaza">rechaza</span></td>
+  </tr>
+
+  <!-- Grupo 3: B-4 — ok con corrección de predio -->
+  <tr>
+    <td class="num">7</td>
+    <td class="td-id">B</td><td class="td-id">4</td>
+    <td class="td-sep"></td>
+    <td class="td-cobro">mesa_4</td>
+    <td class="td-cobro">Rosa Condori</td>
+    <td class="td-cobro-monto">S/ 35.00</td>
+    <td class="td-cobro">06/06/2026</td>
+    <td class="td-sep"></td>
+    <td class="td-res-lleno">B</td>
+    <td class="td-res-lleno">4A</td>
+    <td class="td-res-lleno"><span class="pill ok">si</span></td>
+  </tr>
+  <tr>
+    <td class="num">8</td>
+    <td class="td-id">B</td><td class="td-id">4</td>
+    <td class="td-sep"></td>
+    <td class="td-cobro">mesa_6</td>
+    <td class="td-cobro">Luis Huanca</td>
+    <td class="td-cobro-monto">S/ 35.00</td>
+    <td class="td-cobro">06/06/2026</td>
+    <td class="td-sep"></td>
+    <td class="td-res-vacio"></td>
+    <td class="td-res-vacio"></td>
+    <td class="td-res-lleno"><span class="pill rechaza">rechaza</span></td>
+  </tr>
+
+</table>
+</div>
+
+<p class="section-title">Columna OK — valores válidos — hoja pago_multi_mesa</p>
+<div class="rule-grid">
+  <div class="rule-card">
+    <strong><span class="pill ok">si</span></strong>
+    El cobro es válido. Entra a <code>pagos_efectivo.xlsx</code>.<br>
+    Si <code>MZ_CORRECTO</code> / <code>LT_CORRECTO</code> están llenos, el cobro se imputa al predio corregido.<br>
+    Si están vacíos, se usa el MZ+LT original.<br>
+    <strong>Múltiples <code>si</code> en el mismo grupo están permitidos</strong> (doble pago legítimo).
+  </div>
+  <div class="rule-card">
+    <strong><span class="pill rechaza">rechaza</span></strong>
+    El cobro se descarta — no entra a <code>pagos_efectivo.xlsx</code>.<br>
+    Se registra en <code>trazabilidad/pago_multi_mesa_resueltas</code> con RESOLUCION = rechaza.<br>
+    <strong>Obligatorio para cerrar el módulo</strong>: una fila sin <code>si</code> ni <code>rechaza</code> bloquea el cierre.
+  </div>
+  <div class="rule-card">
+    <strong>Vacío (pendiente)</strong>
+    La fila sigue en <code>discrepancias.xlsx</code> al próximo ciclo.
+    El archivo no desaparece mientras haya filas sin resolver.
+  </div>
+  <div class="rule-card">
+    <strong>MZ_CORRECTO / LT_CORRECTO</strong>
+    Solo se llenan cuando el cobro se imputa a un predio distinto al original.<br>
+    Ejemplo: cobrador registró MZ B LT 4 pero el predio real es MZ B LT 4A → poner <code>B</code> / <code>4A</code>.<br>
+    Si el predio original es correcto, dejar vacíos.
+  </div>
+</div>
+
+<!-- ── Reglas de comportamiento ── -->
+<p class="section-title">Reglas de comportamiento</p>
+<div class="rule-grid">
+  <div class="rule-card">
+    <strong>Ciclo de resolución</strong>
+    1. Abrir <code>discrepancias.xlsx</code><br>
+    2. Hoja <code>discrepancias</code>: llenar RESOLUCION en cada fila<br>
+    3. Hoja <code>pago_multi_mesa</code>: marcar <code>acepta</code> por grupo<br>
+    4. Guardar y cerrar Excel<br>
+    5. Volver a correr <code>main.py</code><br>
+    6. El archivo desaparece si ambas hojas están resueltas
+  </div>
+  <div class="rule-card">
+    <strong>COBRADOR_C / MONTO_C vacíos</strong>
+    Si la mesa solo tenía 2 hojas, las columnas C salen vacías (<code>—</code>).
+    No es un error — significa que no hubo 3.er cobrador.
+  </div>
+  <div class="rule-card">
+    <strong>No borrar filas</strong>
+    El código busca exactamente las filas que generó. Si se borra una fila,
+    el predio queda sin resolver y el archivo no desaparece.
+  </div>
+  <div class="rule-card">
+    <strong>Lifecycle</strong>
+    Archivo <strong>temporal</strong> — nunca va a <code>trazabilidad/</code>.
+    Las resoluciones quedan en <code>trazabilidad_{mes}.xlsx</code>
+    hojas <code>discrepancias_resueltas</code> y <code>pago_multi_mesa_resueltas</code>.
+  </div>
+</div>
+
+<!-- ── Anchos openpyxl ── -->
+<p class="section-title">Reglas de formato — openpyxl — hoja discrepancias</p>
+<table class="widths-table">
+  <tr><th>Columna</th><th>Ancho</th><th>Nota</th></tr>
+  <tr><td><code>MZ</code></td><td>8</td><td>centro</td></tr>
+  <tr><td><code>LT</code></td><td>8</td><td>centro</td></tr>
+  <tr><td><code>MESA</code></td><td>10</td><td>centro</td></tr>
+  <tr><td><code>COBRADOR_A/B/C</code></td><td>18</td><td>izquierda</td></tr>
+  <tr><td><code>MONTO_A/B/C</code></td><td>12</td><td>derecha · <code>"S/ "#,##0.00</code></td></tr>
+  <tr><td><code>RESOLUCION</code></td><td>16</td><td>centro · negrita · fondo verde claro cuando está lleno</td></tr>
+  <tr><td><code>MONTO_CORRECTO</code></td><td>14</td><td>derecha · <code>"S/ "#,##0.00</code> · solo cuando RESOLUCION = corrige</td></tr>
+</table>
+
+<p class="section-title">Reglas de formato — openpyxl — hoja pago_multi_mesa</p>
+<table class="widths-table">
+  <tr><th>Columna</th><th>Ancho</th><th>Nota</th></tr>
+  <tr><td><code>MZ</code></td><td>8</td><td>centro</td></tr>
+  <tr><td><code>LT</code></td><td>8</td><td>centro</td></tr>
+  <tr><td><code>MESA</code></td><td>12</td><td>centro</td></tr>
+  <tr><td><code>COBRADOR</code></td><td>22</td><td>izquierda</td></tr>
+  <tr><td><code>MONTO</code></td><td>12</td><td>derecha · <code>"S/ "#,##0.00</code></td></tr>
+  <tr><td><code>FECHA_COBRO</code></td><td>14</td><td>centro · DD/MM/YYYY</td></tr>
+  <tr><td><code>MZ_CORRECTO</code></td><td>12</td><td>centro · vacío = sin corrección</td></tr>
+  <tr><td><code>LT_CORRECTO</code></td><td>12</td><td>centro · vacío = sin corrección</td></tr>
+  <tr><td><code>OK</code></td><td>10</td><td>centro · negrita · fondo verde cuando = si, rojo cuando = rechaza</td></tr>
+</table>
+
+</body>
+</html>

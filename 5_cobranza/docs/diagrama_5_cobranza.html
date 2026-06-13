@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>5_cobranza — diagrama</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'IBM Plex Sans', sans-serif; background: #fff; padding: 24px; }
+
+  .title { font-size: 18px; font-weight: 600; color: #111; margin-bottom: 4px; }
+  .sub   { font-size: 12px; color: #888; margin-bottom: 28px; }
+
+  /* LAYOUT */
+  .diagram {
+    display: grid;
+    grid-template-columns: 230px 40px 210px 40px 240px;
+    align-items: start;
+    gap: 0;
+  }
+
+  /* ARROW */
+  .arrow {
+    text-align: center; font-size: 22px; color: #bbb; font-weight: 300;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    padding-top: 60px;
+  }
+  .arrow-label { font-size: 9px; color: #aaa; letter-spacing: .04em; text-transform: uppercase; }
+
+  /* INPUTS COLUMN */
+  .inputs-col { display: flex; flex-direction: column; gap: 8px; }
+
+  .input-box {
+    border-radius: 7px; padding: 8px 10px;
+    font-size: 11px;
+  }
+  .input-box.from-planilla { background: #E9F7EF; border: 1px solid #A9DFBF; }
+  .input-box.from-pagos    { background: #EBF5FB; border: 1px solid #AED6F1; }
+  .input-box.shared        { background: #FEF9E7; border: 1px solid #F9E79F; }
+
+  .input-box .src {
+    font-size: 9px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .05em; margin-bottom: 3px;
+  }
+  .input-box.from-planilla .src { color: #1E5C3A; }
+  .input-box.from-pagos    .src { color: #1A5276; }
+  .input-box.shared        .src { color: #7D6608; }
+
+  .input-box .fname {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; font-weight: 600; color: #111; margin-bottom: 2px;
+  }
+  .input-box .cols {
+    font-size: 10px; color: #666;
+  }
+  .opt-badge {
+    display: inline-block; font-size: 8px; font-weight: 700;
+    background: #FCD34D; color: #78350F; border-radius: 3px;
+    padding: 0 4px; margin-left: 4px; letter-spacing: .03em;
+    vertical-align: middle;
+  }
+
+  /* PROCESS BOX */
+  .process-box {
+    background: #F3E8FF; border: 2px solid #7C3AED;
+    border-radius: 10px; padding: 14px 16px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .process-title {
+    font-size: 13px; font-weight: 700; color: #4C1D95;
+    text-align: center; border-bottom: 1px solid #C4B5FD;
+    padding-bottom: 8px; margin-bottom: 2px;
+  }
+  .process-rule {
+    font-size: 10px; color: #4C1D95;
+    background: #fff; border-radius: 5px;
+    padding: 5px 8px; border-left: 3px solid #7C3AED;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .process-rule .label {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 9px; font-weight: 700; color: #888;
+    text-transform: uppercase; letter-spacing: .04em;
+    display: block; margin-bottom: 2px;
+  }
+
+  /* OUTPUT COLUMN */
+  .output-col { display: flex; flex-direction: column; gap: 8px; }
+
+  .output-box {
+    border-radius: 7px; overflow: hidden;
+    border: 1px solid #ccc;
+  }
+  .output-header {
+    color: #fff; font-size: 10px; font-weight: 600;
+    padding: 6px 10px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .output-header.green  { background: #1E8449; }
+  .output-header.amber  { background: #B7770D; }
+  .output-header.blue   { background: #1A5276; }
+  .output-header.teal   { background: #117A65; }
+  .output-header.indigo { background: #1D4ED8; }
+
+  .output-body {
+    padding: 6px 10px; font-size: 10px; color: #444;
+  }
+  .output-body.green { background: #E9F7EF; }
+  .output-body.amber { background: #FEF9E7; }
+  .output-body.blue  { background: #EBF5FB; }
+  .output-body.teal  { background: #E8F8F5; }
+  .output-body.indigo{ background: #EFF6FF; }
+
+  .out-label {
+    font-size: 9px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .04em; color: #888; margin-bottom: 2px;
+  }
+  .out-desc {
+    font-size: 10px; color: #555; line-height: 1.5;
+  }
+
+  /* CONSUMER / FEEDS */
+  .feeds-badge {
+    font-size: 9px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .04em; margin-top: 3px;
+    display: inline-block; border-radius: 3px; padding: 1px 5px;
+  }
+  .feeds-badge.green-bd { background: #D5F5E3; color: #1E5C3A; }
+  .feeds-badge.purple-bd { background: #EDE9FE; color: #4C1D95; }
+  .feeds-badge.blue-bd  { background: #DBEAFE; color: #1E3A5F; }
+
+  /* NOTE */
+  .note {
+    margin-top: 16px;
+    background: #F8F9FA; border: 1px solid #dee2e6;
+    border-left: 3px solid #6c757d;
+    border-radius: 0 6px 6px 0;
+    padding: 7px 12px; font-size: 11px; color: #555;
+  }
+  .note strong { color: #333; }
+  .note code { font-family: 'IBM Plex Mono', monospace; font-size: 10px; background: #fff; padding: 1px 4px; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<p class="title">5_cobranza — diagrama de flujo</p>
+<p class="sub">Carga pagos en la planilla · genera estado de cobro · lista de corte · arrastre</p>
+
+<div class="diagram">
+
+  <!-- INPUTS -->
+  <div class="inputs-col">
+
+    <div class="input-box from-planilla">
+      <div class="src">2_planilla / outputs</div>
+      <div class="fname">planilla_YYYY-MM.xlsx</div>
+      <div class="cols">21 cols · MZ → FECHA_PAGO vacío</div>
+    </div>
+
+    <div class="input-box from-pagos">
+      <div class="src">4_pagos / yape</div>
+      <div class="fname">pagos_yape_tepago.xlsx</div>
+      <div class="cols">MZ · LT · MONTO_ASIGNA<br>CICLO_CORRECCION</div>
+    </div>
+
+    <div class="input-box from-pagos">
+      <div class="src">4_pagos / efectivo</div>
+      <div class="fname">pagos_efectivo.xlsx</div>
+      <div class="cols">MZ · LT · MONTO<br>CICLO_CORRECCION</div>
+    </div>
+
+    <div class="input-box shared">
+      <div class="src">shared <span class="opt-badge">OPCIONAL</span></div>
+      <div class="fname">blancos_acumulados.xlsx</div>
+      <div class="cols">MZ · LT · monto · ESTADO<br>aplica blancos pendientes</div>
+    </div>
+
+  </div>
+
+  <!-- ARROW IN -->
+  <div class="arrow">
+    <span>→</span>
+    <span class="arrow-label">join<br>(MZ,LT)</span>
+  </div>
+
+  <!-- PROCESS -->
+  <div class="process-box">
+    <div class="process-title">5_cobranza/main.py</div>
+
+    <div class="process-rule">
+      <span class="label">Detecta ciclo nuevo</span>
+      max(CICLO_COBRANZA)<br>en trazabilidad + 1
+    </div>
+
+    <div class="process-rule">
+      <span class="label">Carga pagos</span>
+      MONTO_YAPE · MONTO_EFECTIVO<br>FECHA_PAGO
+    </div>
+
+    <div class="process-rule">
+      <span class="label">Aplica blancos</span>
+      blancos_acumulados<br>ESTADO ≠ aplicado
+    </div>
+
+    <div class="process-rule">
+      <span class="label">Calcula saldo y estado</span>
+      CANCELADO / EXCESO<br>PARCIAL / PENDIENTE
+    </div>
+
+    <div class="process-rule">
+      <span class="label">Filtra lista corte</span>
+      SALDO &gt; 0<br>AND ARRASTRE ≥ 8
+    </div>
+  </div>
+
+  <!-- ARROW OUT -->
+  <div class="arrow">
+    <span>→</span>
+  </div>
+
+  <!-- OUTPUTS -->
+  <div class="output-col">
+
+    <div class="output-box">
+      <div class="output-header green">planilla_cobrado.xlsx</div>
+      <div class="output-body green">
+        <div class="out-label">21 cols planilla + CICLO_COBRANZA</div>
+        <div class="out-desc">Rellena MONTO_YAPE · MONTO_EFECTIVO<br>ESTADO · FECHA_PAGO · CICLO_COBRANZA</div>
+        <div class="feeds-badge purple-bd">→ 3_boletas · 7_cierre</div>
+      </div>
+    </div>
+
+    <div class="output-box">
+      <div class="output-header amber">lista_corte.xlsx</div>
+      <div class="output-body amber">
+        <div class="out-label">SALDO &gt; 0 AND ARRASTRE ≥ 8</div>
+        <div class="out-desc">MZ · LT · NOMBRE<br>DEUDA_ARRASTRE · SALDO · PENALIDAD S/20</div>
+        <div class="feeds-badge blue-bd">→ 6_corte</div>
+      </div>
+    </div>
+
+    <div class="output-box">
+      <div class="output-header amber">trazabilidad_cobranza.xlsx</div>
+      <div class="output-body amber">
+        <div class="out-desc">MZ · LT · MONTO · FUENTE<br>CICLO_CORRECCION_ORIGEN · CICLO_COBRANZA</div>
+      </div>
+    </div>
+
+    <div class="output-box">
+      <div class="output-header blue">resumen_recaudacion.xlsx</div>
+      <div class="output-body blue">
+        <div class="out-desc">Totales por estado · Yape vs Efectivo<br>Deuda total · Saldo pendiente</div>
+      </div>
+    </div>
+
+    <div class="output-box">
+      <div class="output-header teal">arrastre_deuda_YYYY-MM.xlsx</div>
+      <div class="output-body teal">
+        <div class="out-label">Solo usuarios con SALDO &gt; 0</div>
+        <div class="out-desc">MZ · LT · NOMBRE · monto · MES_ANO_ORIGEN</div>
+        <div class="feeds-badge green-bd">→ 2_planilla próximo ciclo</div>
+      </div>
+    </div>
+
+    <div class="output-box">
+      <div class="output-header indigo">arrastre_devolucion_YYYY-MM.xlsx</div>
+      <div class="output-body indigo">
+        <div class="out-label">Solo usuarios con SALDO &lt; 0 (EXCESO)</div>
+        <div class="out-desc">MZ · LT · NOMBRE · monto · MES_ANO_ORIGEN</div>
+        <div class="feeds-badge purple-bd">→ 7_cierre</div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<div class="note">
+  <strong>Idempotencia:</strong> re-correr con los mismos inputs produce el mismo output.
+  Si no hay pagos nuevos respecto a <code>trazabilidad_cobranza.xlsx</code>, el módulo sale sin modificar nada.<br>
+  <strong>Retroescritura:</strong> <code>CICLO_COBRANZA</code> se escribe también en
+  <code>pagos_yape_tepago.xlsx</code> e <code>pagos_efectivo.xlsx</code> (inputs/).
+</div>
+
+<div style="margin-top:20px; border:1.5px solid #6366F1; border-radius:8px; padding:12px 16px; background:#EEF2FF; max-width:700px;">
+  <div style="font-size:12px; font-weight:700; color:#3730A3; margin-bottom:6px; border-bottom:1px solid #C7D2FE; padding-bottom:5px;">
+    Paso siguiente — validacion_planilla_cobrado.py
+  </div>
+  <div style="display:flex; gap:12px; font-size:11px; flex-wrap:wrap; align-items:flex-start;">
+    <div style="flex:1; min-width:160px;">
+      <div style="font-size:9px; font-weight:700; color:#6366F1; text-transform:uppercase; letter-spacing:.04em; margin-bottom:3px;">Verifica</div>
+      <div style="color:#4338CA;">B1 re-cálculo SALDO + ESTADO<br>B2 trazabilidad ↔ planilla<br>B3 arrastre_deuda ↔ planilla<br>B3 arrastre_devolucion ↔ planilla</div>
+    </div>
+    <div style="flex:1; min-width:160px;">
+      <div style="font-size:9px; font-weight:700; color:#6366F1; text-transform:uppercase; letter-spacing:.04em; margin-bottom:3px;">Outputs</div>
+      <div style="color:#4338CA; font-family:'IBM Plex Mono',monospace; font-size:10px;">
+        run_validacion.log<br>
+        validacion_errores.xlsx <span style="color:#9CA3AF;">(solo si hay errores)</span>
+      </div>
+    </div>
+    <div style="flex:0 0 auto; align-self:center;">
+      <div style="background:#3730A3; color:#fff; border-radius:4px; padding:4px 10px; font-size:10px; font-weight:700;">exit 0 = OK<br>exit 1 = errores</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

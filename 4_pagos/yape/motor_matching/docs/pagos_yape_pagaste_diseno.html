@@ -1,0 +1,171 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+#w{font-family:var(--font-sans);padding:4px 0 16px}
+.instruc{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-left:3px solid #D97706;border-radius:0 var(--border-radius-md) var(--border-radius-md) 0;padding:9px 13px;font-size:12px;color:var(--color-text-secondary);margin-bottom:12px;line-height:1.7}
+.instruc strong{color:var(--color-text-primary)}
+.tab-excel{display:inline-flex;align-items:center;gap:5px;background:#FFFBEB;border:0.5px solid #FCD34D;border-bottom:none;border-radius:6px 6px 0 0;padding:5px 14px;font-size:12px;font-weight:500;color:#854F0B;margin-bottom:-1px}
+.tw{border:0.5px solid var(--color-border-tertiary);border-radius:0 var(--border-radius-md) var(--border-radius-md) var(--border-radius-md);overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:11px;min-width:1000px}
+th{padding:6px 8px;font-size:10px;font-weight:500;text-align:left;border-bottom:0.5px solid var(--color-border-tertiary);border-right:0.5px solid var(--color-border-tertiary);white-space:nowrap}
+th:last-child{border-right:none}
+td{padding:5px 8px;border-bottom:0.5px solid var(--color-border-tertiary);border-right:0.5px solid var(--color-border-tertiary);vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+td:last-child{border-right:none}
+tr:last-child td{border-bottom:none}
+.num{width:24px;background:var(--color-background-secondary);color:var(--color-text-tertiary);font-size:10px;font-family:var(--font-mono);text-align:center;border-right:0.5px solid var(--color-border-tertiary)}
+
+.th-banco{background:#E6F1FB;color:#0C447C}
+.th-dest {background:#E1F5EE;color:#085041}
+.th-por  {background:#FEF9E7;color:#7D6608}
+.th-ciclo{background:#FFFBEB;color:#854F0B}
+.th-sep  {width:4px;background:var(--color-background-secondary);padding:0;border-right:2px solid var(--color-border-secondary)}
+
+.td-banco{background:#F0F8FF;color:#185FA5;font-family:var(--font-mono);font-size:10px}
+.td-monto{background:#F0F8FF;color:#065F46;font-family:var(--font-mono);font-size:11px;font-weight:500}
+.td-msg  {background:#F0F8FF;color:var(--color-text-secondary);font-size:10px;font-style:italic}
+.td-dest {background:#F0FFF8;font-family:var(--font-mono);font-size:11px;font-weight:500;color:#065F46;text-align:center}
+.td-conc {background:#FFFDF5;font-size:10px;color:#7D6608;font-style:italic}
+.td-mot  {background:#FFFDF5;font-size:10px;color:var(--color-text-secondary)}
+.td-ciclo{background:#FFFBEB;font-family:var(--font-mono);font-size:11px;color:#854F0B;text-align:center}
+.td-empty{color:var(--color-text-tertiary);font-style:italic;font-size:10px;text-align:center}
+.td-sep  {width:4px;background:var(--color-background-secondary);padding:0;border-right:2px solid var(--color-border-secondary)}
+
+.tipo-pa {background:#FEF9E7;color:#854F0B;font-size:10px;font-weight:500;padding:1px 5px;border-radius:3px;font-family:var(--font-mono)}
+.b-dev   {background:#EFF6FF;color:#1D4ED8;font-size:9px;font-weight:600;padding:1px 5px;border-radius:3px}
+.b-gas   {background:#F4ECF7;color:#5B21B6;font-size:9px;font-weight:600;padding:1px 5px;border-radius:3px}
+.gh      {font-size:9px;font-weight:600;text-align:center;padding:2px 0;letter-spacing:.05em;text-transform:uppercase;border-bottom:0.5px solid var(--color-border-tertiary)}
+.caso    {font-size:9px;color:var(--color-text-tertiary);font-style:italic;padding:3px 8px;background:var(--color-background-secondary);border-bottom:0.5px solid var(--color-border-tertiary)}
+
+.legend{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center}
+.leg{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--color-text-secondary)}
+.ld{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+</style>
+
+<div id="w">
+  <div class="instruc">
+    Archivo de solo lectura — generado automáticamente por <strong>main.py</strong>. No se edita manualmente.<br>
+    Registra <strong>todos los PAGASTE confirmados</strong>: devoluciones a lotes (MZ+LOTE llenos) y gastos JASS (CONCEPTO lleno).<br>
+    Las devoluciones con MZ+LOTE también aparecen en <strong>pagos_yape_devolucion.xlsx</strong> para que las lea 5_cobranza.<br>
+    Los gastos JASS (sin MZ+LOTE) quedan solo aquí como registro del egreso institucional.<br>
+    <strong>Temporal durante el mes:</strong> vive en <strong>motor_matching/devoluciones/pagos_yape_pagaste.xlsx</strong>.<br>
+    <strong>Historial permanente:</strong> acumulado en <strong>devoluciones/devoluciones_acumulados.xlsx</strong>.
+  </div>
+
+  <div class="tab-excel">pagos_yape_pagaste</div>
+  <div class="tw">
+    <table>
+      <thead>
+        <tr>
+          <th class="num" rowspan="2"></th>
+          <th class="th-banco gh" colspan="6">¿Qué hizo el banco?</th>
+          <th class="th-sep" rowspan="2"></th>
+          <th class="th-dest gh" colspan="2">¿A qué lote?</th>
+          <th class="th-sep" rowspan="2"></th>
+          <th class="th-por gh" colspan="2">¿Para qué?</th>
+          <th class="th-sep" rowspan="2"></th>
+          <th class="th-ciclo gh" colspan="1">¿Cuándo?</th>
+        </tr>
+        <tr>
+          <th class="th-banco">TIPO</th>
+          <th class="th-banco">ORIGEN</th>
+          <th class="th-banco">DESTINO</th>
+          <th class="th-banco">MONTO</th>
+          <th class="th-banco">MENSAJE</th>
+          <th class="th-banco">FECHA</th>
+          <th class="th-dest">MZ</th>
+          <th class="th-dest">LOTE</th>
+          <th class="th-por">CONCEPTO</th>
+          <th class="th-por">MOTIVO</th>
+          <th class="th-ciclo">CICLO_CORRECCION</th>
+        </tr>
+      </thead>
+      <tbody>
+
+        <tr><td colspan="15" class="caso">devolución a lote — MZ+LOTE llenos · CONCEPTO vacío · también irá a pagos_yape_devolucion.xlsx</td></tr>
+        <tr>
+          <td class="num">1</td>
+          <td><span class="tipo-pa">PAGASTE</span></td>
+          <td class="td-banco">Janet Vil*</td>
+          <td class="td-banco">Rosalina Cir*</td>
+          <td class="td-monto">S/46.00</td>
+          <td class="td-msg">devolución por pago adelantado</td>
+          <td class="td-banco">02/06/2026 12:44</td>
+          <td class="td-sep"></td>
+          <td class="td-dest">B</td>
+          <td class="td-dest">8</td>
+          <td class="td-sep"></td>
+          <td class="td-empty">—</td>
+          <td class="td-empty">—</td>
+          <td class="td-sep"></td>
+          <td class="td-ciclo">1 <span class="b-dev">devolucion</span></td>
+        </tr>
+
+        <tr><td colspan="15" class="caso">honorario profesional — CONCEPTO lleno · MZ+LOTE vacíos · gasto JASS · solo aquí</td></tr>
+        <tr>
+          <td class="num">2</td>
+          <td><span class="tipo-pa">PAGASTE</span></td>
+          <td class="td-banco">Janet Vil*</td>
+          <td class="td-banco">Nelson Mag*</td>
+          <td class="td-monto">S/200.00</td>
+          <td class="td-msg">contador</td>
+          <td class="td-banco">09/06/2026 17:52</td>
+          <td class="td-sep"></td>
+          <td class="td-empty">—</td>
+          <td class="td-empty">—</td>
+          <td class="td-sep"></td>
+          <td class="td-conc">honorario contador</td>
+          <td class="td-mot">servicio mensual</td>
+          <td class="td-sep"></td>
+          <td class="td-ciclo">1 <span class="b-gas">gasto</span></td>
+        </tr>
+
+        <tr><td colspan="15" class="caso">pago a entidad — SUNAT · CONCEPTO lleno · solo aquí</td></tr>
+        <tr>
+          <td class="num">3</td>
+          <td><span class="tipo-pa">PAGASTE</span></td>
+          <td class="td-banco">JANET VILLANUEVA</td>
+          <td class="td-banco">Pago NPS SUNAT</td>
+          <td class="td-monto">S/45.00</td>
+          <td class="td-msg">Sunat - Pago NPS</td>
+          <td class="td-banco">09/06/2026 17:51</td>
+          <td class="td-sep"></td>
+          <td class="td-empty">—</td>
+          <td class="td-empty">—</td>
+          <td class="td-sep"></td>
+          <td class="td-conc">pago sunat</td>
+          <td class="td-mot">obligación tributaria</td>
+          <td class="td-sep"></td>
+          <td class="td-ciclo">1 <span class="b-gas">gasto</span></td>
+        </tr>
+
+        <tr><td colspan="15" class="caso">viáticos día de cobranza — CONCEPTO lleno · varios registros del mismo día</td></tr>
+        <tr>
+          <td class="num">4</td>
+          <td><span class="tipo-pa">PAGASTE</span></td>
+          <td class="td-banco">Janet Vil*</td>
+          <td class="td-banco">Juan Ina*</td>
+          <td class="td-monto">S/15.00</td>
+          <td class="td-msg">bebida directiva día cobro</td>
+          <td class="td-banco">05/06/2026 23:43</td>
+          <td class="td-sep"></td>
+          <td class="td-empty">—</td>
+          <td class="td-empty">—</td>
+          <td class="td-sep"></td>
+          <td class="td-conc">gasto viáticos</td>
+          <td class="td-mot">día de cobranza</td>
+          <td class="td-sep"></td>
+          <td class="td-ciclo">1 <span class="b-gas">gasto</span></td>
+        </tr>
+
+      </tbody>
+    </table>
+  </div>
+
+  <div class="legend">
+    <div class="leg"><div class="ld" style="background:#F0F8FF;border:0.5px solid #AED6F1"></div>banco — no editar</div>
+    <div class="leg"><div class="ld" style="background:#F0FFF8;border:0.5px solid #9FE1CB"></div>¿A qué lote? — lleno solo en devoluciones a usuario</div>
+    <div class="leg"><div class="ld" style="background:#FFFDF5;border:0.5px solid #F9E79F"></div>¿Para qué? — lleno solo en gastos JASS</div>
+    <div class="leg"><span class="b-dev">devolucion</span> MZ+LOTE llenos → también en pagos_yape_devolucion.xlsx → 5_cobranza</div>
+    <div class="leg"><span class="b-gas">gasto</span> CONCEPTO lleno → solo aquí · no afecta saldos de usuarios</div>
+  </div>
+</div>

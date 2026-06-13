@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>4_pagos/efectivo — arquitectura</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'IBM Plex Sans', sans-serif; background: #fff; color: #111; }
+  .wrap { padding: .5rem 0 3rem; max-width: 720px; margin: 0 auto; }
+
+  .title { font-size: 20px; font-weight: 600; color: #111; margin: 0 0 2px; }
+  .sub   { font-size: 12px; color: #666; margin: 0 0 20px; }
+
+  /* PIPELINE STRIP */
+  .pipeline-strip {
+    display: flex; align-items: center; gap: 4px;
+    background: #f5f5f5; border-radius: 8px;
+    padding: 8px 12px; margin-bottom: 20px; overflow-x: auto;
+  }
+  .pip-mod { font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 4px; white-space: nowrap; background: #e5e7eb; color: #6b7280; }
+  .pip-mod.active { background: #1E8449; color: #fff; }
+  .pip-arrow { font-size: 12px; color: #aaa; flex-shrink: 0; }
+
+  /* SECTION */
+  .section { margin-bottom: 24px; }
+  .sec-title {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .08em; color: #1E8449; border-bottom: 1.5px solid #A9DFBF;
+    padding-bottom: 4px; margin-bottom: 10px;
+  }
+
+  /* CARD */
+  .card { border: 0.5px solid #ddd; border-radius: 8px; padding: 10px 14px; margin-bottom: 8px; }
+  .card-title { font-size: 12px; font-weight: 600; color: #111; margin-bottom: 4px; }
+  .card-sub { font-size: 11px; color: #666; }
+
+  /* FILE BLOCKS */
+  .file-block { border-radius: 8px; padding: 10px 14px; margin-bottom: 10px; }
+  .file-block.input-manual { background: #FEF9E7; border: 0.5px solid #F9E79F; }
+  .file-block.output-perm  { background: #E9F7EF; border: 0.5px solid #A9DFBF; }
+  .file-block.output-temp  { background: #FEF9E7; border: 0.5px solid #F9E79F; }
+  .file-block.output-trace { background: #EBF5FB; border: 0.5px solid #AED6F1; }
+
+  .file-name { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; margin-bottom: 2px; }
+  .file-block.input-manual .file-name { color: #7D6608; }
+  .file-block.output-perm  .file-name { color: #1E6B3C; }
+  .file-block.output-temp  .file-name { color: #7D6608; }
+  .file-block.output-trace .file-name { color: #1A5276; }
+
+  .file-desc { font-size: 11px; color: #444; margin-bottom: 6px; }
+
+  /* BADGE */
+  .badge {
+    display: inline-block; font-size: 9px; font-weight: 700;
+    padding: 1px 6px; border-radius: 3px;
+    text-transform: uppercase; letter-spacing: .04em; margin-bottom: 6px;
+  }
+  .badge.manual  { background: #FEF9C3; color: #7D6608; }
+  .badge.perm    { background: #D5F5E3; color: #1E8449; }
+  .badge.temp    { background: #FEF3C7; color: #B7770D; }
+  .badge.trace   { background: #DBEAFE; color: #1A5276; }
+  .badge.sagrado { background: #FCE4EC; color: #C62828; }
+
+  /* TABLE */
+  table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  th { background: #1E5C3A; color: #fff; font-weight: 600; padding: 5px 8px; text-align: left; }
+  td { padding: 5px 8px; border-bottom: 0.5px solid #e5e7eb; color: #333; }
+  tr:last-child td { border-bottom: none; }
+  tr:nth-child(even) td { background: #f9f9f9; }
+
+  /* FLOW */
+  .flow { display: flex; flex-direction: column; gap: 0; }
+  .flow-step { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 0.5px solid #f0f0f0; }
+  .flow-step:last-child { border-bottom: none; }
+  .step-num {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: #1E8449; color: #fff;
+    font-size: 11px; font-weight: 700; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .step-body { flex: 1; }
+  .step-title { font-size: 12px; font-weight: 600; color: #111; }
+  .step-desc  { font-size: 11px; color: #555; margin-top: 2px; }
+
+  /* RULE BOX */
+  .rule-box {
+    background: #F4F6F7; border: 0.5px solid #CCD1D1; border-radius: 6px;
+    padding: 8px 12px; font-size: 11px; margin-bottom: 8px;
+  }
+  .rule-box .rule-title { font-weight: 600; color: #1E5C3A; margin-bottom: 4px; font-size: 12px; }
+  .rule-box code { font-family: 'IBM Plex Mono', monospace; background: #fff; padding: 1px 5px; border-radius: 3px; color: #1E5C3A; }
+
+  /* NOTE */
+  .note {
+    font-size: 11px; color: #555; background: #f5f5f5;
+    border-left: 3px solid #aaa; border-radius: 0 6px 6px 0;
+    padding: 7px 12px; margin-top: 6px;
+  }
+  .note strong { color: #333; }
+  .note code { font-family: 'IBM Plex Mono', monospace; font-size: 10px; }
+
+  /* LIFECYCLE */
+  .life-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 0; border-bottom: 0.5px solid #f0f0f0; font-size: 11px;
+  }
+  .life-row:last-child { border-bottom: none; }
+  .life-file   { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #1A5276; min-width: 240px; }
+  .life-action { color: #333; flex: 1; font-weight: 600; }
+  .life-why    { color: #888; font-size: 10px; }
+
+  code { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- HEADER -->
+  <p class="title">4_pagos / efectivo — arquitectura</p>
+  <p class="sub">Módulo de consolidación de cobros en efectivo · hasta 7 mesas · cross-check por mesa</p>
+
+  <!-- PIPELINE STRIP -->
+  <div class="pipeline-strip">
+    <span class="pip-mod">01 Lecturas</span>
+    <span class="pip-arrow">→</span>
+    <span class="pip-mod">02 Planilla</span>
+    <span class="pip-arrow">→</span>
+    <span class="pip-mod">03 Boletas</span>
+    <span class="pip-arrow">→</span>
+    <span class="pip-mod active">04 Pagos · efectivo</span>
+    <span class="pip-arrow">→</span>
+    <span class="pip-mod">05 Cobranza</span>
+    <span class="pip-arrow">→</span>
+    <span class="pip-mod">06 Corte</span>
+    <span class="pip-arrow">→</span>
+    <span class="pip-mod">07 Cierre</span>
+  </div>
+
+  <!-- QUÉ HACE -->
+  <div class="section">
+    <div class="sec-title">Qué hace</div>
+    <div class="card">
+      <div class="card-title">Consolidar registros de cobradores en campo → lista limpia de pagos confirmados</div>
+      <div class="card-sub">
+        Lee los archivos de cada mesa (1 archivo = 1 mesa, hasta 3 hojas por archivo).
+        Compara los registros dentro de cada mesa para detectar coincidencias o discrepancias.
+        Entrega <code>pagos_efectivo.xlsx</code> listo para <code>5_cobranza</code>.
+      </div>
+    </div>
+    <div class="rule-box">
+      <div class="rule-title">Principio de este módulo</div>
+      Solo consolida y valida registros manuales. No calcula si el monto es correcto
+      (eso es <code>2_planilla</code>). No cruza con Yape (eso es <code>4_pagos/yape</code>).
+      No decide si el usuario está al día (eso es <code>5_cobranza</code>).
+      Si una mesa tiene solo 1 hoja → acepta sin comparar, no bloquea.
+    </div>
+  </div>
+
+  <!-- INPUTS -->
+  <div class="section">
+    <div class="sec-title">Inputs</div>
+
+    <div class="file-block input-manual">
+      <span class="badge manual">Manual — cobrador llena en campo</span>
+      <span class="badge sagrado">Sagrado — nunca borrar sin backup</span>
+      <div class="file-name">inputs/mesa_N.xlsx &nbsp;(N = 1 … 7)</div>
+      <div class="file-desc">
+        Un archivo por mesa física. Cada archivo puede tener 1, 2 o 3 hojas
+        llamadas <code>registro_1</code>, <code>registro_2</code>, <code>registro_3</code>.
+        Las hojas extra son opcionales — representan al 2.° y 3.° cobrador de la mesa.
+      </div>
+      <table>
+        <tr><th>Columna</th><th>Tipo</th><th>Descripción</th></tr>
+        <tr><td>COBRADOR</td><td>texto</td><td>Nombre de quien cobra</td></tr>
+        <tr><td>FECHA_REGISTRO</td><td>fecha</td><td>Día en que se llenó el registro</td></tr>
+        <tr><td>MZ</td><td>texto</td><td>Manzana del predio — clave de cross-check</td></tr>
+        <tr><td>LT</td><td>texto</td><td>Lote del predio — clave de cross-check</td></tr>
+        <tr><td>MONTO</td><td>decimal</td><td>Monto cobrado en soles</td></tr>
+        <tr><td>FECHA</td><td>fecha</td><td>Fecha del pago (puede diferir de FECHA_REGISTRO)</td></tr>
+        <tr><td>COMENTARIO</td><td>texto</td><td>Nota libre — opcional</td></tr>
+      </table>
+    </div>
+
+    <div class="note">
+      <strong>Generación de templates:</strong> correr <code>crear_templates.py</code> una vez para crear
+      los archivos <code>mesa_1.xlsx … mesa_7.xlsx</code> vacíos con el formato correcto.
+      Los cobradores los llenan antes de correr <code>main.py</code>.
+    </div>
+  </div>
+
+  <!-- REGLAS DE NEGOCIO -->
+  <div class="section">
+    <div class="sec-title">Reglas de negocio</div>
+
+    <div class="rule-box">
+      <div class="rule-title">1 hoja en la mesa → solo_un_cobrador</div>
+      Se acepta el registro como verdad sin comparar. No bloquea el proceso.
+      Se traza en <code>trazabilidad/incidencias_YYYY-MM.xlsx</code> como alerta de auditoría.
+    </div>
+
+    <div class="rule-box">
+      <div class="rule-title">2-3 hojas coinciden en MZ + LT + MONTO → confirmado</div>
+      La fila pasa directamente a <code>pagos_efectivo.xlsx</code>.
+      El campo COBRADOR queda con el nombre de la primera hoja.
+    </div>
+
+    <div class="rule-box">
+      <div class="rule-title">2-3 hojas con diferencias → discrepancia</div>
+      Va a <code>discrepancias.xlsx</code>. El módulo termina con advertencia.
+      Para resolver: llenar columna <code>RESOLUCION</code> en cada fila y volver a correr.
+    </div>
+
+    <div class="rule-box">
+      <div class="rule-title">Regla de mayoría: 2 de 3 hojas coinciden</div>
+      La fila de la mayoría pasa a <code>pagos_efectivo.xlsx</code> con estado <code>mayoria_aplicada</code>.
+      La fila de la minoría va a <code>trazabilidad/incidencias_YYYY-MM.xlsx</code> para auditoría.
+    </div>
+
+    <div class="rule-box">
+      <div class="rule-title">Mismo MZ + LT en mesas distintas → pago_multi_mesa</div>
+      Ambas filas se marcan y van a <code>trazabilidad/incidencias_YYYY-MM.xlsx</code>.
+      <strong>No</strong> pasan a <code>pagos_efectivo.xlsx</code> automáticamente — requieren revisión manual.
+    </div>
+  </div>
+
+  <!-- PASOS INTERNOS -->
+  <div class="section">
+    <div class="sec-title">Pasos internos de main.py</div>
+    <div class="flow">
+      <div class="flow-step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title">Validar inputs</div>
+          <div class="step-desc">Verifica que exista al menos un <code>mesa_N.xlsx</code> en <code>inputs/</code>.
+          Para cada archivo verifica que tenga al menos la hoja <code>registro_1</code> con las columnas requeridas.</div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title">Cross-check por mesa</div>
+          <div class="step-desc">Para cada <code>mesa_N.xlsx</code>: lee todas las hojas disponibles.
+          Si hay 1 hoja → <code>solo_un_cobrador</code>. Si hay 2-3 → compara por <code>MZ+LT+MONTO</code>
+          y clasifica cada fila como <code>confirmado</code>, <code>discrepancia</code> o <code>mayoria_aplicada</code>.</div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-title">Detectar pago_multi_mesa</div>
+          <div class="step-desc">Sobre el consolidado de todas las mesas, busca el mismo <code>MZ+LT</code>
+          en archivos distintos. Marca esas filas y las separa para trazabilidad.</div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <div class="step-title">Escribir outputs</div>
+          <div class="step-desc">
+            <code>pagos_efectivo.xlsx</code> ← confirmado + solo_un_cobrador + mayoria_aplicada<br>
+            <code>discrepancias.xlsx</code> ← solo si hay discrepancias sin resolver<br>
+            <code>trazabilidad/consolidado_YYYY-MM.xlsx</code> ← todo<br>
+            <code>trazabilidad/incidencias_YYYY-MM.xlsx</code> ← anomalías
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OUTPUTS -->
+  <div class="section">
+    <div class="sec-title">Outputs</div>
+
+    <div class="file-block output-perm">
+      <span class="badge perm">Permanente · entrada de 5_cobranza</span>
+      <div class="file-name">outputs/pagos_efectivo.xlsx</div>
+      <div class="file-desc">Filas con estado <code>confirmado</code>, <code>solo_un_cobrador</code> y <code>mayoria_aplicada</code>.</div>
+      <table>
+        <tr><th>Columna</th><th>Descripción</th></tr>
+        <tr><td>MZ · LT</td><td>Clave del predio</td></tr>
+        <tr><td>MONTO</td><td>Monto cobrado en soles</td></tr>
+        <tr><td>FECHA</td><td>Fecha del pago</td></tr>
+        <tr><td>MESA</td><td>Número de mesa de origen</td></tr>
+        <tr><td>ESTADO</td><td>confirmado / solo_un_cobrador / mayoria_aplicada</td></tr>
+        <tr><td>COBRADOR</td><td>Nombre del cobrador (primera hoja en caso de mayoría)</td></tr>
+        <tr><td>COMENTARIO</td><td>Nota del cobrador, si existe</td></tr>
+      </table>
+    </div>
+
+    <div class="file-block output-temp">
+      <span class="badge temp">Temporal · desaparece al resolverse todo</span>
+      <div class="file-name">outputs/discrepancias.xlsx</div>
+      <div class="file-desc">Existe solo mientras haya discrepancias sin resolver.
+      Llenar columna <code>RESOLUCION</code> (acepta / corrige) y volver a correr.</div>
+    </div>
+
+    <div class="file-block output-trace">
+      <span class="badge trace">Permanente · se acumula mes a mes</span>
+      <div class="file-name">trazabilidad/consolidado_YYYY-MM.xlsx</div>
+      <div class="file-desc">Todo lo procesado en el mes — todas las filas de todas las mesas con su estado final.</div>
+    </div>
+
+    <div class="file-block output-trace">
+      <span class="badge trace">Permanente · se acumula mes a mes</span>
+      <div class="file-name">trazabilidad/incidencias_YYYY-MM.xlsx</div>
+      <div class="file-desc">Solo anomalías: <code>pago_multi_mesa</code>, minoría de regla 2/3,
+      y filas <code>solo_un_cobrador</code> como alerta de auditoría.</div>
+    </div>
+  </div>
+
+  <!-- LIFECYCLE -->
+  <div class="section">
+    <div class="sec-title">Ciclo de vida de archivos</div>
+    <div class="life-row">
+      <div class="life-file">inputs/mesa_N.xlsx</div>
+      <div class="life-action">SAGRADO — nunca borrar</div>
+      <div class="life-why">trabajo manual del cobrador — solo a backup/ si se migra</div>
+    </div>
+    <div class="life-row">
+      <div class="life-file">outputs/pagos_efectivo.xlsx</div>
+      <div class="life-action">PERMANECE · se sobreescribe</div>
+      <div class="life-why">entrada directa de 5_cobranza</div>
+    </div>
+    <div class="life-row">
+      <div class="life-file">outputs/discrepancias.xlsx</div>
+      <div class="life-action">TEMPORAL · desaparece</div>
+      <div class="life-why">cuando todas las filas tienen RESOLUCION llenada</div>
+    </div>
+    <div class="life-row">
+      <div class="life-file">trazabilidad/consolidado_YYYY-MM.xlsx</div>
+      <div class="life-action">PERMANENTE · acumula</div>
+      <div class="life-why">un archivo por mes — historial completo</div>
+    </div>
+    <div class="life-row">
+      <div class="life-file">trazabilidad/incidencias_YYYY-MM.xlsx</div>
+      <div class="life-action">PERMANENTE · acumula</div>
+      <div class="life-why">un archivo por mes — registro de anomalías para auditoría</div>
+    </div>
+  </div>
+
+  <!-- ESTRUCTURA -->
+  <div class="section">
+    <div class="sec-title">Estructura de carpetas</div>
+    <div class="card">
+      <pre style="font-family:'IBM Plex Mono',monospace; font-size:11px; line-height:1.8; color:#333;">4_pagos/efectivo/
+├── inputs/
+│   ├── mesa_1.xlsx    ← hojas: registro_1, [registro_2], [registro_3]
+│   ├── mesa_2.xlsx
+│   └── mesa_N.xlsx    (hasta 7)
+├── outputs/
+│   ├── pagos_efectivo.xlsx       ← resultado limpio → 5_cobranza
+│   └── discrepancias.xlsx        ← temporal
+├── trazabilidad/
+│   ├── consolidado_YYYY-MM.xlsx  ← todo el mes (permanente)
+│   └── incidencias_YYYY-MM.xlsx  ← anomalías (permanente)
+├── backup/
+│   └── migracion_YYYY-MM/        ← archivos de versiones anteriores
+├── docs/
+│   ├── diagrama_efectivo.html
+│   ├── arquitectura_efectivo.html   ← este archivo
+│   └── formato_pagos_efectivo.html
+├── tests/
+├── main.py
+├── crear_templates.py
+└── README.md</pre>
+    </div>
+  </div>
+
+  <!-- LO QUE NO HACE -->
+  <div class="section">
+    <div class="sec-title">Lo que este módulo NO hace</div>
+    <div class="card">
+      <div class="card-sub" style="line-height:1.9">
+        ✗ No calcula si el monto cobrado es correcto (eso es <code>2_planilla</code>)<br>
+        ✗ No cruza datos con pagos Yape (eso es <code>4_pagos/yape</code>)<br>
+        ✗ No decide si el usuario está al día (eso es <code>5_cobranza</code>)<br>
+        ✗ No fusiona mesas distintas automáticamente — cada mesa es independiente por diseño<br>
+        ✗ No borra <code>inputs/mesa_N.xlsx</code> — son trabajo manual sagrado
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

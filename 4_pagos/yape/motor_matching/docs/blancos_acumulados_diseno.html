@@ -1,0 +1,199 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+#w{font-family:var(--font-sans);padding:4px 0 16px}
+.instruc{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-left:3px solid #1D4ED8;border-radius:0 var(--border-radius-md) var(--border-radius-md) 0;padding:9px 13px;font-size:12px;color:var(--color-text-secondary);margin-bottom:12px;line-height:1.7}
+.instruc strong{color:var(--color-text-primary)}
+.tab-excel{display:inline-flex;align-items:center;gap:5px;background:#EFF6FF;border:0.5px solid #93C5FD;border-bottom:none;border-radius:6px 6px 0 0;padding:5px 14px;font-size:12px;font-weight:500;color:#1D4ED8;margin-bottom:-1px}
+.tw{border:0.5px solid var(--color-border-tertiary);border-radius:0 var(--border-radius-md) var(--border-radius-md) var(--border-radius-md);overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:11px;min-width:1100px}
+th{padding:6px 8px;font-size:10px;font-weight:500;text-align:left;border-bottom:0.5px solid var(--color-border-tertiary);border-right:0.5px solid var(--color-border-tertiary);white-space:nowrap}
+th:last-child{border-right:none}
+td{padding:5px 8px;border-bottom:0.5px solid var(--color-border-tertiary);border-right:0.5px solid var(--color-border-tertiary);vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+td:last-child{border-right:none}
+tr:last-child td{border-bottom:none}
+.num{width:24px;background:var(--color-background-secondary);color:var(--color-text-tertiary);font-size:10px;font-family:var(--font-mono);text-align:center;border-right:0.5px solid var(--color-border-tertiary)}
+.th-mes   {background:#EFF6FF;color:#1D4ED8}
+.th-quien {background:#F4ECF7;color:#5B21B6}
+.th-banco {background:#E6F1FB;color:#0C447C}
+.th-id    {background:#E1F5EE;color:#085041}
+.th-est   {background:#FEF9E7;color:#7D6608}
+.th-sep   {width:4px;background:var(--color-background-secondary);padding:0;border-right:2px solid var(--color-border-secondary)}
+.td-mes   {background:#EFF6FF;font-family:var(--font-mono);font-size:10px;color:#1D4ED8;font-weight:500}
+.td-quien {background:#FAF5FF;font-family:var(--font-mono);font-size:10px;color:#5B21B6}
+.td-quien-e{background:#FAF5FF;color:var(--color-text-tertiary);font-style:italic;font-size:10px;text-align:center}
+.td-nombre{background:#FAF5FF;font-size:11px;color:var(--color-text-primary)}
+.td-nombre-e{background:#FAF5FF;color:var(--color-text-tertiary);font-style:italic;font-size:10px}
+.td-banco {background:#F0F8FF;color:#185FA5;font-family:var(--font-mono);font-size:10px}
+.td-monto {background:#F0F8FF;color:#065F46;font-family:var(--font-mono);font-size:11px;font-weight:500}
+.td-msg   {background:#F0F8FF;color:var(--color-text-secondary);font-size:10px;font-style:italic}
+.td-sep   {width:4px;background:var(--color-background-secondary);padding:0;border-right:2px solid var(--color-border-secondary)}
+.td-id    {background:#F0FFF8;font-family:var(--font-mono);font-size:11px;font-weight:500;color:#065F46}
+.td-id-e  {background:#F0FFF8;color:var(--color-text-tertiary);font-style:italic;font-size:10px;text-align:center}
+.td-motivo{background:#F0FFF8;font-size:10px;color:var(--color-text-secondary)}
+.est-pend {background:#FCEBEB;color:#A32D2D;font-size:10px;font-weight:500;padding:1px 6px;border-radius:3px;font-family:var(--font-mono)}
+.est-iden {background:#FAEEDA;color:#854F0B;font-size:10px;font-weight:500;padding:1px 6px;border-radius:3px;font-family:var(--font-mono)}
+.est-apli {background:#E1F5EE;color:#085041;font-size:10px;font-weight:500;padding:1px 6px;border-radius:3px;font-family:var(--font-mono)}
+.gh{font-size:9px;font-weight:600;text-align:center;padding:3px 0;letter-spacing:.05em;text-transform:uppercase;border-bottom:0.5px solid var(--color-border-tertiary)}
+.caso{font-size:9px;color:var(--color-text-tertiary);font-style:italic;padding:3px 8px;background:var(--color-background-secondary);border-bottom:0.5px solid var(--color-border-tertiary)}
+.legend{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center}
+.leg{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--color-text-secondary)}
+.ld{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+</style>
+
+<div id="w">
+  <div class="instruc">
+    Archivo <strong>permanente</strong> — nunca se borra · crece mes a mes · acumula todos los pagos sin dueño identificado.<br>
+    <strong>USER_ID y NOMBRE</strong> vacíos hasta que el usuario reclama · se llenan al identificar.<br>
+    <strong>ESTADO</strong> lo actualiza el sistema automáticamente — no lo toques.<br>
+    Un BLANCO de cualquier mes puede identificarse en cualquier mes futuro — sin límite de tiempo.
+  </div>
+
+  <div class="tab-excel">blancos_acumulados</div>
+  <div class="tw">
+    <table>
+      <thead>
+        <tr>
+          <th class="num"></th>
+          <th class="th-mes gh">¿De qué mes?</th>
+          <th class="th-sep"></th>
+          <th class="th-quien gh" colspan="2">¿Quién es?</th>
+          <th class="th-sep"></th>
+          <th class="th-banco gh" colspan="6">¿Qué hizo el banco?</th>
+          <th class="th-sep"></th>
+          <th class="th-id gh" colspan="4">¿Cómo se identificó?</th>
+          <th class="th-sep"></th>
+          <th class="th-est gh">¿Ya se aplicó?</th>
+        </tr>
+        <tr>
+          <th class="num"></th>
+          <th class="th-mes">MES</th>
+          <th class="th-sep"></th>
+          <th class="th-quien">USER_ID</th>
+          <th class="th-quien">NOMBRE</th>
+          <th class="th-sep"></th>
+          <th class="th-banco">TIPO</th>
+          <th class="th-banco">ORIGEN</th>
+          <th class="th-banco">DESTINO</th>
+          <th class="th-banco">MONTO</th>
+          <th class="th-banco">MENSAJE</th>
+          <th class="th-banco">FECHA</th>
+          <th class="th-sep"></th>
+          <th class="th-id">MZ</th>
+          <th class="th-id">LOTE</th>
+          <th class="th-id">CONCEPTO</th>
+          <th class="th-id">MOTIVO</th>
+          <th class="th-sep"></th>
+          <th class="th-est">ESTADO</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- pendiente — no se sabe quién es -->
+        <tr><td colspan="20" class="caso">Mayo 2026 — BLANCO · aún no se sabe quién es · USER_ID y MZ-LOTE vacíos</td></tr>
+        <tr>
+          <td class="num">1</td>
+          <td class="td-mes">2026-05</td>
+          <td class="td-sep"></td>
+          <td class="td-quien-e">—</td>
+          <td class="td-nombre-e">—</td>
+          <td class="td-sep"></td>
+          <td class="td-banco">TE PAGÓ</td>
+          <td class="td-banco">Numero Des*</td>
+          <td class="td-banco">Janet Vil*</td>
+          <td class="td-monto">S/40.00</td>
+          <td class="td-msg">pago agua</td>
+          <td class="td-banco">09/05/2026 11:20</td>
+          <td class="td-sep"></td>
+          <td class="td-id-e">—</td>
+          <td class="td-id-e">—</td>
+          <td class="td-id-e">—</td>
+          <td class="td-id-e">—</td>
+          <td class="td-sep"></td>
+          <td><span class="est-pend">pendiente</span></td>
+        </tr>
+
+        <!-- identificado — ya se sabe quién es · esperando que cobranza aplique -->
+        <tr><td colspan="20" class="caso">Marzo 2026 — identificado · usuario reclamó · MZ-LOTE llenos · esperando 5_cobranza</td></tr>
+        <tr>
+          <td class="num">2</td>
+          <td class="td-mes">2026-03</td>
+          <td class="td-sep"></td>
+          <td class="td-quien">U0303</td>
+          <td class="td-nombre">PEDRO PALMADERA</td>
+          <td class="td-sep"></td>
+          <td class="td-banco">TE PAGÓ</td>
+          <td class="td-banco">Pedro Pal*</td>
+          <td class="td-banco">Janet Vil*</td>
+          <td class="td-monto">S/35.00</td>
+          <td class="td-msg">—</td>
+          <td class="td-banco">15/03/2026 08:45</td>
+          <td class="td-sep"></td>
+          <td class="td-id">H</td>
+          <td class="td-id">7</td>
+          <td class="td-id-e">—</td>
+          <td class="td-motivo">reclamó en reunión · mostró comprobante</td>
+          <td class="td-sep"></td>
+          <td><span class="est-iden">identificado</span></td>
+        </tr>
+
+        <!-- identificado como concepto — no es pago de lote -->
+        <tr><td colspan="20" class="caso">Febrero 2026 — identificado como concepto · devolución · MZ-LOTE vacíos · CONCEPTO lleno</td></tr>
+        <tr>
+          <td class="num">3</td>
+          <td class="td-mes">2026-02</td>
+          <td class="td-sep"></td>
+          <td class="td-quien">U0197</td>
+          <td class="td-nombre">EMILIA CRUZ OLORTEGUI</td>
+          <td class="td-sep"></td>
+          <td class="td-banco">TE PAGÓ</td>
+          <td class="td-banco">Paul Tru*</td>
+          <td class="td-banco">Janet Vil*</td>
+          <td class="td-monto">S/150.00</td>
+          <td class="td-msg">devolución Rosa Coronado</td>
+          <td class="td-banco">10/02/2026 15:08</td>
+          <td class="td-sep"></td>
+          <td class="td-id-e">—</td>
+          <td class="td-id-e">—</td>
+          <td class="td-motivo" style="font-style:italic;color:#085041">devolución Rosa Coronado</td>
+          <td class="td-motivo">confirmó por teléfono</td>
+          <td class="td-sep"></td>
+          <td><span class="est-iden">identificado</span></td>
+        </tr>
+
+        <!-- aplicado — cobranza ya descontó -->
+        <tr><td colspan="20" class="caso">Enero 2026 — aplicado · 5_cobranza ya descontó de la deuda del usuario</td></tr>
+        <tr style="opacity:.7">
+          <td class="num">4</td>
+          <td class="td-mes">2026-01</td>
+          <td class="td-sep"></td>
+          <td class="td-quien">U0199</td>
+          <td class="td-nombre">ROSA VICTORIA MILLA</td>
+          <td class="td-sep"></td>
+          <td class="td-banco">TE PAGÓ</td>
+          <td class="td-banco">Rosa Vic*</td>
+          <td class="td-banco">Janet Vil*</td>
+          <td class="td-monto">S/20.00</td>
+          <td class="td-msg">—</td>
+          <td class="td-banco">10/01/2026 14:30</td>
+          <td class="td-sep"></td>
+          <td class="td-id">B</td>
+          <td class="td-id">6</td>
+          <td class="td-id-e">—</td>
+          <td class="td-motivo">llamada telefónica · confirmó identidad</td>
+          <td class="td-sep"></td>
+          <td><span class="est-apli">aplicado</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="legend">
+    <div class="leg"><div class="ld" style="background:#EFF6FF;border:0.5px solid #93C5FD"></div>mes de origen</div>
+    <div class="leg"><div class="ld" style="background:#FAF5FF;border:0.5px solid #C4B5FD"></div>¿Quién es? — vacío hasta identificar</div>
+    <div class="leg"><div class="ld" style="background:#F0F8FF;border:0.5px solid #AED6F1"></div>banco</div>
+    <div class="leg"><div class="ld" style="background:#F0FFF8;border:0.5px solid #9FE1CB"></div>identificación — vacío hasta identificar</div>
+    <div class="leg"><span class="est-pend">pendiente</span> sin dueño</div>
+    <div class="leg"><span class="est-iden">identificado</span> dueño encontrado · esperando descuento</div>
+    <div class="leg"><span class="est-apli">aplicado</span> descuento ya aplicado</div>
+  </div>
+</div>

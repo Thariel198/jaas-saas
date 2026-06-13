@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>planilla_YYYY-MM.xlsx — contrato visual</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+
+  :root {
+    --font-sans: 'IBM Plex Sans', sans-serif;
+    --font-mono: 'IBM Plex Mono', monospace;
+    --border: #dee2e6;
+    --bg2: #f8f9fa;
+    --text3: #adb5bd;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font-sans); background: #fff; padding: 28px; font-size: 13px; color: #111; }
+
+  .title { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+  .sub   { font-size: 12px; color: #888; margin-bottom: 8px; }
+
+  .historia {
+    font-size: 11px; color: #555; margin-bottom: 12px;
+    background: #f8f9fa; border-left: 3px solid #dee2e6;
+    padding: 7px 12px; border-radius: 0 5px 5px 0;
+  }
+  .historia strong { color: #333; }
+
+  .formula-box {
+    font-size: 11px; margin-bottom: 20px;
+    background: #E9F7EF; border: 1px solid #A9DFBF;
+    border-radius: 6px; padding: 10px 14px; color: #1E5C3A;
+    font-family: var(--font-mono);
+  }
+  .formula-box .label {
+    font-family: var(--font-sans); font-size: 9px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .05em;
+    color: #1E8449; display: block; margin-bottom: 4px;
+  }
+  .formula-box .neg { color: #7C3AED; font-weight: 600; }
+
+  /* Excel tab */
+  .tab-wrap { display: inline-block; margin-bottom: -1px; }
+  .tab {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: #E9F7EF; border: 0.5px solid #A9DFBF;
+    border-bottom: none; border-radius: 6px 6px 0 0;
+    padding: 5px 14px; font-size: 12px; font-weight: 500;
+    color: #1E5C3A; font-family: var(--font-mono);
+  }
+
+  /* Table wrapper */
+  .tw { border: 0.5px solid var(--border); border-radius: 0 8px 8px 8px; overflow-x: auto; margin-bottom: 14px; }
+
+  table { border-collapse: collapse; font-size: 10px; font-family: var(--font-sans); }
+
+  th, td {
+    padding: 5px 8px;
+    border-bottom: 0.5px solid var(--border);
+    border-right: 0.5px solid var(--border);
+    white-space: nowrap; vertical-align: middle;
+  }
+
+  .num {
+    width: 22px; background: var(--bg2); color: var(--text3);
+    font-size: 9px; font-family: var(--font-mono); text-align: center; padding: 4px 2px;
+  }
+
+  .th-sep, .td-sep { width: 5px; background: var(--bg2); border-right: 2px solid var(--border); padding: 0; }
+
+  .gh { font-size: 9px; font-weight: 600; text-align: center; letter-spacing: 0.05em; text-transform: uppercase; padding: 4px 8px; }
+  th.col { font-size: 9px; font-weight: 600; font-family: var(--font-mono); text-align: center; padding: 4px 8px; }
+
+  /* ── SECCIÓN 1: ¿Quién es? (azul-gris) ── */
+  .gh-id { background: #EBF5FB; color: #1A5276; }
+  .th-id { background: #EBF5FB; color: #1A5276; }
+  .td-id { background: #F4FAFF; color: #1A5276; }
+
+  /* ── SECCIÓN 2: Lectura (azul) ── */
+  .gh-lec { background: #E6F1FB; color: #0C447C; }
+  .th-lec { background: #E6F1FB; color: #0C447C; }
+  .td-lec { background: #F0F8FF; color: #111; font-family: var(--font-mono); text-align: right; }
+
+  /* ── SECCIÓN 3a: Cobro — cargos (verde) ── */
+  .gh-cob { background: #E9F7EF; color: #1E5C3A; }
+  .th-cob { background: #E9F7EF; color: #1E5C3A; }
+  .td-cob { background: #F4FBF7; color: #1E5C3A; font-family: var(--font-mono); text-align: right; }
+
+  /* ── SECCIÓN 3b: Descuentos — antes del total (morado oscuro) ── */
+  .gh-desc { background: #EDE9FE; color: #4C1D95; }
+  .th-desc { background: #EDE9FE; color: #4C1D95; }
+  .td-desc { background: #F5F3FF; color: #6D28D9; font-family: var(--font-mono); text-align: right; }
+  .td-desc-val { background: #F5F3FF; color: #4C1D95; font-family: var(--font-mono); text-align: right; font-weight: 600; }
+
+  /* ── TOTAL_A_PAGAR (verde oscuro) ── */
+  .th-total { background: #1E8449; color: #fff; font-weight: 700; font-family: var(--font-mono); text-align: center; font-size: 9px; }
+  .td-total { background: #D5F5E3; color: #1E5C3A; font-family: var(--font-mono); font-weight: 700; text-align: right; font-size: 11px; }
+
+  /* ── SECCIÓN 4: Pago → 5_cobranza (morado) ── */
+  .gh-pago { background: #F3E8FF; color: #5B21B6; }
+  .th-pago { background: #F3E8FF; color: #5B21B6; }
+  .td-pago { background: #FAF5FF; color: #8B5CF6; font-style: italic; text-align: center; font-size: 10px; }
+
+  .mono { font-family: var(--font-mono); }
+
+  /* ── LEYENDA ── */
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 24px; align-items: center; }
+  .ld-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #555; }
+  .ld { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; border: 0.5px solid rgba(0,0,0,.12); }
+
+  /* ── REGLAS ── */
+  .section-title { font-size: 12px; font-weight: 600; color: #333; margin-bottom: 10px; margin-top: 20px; }
+  .rule-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; margin-bottom: 20px; }
+  .rule-card { border: 0.5px solid var(--border); border-radius: 6px; padding: 10px 12px; font-size: 11px; color: #555; line-height: 1.6; }
+  .rule-card strong { display: block; font-size: 9px; font-weight: 700; margin-bottom: 5px; color: #333; text-transform: uppercase; letter-spacing: 0.05em; }
+  .rule-card code { font-family: var(--font-mono); font-size: 10px; background: #f3f3f3; padding: 1px 4px; border-radius: 2px; }
+
+  /* ── ANCHOS ── */
+  .widths-table { border-collapse: collapse; font-size: 11px; }
+  .widths-table th, .widths-table td { border: 0.5px solid var(--border); padding: 4px 10px; text-align: left; }
+  .widths-table th { background: var(--bg2); font-weight: 600; font-size: 10px; }
+  .widths-table code { font-family: var(--font-mono); font-size: 10px; }
+</style>
+</head>
+<body>
+
+<p class="title">planilla_YYYY-MM.xlsx — contrato visual</p>
+<p class="sub">Hoja única: <strong>Planilla</strong> · 21 columnas · orden exacto</p>
+
+<p class="historia">
+  <strong>Historia:</strong>
+  ¿Quién es? → ¿Qué consumió? → ¿Cuánto debe? (cargos − descuentos = total) → ¿Cómo pagó?<br>
+  Columnas 1–17 las genera <strong>2_planilla</strong> (BLANCO y DEVOLUCION salen en 0).
+  Columnas 18–21 (<em>morado claro</em>) salen vacías y las completa <strong>5_cobranza</strong>.
+  BLANCO y DEVOLUCION los actualiza 5_cobranza con valores negativos — Excel recalcula TOTAL_A_PAGAR automáticamente.
+</p>
+
+<div class="formula-box">
+  <span class="label">Fórmula — TOTAL_A_PAGAR</span>
+  = MES_ACTUAL + MANTENIMIENTO + MES_ANTERIOR + CORTE_RECONEXION
+  + CONVENIO + MULTA + ACUERDOS_ASAMBLEA
+  <span class="neg">+ BLANCO + DEVOLUCION</span>
+  &nbsp;&nbsp;← BLANCO y DEVOLUCION son negativos
+</div>
+
+<!-- ═══ TAB + TABLE ═══ -->
+<div class="tab-wrap">
+  <div class="tab">Planilla</div>
+</div>
+
+<div class="tw">
+<table>
+
+  <!-- ── FILA 1: SECCIONES ── -->
+  <tr>
+    <th class="num" rowspan="2"></th>
+    <th class="gh gh-id" colspan="4">¿Quién es?</th>
+    <th class="th-sep" rowspan="2"></th>
+    <th class="gh gh-lec" colspan="3">Lectura</th>
+    <th class="th-sep" rowspan="2"></th>
+    <th class="gh gh-cob" colspan="7">Cobro — cargos</th>
+    <th class="gh gh-desc" colspan="2">Descuentos</th>
+    <th class="th-total gh">Total</th>
+    <th class="th-sep" rowspan="2"></th>
+    <th class="gh gh-pago" colspan="4">Pago → 5_cobranza</th>
+  </tr>
+
+  <!-- ── FILA 2: COLUMNAS ── -->
+  <tr>
+    <th class="col th-id">MZ</th>
+    <th class="col th-id">LT</th>
+    <th class="col th-id">NOMBRE</th>
+    <th class="col th-id">MES_ANO</th>
+
+    <th class="col th-lec">MARC_ANT</th>
+    <th class="col th-lec">MARC_ACT</th>
+    <th class="col th-lec">M3</th>
+
+    <th class="col th-cob">MES_ACTUAL</th>
+    <th class="col th-cob">MANTENIMIENTO</th>
+    <th class="col th-cob">MES_ANTERIOR</th>
+    <th class="col th-cob">CORTE_RECONEXION</th>
+    <th class="col th-cob">CONVENIO</th>
+    <th class="col th-cob">MULTA</th>
+    <th class="col th-cob">ACUERDOS_ASAMBLEA</th>
+
+    <th class="col th-desc">BLANCO</th>
+    <th class="col th-desc">DEVOLUCION</th>
+
+    <th class="th-total">TOTAL_A_PAGAR</th>
+
+    <th class="col th-pago">MONTO_YAPE</th>
+    <th class="col th-pago">MONTO_EFECTIVO</th>
+    <th class="col th-pago">ESTADO</th>
+    <th class="col th-pago">FECHA_PAGO</th>
+  </tr>
+
+  <!-- ── FILA 1: consumo normal, sin arrastres, sin descuentos ── -->
+  <tr>
+    <td class="num">1</td>
+    <td class="td-id mono">A</td>
+    <td class="td-id mono">7</td>
+    <td class="td-id">FLORES MAMANI, ROSA</td>
+    <td class="td-id mono">2026-06</td>
+    <td class="td-sep"></td>
+    <td class="td-lec">1045</td>
+    <td class="td-lec">1053</td>
+    <td class="td-lec">8</td>
+    <td class="td-sep"></td>
+    <td class="td-cob">S/ 8.00</td>
+    <td class="td-cob">S/ 3.00</td>
+    <td class="td-cob">S/ 0.00</td>
+    <td class="td-cob">S/ 0.00</td>
+    <td class="td-cob">S/ 0.00</td>
+    <td class="td-cob">S/ 0.00</td>
+    <td class="td-cob">S/ 10.00</td>
+    <td class="td-desc">S/ 0.00</td>
+    <td class="td-desc">S/ 0.00</td>
+    <td class="td-total">S/ 21.00</td>
+    <td class="td-sep"></td>
+    <td class="td-pago">—</td>
+    <td class="td-pago">—</td>
+    <td class="td-pago">—</td>
+    <td class="td-pago">—</td>
+  </tr>
+
+  <!-- ── FILA 2: deuda anterior + convenio + acuerdo asamblea ── -->
+  <tr>
+    <td class="num">2</td>
+    <td class="td-id mono">A</td>
+    <td class="td-id mono">12</td>
+    <td class="td-id">QUISPE HUANCA, PEDRO</td>
+    <td class="td-id mono">2026-06</td>
+    <td class="td-sep"></td>
+    <td class="td-lec">780</td>
+    <td class="td-lec">783</td>
+    <td class="td-lec">3</td>
+    <td class="td-sep"></td>
+    <td class="td-cob">S/ 5.00</td>
+    <td class="td-cob">S/ 3.00</td>
+    <td class="td-cob">S/ 15.00</td>
+    <td class="td-cob">S/ 0.00</td>
+    <td class="td-cob">S/ 20.00</td>
+    <td class="td-cob">S/ 0.00</td>
+    <td class="td-cob">S/ 10.00</td>
+    <td class="td-desc">S/ 0.00</td>
+    <td class="td-desc">S/ 0.00</td>
+    <td class="td-total">S/ 53.00</td>
+    <td class="td-sep"></td>
+    <td class="td-pago">—</td>
+    <td class="td-pago">—</td>
+    <td class="td-pago">—</td>
+    <td class="td-pago">—</td>
+  </tr>
+
+  <!-- ── FILA 3: corte + multa + blanco aplicado por 4_pagos ── -->
+  <tr>
+    <td class="num">3</td>
+    <td class="td-id mono">B1</td>
+    <td class="td-id mono">11A</td>
+    <td class="td-id">MAMANI ROQUE, JUAN</td>
+    <td class="td-id mono">2026-06</td>
+    <td class="td-sep"></td>
+    <td class="td-lec">320</td>
+    <td class="td-lec">322</td>
+    <td class="td-lec">2</td>
+    <td class="td-sep"></td>
+    <td class="td-cob">S/ 5.00</td>
+    <td class="td-cob">S/ 3.00</td>
+    <td class="td-cob">S/ 0.00</td>
+    <td class="td-cob">S/ 25.00</td>
+    <td class="td-cob">S/ 0.00</td>
+    <td class="td-cob">S/ 10.00</td>
+    <td class="td-cob">S/ 10.00</td>
+    <td class="td-desc-val">−S/ 25.00</td>
+    <td class="td-desc">S/ 0.00</td>
+    <td class="td-total">S/ 28.00</td>
+    <td class="td-sep"></td>
+    <td class="td-pago" style="font-style:normal;color:#5B21B6;">S/ 28.00</td>
+    <td class="td-pago">—</td>
+    <td class="td-pago" style="font-style:normal;color:#5B21B6;">PAGADO</td>
+    <td class="td-pago" style="font-style:normal;color:#5B21B6;">07/06/2026</td>
+  </tr>
+
+</table>
+</div>
+
+<!-- ═══ LEYENDA ═══ -->
+<div class="legend">
+  <span style="font-size:11px; color:#888; margin-right:2px;">Secciones:</span>
+  <div class="ld-item"><div class="ld" style="background:#EBF5FB; border-color:#AED6F1;"></div> ¿Quién es?</div>
+  <div class="ld-item"><div class="ld" style="background:#E6F1FB; border-color:#AED6F1;"></div> Lectura</div>
+  <div class="ld-item"><div class="ld" style="background:#E9F7EF; border-color:#A9DFBF;"></div> Cobro — cargos</div>
+  <div class="ld-item"><div class="ld" style="background:#EDE9FE; border-color:#A78BFA;"></div> Descuentos (negativos)</div>
+  <div class="ld-item"><div class="ld" style="background:#1E8449; border-color:#1E8449;"></div> TOTAL_A_PAGAR</div>
+  <div class="ld-item"><div class="ld" style="background:#F3E8FF; border-color:#C4B5FD;"></div> Pago — lo llena 4_pagos</div>
+</div>
+
+<!-- ═══ REGLAS DE FORMATO ═══ -->
+<p class="section-title">Reglas de formato — openpyxl</p>
+<div class="rule-grid">
+
+  <div class="rule-card">
+    <strong>Enteros (lectura)</strong>
+    MARC_ANT · MARC_ACT · M3<br>
+    Formato: <code>0</code> · Alineación: derecha · Mono
+  </div>
+
+  <div class="rule-card">
+    <strong>Montos cargos</strong>
+    MES_ACTUAL · MANTENIMIENTO · MES_ANTERIOR<br>
+    CORTE_RECONEXION · CONVENIO · MULTA · ACUERDOS_ASAMBLEA<br>
+    Formato: <code>"S/"\ #,##0.00</code> · Derecha · Mono
+  </div>
+
+  <div class="rule-card">
+    <strong>Descuentos — BLANCO · DEVOLUCION</strong>
+    Al generar: valor <code>0</code><br>
+    4_pagos escribe valor negativo (ej: <code>-25.00</code>)<br>
+    Formato: <code>"S/"\ #,##0.00</code> · Fondo <code>#F5F3FF</code>
+  </div>
+
+  <div class="rule-card">
+    <strong>TOTAL_A_PAGAR</strong>
+    Escrito como <strong>fórmula Excel</strong> (no valor fijo)<br>
+    Ej: <code>=H2+I2+J2+K2+L2+M2+N2+O2+P2</code><br>
+    Fondo: <code>#D5F5E3</code> · Negrita · Mono · Derecha<br>
+    Se recalcula automáticamente cuando 4_pagos llena BLANCO/DEVOLUCION
+  </div>
+
+  <div class="rule-card">
+    <strong>ACUERDOS_ASAMBLEA</strong>
+    Mismo formato que CONVENIO y MULTA<br>
+    Formato: <code>"S/"\ #,##0.00</code><br>
+    0 si el archivo <code>acuerdos_asamblea.xlsx</code> no existe
+  </div>
+
+  <div class="rule-card">
+    <strong>Montos pago</strong>
+    MONTO_YAPE · MONTO_EFECTIVO<br>
+    Formato: <code>"S/"\ #,##0.00</code><br>
+    Vacío al exportar — 4_pagos escribe después
+  </div>
+
+  <div class="rule-card">
+    <strong>ESTADO</strong>
+    Texto · Vacío al exportar<br>
+    Valores: <code>PAGADO</code> · <code>PARCIAL</code> · <code>PENDIENTE</code>
+  </div>
+
+  <div class="rule-card">
+    <strong>FECHA_PAGO</strong>
+    Formato: <code>DD/MM/YYYY</code> · Vacío al exportar
+  </div>
+
+  <div class="rule-card">
+    <strong>Encabezados</strong>
+    Fila 1 (secciones): altura 18px<br>
+    Fila 2 (columnas): altura 22px · negrita<br>
+    Congeladas: <code>freeze_panes = "A3"</code>
+  </div>
+
+</div>
+
+<!-- ═══ ANCHOS ═══ -->
+<p class="section-title">Anchos de columna (unidades Excel)</p>
+<table class="widths-table">
+  <tr><th>Columna</th><th>Ancho</th><th>Nota</th></tr>
+  <tr><td class="mono">MZ</td><td>5</td><td>1–3 caracteres</td></tr>
+  <tr><td class="mono">LT</td><td>6</td><td>ej: 11A</td></tr>
+  <tr><td class="mono">NOMBRE</td><td>28</td><td>nombre completo</td></tr>
+  <tr><td class="mono">MES_ANO</td><td>10</td><td>YYYY-MM</td></tr>
+  <tr><td class="mono">MARC_ANT · MARC_ACT</td><td>10</td><td>4–5 dígitos</td></tr>
+  <tr><td class="mono">M3</td><td>6</td><td>entero pequeño</td></tr>
+  <tr><td class="mono">MES_ACTUAL · MANTENIMIENTO · CONVENIO · MULTA</td><td>13</td><td>S/ XX.00</td></tr>
+  <tr><td class="mono">MES_ANTERIOR · CORTE_RECONEXION</td><td>17</td><td>nombre largo</td></tr>
+  <tr><td class="mono">ACUERDOS_ASAMBLEA</td><td>19</td><td>nombre largo</td></tr>
+  <tr><td class="mono">BLANCO · DEVOLUCION</td><td>13</td><td>valores negativos</td></tr>
+  <tr><td class="mono">TOTAL_A_PAGAR</td><td>14</td><td>columna clave</td></tr>
+  <tr><td class="mono">MONTO_YAPE · MONTO_EFECTIVO</td><td>14</td><td>S/ XXX.00</td></tr>
+  <tr><td class="mono">ESTADO</td><td>11</td><td>PAGADO / PARCIAL / PENDIENTE</td></tr>
+  <tr><td class="mono">FECHA_PAGO</td><td>12</td><td>DD/MM/YYYY</td></tr>
+</table>
+
+</body>
+</html>

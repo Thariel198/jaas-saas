@@ -24,13 +24,13 @@
 **Qué es:** Cada módulo hace una sola cosa. Si hace dos cosas → hay que dividirlo.
 **De dónde sale:** Cuando descubriste que el override estaba en motor_matching pero no le pertenecía. Y cuando viste que PAGASTE y TE PAGÓ son cosas distintas que necesitan tratamiento distinto.
 **Regla que aplicaste:** "En programación dividir función es la clave."
-**En tu sistema:** motor_matching identifica · 05b_override corrige · cargar_planilla carga · 04b_validacion valida.
+**En tu sistema:** motor_matching identifica · 6b_override corrige · cargar_planilla carga · 5b_validacion valida.
 
 ---
 
 ### Desarrollo por Valor
 **Qué es:** Atacar primero el módulo que más dolor causa hoy, no el primero del pipeline.
-**De dónde sale:** La decisión de empezar por motor_matching en lugar de 01_lecturas.
+**De dónde sale:** La decisión de empezar por motor_matching en lugar de 1_lecturas.
 **Regla:** No el primero del pipeline. El que más valor entrega hoy.
 **En tu sistema:** motor_matching es el que usas cada mes — empezaste por ahí.
 
@@ -38,7 +38,7 @@
 
 ### Deuda Técnica
 **Qué es:** Código o estructura que funciona pero está mal ubicada o mal diseñada — y que eventualmente habrá que corregir.
-**De dónde sale:** cargar_planilla vivía en 03_pagos/yape cuando le correspondía estar en 04_cobranza. usuarios_id.xlsx vivía dentro de un módulo cuando debía estar en shared/.
+**De dónde sale:** cargar_planilla vivía en 4_pagos/yape cuando le correspondía estar en 5_cobranza. usuarios_id.xlsx vivía dentro de un módulo cuando debía estar en shared/.
 **Cómo la manejaste:** Carpeta backup/ con README que explica por qué existe y cuándo se elimina. No la borraste sin entender, no la dejaste sin documentar.
 
 ---

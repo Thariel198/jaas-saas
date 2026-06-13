@@ -1,37 +1,37 @@
 jass_system/
 ├── .idea/
 ├── .gitignore
-├── arquitectura_jass_sistema.html
+├── README.md                              ← pendiente
+├── requirements.txt
 │
-├── 01_lecturas/
-├── 02_planilla/
-├── 03_pagos/
+├── 1_lecturas/                            ← futuro · IA
+├── 2_planilla/                            ← siguiente (en construcción)
+├── 3_boletas/                             ← render hecho · enriquecimiento pendiente
+│   ├── enriquecimiento/                   ← sub-paso 3.1 (antes 06a)
+│   └── render/                            ← sub-paso 3.2 (Word→PDF)
+│
+├── 4_pagos/                               ← yape: siguiente · efectivo: futuro
 │   └── yape/
 │       └── motor_matching/
-│           ├── Inputs/
-│           ├── Correcciones/
-│           ├── Outputs/
-│           ├── Overrides/        ← se elimina de aquí
-│           ├── Trazabilidad/
-│           ├── Blancos/
-│           ├── main.py
-│           └── README.md
 │
-├── 04_cobranza/
-├── 04b_validacion/               ← nuevo
-├── 05_corte/
-├── 05b_override/                 ← nuevo
-│   ├── overrides.xlsx
-│   ├── backup/
-│   ├── apply_overrides.py
-│   └── README.md
+├── 5_cobranza/                            ← futuro
+├── 5b_validacion/                         ← emite arrastre_deuda
+├── 6_corte/                               ← emite arrastre_corte
+├── 6b_override/                           ← corrección auditable de pagos
+├── 7_cierre/                              ← verifica ciclo · prepara siguiente mes
 │
-├── 06_boletas/
-├── 07_nueva_planilla/
+├── docs/
+│   ├── arquitectura_jass_sistema.html
+│   ├── metodologia_desarrollo.md
+│   └── skill_tracker.md
 │
-└── shared/
+├── backup/                                ← versiones anteriores
+│   ├── 07_nueva_palnilla_eliminado/  ← reemplazado por 7_cierre
+│   └── arquitectura_jass_sistema_v1.html  ← versión previa del diagrama
+│
+└── shared/                                ← recursos compartidos
     ├── usuarios_id.xlsx
     ├── maestro_yape.xlsx
-    ├── blancos_acumulados.xlsx   ← se mueve aquí
     ├── tarifas.xlsx
+    ├── blancos_acumulados.xlsx
     └── config.py

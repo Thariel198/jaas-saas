@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>motor_matching — arquitectura</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+  :root{--bg:#0F1117;--bg2:#161B27;--bg3:#1E2535;--border:#2A3347;--text:#E2E8F0;--text2:#94A3B8;--text3:#475569;--blue:#93C5FD;--amber:#FCD34D;--green:#6EE7B7;--red:#FDA4AF;--purple:#A78BFA;--cyan:#67E8F9;--teal:#5EEAD4;--orange:#FDBA74;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-serif;font-size:13px;line-height:1.6;padding:28px 24px 56px;max-width:920px;margin:0 auto}
+  .header{margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid var(--border)}
+  .path{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text3);margin-bottom:6px}
+  .title{font-size:20px;font-weight:600;margin-bottom:3px}
+  .sub{font-size:12px;color:var(--text2)}
+  .sec{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--text3);margin:22px 0 8px;display:flex;align-items:center;gap:8px}
+  .sec::after{content:'';flex:1;height:1px;background:var(--border)}
+
+  /* PIPELINE */
+  .pipeline{display:flex;align-items:center;gap:5px;flex-wrap:wrap;padding:10px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:8px}
+  .pp{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:3px 10px;border-radius:4px;white-space:nowrap}
+  .pp-here{background:rgba(147,197,253,.15);color:var(--blue);border:1px solid rgba(147,197,253,.3);font-weight:600}
+  .pp-next{background:var(--bg3);color:var(--text2);border:1px solid var(--border)}
+  .pp-arr{color:var(--text3);font-size:12px}
+
+  /* CARPETAS */
+  .folders{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+  @media(max-width:600px){.folders{grid-template-columns:1fr}}
+  .folder{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px}
+  .fn{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;margin-bottom:6px}
+  .ftag{font-size:9px;font-weight:600;padding:1px 5px;border-radius:3px;margin-left:5px;vertical-align:middle}
+  .t-temp{background:rgba(253,164,175,.12);color:var(--red)}
+  .t-perm{background:rgba(167,139,250,.12);color:var(--purple)}
+  .t-mes{background:rgba(147,197,253,.12);color:var(--blue)}
+  .fi{font-size:11px;color:var(--text2);line-height:1.9}
+  .fi::before{content:'→ ';color:var(--text3);font-family:'IBM Plex Mono',monospace}
+
+  /* PRIORIDADES */
+  .prios{background:var(--bg2);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+  .prio{display:flex;gap:10px;padding:8px 14px;border-bottom:1px solid var(--border);font-size:12px;color:var(--text2);align-items:flex-start}
+  .prio:last-child{border-bottom:none}
+  .pn{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;width:18px;flex-shrink:0;padding-top:1px;color:var(--blue)}
+  .pn-p{color:var(--red)}
+  .pn-pag{color:var(--orange)}
+  .prio strong{color:var(--text)}
+  .atag{font-size:9px;background:rgba(110,231,183,.12);color:var(--green);border-radius:3px;padding:1px 5px;margin-left:4px;font-weight:600}
+  .mtag{font-size:9px;background:rgba(253,164,175,.12);color:var(--red);border-radius:3px;padding:1px 5px;margin-left:4px;font-weight:600}
+  .otag{font-size:9px;background:rgba(253,186,116,.12);color:var(--orange);border-radius:3px;padding:1px 5px;margin-left:4px;font-weight:600}
+
+  /* CALCULO */
+  .calcs{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px}
+  @media(max-width:500px){.calcs{grid-template-columns:1fr 1fr}}
+  .calc{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:8px 10px;text-align:center}
+  .calc-name{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;margin-bottom:3px}
+  .calc-cond{font-size:10px;color:var(--text2)}
+  .cg{border-top:2px solid #6EE7B7}.cg .calc-name{color:var(--green)}
+  .ca{border-top:2px solid #FCD34D}.ca .calc-name{color:var(--amber)}
+  .cr{border-top:2px solid #FDA4AF}.cr .calc-name{color:var(--red)}
+  .cx{border-top:2px solid #475569}.cx .calc-name{color:var(--text3)}
+
+  /* CICLOS */
+  .ciclos{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  @media(max-width:500px){.ciclos{grid-template-columns:1fr}}
+  .ciclo{border-radius:8px;padding:10px 12px;font-size:12px;color:var(--text2);line-height:1.7}
+  .ciclo-title{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;margin-bottom:4px}
+  .ci1{background:rgba(253,164,175,.06);border:1px solid rgba(253,164,175,.2)}.ci1 .ciclo-title{color:var(--red)}
+  .ci2{background:rgba(110,231,183,.06);border:1px solid rgba(110,231,183,.2)}.ci2 .ciclo-title{color:var(--green)}
+
+  /* FLUJO */
+  .flujo{display:flex;align-items:center;gap:5px;flex-wrap:wrap;padding:10px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:8px}
+  .fs{font-family:'IBM Plex Mono',monospace;font-size:10px;padding:3px 8px;border-radius:4px;white-space:nowrap;border:1px solid}
+  .fs-in {background:rgba(147,197,253,.08);color:var(--blue);border-color:rgba(147,197,253,.2)}
+  .fs-run{background:rgba(167,139,250,.08);color:var(--purple);border-color:rgba(167,139,250,.2)}
+  .fs-man{background:rgba(253,164,175,.08);color:var(--red);border-color:rgba(253,164,175,.2)}
+  .fs-ok {background:rgba(110,231,183,.08);color:var(--green);border-color:rgba(110,231,183,.2)}
+  .fs-out{background:rgba(103,232,249,.08);color:var(--cyan);border-color:rgba(103,232,249,.2)}
+  .arr{color:var(--text3);font-size:11px}
+
+  /* LIFECYCLE */
+  .lc{width:100%;border-collapse:collapse;font-size:12px}
+  .lc th{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;padding:6px 10px;border-bottom:1px solid var(--border);text-align:left;color:var(--text3)}
+  .lc td{padding:6px 10px;border-bottom:1px solid var(--border);color:var(--text2);font-size:11px}
+  .lc tr:last-child td{border-bottom:none}
+  .lc-mono{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text)}
+  .keep{color:var(--green);font-weight:600}
+  .del{color:var(--red);font-weight:600}
+  .rep{color:var(--amber);font-weight:600}
+
+  /* OUTPUTS */
+  .outputs{display:flex;flex-direction:column;gap:8px}
+  .out{background:var(--bg2);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+  .out-head{padding:9px 12px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border)}
+  .out-name{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600}
+  .out-desc{font-size:11px;color:var(--text2);flex:1}
+  .out-body{padding:10px 12px}
+  .grupos{display:flex;flex-direction:column;gap:0}
+  .grupo{display:flex;gap:10px;font-size:11px;padding:5px 0;border-bottom:1px solid var(--border)}
+  .grupo:last-child{border-bottom:none}
+  .grupo-label{font-size:10px;color:var(--text3);width:180px;flex-shrink:0;font-style:italic;padding-top:1px}
+  .grupo-cols{color:var(--text2);font-family:'IBM Plex Mono',monospace;font-size:10px;line-height:1.7}
+  .badge{font-size:9px;font-weight:600;padding:1px 6px;border-radius:3px;white-space:nowrap}
+  .b-temp{background:rgba(253,164,175,.12);color:var(--red)}
+  .b-perm{background:rgba(167,139,250,.12);color:var(--purple)}
+  .b-auto{background:rgba(110,231,183,.12);color:var(--green)}
+  .b-user{background:rgba(252,211,77,.12);color:var(--amber)}
+
+  /* ESTADOS */
+  .estados{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+  .est{font-size:10px;font-weight:500;padding:2px 8px;border-radius:4px;font-family:'IBM Plex Mono',monospace}
+  .est-pend{background:rgba(253,164,175,.12);color:var(--red)}
+  .est-iden{background:rgba(252,211,77,.12);color:var(--amber)}
+  .est-apli{background:rgba(110,231,183,.12);color:var(--green)}
+  .est-na  {background:rgba(147,197,253,.12);color:var(--blue)}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="path">jass_system / 4_pagos / yape / motor_matching</div>
+  <div class="title">motor_matching</div>
+  <div class="sub">Identifica MZ-LOTE de cada pago Yape · ciclos hasta pendientes = 0 · solo Sin_identificar es manual · ver README.md para detalle</div>
+</div>
+
+<!-- PIPELINE -->
+<div class="sec">posición en el pipeline</div>
+<div class="pipeline">
+  <span class="pp pp-next">1_lecturas</span><span class="pp-arr">→</span>
+  <span class="pp pp-next">2_planilla</span><span class="pp-arr">→</span>
+  <span class="pp pp-here">motor_matching ←</span><span class="pp-arr">→</span>
+  <span class="pp pp-next">5_cobranza</span><span class="pp-arr">→</span>
+  <span class="pp pp-next">5b_validacion</span><span class="pp-arr">→</span>
+  <span class="pp pp-next">6_corte</span><span class="pp-arr">→</span>
+  <span class="pp pp-next">6b_override</span><span class="pp-arr">→</span>
+  <span class="pp pp-next">3_boletas</span><span class="pp-arr">→</span>
+  <span class="pp pp-next">7_cierre</span>
+</div>
+
+<!-- CARPETAS -->
+<div class="sec">estructura de carpetas</div>
+<div class="folders">
+  <div class="folder">
+    <div class="fn" style="color:var(--blue)">Inputs/ <span class="ftag t-mes">cada mes</span></div>
+    <div class="fi">Maestro/ → maestro_yape.xlsx</div>
+    <div class="fi">Planilla_anterior/ → ancla de corte</div>
+    <div class="fi">Planilla_mes/ → deuda por MZ-LOTE</div>
+    <div class="fi">Reporte_mes/ → banco</div>
+  </div>
+  <div class="folder">
+    <div class="fn" style="color:var(--amber)">Correcciones/ <span class="ftag t-temp">temporal</span></div>
+    <div class="fi">pendientes.xlsx → 1 hoja: Sin_identificar</div>
+    <div class="fi">se borra en Ciclo 1</div>
+  </div>
+  <div class="folder">
+    <div class="fn" style="color:var(--green)">Outputs/ <span class="ftag t-temp">temporal</span></div>
+    <div class="fi">pagos_yape_tepago.xlsx → 5_cobranza</div>
+    <div class="fi">pagos_yape_devolucion.xlsx → 5_cobranza</div>
+    <div class="fi">resumen_validacion.txt</div>
+    <div class="fi">se borra en Ciclo 1</div>
+  </div>
+  <div class="folder">
+    <div class="fn" style="color:var(--purple)">Trazabilidad/ <span class="ftag t-perm">permanente</span></div>
+    <div class="fi">trazabilidad_YYYY_MM.xlsx</div>
+    <div class="fi">un archivo por mes · nunca se borra</div>
+  </div>
+  <div class="folder">
+    <div class="fn" style="color:var(--cyan)">Blancos/ <span class="ftag t-perm">permanente</span></div>
+    <div class="fi">blancos_acumulados.xlsx</div>
+    <div class="fi">directo sin intermedio · → 5_cobranza</div>
+  </div>
+  <div class="folder">
+    <div class="fn" style="color:var(--orange)">Devoluciones/ <span class="ftag t-perm">permanente</span></div>
+    <div class="fi">devoluciones_acumulados.xlsx → permanente</div>
+    <div class="fi">pagos_yape_pagaste.xlsx → temporal</div>
+  </div>
+</div>
+
+<!-- PRIORIDADES -->
+<div class="sec">prioridad de identificación — TE PAGÓ</div>
+<div class="prios">
+  <div class="prio"><span class="pn">1.</span><span><strong>Corrección acumulada</strong><span class="atag">auto</span> — ciclo 2+ · prioridad máxima</span></div>
+  <div class="prio"><span class="pn">2.</span><span><strong>Múltiples en mensaje</strong><span class="atag">auto</span> — "MzE Lt7, MzP Lt11A" · va a trazabilidad</span></div>
+  <div class="prio"><span class="pn">3.</span><span><strong>Mensaje simple</strong><span class="atag">auto</span> — regex extrae 1 MZ-LOTE</span></div>
+  <div class="prio"><span class="pn">4.</span><span><strong>Maestro ambiguo</strong><span class="atag">auto</span> — elige menor diff · va a trazabilidad</span></div>
+  <div class="prio"><span class="pn">5.</span><span><strong>Maestro único</strong><span class="atag">auto</span> — 1 solo lote en maestro</span></div>
+  <div class="prio"><span class="pn pn-p">P.</span><span><strong>Sin identificar</strong><span class="mtag">manual</span> — pendientes.xlsx · BLANCO TE PAGÓ → blancos_acumulados directo</span></div>
+  <div class="prio"><span class="pn pn-pag">✦</span><span><strong>PAGASTE</strong><span class="otag">separado</span> — tú llenas MZ+LOTE o CONCEPTO en hoja Pagaste · MZ+LOTE → pagos_yape_devolucion.xlsx → 5_cobranza · CONCEPTO → solo pagos_yape_pagaste.xlsx · todo → devoluciones_acumulados</span></div>
+</div>
+
+<!-- CALCULO -->
+<div class="sec">después de identificar — diferencia calculada</div>
+<div class="calcs">
+  <div class="calc cg"><div class="calc-name">exacto</div><div class="calc-cond">monto = deuda</div></div>
+  <div class="calc ca"><div class="calc-name">exceso</div><div class="calc-cond">monto > deuda</div></div>
+  <div class="calc cr"><div class="calc-name">parcial</div><div class="calc-cond">monto < deuda</div></div>
+  <div class="calc cx"><div class="calc-name">pendiente</div><div class="calc-cond">MZ-LOTE no existe</div></div>
+</div>
+
+<!-- CICLOS -->
+<div class="sec">ciclos</div>
+<div class="ciclos">
+  <div class="ciclo ci1">
+    <div class="ciclo-title">Ciclo 1 — mes nuevo</div>
+    pagos_yape_tepago.xlsx NO existe · limpia Correcciones/ · Outputs/ · pagos_yape_pagaste.xlsx · Trazabilidad/ · Blancos/ · devoluciones_acumulados.xlsx intactos
+  </div>
+  <div class="ciclo ci2">
+    <div class="ciclo-title">Ciclo 2+ — correcciones</div>
+    pagos_yape_tepago.xlsx SÍ existe · lee correcciones · actualiza trazabilidad · regenera pendientes
+  </div>
+</div>
+
+<!-- FLUJO -->
+<div class="sec">flujo mensual</div>
+<div class="flujo">
+  <span class="fs fs-in">1. copiar inputs</span><span class="arr">→</span>
+  <span class="fs fs-run">2. python main.py</span><span class="arr">→</span>
+  <span class="fs fs-man">3. completar pendientes</span><span class="arr">→</span>
+  <span class="fs fs-man">4. confirmar pagastes</span><span class="arr">→</span>
+  <span class="fs fs-run">5. python main.py</span><span class="arr">→</span>
+  <span class="fs fs-man">6. repetir hasta 0</span><span class="arr">→</span>
+  <span class="fs fs-ok">7. listo ✓</span><span class="arr">→</span>
+  <span class="fs fs-out">8. → 5_cobranza</span>
+</div>
+
+<!-- LIFECYCLE -->
+<div class="sec">lifecycle</div>
+<table class="lc">
+  <thead><tr><th>Archivo</th><th>¿Qué pasa?</th><th>Motivo</th></tr></thead>
+  <tbody>
+    <tr><td class="lc-mono">Trazabilidad/*.xlsx</td><td><span class="keep">PERMANECE</span></td><td>historial mensual permanente</td></tr>
+    <tr><td class="lc-mono">Blancos/blancos_acumulados.xlsx</td><td><span class="keep">PERMANECE</span></td><td>acumulado de todos los BLANCO TE PAGÓ</td></tr>
+    <tr><td class="lc-mono">Devoluciones/devoluciones_acumulados.xlsx</td><td><span class="keep">PERMANECE</span></td><td>historial permanente de PAGASTE</td></tr>
+    <tr><td class="lc-mono">Outputs/pagos_yape_tepago.xlsx</td><td><span class="del">SE BORRA</span></td><td>ya consumido por 5_cobranza</td></tr>
+    <tr><td class="lc-mono">Outputs/pagos_yape_devolucion.xlsx</td><td><span class="del">SE BORRA</span></td><td>ya consumido por 5_cobranza junto a tepago</td></tr>
+    <tr><td class="lc-mono">Devoluciones/pagos_yape_pagaste.xlsx</td><td><span class="del">SE BORRA</span></td><td>historial ya en devoluciones_acumulados</td></tr>
+    <tr><td class="lc-mono">Correcciones/pendientes.xlsx</td><td><span class="del">SE BORRA</span></td><td>correcciones ya en trazabilidad</td></tr>
+    <tr><td class="lc-mono">Inputs/ (todas)</td><td><span class="rep">TÚ REEMPLAZAS</span></td><td>archivos del mes nuevo</td></tr>
+  </tbody>
+</table>
+
+<!-- OUTPUTS -->
+<div class="sec">outputs — uno por uno</div>
+<div class="outputs">
+
+  <div class="out">
+    <div class="out-head">
+      <div class="out-name" style="color:var(--green)">pagos_yape_tepago.xlsx</div>
+      <div class="out-desc">solo lectura · generado automáticamente · → 5_cobranza · pagos múltiples = una fila por lote</div>
+      <span class="badge b-auto">auto</span>
+    </div>
+    <div class="out-body">
+      <div class="grupos">
+        <div class="grupo"><div class="grupo-label">¿Quién es?</div><div class="grupo-cols">USER_ID · NOMBRE · FUENTE</div></div>
+        <div class="grupo"><div class="grupo-label">¿Qué hizo el banco?</div><div class="grupo-cols">TIPO · ORIGEN · DESTINO · MONTO_PAGO · MONTO_ASIGNADO · MENSAJE · FECHA</div></div>
+        <div class="grupo"><div class="grupo-label">¿Dónde vive?</div><div class="grupo-cols">MZ · LOTE</div></div>
+        <div class="grupo"><div class="grupo-label">¿Cuánto debe?</div><div class="grupo-cols">DEUDA_TOTAL · DIFERENCIA · ESTADO_PAGO</div></div>
+        <div class="grupo"><div class="grupo-label">¿Cuándo?</div><div class="grupo-cols">CICLO_CORRECCION</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="out">
+    <div class="out-head">
+      <div class="out-name" style="color:var(--amber)">pagos_yape_pagaste.xlsx</div>
+      <div class="out-desc">registro completo de todos los PAGASTE confirmados · vive en Devoluciones/ · temporal</div>
+      <span class="badge b-auto">auto</span>
+    </div>
+    <div class="out-body">
+      <div class="grupos">
+        <div class="grupo"><div class="grupo-label">¿Qué hizo el banco?</div><div class="grupo-cols">TIPO · ORIGEN · DESTINO · MONTO · MENSAJE · FECHA</div></div>
+        <div class="grupo"><div class="grupo-label">¿Para qué?</div><div class="grupo-cols">CONCEPTO · MOTIVO</div></div>
+        <div class="grupo"><div class="grupo-label">¿Cuándo?</div><div class="grupo-cols">CICLO_CORRECCION</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="out">
+    <div class="out-head">
+      <div class="out-name" style="color:var(--purple)">pagos_yape_devolucion.xlsx</div>
+      <div class="out-desc">solo PAGASTE con MZ+LOTE identificados · generado automático · → 5_cobranza junto a tepago</div>
+      <span class="badge b-auto">auto</span>
+    </div>
+    <div class="out-body">
+      <div class="grupos">
+        <div class="grupo"><div class="grupo-label">¿Qué hizo el banco?</div><div class="grupo-cols">TIPO · ORIGEN · DESTINO · MONTO · MENSAJE · FECHA</div></div>
+        <div class="grupo"><div class="grupo-label">¿A quién se devolvió?</div><div class="grupo-cols">MZ · LOTE</div></div>
+        <div class="grupo"><div class="grupo-label">¿Por qué?</div><div class="grupo-cols">CONCEPTO</div></div>
+        <div class="grupo"><div class="grupo-label">¿Cuándo?</div><div class="grupo-cols">CICLO_CORRECCION</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="out">
+    <div class="out-head">
+      <div class="out-name" style="color:var(--purple)">trazabilidad_YYYY_MM.xlsx</div>
+      <div class="out-desc">permanente · un archivo por mes · 3 hojas</div>
+      <span class="badge b-perm">permanente</span>
+    </div>
+    <div class="out-body">
+      <div class="grupos">
+        <div class="grupo"><div class="grupo-label">Sin_identificar</div><div class="grupo-cols">USER_ID · NOMBRE · TIPO · ORIGEN · DESTINO · MONTO · MENSAJE · FECHA · MZ · LOTE · CONCEPTO · MOTIVO · CICLO_CORRECCION · FECHA_CORRECCION</div></div>
+        <div class="grupo"><div class="grupo-label">Ambiguos</div><div class="grupo-cols">USER_ID · NOMBRE · ORIGEN · MONTO · MENSAJE · FECHA · MZ_CAND · LOTE_CAND · NOMBRE_CAND · DEUDA_CAND · DIFF_CAND · ELEGIDO · MZ_FINAL · LOTE_FINAL · CICLO_CORRECCION · FECHA_CORRECCION</div></div>
+        <div class="grupo"><div class="grupo-label">Pagos_multiples</div><div class="grupo-cols">USER_ID · NOMBRE · ORIGEN · MONTO_TOTAL · MENSAJE · FECHA · MZ · LOTE · DEUDA · MONTO_ASIGNADO · DIFF · CICLO_CORRECCION · FECHA_CORRECCION</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="out">
+    <div class="out-head">
+      <div class="out-name" style="color:var(--cyan)">blancos_acumulados.xlsx</div>
+      <div class="out-desc">permanente · TE PAGÓ sin dueño · va directo sin archivo intermedio · → 5_cobranza</div>
+      <span class="badge b-perm">permanente</span>
+    </div>
+    <div class="out-body">
+      <div class="grupos">
+        <div class="grupo"><div class="grupo-label">Columnas</div><div class="grupo-cols">MES · USER_ID · NOMBRE · TIPO · ORIGEN · DESTINO · MONTO · MENSAJE · FECHA · MZ · LOTE · MOTIVO · ESTADO</div></div>
+        <div class="grupo"><div class="grupo-label">Estados</div>
+          <div class="grupo-cols">
+            <div class="estados">
+              <span class="est est-pend">pendiente</span>
+              <span class="est est-iden">identificado</span>
+              <span class="est est-apli">aplicado</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="out">
+    <div class="out-head">
+      <div class="out-name" style="color:var(--orange)">devoluciones_acumulados.xlsx</div>
+      <div class="out-desc">permanente · todos los PAGASTE · → 5_cobranza descuentos · → 5b_validacion conciliación</div>
+      <span class="badge b-perm">permanente</span>
+    </div>
+    <div class="out-body">
+      <div class="grupos">
+        <div class="grupo"><div class="grupo-label">Columnas</div><div class="grupo-cols">MES · USER_ID · NOMBRE · TIPO · ORIGEN · DESTINO · MONTO_PAGO · MONTO_ASIGNADO · MENSAJE · FECHA · MZ · LOTE · CONCEPTO · ESTADO</div></div>
+        <div class="grupo"><div class="grupo-label">Estados</div>
+          <div class="grupo-cols">
+            <div class="estados">
+              <span class="est est-pend">pendiente</span>
+              <span class="est est-apli">aplicado</span>
+              <span class="est est-na">no aplica — gasto JASS</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

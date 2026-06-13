@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>1_lecturas — arquitectura</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'IBM Plex Sans', sans-serif; background: #fff; color: #111; }
+  .wrap { padding: .5rem 0 3rem; max-width: 720px; margin: 0 auto; }
+
+  /* HEADER */
+  .title { font-size: 20px; font-weight: 600; color: #111; margin: 0 0 2px; }
+  .sub   { font-size: 12px; color: #666; margin: 0 0 20px; }
+
+  /* PIPELINE STRIP */
+  .pipeline-strip {
+    display: flex; align-items: center; gap: 4px;
+    background: #f5f5f5; border-radius: 8px;
+    padding: 8px 12px; margin-bottom: 20px; overflow-x: auto;
+  }
+  .pip-mod {
+    font-size: 10px; font-weight: 600; padding: 3px 8px;
+    border-radius: 4px; white-space: nowrap; background: #e5e7eb; color: #6b7280;
+  }
+  .pip-mod.active { background: #2E86C1; color: #fff; }
+  .pip-arrow { font-size: 12px; color: #aaa; flex-shrink: 0; }
+
+  /* SECTION */
+  .section { margin-bottom: 24px; }
+  .sec-title {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .08em; color: #2E86C1; border-bottom: 1.5px solid #AED6F1;
+    padding-bottom: 4px; margin-bottom: 10px;
+  }
+
+  /* CARD */
+  .card { border: 0.5px solid #ddd; border-radius: 8px; padding: 10px 14px; margin-bottom: 8px; }
+  .card-title { font-size: 12px; font-weight: 600; color: #111; margin-bottom: 4px; }
+  .card-sub { font-size: 11px; color: #666; }
+
+  /* FILE BLOCK */
+  .file-block { border-radius: 8px; padding: 10px 14px; margin-bottom: 10px; }
+  .file-block.input       { background: #EBF5FB; border: 0.5px solid #AED6F1; }
+  .file-block.output-perm { background: #E9F7EF; border: 0.5px solid #A9DFBF; }
+  .file-block.output-temp { background: #FEF9E7; border: 0.5px solid #F9E79F; }
+  .file-block.output-trace{ background: #FDF2FB; border: 0.5px solid #D7BDE2; }
+  .file-block.output-cycle{ background: #FEF5E7; border: 0.5px solid #FAD7A0; }
+
+  .file-name {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px; font-weight: 600; margin-bottom: 2px;
+  }
+  .file-block.input        .file-name { color: #1A5276; }
+  .file-block.output-perm  .file-name { color: #1E6B3C; }
+  .file-block.output-temp  .file-name { color: #7D6608; }
+  .file-block.output-trace .file-name { color: #6C3483; }
+  .file-block.output-cycle .file-name { color: #784212; }
+
+  .file-desc { font-size: 11px; color: #444; margin-bottom: 6px; }
+
+  /* BADGE */
+  .badge {
+    display: inline-block; font-size: 9px; font-weight: 700;
+    padding: 1px 6px; border-radius: 3px;
+    text-transform: uppercase; letter-spacing: .04em; margin-bottom: 6px;
+  }
+  .badge.perm   { background: #D5F5E3; color: #1E8449; }
+  .badge.temp   { background: #FEF9C3; color: #7D6608; }
+  .badge.trace  { background: #F5EEF8; color: #6C3483; }
+  .badge.cycle  { background: #FDEBD0; color: #784212; }
+  .badge.manual { background: #D6EAF8; color: #1A5276; }
+  .badge.auto   { background: #E8DAEF; color: #512E5F; }
+  .badge.pdf    { background: #FDEDEC; color: #922B21; }
+
+  /* TABLE */
+  table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  th { background: #1E3A5F; color: #fff; font-weight: 600; padding: 5px 8px; text-align: left; }
+  td { padding: 5px 8px; border-bottom: 0.5px solid #e5e7eb; color: #333; }
+  tr:last-child td { border-bottom: none; }
+  tr:nth-child(even) td { background: #f9f9f9; }
+
+  /* FLOW STEPS */
+  .flow { display: flex; flex-direction: column; gap: 0; }
+  .flow-step { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 0.5px solid #f0f0f0; }
+  .flow-step:last-child { border-bottom: none; }
+  .step-num {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: #2E86C1; color: #fff;
+    font-size: 11px; font-weight: 700; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .step-body { flex: 1; }
+  .step-title { font-size: 12px; font-weight: 600; color: #111; }
+  .step-desc  { font-size: 11px; color: #555; margin-top: 2px; }
+  .step-code  {
+    font-family: 'IBM Plex Mono', monospace; font-size: 10px;
+    background: #f5f5f5; border-radius: 4px; padding: 3px 7px;
+    display: inline-block; margin-top: 4px; color: #333;
+  }
+
+  /* ANOMALÍAS */
+  .anom-block { border-radius: 6px; padding: 8px 12px; margin-bottom: 8px; font-size: 11px; }
+  .anom-block.block { background: #FDEDEC; border-left: 3px solid #CB4335; }
+  .anom-block.info  { background: #FEF9E7; border-left: 3px solid #B7950B; }
+  .anom-name   { font-weight: 700; font-size: 12px; margin-bottom: 3px; }
+  .anom-when   { color: #333; margin-bottom: 2px; }
+  .anom-msg    { color: #555; font-style: italic; margin-bottom: 2px; }
+  .anom-accion { color: #777; margin-top: 3px; }
+  .anom-causas { color: #555; margin-top: 3px; }
+  .anom-causas span {
+    display: inline-block; background: #fff; border: 0.5px solid #ddd;
+    border-radius: 3px; padding: 1px 6px; margin: 2px 2px 0 0; font-size: 10px;
+  }
+
+  /* REGLA NEGOCIO */
+  .rule-box {
+    background: #F4F6F7; border: 0.5px solid #CCD1D1; border-radius: 6px;
+    padding: 8px 12px; font-size: 11px; margin-bottom: 8px;
+  }
+  .rule-box .rule-title { font-weight: 600; color: #1A5276; margin-bottom: 4px; font-size: 12px; }
+
+  /* NOTE */
+  .note {
+    font-size: 11px; color: #555; background: #f5f5f5;
+    border-left: 3px solid #aaa; border-radius: 0 6px 6px 0;
+    padding: 7px 12px; margin-top: 6px;
+  }
+  .note strong { color: #333; }
+
+  /* LIFECYCLE */
+  .life-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 0; border-bottom: 0.5px solid #f0f0f0; font-size: 11px;
+  }
+  .life-row:last-child { border-bottom: none; }
+  .life-file   { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #1A5276; min-width: 240px; }
+  .life-action { color: #333; flex: 1; font-weight: 600; }
+  .life-why    { color: #888; font-size: 10px; }
+
+  /* PILL STATUS */
+  .pill {
+    display: inline-block; font-size: 9px; font-weight: 700;
+    padding: 1px 7px; border-radius: 20px; margin-left: 6px;
+    text-transform: uppercase; letter-spacing: .04em; vertical-align: middle;
+  }
+  .pill.bloq { background: #FADBD8; color: #922B21; }
+  .pill.info { background: #FEF9C3; color: #7D6608; }
+
+  /* CICLO BANNER */
+  .ciclo-banner {
+    background: #FEF5E7; border: 0.5px solid #FAD7A0; border-radius: 8px;
+    padding: 10px 14px; margin-bottom: 10px; font-size: 11px; color: #784212;
+  }
+  .ciclo-banner strong { color: #6E2C00; }
+
+  /* TRAZABILIDAD TABLE */
+  .trace-table td:first-child { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #6C3483; }
+
+  /* GRID 2 */
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  @media (max-width: 520px) { .grid2 { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- HEADER -->
+  <p class="title">01 Lecturas — arquitectura</p>
+  <p class="sub">Módulo 1 del pipeline · Procesamiento de lecturas mensuales del operario</p>
+
+  <!-- PIPELINE STRIP -->
+  <div class="pipeline-strip">
+    <span class="pip-mod active">01 Lecturas</span>
+    <span class="pip-arrow">→</span>
+    <span class="pip-mod">02 Planilla</span>
+    <span class="pip-arrow">→</span>
+    <span class="pip-mod">03 Pagos</span>
+    <span class="pip-arrow">→</span>
+    <span class="pip-mod">04 Cobranza</span>
+    <span class="pip-arrow">→</span>
+    <span class="pip-mod">04b Validación</span>
+    <span class="pip-arrow">→</span>
+    <span class="pip-mod">05 Corte</span>
+    <span class="pip-arrow">→</span>
+    <span class="pip-mod">05b Override</span>
+    <span class="pip-arrow">→</span>
+    <span class="pip-mod">06 Boletas</span>
+    <span class="pip-arrow">→</span>
+    <span class="pip-mod">06a Enriquecimiento</span>
+    <span class="pip-arrow">→</span>
+    <span class="pip-mod">07 Nueva planilla</span>
+  </div>
+
+  <!-- QUÉ HACE -->
+  <div class="section">
+    <div class="sec-title">Qué hace</div>
+    <div class="card">
+      <div class="card-title">Registrar, validar y depurar las lecturas de medidores del mes</div>
+      <div class="card-sub">
+        El operario recorre las manzanas y anota MARC_ACT (lectura actual) y M3 (metros cúbicos calculados
+        a mano) en el template mensual. Este módulo valida esas lecturas contra el historial, detecta
+        anomalías por ciclos hasta que no quede ninguna bloqueante, genera una orden de verificación en PDF
+        para el operario, registra en trazabilidad cada corrección (maquillaje) realizada, y produce el
+        archivo limpio que alimenta a 02 Planilla.
+      </div>
+    </div>
+    <div class="rule-box">
+      <div class="rule-title">Principio de integridad de datos</div>
+      <code>registro_operario_acumulado.xlsx</code> conserva siempre los datos tal cual los entregó el operario.
+      Las correcciones aplicadas para boletas se registran en <code>trazabilidad_YYYY-MM.xlsx</code>
+      y el resultado final limpio va a <code>lecturas_planilla_YYYY-MM.xlsx</code>. Nunca se modifica
+      la fuente original.
+    </div>
+  </div>
+
+  <!-- INPUTS -->
+  <div class="section">
+    <div class="sec-title">Inputs</div>
+
+    <div class="file-block input">
+      <span class="badge manual">Operario llena</span>
+      <div class="file-name">inputs/registro_operario_mes.xlsx</div>
+      <div class="file-desc">
+        Template mensual generado por <code>crear_template.py</code>.
+        El operario completa MARC_ACT, M3 y opcionalmente obs_operario para cada usuario recorriendo las manzanas.
+        Columnas MARC_ACT, M3 y obs_operario aparecen resaltadas para guiar el llenado.
+        Incluye una leyenda impresa con los códigos M/F/P encima de la tabla.
+      </div>
+      <table>
+        <tr><th>Columna</th><th>Quién llena</th><th>Descripción</th></tr>
+        <tr><td>MZ</td><td>Sistema (pre-cargado)</td><td>Manzana del usuario — ej: A, B1, Z</td></tr>
+        <tr><td>LT</td><td>Sistema (pre-cargado)</td><td>Lote — ej: 1, 8A, 11A</td></tr>
+        <tr><td>NOMBRE</td><td>Sistema (pre-cargado)</td><td>Nombre completo del usuario</td></tr>
+        <tr><td>MES_ANO</td><td>Sistema (pre-cargado)</td><td>Ciclo de cobranza en formato YYYY-MM</td></tr>
+        <tr><td>MARC_ANT</td><td>Sistema (pre-cargado)</td><td>Última MARCACION del acumulado</td></tr>
+        <tr><td><strong>MARC_ACT</strong></td><td><strong>Operario</strong></td><td>Lectura actual del medidor (display)</td></tr>
+        <tr><td><strong>M3</strong></td><td><strong>Operario</strong></td><td>Metros cúbicos calculados a mano</td></tr>
+        <tr><td><strong>obs_operario</strong></td><td><strong>Operario (opcional)</strong></td><td>Código M/F/P según leyenda (o vacío)</td></tr>
+      </table>
+      <div class="note" style="margin-top:6px;">
+        <strong>Contrato detallado:</strong> ver <code>docs/contrato_registro_operario_mes.html</code>
+      </div>
+    </div>
+
+    <div class="file-block input">
+      <span class="badge auto">Sistema lee y actualiza</span>
+      <div class="file-name">inputs/registro_operario_acumulado.xlsx</div>
+      <div class="file-desc">
+        Historial acumulado de todos los usuarios con doble header: por cada mes <code>YYYY-MM</code>
+        se conservan dos sub-columnas <code>MARCACION</code> y <code>M3</code>.
+        <code>crear_template.py</code> lo lee para pre-cargar el template; <code>main.py</code>
+        lo lee al inicio (historial) y lo actualiza al final (nueva columna del ciclo).
+        Si no existe (primer mes), el template queda vacío para llenado manual completo.
+      </div>
+      <table>
+        <tr><th>Columna</th><th>Tipo</th><th>Descripción</th></tr>
+        <tr><td>MZ / LT / NOMBRE</td><td>texto</td><td>Identificación inmutable del usuario (merge vertical)</td></tr>
+        <tr><td>YYYY-MM.MARCACION</td><td>número</td><td>Lectura del medidor al final del ciclo</td></tr>
+        <tr><td>YYYY-MM.M3</td><td>número</td><td>Consumo declarado por el operario ese ciclo</td></tr>
+      </table>
+      <div class="note">
+        <strong>Fuente original inmutable.</strong> Guarda los datos exactos del operario, incluyendo
+        lecturas que luego fueron maquilladas (los maquillajes van a trazabilidad, no contaminan este archivo).
+        El último par de columnas (resaltado en azul) es siempre el ciclo más reciente. <strong>Nunca se borra.</strong>
+      </div>
+      <div class="note" style="margin-top:6px;">
+        <strong>Contrato detallado:</strong> ver <code>docs/contrato_registro_operario_acumulado.html</code>
+      </div>
+    </div>
+  </div>
+
+  <!-- LÓGICA DE PROCESAMIENTO -->
+  <div class="section">
+    <div class="sec-title">Lógica de procesamiento</div>
+
+    <div class="card">
+      <div class="card-title">Pasos internos de main.py</div>
+    </div>
+
+    <div class="flow">
+      <div class="flow-step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title">Cargar lecturas del operario</div>
+          <div class="step-desc">
+            Lee <code>inputs/registro_operario_mes.xlsx</code>. Normaliza MZ (mayúsculas) y LT
+            (quita decimales: "7.0" → "7") para garantizar comparación exacta con el historial.
+          </div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title">Cargar historial</div>
+          <div class="step-desc">
+            Lee <code>inputs/registro_operario_acumulado.xlsx</code>. Construye mapa
+            <code>(MZ, LT) → {mes: (MARCACION, M3)}</code>. Si no existe, historial vacío (primer mes del sistema).
+          </div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-title">Validar cada lectura</div>
+          <div class="step-desc">
+            Para cada fila: obtiene MARC_ANT del historial (último mes disponible)
+            y ejecuta todas las reglas de anomalía definidas.
+          </div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <div class="step-title">Separar confirmados y anomalías</div>
+          <div class="step-desc">
+            Lecturas sin problemas → confirmados. Lecturas con anomalía bloqueante → cola de corrección.
+            Lecturas informativas → confirmadas pero marcadas en el reporte.
+          </div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num">5</div>
+        <div class="step-body">
+          <div class="step-title">Actualizar registro_operario_acumulado.xlsx</div>
+          <div class="step-desc">
+            Escribe la columna del mes actual con los datos del operario tal cual —
+            tanto confirmados como corregidos (maquillados). Los bloqueantes sin corregir aún
+            <strong>no se escriben</strong> hasta que pasen el siguiente ciclo.
+          </div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num">6</div>
+        <div class="step-body">
+          <div class="step-title">Exportar orden_verificacion_YYYY-MM.pdf</div>
+          <div class="step-desc">
+            Genera el PDF para el operario con cada anomalía explicada en lenguaje claro:
+            usuario, MZ, LT, valores registrados, tipo de problema y causas posibles.
+          </div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num">7</div>
+        <div class="step-body">
+          <div class="step-title">Generar correcciones_YYYY-MM.xlsx</div>
+          <div class="step-desc">
+            Crea o actualiza el archivo de trabajo con las anomalías pendientes de corrección.
+            Aquí se aplica el maquillaje: se anota el valor original, el valor corregido y el motivo.
+            Este archivo se sobreescribe en cada ciclo y desaparece cuando anomalías = 0.
+          </div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num">8</div>
+        <div class="step-body">
+          <div class="step-title">Escribir trazabilidad y generar lecturas_planilla</div>
+          <div class="step-desc">
+            Al cerrar el último ciclo (anomalías = 0): los maquillajes se vuelcan a
+            <code>trazabilidad_YYYY-MM.xlsx</code> de forma permanente.
+            Luego se genera <code>lecturas_planilla_YYYY-MM.xlsx</code> con los confirmados directos
+            más los corregidos — este archivo es el que consume 02 Planilla.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ciclo-banner" style="margin-top:10px;">
+      <strong>Ciclos de corrección:</strong> Si quedan anomalías bloqueantes tras una corrida,
+      se aplican los maquillajes en <code>correcciones_YYYY-MM.xlsx</code> y se vuelve a correr
+      <code>main.py</code>. Cada ciclo registra su número en trazabilidad.
+      Se repite hasta que el conteo de bloqueantes llegue a cero.
+    </div>
+  </div>
+
+  <!-- REGLAS DE VALIDACIÓN -->
+  <div class="section">
+    <div class="sec-title">Reglas de validación y mensajes al operario</div>
+
+    <div class="anom-block block">
+      <div class="anom-name">MEDIDOR_INVERTIDO <span class="pill bloq">bloqueante</span></div>
+      <div class="anom-when"><strong>Cuándo:</strong> MARC_ACT &lt; MARC_ANT y MARC_ANT − MARC_ACT ≤ <code>UMBRAL_INVERSION</code> (50 m³ por defecto), sin obs=M</div>
+      <div class="anom-msg">Ejemplo: lectura actual 75, anterior 80 → diferencia −5 m³</div>
+      <div class="anom-causas">
+        <strong>Causas posibles:</strong>
+        <span>Medidor instalado al revés</span>
+        <span>Lectura mal anotada</span>
+        <span>Medidor en mal estado</span>
+      </div>
+      <div class="anom-accion"><strong>Acción:</strong> Ir al predio, verificar si el medidor está al revés. Anotar la lectura correcta.</div>
+    </div>
+
+    <div class="anom-block block">
+      <div class="anom-name">POSIBLE_CAMBIO_MEDIDOR <span class="pill bloq">bloqueante</span></div>
+      <div class="anom-when"><strong>Cuándo:</strong> MARC_ACT &lt; MARC_ANT y MARC_ANT − MARC_ACT &gt; <code>UMBRAL_INVERSION</code> (50 m³), sin obs=M</div>
+      <div class="anom-msg">Ejemplo: lectura actual 12, anterior 1600 → diferencia −1588 m³</div>
+      <div class="anom-causas">
+        <strong>Causas posibles:</strong>
+        <span>Medidor cambiado sin reportar</span>
+        <span>Lectura tomada en medidor equivocado</span>
+        <span>Error de transcripción grave</span>
+      </div>
+      <div class="anom-accion"><strong>Acción:</strong> Confirmar con el usuario si se cambió el medidor. Si sí, escribir M en obs y registrar la lectura del nuevo medidor.</div>
+    </div>
+
+    <div class="anom-block block">
+      <div class="anom-name">DIFERENCIA_M3 <span class="pill bloq">bloqueante</span></div>
+      <div class="anom-when"><strong>Cuándo:</strong> |M3_operario − (MARC_ACT − MARC_ANT)| &gt; 0.05</div>
+      <div class="anom-msg">Ejemplo: MARC_ACT 45 − MARC_ANT 30 = 15 m³, pero el operario anotó 18 m³</div>
+      <div class="anom-causas">
+        <strong>Causas posibles:</strong>
+        <span>Error aritmético del operario</span>
+        <span>Transcripción incorrecta</span>
+      </div>
+      <div class="anom-accion"><strong>Acción:</strong> Verificar el cálculo M3 con el operario y corregir.</div>
+      <div class="note" style="margin-top:6px;">
+        <strong>Excepción — mínimo de cobro:</strong> Si el consumo calculado (MARC_ACT − MARC_ANT) es menor
+        a 5 m³ y el operario anotó exactamente 5 m³, el sistema lo reconoce como aplicación del mínimo de
+        cobro y <strong>no genera anomalía</strong>.
+      </div>
+    </div>
+
+    <div class="anom-block block">
+      <div class="anom-name">EXCESIVO <span class="pill bloq">bloqueante</span></div>
+      <div class="anom-when"><strong>Cuándo:</strong> consumo calculado &gt; 50 m³</div>
+      <div class="anom-msg">Ejemplo: MARC_ACT 185, MARC_ANT 130 → consumo 55 m³</div>
+      <div class="anom-causas">
+        <strong>Causas posibles:</strong>
+        <span>Fuga en la instalación</span>
+        <span>Medidor en mal estado</span>
+        <span>Robo de agua</span>
+        <span>Error de lectura</span>
+      </div>
+      <div class="anom-accion"><strong>Acción:</strong> Verificar físicamente el predio antes de facturar.</div>
+    </div>
+
+    <div class="anom-block block">
+      <div class="anom-name">SIN_LECTURA <span class="pill bloq">bloqueante</span></div>
+      <div class="anom-when"><strong>Cuándo:</strong> MARC_ACT no fue ingresado (celda vacía)</div>
+      <div class="anom-causas">
+        <strong>Causas posibles:</strong>
+        <span>Predio cerrado o inaccesible</span>
+        <span>Medidor sin display visible</span>
+        <span>Omisión del operario</span>
+      </div>
+      <div class="anom-accion"><strong>Acción:</strong> Completar la lectura y volver a correr el módulo.</div>
+    </div>
+
+    <div class="anom-block block">
+      <div class="anom-name">DUPLICADO <span class="pill bloq">bloqueante</span></div>
+      <div class="anom-when"><strong>Cuándo:</strong> Mismo (MZ, LT) aparece 2 o más veces en registro_operario_mes</div>
+      <div class="anom-msg">Ejemplo: el operario duplicó la fila A-1 por error al copiar</div>
+      <div class="anom-causas">
+        <strong>Causas posibles:</strong>
+        <span>Error al copiar/pegar</span>
+        <span>Fila agregada manualmente sin advertir</span>
+      </div>
+      <div class="anom-accion"><strong>Acción:</strong> Eliminar las filas duplicadas dejando solo la correcta.</div>
+    </div>
+
+    <div class="anom-block block">
+      <div class="anom-name">USUARIO_FANTASMA <span class="pill bloq">bloqueante</span></div>
+      <div class="anom-when"><strong>Cuándo:</strong> Usuario presente en registro_operario_acumulado pero falta en registro_operario_mes</div>
+      <div class="anom-causas">
+        <strong>Causas posibles:</strong>
+        <span>Operario omitió una manzana entera</span>
+        <span>Usuario fue dado de baja sin documentar</span>
+        <span>Fila borrada por accidente</span>
+      </div>
+      <div class="anom-accion"><strong>Acción:</strong> Confirmar si el usuario sigue activo. Si sí, recuperar la fila en el template. Si no, marcar de baja en el acumulado.</div>
+    </div>
+
+    <div class="anom-block block">
+      <div class="anom-name">MARC_ACT_NO_NUMERICO <span class="pill bloq">bloqueante</span></div>
+      <div class="anom-when"><strong>Cuándo:</strong> MARC_ACT contiene caracteres no numéricos</div>
+      <div class="anom-msg">Ejemplo: "no leyó", "ND", "?", "1O0" (cero confundido con O)</div>
+      <div class="anom-causas">
+        <strong>Causas posibles:</strong>
+        <span>Texto en vez de número</span>
+        <span>Confusión visual (0 vs O, 1 vs l)</span>
+      </div>
+      <div class="anom-accion"><strong>Acción:</strong> Corregir el valor a número o, si realmente no hay lectura, vaciar la celda y marcar obs_operario = P.</div>
+    </div>
+
+    <div class="anom-block info">
+      <div class="anom-name">SIN_HISTORIAL <span class="pill info">informativo</span></div>
+      <div class="anom-when"><strong>Cuándo:</strong> Usuario nuevo sin ciclos anteriores en registro_operario_acumulado</div>
+      <div class="anom-accion">
+        La lectura se acepta y se agrega al historial. Aparece en el reporte solo
+        para conocimiento del supervisor. No bloquea el ciclo.
+      </div>
+    </div>
+
+    <div class="anom-block info">
+      <div class="anom-name">CONSUMO_CERO <span class="pill info">informativo</span></div>
+      <div class="anom-when"><strong>Cuándo:</strong> MARC_ACT == MARC_ANT y M3 == 0 (sin que aplique el mínimo)</div>
+      <div class="anom-msg">Ejemplo: ant=22, act=22, M3=0</div>
+      <div class="anom-causas">
+        <strong>Causas posibles:</strong>
+        <span>Predio deshabitado</span>
+        <span>Medidor congelado</span>
+        <span>By-pass instalado</span>
+      </div>
+      <div class="anom-accion">Se acepta pero queda en el reporte. Si el patrón persiste varios meses, verificar el medidor.</div>
+    </div>
+
+    <div class="anom-block info">
+      <div class="anom-name">SALTO_HISTORICO <span class="pill info">informativo</span></div>
+      <div class="anom-when"><strong>Cuándo:</strong> M3 actual &gt; 3 × promedio de M3 de los últimos 4 ciclos</div>
+      <div class="anom-msg">Ejemplo: usuario promedia 10 m³/mes los últimos 4 meses, este ciclo registra 35 m³</div>
+      <div class="anom-causas">
+        <strong>Causas posibles:</strong>
+        <span>Fuga temprana (antes del umbral de 50 m³)</span>
+        <span>Cambio de uso del predio</span>
+        <span>Visitas o eventos puntuales</span>
+      </div>
+      <div class="anom-accion">Se acepta pero queda alerta. Detecta fugas antes de que escalen a EXCESIVO.</div>
+      <div class="note" style="margin-top:6px;">
+        <strong>Requisito:</strong> necesita al menos 4 ciclos previos con M3 registrado en el acumulado para evaluarse.
+        Si hay menos historial, no se evalúa.
+      </div>
+    </div>
+
+    <div class="anom-block info">
+      <div class="anom-name">MEDIDOR_CAMBIADO <span class="pill info">informativo</span></div>
+      <div class="anom-when"><strong>Cuándo:</strong> MARC_ACT &lt; MARC_ANT pero obs_operario = M</div>
+      <div class="anom-accion">
+        Legitima la lectura menor porque se cambió el medidor físicamente. El M3 declarado por el operario
+        se acepta tal cual (no se calcula). Queda registrado para auditoría. Bypassa <code>MEDIDOR_INVERTIDO</code> y <code>POSIBLE_CAMBIO_MEDIDOR</code>.
+      </div>
+    </div>
+
+    <div class="rule-box" style="margin-top:10px;">
+      <div class="rule-title">Constantes configurables</div>
+      <code>M3_MINIMO = 5.0</code> &nbsp;·&nbsp; <code>M3_EXCESIVO = 50.0</code> &nbsp;·&nbsp;
+      <code>UMBRAL_INVERSION = 50.0</code> &nbsp;·&nbsp;
+      <code>SALTO_MESES = 4</code> &nbsp;·&nbsp; <code>SALTO_FACTOR = 3.0</code>
+      <div style="margin-top:4px; font-size:11px; color:#555;">
+        Modificar en <code>config.py</code> si los umbrales cambian por decisión de la junta.
+      </div>
+    </div>
+
+    <div class="rule-box" style="margin-top:10px;">
+      <div class="rule-title">Códigos de obs_operario</div>
+      <div style="font-size:11px; color:#333; line-height:1.7;">
+        <code>M</code> — medidor cambiado (legitima MEDIDOR_INVERTIDO / POSIBLE_CAMBIO_MEDIDOR → MEDIDOR_CAMBIADO)<br>
+        <code>F</code> — fuga visible reportada (informativo siempre)<br>
+        <code>P</code> — predio cerrado o inaccesible (legitima SIN_LECTURA)<br>
+        <code>(vacío)</code> — lectura normal sin observación
+      </div>
+    </div>
+  </div>
+
+  <!-- OUTPUTS -->
+  <div class="section">
+    <div class="sec-title">Outputs</div>
+
+    <div class="note" style="margin-bottom:14px;">
+      <strong>Nota:</strong> <code>registro_operario_acumulado.xlsx</code> es input/output en simultáneo —
+      vive en <code>inputs/</code>, se lee al inicio del run y se actualiza al final con la nueva columna del ciclo.
+      Está documentado en la sección de Inputs.
+    </div>
+
+    <!-- orden_verificacion PDF -->
+    <div class="file-block output-temp">
+      <span class="badge pdf">PDF · se regenera cada ciclo</span>
+      <div class="file-name">outputs/orden_verificacion_YYYY-MM.pdf</div>
+      <div class="file-desc">
+        Reporte para el operario. Lista cada anomalía con contexto suficiente para que
+        pueda ir al campo y verificar sin depender de otro sistema.
+      </div>
+      <table>
+        <tr><th>Campo</th><th>Descripción</th></tr>
+        <tr><td>Usuario / MZ / LT</td><td>Identificación del predio</td></tr>
+        <tr><td>MARC_ANT / MARC_ACT / M3</td><td>Valores registrados que generaron la anomalía</td></tr>
+        <tr><td>Tipo de anomalía</td><td>SIN_LECTURA, MEDIDOR_INVERTIDO, POSIBLE_CAMBIO_MEDIDOR, EXCESIVO</td></tr>
+        <tr><td>Causas posibles</td><td>Lista de posibles explicaciones en lenguaje claro</td></tr>
+        <tr><td>Acción solicitada</td><td>Instrucción concreta para el operario</td></tr>
+      </table>
+    </div>
+
+    <!-- correcciones xlsx -->
+    <div class="file-block output-cycle">
+      <span class="badge cycle">Temporal por ciclo · desaparece al llegar a cero</span>
+      <div class="file-name">outputs/correcciones_YYYY-MM.xlsx</div>
+      <div class="file-desc">
+        Archivo de trabajo para aplicar maquillajes. Se crea al primer ciclo con anomalías
+        y se sobreescribe en cada corrida hasta que no queden bloqueantes.
+        Al cerrar el último ciclo, sus datos se vuelcan a trazabilidad y el archivo se elimina.
+      </div>
+      <table>
+        <tr><th>Columna</th><th>Descripción</th></tr>
+        <tr><td>MZ / LT / NOMBRE</td><td>Identificación del usuario</td></tr>
+        <tr><td>MARC_ANT / MARC_ACT_original / M3_original</td><td>Valores tal cual los entregó el operario</td></tr>
+        <tr><td>MARC_ACT_corregido / M3_corregido</td><td>Valores ajustados para boletas (maquillaje)</td></tr>
+        <tr><td>tipo_anomalia</td><td>Código de la regla que disparó la anomalía</td></tr>
+        <tr><td>motivo_correccion</td><td>Explicación libre del criterio aplicado</td></tr>
+        <tr><td>estado</td><td>pendiente / corregido / verificado_en_campo</td></tr>
+        <tr><td>ciclo</td><td>Número de ciclo en que se registró la corrección</td></tr>
+      </table>
+    </div>
+
+    <!-- trazabilidad -->
+    <div class="file-block output-trace">
+      <span class="badge trace">Permanente · auditoría</span>
+      <div class="file-name">outputs/trazabilidad_YYYY-MM.xlsx</div>
+      <div class="file-desc">
+        Registro permanente de todos los maquillajes aplicados en el mes. Se genera al cerrar
+        el último ciclo. Permite auditar cualquier diferencia entre lo que midió el operario
+        y lo que se facturó.
+      </div>
+      <table class="trace-table">
+        <tr><th>Columna</th><th>Descripción</th></tr>
+        <tr><td>MZ / LT / NOMBRE</td><td>Identificación del usuario</td></tr>
+        <tr><td>MARC_ACT_original</td><td>Lectura original del operario</td></tr>
+        <tr><td>M3_original</td><td>M3 original del operario</td></tr>
+        <tr><td>MARC_ACT_corregido</td><td>Valor ajustado usado en boleta</td></tr>
+        <tr><td>M3_corregido</td><td>M3 ajustado usado en boleta</td></tr>
+        <tr><td>tipo_anomalia</td><td>Regla que disparó la corrección</td></tr>
+        <tr><td>motivo_correccion</td><td>Criterio aplicado</td></tr>
+        <tr><td>resuelto_por</td><td>campo (operario verificó) / maquillaje (estimación)</td></tr>
+        <tr><td>ciclo</td><td>Número de ciclo en que se cerró</td></tr>
+        <tr><td>fecha_cierre</td><td>Fecha en que se aplicó el maquillaje</td></tr>
+      </table>
+      <div class="note" style="margin-top:6px;">
+        <strong>Valor futuro:</strong> El historial acumulado de trazabilidad permite detectar
+        patrones: un medidor que genera anomalía recurrente cada 2–3 meses es señal de medidor
+        invertido o en mal estado antes de que escale a problema mayor.
+      </div>
+    </div>
+
+    <!-- lecturas_planilla -->
+    <div class="file-block output-perm">
+      <span class="badge perm">Permanente · generado al cerrar ciclos</span>
+      <div class="file-name">outputs/lecturas_planilla_YYYY-MM.xlsx</div>
+      <div class="file-desc">
+        Datos limpios y coherentes que alimentan directamente a 02 Planilla.
+        Combina las lecturas que pasaron sin anomalía más las que fueron corregidas (maquilladas).
+        Las boletas se generan a partir de este archivo — nunca de registro_operario.
+      </div>
+      <table>
+        <tr><th>Columna</th><th>Descripción</th></tr>
+        <tr><td>MZ / LT / NOMBRE</td><td>Identificación del usuario</td></tr>
+        <tr><td>MARC_ANT</td><td>Lectura anterior (del historial)</td></tr>
+        <tr><td>MARC_ACT</td><td>Lectura final usada para cobro (original o corregida)</td></tr>
+        <tr><td>M3</td><td>Consumo final usado para cobro</td></tr>
+        <tr><td>origen</td><td>directo (sin anomalía) / corregido (maquillaje aplicado)</td></tr>
+      </table>
+      <div class="note" style="margin-top:6px;">
+        <strong>Consumidor:</strong> 2_planilla lee este archivo desde
+        <code>../1_lecturas/outputs/lecturas_planilla_YYYY-MM.xlsx</code>
+        para calcular el cobro de cada usuario.
+      </div>
+    </div>
+
+    <!-- run.log -->
+    <div class="file-block output-temp">
+      <span class="badge temp">Temporal · se sobreescribe cada run</span>
+      <div class="file-name">outputs/run.log</div>
+      <div class="file-desc">
+        Log de ejecución con timestamps. Registra: lecturas cargadas, confirmadas,
+        anomalías bloqueantes, informativas, ciclo actual y resultado del run.
+      </div>
+    </div>
+  </div>
+
+  <!-- CICLO DE VIDA -->
+  <div class="section">
+    <div class="sec-title">Ciclo de vida de archivos</div>
+
+    <div class="life-row">
+      <div class="life-file">inputs/registro_operario_acumulado.xlsx</div>
+      <div class="life-action">PERMANECE · se actualiza (input/output)</div>
+      <div class="life-why">historial puro del operario — nunca borrar</div>
+    </div>
+    <div class="life-row">
+      <div class="life-file">inputs/registro_operario_mes.xlsx</div>
+      <div class="life-action">TÚ REEMPLAZAS cada mes</div>
+      <div class="life-why">correr crear_template.py al inicio del ciclo</div>
+    </div>
+    <div class="life-row">
+      <div class="life-file">outputs/trazabilidad_YYYY-MM.xlsx</div>
+      <div class="life-action">PERMANECE · uno por mes</div>
+      <div class="life-why">registro de auditoría — nunca borrar</div>
+    </div>
+    <div class="life-row">
+      <div class="life-file">outputs/lecturas_planilla_YYYY-MM.xlsx</div>
+      <div class="life-action">PERMANECE · uno por mes</div>
+      <div class="life-why">fuente de verdad para boletas</div>
+    </div>
+    <div class="life-row">
+      <div class="life-file">outputs/orden_verificacion_YYYY-MM.pdf</div>
+      <div class="life-action">SE SOBREESCRIBE cada ciclo</div>
+      <div class="life-why">refleja anomalías pendientes del ciclo actual</div>
+    </div>
+    <div class="life-row">
+      <div class="life-file">outputs/correcciones_YYYY-MM.xlsx</div>
+      <div class="life-action">SE ELIMINA al cerrar ciclos</div>
+      <div class="life-why">datos volcados a trazabilidad antes de eliminar</div>
+    </div>
+    <div class="life-row">
+      <div class="life-file">outputs/run.log</div>
+      <div class="life-action">SE SOBREESCRIBE cada run</div>
+      <div class="life-why">log del último run</div>
+    </div>
+  </div>
+
+  <!-- FLUJO MENSUAL -->
+  <div class="section">
+    <div class="sec-title">Flujo mensual</div>
+
+    <div class="flow">
+      <div class="flow-step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title">Generar template del operario</div>
+          <div class="step-desc">Al inicio del mes, correr una sola vez:</div>
+          <div class="step-code">python crear_template.py</div>
+          <div class="step-desc" style="margin-top:4px;">
+            Genera <code>inputs/registro_operario_mes.xlsx</code> con todos los usuarios pre-cargados desde
+            <code>inputs/registro_operario_acumulado.xlsx</code> (MZ, LT, NOMBRE, MES_ANO, MARC_ANT).
+            Columnas MARC_ACT, M3 y obs_operario en amarillo para que el operario complete.
+            Incluye leyenda de códigos M/F/P encima de la tabla.
+          </div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title">El operario completa las lecturas</div>
+          <div class="step-desc">
+            Recorre las manzanas anotando MARC_ACT (número en el display) y M3 (cálculo a mano).
+            Devuelve el archivo completo.
+          </div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-title">Correr el módulo</div>
+          <div class="step-code">python main.py</div>
+          <div class="step-desc" style="margin-top:4px;">
+            Valida lecturas, genera PDF para el operario y archivo de correcciones si hay anomalías.
+          </div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <div class="step-title">Ciclo de corrección (repetir hasta anomalías = 0)</div>
+          <div class="step-desc">
+            Abrir <code>outputs/orden_verificacion_YYYY-MM.pdf</code> — enviar al operario si corresponde.<br>
+            Aplicar maquillajes en <code>outputs/correcciones_YYYY-MM.xlsx</code> (campo: estado → corregido).<br>
+            Volver a correr <code>python main.py</code>. Repetir hasta que no queden bloqueantes.
+          </div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num">5</div>
+        <div class="step-body">
+          <div class="step-title">Cierre del ciclo — trazabilidad y planilla</div>
+          <div class="step-desc">
+            Al llegar a cero bloqueantes, el sistema vuelca los maquillajes a
+            <code>trazabilidad_YYYY-MM.xlsx</code>, genera <code>lecturas_planilla_YYYY-MM.xlsx</code>
+            y elimina <code>correcciones_YYYY-MM.xlsx</code>.
+          </div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num">6</div>
+        <div class="step-body">
+          <div class="step-title">Listo → 02 Planilla</div>
+          <div class="step-desc">
+            <code>lecturas_planilla_YYYY-MM.xlsx</code> está generado. Correr el módulo 02.
+          </div>
+          <div class="step-code">python ../2_planilla/main.py</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ESTRUCTURA DE CARPETAS -->
+  <div class="section">
+    <div class="sec-title">Estructura de carpetas</div>
+    <div class="card">
+      <pre style="font-family:'IBM Plex Mono',monospace; font-size:11px; line-height:1.8; color:#333;">1_lecturas/
+├── inputs/
+│   ├── registro_operario_mes.xlsx        ← operario llena MARC_ACT, M3, obs_operario
+│   └── registro_operario_acumulado.xlsx  ← historial puro (NUNCA borrar) — input/output
+├── outputs/
+│   ├── trazabilidad_YYYY-MM.xlsx         ← auditoría permanente (NUNCA borrar)
+│   ├── lecturas_planilla_YYYY-MM.xlsx    ← fuente para 2_planilla (NUNCA borrar)
+│   ├── orden_verificacion_YYYY-MM.pdf    ← para el operario (se regenera)
+│   ├── correcciones_YYYY-MM.xlsx         ← trabajo temporal (se elimina)
+│   └── run.log
+├── docs/
+│   ├── arquitectura_1_lecturas.html              ← este archivo
+│   ├── contrato_registro_operario_mes.html        ← contrato del template
+│   ├── contrato_registro_operario_acumulado.html  ← contrato del historial
+│   ├── flujo_modulo_1_lecturas.svg
+│   └── manual_uso.md
+├── tests/
+├── main.py
+└── crear_template.py</pre>
+    </div>
+    <div class="note">
+      <strong>Separación de responsabilidades:</strong>
+      <code>registro_operario_acumulado.xlsx</code> es el espejo fiel del campo.
+      <code>trazabilidad_YYYY-MM.xlsx</code> es el registro de decisiones.
+      <code>lecturas_planilla_YYYY-MM.xlsx</code> es la verdad para facturación.
+      Nunca se mezclan ni se modifican retroactivamente.
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

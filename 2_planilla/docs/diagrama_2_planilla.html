@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>2_planilla — diagrama</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'IBM Plex Sans', sans-serif; background: #fff; padding: 24px; }
+
+  .title { font-size: 18px; font-weight: 600; color: #111; margin-bottom: 4px; }
+  .sub   { font-size: 12px; color: #888; margin-bottom: 28px; }
+
+  /* LAYOUT */
+  .diagram {
+    display: grid;
+    grid-template-columns: 220px 40px 200px 40px 220px;
+    grid-template-rows: auto;
+    align-items: center;
+    gap: 0;
+  }
+
+  /* ARROW */
+  .arrow {
+    text-align: center; font-size: 22px; color: #bbb; font-weight: 300;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+  }
+  .arrow-label { font-size: 9px; color: #aaa; letter-spacing: .04em; text-transform: uppercase; }
+
+  /* INPUTS COLUMN */
+  .inputs-col { display: flex; flex-direction: column; gap: 8px; }
+
+  .input-box {
+    border-radius: 7px; padding: 8px 10px;
+    font-size: 11px;
+  }
+  .input-box.from-module { background: #EBF5FB; border: 1px solid #AED6F1; }
+  .input-box.manual      { background: #FEF9E7; border: 1px solid #F9E79F; }
+
+  .input-box .src {
+    font-size: 9px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .05em; margin-bottom: 3px;
+  }
+  .input-box.from-module .src { color: #1A5276; }
+  .input-box.manual      .src { color: #7D6608; }
+
+  .input-box .fname {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; font-weight: 600; color: #111; margin-bottom: 2px;
+  }
+  .input-box .cols {
+    font-size: 10px; color: #666;
+  }
+
+  /* PROCESS BOX */
+  .process-box {
+    background: #E9F7EF; border: 2px solid #1E8449;
+    border-radius: 10px; padding: 14px 16px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .process-title {
+    font-size: 13px; font-weight: 700; color: #1E5C3A;
+    text-align: center; border-bottom: 1px solid #A9DFBF;
+    padding-bottom: 8px; margin-bottom: 2px;
+  }
+  .process-rule {
+    font-size: 10px; color: #1E5C3A;
+    background: #fff; border-radius: 5px;
+    padding: 5px 8px; border-left: 3px solid #1E8449;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .process-rule .label {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 9px; font-weight: 700; color: #888;
+    text-transform: uppercase; letter-spacing: .04em;
+    display: block; margin-bottom: 2px;
+  }
+
+  /* OUTPUT BOX */
+  .output-col { display: flex; flex-direction: column; gap: 0; }
+
+  .output-box {
+    background: #E9F7EF; border: 1px solid #A9DFBF;
+    border-radius: 7px; overflow: hidden;
+  }
+  .output-header {
+    background: #1E8449; color: #fff;
+    font-size: 11px; font-weight: 600;
+    padding: 7px 10px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .output-section { padding: 6px 10px; border-bottom: 1px solid #A9DFBF; }
+  .output-section:last-child { border-bottom: none; }
+  .output-section-title {
+    font-size: 9px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .05em; color: #1E5C3A; margin-bottom: 3px;
+  }
+  .output-col-item {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; color: #111; line-height: 1.7;
+  }
+  .output-col-item.vacio { color: #8B5CF6; font-style: italic; }
+
+  /* CONSUMER */
+  .consumer {
+    background: #F3E8FF; border: 1px solid #C4B5FD;
+    border-radius: 7px; padding: 8px 10px;
+    text-align: center; margin-top: 8px;
+    font-size: 11px; color: #5B21B6; font-weight: 600;
+  }
+  .consumer .sub-c { font-size: 10px; color: #8B5CF6; font-weight: 400; margin-top: 2px; }
+
+  /* JOIN NOTE */
+  .join-note {
+    grid-column: 1 / 4;
+    margin-top: 16px;
+    background: #F8F9FA; border: 1px solid #dee2e6;
+    border-left: 3px solid #6c757d;
+    border-radius: 0 6px 6px 0;
+    padding: 7px 12px; font-size: 11px; color: #555;
+  }
+  .join-note strong { color: #333; }
+  .join-note code { font-family: 'IBM Plex Mono', monospace; font-size: 10px; background: #fff; padding: 1px 4px; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<p class="title">2_planilla — diagrama de flujo</p>
+<p class="sub">Entrada: lecturas validadas + deudas · Salida: planilla lista para cobro</p>
+
+<div class="diagram">
+
+  <!-- INPUTS -->
+  <div class="inputs-col">
+
+    <div class="input-box from-module">
+      <div class="src">1_lecturas</div>
+      <div class="fname">lecturas_planilla<br>_YYYY-MM.xlsx</div>
+      <div class="cols">MZ · LT · NOMBRE · MES_ANO<br>MARC_ANT · MARC_ACT · M3</div>
+    </div>
+
+    <div class="input-box manual">
+      <div class="src">hoy manual · futuro 04b</div>
+      <div class="fname">arrastre_deuda<br>_YYYY-MM.xlsx</div>
+      <div class="cols">MZ · LT · monto</div>
+    </div>
+
+    <div class="input-box manual">
+      <div class="src">hoy manual · futuro 6_corte</div>
+      <div class="fname">arrastre_corte<br>_YYYY-MM.xlsx</div>
+      <div class="cols">MZ · LT · monto</div>
+    </div>
+
+    <div class="input-box manual">
+      <div class="src">tesorero actualiza c/mes</div>
+      <div class="fname">convenios.xlsx</div>
+      <div class="cols">MZ · LT · cuota_mes</div>
+    </div>
+
+    <div class="input-box manual">
+      <div class="src">tesorero actualiza c/mes</div>
+      <div class="fname">multas.xlsx</div>
+      <div class="cols">MZ · LT · monto_mes</div>
+    </div>
+
+  </div>
+
+  <!-- ARROW IN -->
+  <div class="arrow">
+    <span>→</span>
+    <span class="arrow-label">join<br>(MZ,LT)</span>
+  </div>
+
+  <!-- PROCESS -->
+  <div class="process-box">
+    <div class="process-title">main.py</div>
+
+    <div class="process-rule">
+      <span class="label">Tarifa + mínimo</span>
+      MES_ACTUAL = max(M3, 5)
+    </div>
+
+    <div class="process-rule">
+      <span class="label">Fijo universal</span>
+      MANTENIMIENTO = 3
+    </div>
+
+    <div class="process-rule">
+      <span class="label">Total a pagar</span>
+      cargos + acuerdos<br>
+      + BLANCO + DEVOLUCION
+    </div>
+
+    <div class="process-rule">
+      <span class="label">Si arrastre no existe</span>
+      campo = 0 · log avisa
+    </div>
+  </div>
+
+  <!-- ARROW OUT -->
+  <div class="arrow">
+    <span>→</span>
+  </div>
+
+  <!-- OUTPUT -->
+  <div class="output-col">
+    <div class="output-box">
+      <div class="output-header">planilla_YYYY-MM.xlsx</div>
+
+      <div class="output-section">
+        <div class="output-section-title">¿Quién es?</div>
+        <div class="output-col-item">MZ · LT · NOMBRE · MES_ANO</div>
+      </div>
+
+      <div class="output-section">
+        <div class="output-section-title">Lectura</div>
+        <div class="output-col-item">MARC_ANT · MARC_ACT · M3</div>
+      </div>
+
+      <div class="output-section">
+        <div class="output-section-title">Cobro — cargos</div>
+        <div class="output-col-item">MES_ACTUAL</div>
+        <div class="output-col-item">MANTENIMIENTO</div>
+        <div class="output-col-item">MES_ANTERIOR</div>
+        <div class="output-col-item">CORTE_RECONEXION</div>
+        <div class="output-col-item">CONVENIO</div>
+        <div class="output-col-item">MULTA</div>
+        <div class="output-col-item">ACUERDOS_ASAMBLEA</div>
+      </div>
+
+      <div class="output-section" style="background:#F5F3FF;">
+        <div class="output-section-title" style="color:#4C1D95;">Descuentos (5_cobranza · negativos)</div>
+        <div class="output-col-item vacio" style="color:#4C1D95;">BLANCO</div>
+        <div class="output-col-item vacio" style="color:#4C1D95;">DEVOLUCION</div>
+      </div>
+
+      <div class="output-section" style="background:#D5F5E3;">
+        <div class="output-col-item" style="font-weight:700; color:#1E5C3A;">TOTAL_A_PAGAR (fórmula)</div>
+      </div>
+
+      <div class="output-section" style="background:#FAF5FF;">
+        <div class="output-section-title" style="color:#5B21B6;">Pago (vacío → 5_cobranza)</div>
+        <div class="output-col-item vacio">MONTO_YAPE</div>
+        <div class="output-col-item vacio">MONTO_EFECTIVO</div>
+        <div class="output-col-item vacio">ESTADO</div>
+        <div class="output-col-item vacio">FECHA_PAGO</div>
+      </div>
+    </div>
+
+    <div class="consumer">
+      4_pagos / yape
+      <div class="sub-c">llena las columnas en morado</div>
+    </div>
+  </div>
+
+</div>
+
+<div class="join-note" style="grid-column: unset; margin-top:16px;">
+  <strong>Join (MZ, LT):</strong> todos los arrastres se unen sobre la base de lecturas.
+  Si un archivo no existe → campo <code>= 0</code>, log avisa pero el módulo termina.
+  Un usuario en el arrastre que no esté en lecturas se ignora.
+</div>
+
+</body>
+</html>

@@ -1,0 +1,145 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+#w{font-family:var(--font-sans);padding:4px 0 16px}
+.instruc{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-left:3px solid #7C3AED;border-radius:0 var(--border-radius-md) var(--border-radius-md) 0;padding:9px 13px;font-size:12px;color:var(--color-text-secondary);margin-bottom:12px;line-height:1.7}
+.instruc strong{color:var(--color-text-primary)}
+.tab-excel{display:inline-flex;align-items:center;gap:5px;background:#F3E8FF;border:0.5px solid #C4B5FD;border-bottom:none;border-radius:6px 6px 0 0;padding:5px 14px;font-size:12px;font-weight:500;color:#5B21B6;margin-bottom:-1px}
+.tw{border:0.5px solid var(--color-border-tertiary);border-radius:0 var(--border-radius-md) var(--border-radius-md) var(--border-radius-md);overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:11px;min-width:780px}
+th{padding:6px 8px;font-size:10px;font-weight:500;text-align:left;border-bottom:0.5px solid var(--color-border-tertiary);border-right:0.5px solid var(--color-border-tertiary);white-space:nowrap}
+th:last-child{border-right:none}
+td{padding:5px 8px;border-bottom:0.5px solid var(--color-border-tertiary);border-right:0.5px solid var(--color-border-tertiary);vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+td:last-child{border-right:none}
+tr:last-child td{border-bottom:none}
+.num{width:24px;background:var(--color-background-secondary);color:var(--color-text-tertiary);font-size:10px;font-family:var(--font-mono);text-align:center;border-right:0.5px solid var(--color-border-tertiary)}
+
+.th-quien{background:#F4ECF7;color:#5B21B6}
+.th-pago {background:#E1F5EE;color:#085041}
+.th-traz {background:#FEF9E7;color:#7D6608}
+.th-corr {background:#ECFDF5;color:#065F46}
+.th-sep  {width:4px;background:var(--color-background-secondary);padding:0;border-right:2px solid var(--color-border-secondary)}
+
+.td-quien {background:#FAF5FF;font-family:var(--font-mono);font-size:10px;color:#5B21B6}
+.td-nombre{background:#FAF5FF;font-size:11px;color:var(--color-text-primary)}
+.td-pago  {background:#F0FFF8;font-family:var(--font-mono);font-size:11px;font-weight:500;color:#065F46}
+.td-traz  {background:#FEFCE8;font-family:var(--font-mono);font-size:11px;color:#7D6608;text-align:center}
+.td-corr  {background:#ECFDF5;font-family:var(--font-mono);font-size:11px;color:#065F46;font-weight:600;text-align:center}
+.td-corr-vacio{background:#F9FAFB;font-size:10px;color:var(--color-text-tertiary);text-align:center;font-style:italic}
+.td-sep   {width:4px;background:var(--color-background-secondary);padding:0;border-right:2px solid var(--color-border-secondary)}
+
+.gh{font-size:9px;font-weight:600;text-align:center;padding:2px 0;letter-spacing:.05em;text-transform:uppercase;border-bottom:0.5px solid var(--color-border-tertiary)}
+
+.b-yape    {background:#E1F5EE;color:#085041;font-size:10px;font-weight:500;padding:1px 6px;border-radius:3px}
+.b-efectivo{background:#EFF6FF;color:#1D4ED8;font-size:10px;font-weight:500;padding:1px 6px;border-radius:3px}
+.b-mixto   {background:#FEF9E7;color:#854F0B;font-size:10px;font-weight:500;padding:1px 6px;border-radius:3px}
+
+.legend{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center}
+.leg{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--color-text-secondary)}
+.ld{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+</style>
+
+<div id="w">
+  <div class="instruc">
+    Generado por <strong>5_cobranza/main.py</strong> — solo lectura.<br>
+    Un registro por pago cargado · <strong>FUENTE</strong> indica el canal de origen (yape / efectivo / mixto si pagó por ambos).<br>
+    <strong>RETORNO</strong>: indica si el pago fue devuelto y por qué medio (yape / efectivo / mixto) — vacío si no hubo retorno. Puntero a <strong>pagos_yape_devolucion.xlsx</strong> o <strong>pagos_efectivo_devolucion.xlsx</strong> para detalle.<br>
+    <strong>CICLO_CORRECCION_ORIGEN</strong>: ciclo de corrección en que <strong>4_pagos</strong> identificó el pago · viene de la columna CICLO_CORRECCION del archivo fuente.<br>
+    <strong>CICLO_COBRANZA</strong>: ciclo en que <strong>5_cobranza</strong> lo procesó · se escribe también en <strong>pagos_yape_tepago.xlsx</strong> y <strong>pagos_efectivo.xlsx</strong>.
+  </div>
+
+  <div class="tab-excel">trazabilidad_cobranza</div>
+  <div class="tw">
+    <table>
+      <thead>
+        <tr>
+          <th class="num" rowspan="2"></th>
+          <th class="th-quien gh" colspan="3">¿Quién es?</th>
+          <th class="th-sep" rowspan="2"></th>
+          <th class="th-pago gh" colspan="3">¿Qué se cargó?</th>
+          <th class="th-sep" rowspan="2"></th>
+          <th class="th-traz gh" colspan="3">¿Cuándo y de dónde?</th>
+          <th class="th-sep" rowspan="2"></th>
+          <th class="th-corr gh" colspan="2">Lote corregido</th>
+        </tr>
+        <tr>
+          <th class="th-quien">MZ</th>
+          <th class="th-quien">LT</th>
+          <th class="th-quien">NOMBRE</th>
+
+          <th class="th-pago">MONTO</th>
+          <th class="th-pago">FUENTE</th>
+          <th class="th-pago">RETORNO</th>
+
+          <th class="th-traz">CICLO_CORRECCION_ORIGEN</th>
+          <th class="th-traz">CICLO_COBRANZA</th>
+          <th class="th-traz">FECHA_CARGA</th>
+
+          <th class="th-corr">MZ_ORIGEN</th>
+          <th class="th-corr">LT_ORIGEN</th>
+        </tr>
+      </thead>
+      <tbody>
+
+        <!-- fila 1: pago yape puro, sin corrección de lote -->
+        <tr>
+          <td class="num">1</td>
+          <td class="td-quien">A</td><td class="td-quien">1</td><td class="td-nombre">MARCELINA OBREGON</td>
+          <td class="td-sep"></td>
+          <td class="td-pago">112</td><td><span class="b-yape">yape</span></td><td class="td-pago" style="color:var(--color-text-tertiary);font-style:italic;font-size:10px;text-align:center">—</td>
+          <td class="td-sep"></td>
+          <td class="td-traz">1</td><td class="td-traz">1</td><td class="td-traz">10/06/2026 09:15</td>
+          <td class="td-sep"></td>
+          <td class="td-corr-vacio">—</td><td class="td-corr-vacio">—</td>
+        </tr>
+
+        <!-- fila 2: pago efectivo con corrección de lote — vino como B-21, se imputó a B-14 -->
+        <tr>
+          <td class="num">2</td>
+          <td class="td-quien">B</td><td class="td-quien">14</td><td class="td-nombre">ROSA AURORA ROCA</td>
+          <td class="td-sep"></td>
+          <td class="td-pago">30</td><td><span class="b-efectivo">efectivo</span></td><td class="td-pago" style="color:var(--color-text-tertiary);font-style:italic;font-size:10px;text-align:center">—</td>
+          <td class="td-sep"></td>
+          <td class="td-traz">2</td><td class="td-traz">1</td><td class="td-traz">10/06/2026 09:15</td>
+          <td class="td-sep"></td>
+          <td class="td-corr">B</td><td class="td-corr">21</td>
+        </tr>
+
+        <!-- fila 3: pago yape con retorno yape — sin corrección de lote -->
+        <tr>
+          <td class="num">3</td>
+          <td class="td-quien">D</td><td class="td-quien">3</td><td class="td-nombre">VICTOR MELGAREJO</td>
+          <td class="td-sep"></td>
+          <td class="td-pago">120</td><td><span class="b-yape">yape</span></td><td><span class="b-yape">yape</span></td>
+          <td class="td-sep"></td>
+          <td class="td-traz">1</td><td class="td-traz">1</td><td class="td-traz">10/06/2026 09:15</td>
+          <td class="td-sep"></td>
+          <td class="td-corr-vacio">—</td><td class="td-corr-vacio">—</td>
+        </tr>
+
+        <!-- fila 4: segundo ciclo, sin corrección -->
+        <tr>
+          <td class="num">4</td>
+          <td class="td-quien">F</td><td class="td-quien">9</td><td class="td-nombre">CARLOS QUISPE MAMANI</td>
+          <td class="td-sep"></td>
+          <td class="td-pago">150</td><td><span class="b-yape">yape</span></td><td class="td-pago" style="color:var(--color-text-tertiary);font-style:italic;font-size:10px;text-align:center">—</td>
+          <td class="td-sep"></td>
+          <td class="td-traz">3</td><td class="td-traz">2</td><td class="td-traz">15/06/2026 14:30</td>
+          <td class="td-sep"></td>
+          <td class="td-corr-vacio">—</td><td class="td-corr-vacio">—</td>
+        </tr>
+
+      </tbody>
+    </table>
+  </div>
+
+  <div class="legend">
+    <div class="leg"><div class="ld" style="background:#FAF5FF;border:0.5px solid #C4B5FD"></div>¿Quién es? — lote real al que se imputó el pago</div>
+    <div class="leg"><div class="ld" style="background:#F0FFF8;border:0.5px solid #9FE1CB"></div>monto cargado y canal de origen</div>
+    <div class="leg"><div class="ld" style="background:#FEFCE8;border:0.5px solid #FCD34D"></div>trazabilidad — ciclo corrección origen (4_pagos) · ciclo cobranza · timestamp de carga</div>
+    <div class="leg"><div class="ld" style="background:#ECFDF5;border:0.5px solid #6EE7B7"></div>lote corregido — MZ+LT original del pago (antes de la corrección); vacío si no hubo remapeo</div>
+    <div class="leg"><span class="b-yape">yape</span> FUENTE: pago vía Yape/tePagó · RETORNO: devuelto vía Yape</div>
+    <div class="leg"><span class="b-efectivo">efectivo</span> FUENTE: pago en mesa · RETORNO: devuelto en efectivo por tesorera</div>
+    <div class="leg"><span class="b-mixto">mixto</span> FUENTE: yape + efectivo · RETORNO: devuelto por ambos medios</div>
+  </div>
+</div>

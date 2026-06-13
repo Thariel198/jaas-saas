@@ -1,0 +1,195 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+#w{font-family:var(--font-sans);padding:4px 0 16px}
+.instruc{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-left:3px solid #991B1B;border-radius:0 var(--border-radius-md) var(--border-radius-md) 0;padding:9px 13px;font-size:12px;color:var(--color-text-secondary);margin-bottom:12px;line-height:1.7}
+.instruc strong{color:var(--color-text-primary)}
+.instruc-corr{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-left:3px solid #065F46;border-radius:0 var(--border-radius-md) var(--border-radius-md) 0;padding:9px 13px;font-size:12px;color:var(--color-text-secondary);margin-bottom:12px;line-height:1.7}
+.instruc-corr strong{color:var(--color-text-primary)}
+.tabs{display:flex;gap:4px;margin-bottom:0}
+.tab-excel{display:inline-flex;align-items:center;gap:5px;background:#FEF2F2;border:0.5px solid #FECACA;border-bottom:none;border-radius:6px 6px 0 0;padding:5px 14px;font-size:12px;font-weight:500;color:#991B1B;margin-bottom:-1px}
+.tab-excel.inactive{background:var(--color-background-secondary);border-color:var(--color-border-tertiary);color:var(--color-text-tertiary)}
+.tw{border:0.5px solid var(--color-border-tertiary);border-radius:0 var(--border-radius-md) var(--border-radius-md) var(--border-radius-md);overflow-x:auto;margin-bottom:14px}
+table{width:100%;border-collapse:collapse;font-size:11px;min-width:700px}
+th{padding:6px 8px;font-size:10px;font-weight:500;text-align:left;border-bottom:0.5px solid var(--color-border-tertiary);border-right:0.5px solid var(--color-border-tertiary);white-space:nowrap}
+th:last-child{border-right:none}
+td{padding:5px 8px;border-bottom:0.5px solid var(--color-border-tertiary);border-right:0.5px solid var(--color-border-tertiary);vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+td:last-child{border-right:none}
+tr:last-child td{border-bottom:none}
+.num{width:24px;background:var(--color-background-secondary);color:var(--color-text-tertiary);font-size:10px;font-family:var(--font-mono);text-align:center;border-right:0.5px solid var(--color-border-tertiary)}
+
+.th-predio {background:#FEF2F2;color:#991B1B}
+.th-pago   {background:#EBF5FB;color:#1A5276}
+.th-origen {background:#FEF9E7;color:#7D6608}
+.th-traz   {background:#F4ECF7;color:#5B21B6}
+.th-corr   {background:#ECFDF5;color:#065F46}
+.th-sep    {width:4px;background:var(--color-background-secondary);padding:0;border-right:2px solid var(--color-border-secondary)}
+
+.td-predio {background:#FFF5F5;font-family:var(--font-mono);font-size:10px;color:#991B1B;font-weight:600}
+.td-pago   {background:#F4FAFF;font-family:var(--font-mono);font-size:11px;color:#1A5276}
+.td-origen {background:#FFFDF5;font-size:11px;color:#7D6608}
+.td-traz   {background:#FAF5FF;font-family:var(--font-mono);font-size:11px;color:#5B21B6;text-align:center}
+.td-corr   {background:#ECFDF5;font-family:var(--font-mono);font-size:11px;color:#065F46;font-weight:600;text-align:center}
+.td-corr-vacio{background:#F9FAFB;font-size:10px;color:var(--color-text-tertiary);text-align:center;font-style:italic}
+.td-sep    {width:4px;background:var(--color-background-secondary);padding:0;border-right:2px solid var(--color-border-secondary)}
+
+.gh{font-size:9px;font-weight:600;text-align:center;padding:2px 0;letter-spacing:.05em;text-transform:uppercase;border-bottom:0.5px solid var(--color-border-tertiary)}
+
+.legend{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center}
+.leg{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--color-text-secondary)}
+.ld{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+</style>
+
+<div id="w">
+  <div class="instruc">
+    Generado por <strong>5_cobranza/main.py</strong>.<br>
+    Un registro por pago cuyo <strong>MZ+LT no existe en la planilla del mes</strong> — el cobro no pudo imputarse a ningún usuario.<br>
+    <strong>discrepancias_pago_yape</strong>: pagos Yape sin destino · buscar en <strong>motor_matching/correcciones/pendientes.xlsx</strong> por ORIGEN.<br>
+    <strong>discrepancias_pago_efectivo</strong>: cobros en mesa sin destino · buscar en <strong>4_pagos/efectivo/inputs/mesa_N.xlsx</strong> hoja indicada en MESA.
+  </div>
+  <div class="instruc-corr">
+    <strong>¿Sabes el lote correcto?</strong> Llena <strong>MZ_CORRECTO + LT_CORRECTO</strong> en la fila correspondiente y vuelve a correr <strong>5_cobranza</strong>.<br>
+    El módulo aplicará la corrección, imputará el pago al lote real y la trazará en <strong>trazabilidad_cobranza.xlsx</strong>.<br>
+    La corrección se guarda en <strong>inputs/correcciones_lote.xlsx</strong> y se aplica en todos los ciclos futuros — el registro de origen no se toca.
+  </div>
+
+  <!-- HOJA 1 -->
+  <div class="tabs">
+    <div class="tab-excel">discrepancias_pago_yape</div>
+    <div class="tab-excel inactive">discrepancias_pago_efectivo</div>
+  </div>
+  <div class="tw">
+    <table>
+      <thead>
+        <tr>
+          <th class="num" rowspan="2"></th>
+          <th class="th-predio gh" colspan="2">¿Dónde vive?</th>
+          <th class="th-sep" rowspan="2"></th>
+          <th class="th-pago gh" colspan="2">¿Cuánto y cuándo?</th>
+          <th class="th-sep" rowspan="2"></th>
+          <th class="th-origen gh" colspan="1">¿Quién pagó?</th>
+          <th class="th-sep" rowspan="2"></th>
+          <th class="th-traz gh" colspan="2">Trazabilidad</th>
+          <th class="th-sep" rowspan="2"></th>
+          <th class="th-corr gh" colspan="2">¿Corrección?</th>
+        </tr>
+        <tr>
+          <th class="th-predio">MZ</th>
+          <th class="th-predio">LT</th>
+
+          <th class="th-pago">MONTO</th>
+          <th class="th-pago">FECHA</th>
+
+          <th class="th-origen">ORIGEN</th>
+
+          <th class="th-traz">CICLO_CORRECCION</th>
+          <th class="th-traz">MOTIVO</th>
+
+          <th class="th-corr">MZ_CORRECTO</th>
+          <th class="th-corr">LT_CORRECTO</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="num">1</td>
+          <td class="td-predio">C1</td><td class="td-predio">16</td>
+          <td class="td-sep"></td>
+          <td class="td-pago" style="text-align:right">S/ 112.00</td><td class="td-pago">26/05/2026</td>
+          <td class="td-sep"></td>
+          <td class="td-origen">Maria Gar*</td>
+          <td class="td-sep"></td>
+          <td class="td-traz">2</td><td class="td-traz">predio no encontrado en planilla</td>
+          <td class="td-sep"></td>
+          <td class="td-corr">B1</td><td class="td-corr">12</td>
+        </tr>
+        <tr>
+          <td class="num">2</td>
+          <td class="td-predio">B1</td><td class="td-predio">?</td>
+          <td class="td-sep"></td>
+          <td class="td-pago" style="text-align:right">S/ 38.00</td><td class="td-pago">25/05/2026</td>
+          <td class="td-sep"></td>
+          <td class="td-origen">Wilder Tru*</td>
+          <td class="td-sep"></td>
+          <td class="td-traz">2</td><td class="td-traz">predio no encontrado en planilla</td>
+          <td class="td-sep"></td>
+          <td class="td-corr-vacio">—</td><td class="td-corr-vacio">—</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- HOJA 2 -->
+  <div class="tabs">
+    <div class="tab-excel inactive">discrepancias_pago_yape</div>
+    <div class="tab-excel">discrepancias_pago_efectivo</div>
+  </div>
+  <div class="tw">
+    <table>
+      <thead>
+        <tr>
+          <th class="num" rowspan="2"></th>
+          <th class="th-predio gh" colspan="2">¿Dónde vive?</th>
+          <th class="th-sep" rowspan="2"></th>
+          <th class="th-pago gh" colspan="2">¿Cuánto y cuándo?</th>
+          <th class="th-sep" rowspan="2"></th>
+          <th class="th-origen gh" colspan="2">¿De qué mesa?</th>
+          <th class="th-sep" rowspan="2"></th>
+          <th class="th-traz gh" colspan="2">Trazabilidad</th>
+          <th class="th-sep" rowspan="2"></th>
+          <th class="th-corr gh" colspan="2">¿Corrección?</th>
+        </tr>
+        <tr>
+          <th class="th-predio">MZ</th>
+          <th class="th-predio">LT</th>
+
+          <th class="th-pago">MONTO</th>
+          <th class="th-pago">FECHA</th>
+
+          <th class="th-origen">MESA</th>
+          <th class="th-origen">COBRADOR</th>
+
+          <th class="th-traz">CICLO_CORRECCION</th>
+          <th class="th-traz">MOTIVO</th>
+
+          <th class="th-corr">MZ_CORRECTO</th>
+          <th class="th-corr">LT_CORRECTO</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="num">1</td>
+          <td class="td-predio">B</td><td class="td-predio">21</td>
+          <td class="td-sep"></td>
+          <td class="td-pago" style="text-align:right">S/ 32.00</td><td class="td-pago">05/06/2026</td>
+          <td class="td-sep"></td>
+          <td class="td-origen">mesa_2</td><td class="td-origen">Yerald Romero</td>
+          <td class="td-sep"></td>
+          <td class="td-traz">1</td><td class="td-traz">predio no encontrado en planilla</td>
+          <td class="td-sep"></td>
+          <td class="td-corr">B</td><td class="td-corr">14</td>
+        </tr>
+        <tr>
+          <td class="num">2</td>
+          <td class="td-predio">P1</td><td class="td-predio">4</td>
+          <td class="td-sep"></td>
+          <td class="td-pago" style="text-align:right">S/ 9.00</td><td class="td-pago">05/06/2026</td>
+          <td class="td-sep"></td>
+          <td class="td-origen">mesa_5</td><td class="td-origen">Maximo Encarnacion</td>
+          <td class="td-sep"></td>
+          <td class="td-traz">1</td><td class="td-traz">predio no encontrado en planilla</td>
+          <td class="td-sep"></td>
+          <td class="td-corr-vacio">—</td><td class="td-corr-vacio">—</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="legend">
+    <div class="leg"><div class="ld" style="background:#FFF5F5;border:0.5px solid #FECACA"></div>MZ+LT del pago que no existe en planilla</div>
+    <div class="leg"><div class="ld" style="background:#F4FAFF;border:0.5px solid #AED6F1"></div>monto y fecha del pago</div>
+    <div class="leg"><div class="ld" style="background:#FFFDF5;border:0.5px solid #F9E79F"></div>pista de origen: ORIGEN (Yape) · MESA+COBRADOR (Efectivo)</div>
+    <div class="leg"><div class="ld" style="background:#FAF5FF;border:0.5px solid #C4B5FD"></div>trazabilidad — ciclo y motivo</div>
+    <div class="leg"><div class="ld" style="background:#ECFDF5;border:0.5px solid #6EE7B7"></div>corrección editable — llena y vuelve a correr · se persiste en inputs/correcciones_lote.xlsx</div>
+    <div class="leg"><div class="ld" style="background:#F9FAFB;border:0.5px solid #D1D5DB"></div>sin corrección aún — dejar vacío si no se conoce el lote real</div>
+  </div>
+</div>

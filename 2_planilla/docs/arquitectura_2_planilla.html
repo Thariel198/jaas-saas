@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2_planilla — arquitectura</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'IBM Plex Sans', sans-serif; background: #fff; color: #111; }
+  .wrap { padding: .5rem 0 3rem; max-width: 720px; margin: 0 auto; }
+
+  .title { font-size: 20px; font-weight: 600; color: #111; margin: 0 0 2px; }
+  .sub   { font-size: 12px; color: #666; margin: 0 0 20px; }
+
+  /* PIPELINE STRIP */
+  .pipeline-strip {
+    display: flex; align-items: center; gap: 4px;
+    background: #f5f5f5; border-radius: 8px;
+    padding: 8px 12px; margin-bottom: 20px; overflow-x: auto;
+  }
+  .pip-mod { font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 4px; white-space: nowrap; background: #e5e7eb; color: #6b7280; }
+  .pip-mod.active { background: #1E8449; color: #fff; }
+  .pip-arrow { font-size: 12px; color: #aaa; flex-shrink: 0; }
+
+  /* SECTION */
+  .section { margin-bottom: 24px; }
+  .sec-title {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .08em; color: #1E8449; border-bottom: 1.5px solid #A9DFBF;
+    padding-bottom: 4px; margin-bottom: 10px;
+  }
+
+  /* CARD */
+  .card { border: 0.5px solid #ddd; border-radius: 8px; padding: 10px 14px; margin-bottom: 8px; }
+  .card-title { font-size: 12px; font-weight: 600; color: #111; margin-bottom: 4px; }
+  .card-sub { font-size: 11px; color: #666; }
+
+  /* FILE BLOCKS */
+  .file-block { border-radius: 8px; padding: 10px 14px; margin-bottom: 10px; }
+  .file-block.input        { background: #EBF5FB; border: 0.5px solid #AED6F1; }
+  .file-block.input-manual { background: #FEF9E7; border: 0.5px solid #F9E79F; }
+  .file-block.output-perm  { background: #E9F7EF; border: 0.5px solid #A9DFBF; }
+
+  .file-name { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; margin-bottom: 2px; }
+  .file-block.input        .file-name { color: #1A5276; }
+  .file-block.input-manual .file-name { color: #7D6608; }
+  .file-block.output-perm  .file-name { color: #1E6B3C; }
+
+  .file-desc { font-size: 11px; color: #444; margin-bottom: 6px; }
+
+  /* BADGE */
+  .badge {
+    display: inline-block; font-size: 9px; font-weight: 700;
+    padding: 1px 6px; border-radius: 3px;
+    text-transform: uppercase; letter-spacing: .04em; margin-bottom: 6px;
+  }
+  .badge.auto   { background: #D5F5E3; color: #1E8449; }
+  .badge.manual { background: #FEF9C3; color: #7D6608; }
+  .badge.perm   { background: #D5F5E3; color: #1E8449; }
+  .badge.vacio  { background: #F4ECF7; color: #6C3483; }
+
+  /* TABLE */
+  table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  th { background: #1E5C3A; color: #fff; font-weight: 600; padding: 5px 8px; text-align: left; }
+  td { padding: 5px 8px; border-bottom: 0.5px solid #e5e7eb; color: #333; }
+  tr:last-child td { border-bottom: none; }
+  tr:nth-child(even) td { background: #f9f9f9; }
+
+  /* FLOW */
+  .flow { display: flex; flex-direction: column; gap: 0; }
+  .flow-step { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 0.5px solid #f0f0f0; }
+  .flow-step:last-child { border-bottom: none; }
+  .step-num {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: #1E8449; color: #fff;
+    font-size: 11px; font-weight: 700; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .step-body { flex: 1; }
+  .step-title { font-size: 12px; font-weight: 600; color: #111; }
+  .step-desc  { font-size: 11px; color: #555; margin-top: 2px; }
+  .step-code  {
+    font-family: 'IBM Plex Mono', monospace; font-size: 10px;
+    background: #f5f5f5; border-radius: 4px; padding: 3px 7px;
+    display: inline-block; margin-top: 4px; color: #333;
+  }
+
+  /* RULE BOX */
+  .rule-box {
+    background: #F4F6F7; border: 0.5px solid #CCD1D1; border-radius: 6px;
+    padding: 8px 12px; font-size: 11px; margin-bottom: 8px;
+  }
+  .rule-box .rule-title { font-weight: 600; color: #1E5C3A; margin-bottom: 4px; font-size: 12px; }
+  .rule-box code { font-family: 'IBM Plex Mono', monospace; background: #fff; padding: 1px 5px; border-radius: 3px; color: #1E5C3A; }
+
+  /* NOTE */
+  .note {
+    font-size: 11px; color: #555; background: #f5f5f5;
+    border-left: 3px solid #aaa; border-radius: 0 6px 6px 0;
+    padding: 7px 12px; margin-top: 6px;
+  }
+  .note strong { color: #333; }
+  .note code { font-family: 'IBM Plex Mono', monospace; font-size: 10px; }
+
+  /* LIFECYCLE */
+  .life-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 0; border-bottom: 0.5px solid #f0f0f0; font-size: 11px;
+  }
+  .life-row:last-child { border-bottom: none; }
+  .life-file   { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #1A5276; min-width: 260px; }
+  .life-action { color: #333; flex: 1; font-weight: 600; }
+  .life-why    { color: #888; font-size: 10px; }
+
+  /* OUTPUT COLUMNS TABLE */
+  .col-vacío td:nth-child(3) { color: #6C3483; font-style: italic; }
+
+  code { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- HEADER -->
+  <p class="title">02 Planilla — arquitectura</p>
+  <p class="sub">Módulo 2 del pipeline · Generación de planilla mensual de cobro</p>
+
+  <!-- PIPELINE STRIP -->
+  <div class="pipeline-strip">
+    <span class="pip-mod">01 Lecturas</span>
+    <span class="pip-arrow">→</span>
+    <span class="pip-mod active">02 Planilla</span>
+    <span class="pip-arrow">→</span>
+    <span class="pip-mod">03 Pagos</span>
+    <span class="pip-arrow">→</span>
+    <span class="pip-mod">04b Validación</span>
+    <span class="pip-arrow">→</span>
+    <span class="pip-mod">05 Corte</span>
+    <span class="pip-arrow">→</span>
+    <span class="pip-mod">06 Boletas</span>
+  </div>
+
+  <!-- QUÉ HACE -->
+  <div class="section">
+    <div class="sec-title">Qué hace</div>
+    <div class="card">
+      <div class="card-title">Consolidar lecturas + deudas → planilla lista para cobro</div>
+      <div class="card-sub">
+        Lee las lecturas validadas de 1_lecturas y las une con 4 fuentes de deuda (arrastre anterior,
+        corte, convenios, multas). Calcula el total a pagar por usuario y genera la planilla del mes
+        con columnas de pago vacías listas para que 5_cobranza las llene.
+      </div>
+    </div>
+    <div class="rule-box">
+      <div class="rule-title">Principio de este módulo</div>
+      Solo calcula y consolida. No valida lecturas (eso es 1_lecturas). No registra pagos (eso es 5_cobranza).
+      Si un archivo de arrastre no existe → ese campo queda en 0 y el log avisa. El módulo siempre termina.
+    </div>
+  </div>
+
+  <!-- INPUTS -->
+  <div class="section">
+    <div class="sec-title">Inputs</div>
+
+    <div class="file-block input">
+      <span class="badge auto">Viene de 1_lecturas</span>
+      <div class="file-name">inputs/lecturas/lecturas_planilla_YYYY-MM.xlsx</div>
+      <div class="file-desc">Lecturas validadas y cerradas del operario. Es el archivo base — todos los usuarios que aparecen aquí aparecen en la planilla de salida.</div>
+      <table>
+        <tr><th>Columna</th><th>Descripción</th></tr>
+        <tr><td>MZ / LT</td><td>Clave de join — se normaliza antes de unir</td></tr>
+        <tr><td>NOMBRE</td><td>Nombre del usuario</td></tr>
+        <tr><td>MES_ANO</td><td>YYYY-MM del ciclo — el módulo detecta el mes desde aquí</td></tr>
+        <tr><td>MARC_ANT / MARC_ACT</td><td>Marcaciones anterior y actual</td></tr>
+        <tr><td>M3</td><td>Consumo declarado por el operario</td></tr>
+      </table>
+    </div>
+
+    <div class="file-block input-manual">
+      <span class="badge manual">Hoy manual · futuro: 5b_validacion</span>
+      <div class="file-name">inputs/deuda_anterior/arrastre_deuda_YYYY-MM.xlsx</div>
+      <div class="file-desc">Deuda del mes anterior que el usuario no pagó. Si no existe → <code>MES_ANTERIOR = 0</code> para todos.</div>
+      <table>
+        <tr><th>Columna</th><th>Descripción</th></tr>
+        <tr><td>MZ / LT</td><td>Clave de join</td></tr>
+        <tr><td>monto</td><td>Monto de deuda arrastrada (S/)</td></tr>
+      </table>
+    </div>
+
+    <div class="file-block input-manual">
+      <span class="badge manual">Hoy manual · futuro: 6_corte</span>
+      <div class="file-name">inputs/corte/arrastre_corte_YYYY-MM.xlsx</div>
+      <div class="file-desc">Cargo por corte y reconexión de servicio. Si no existe → <code>CORTE_RECONEXION = 0</code> para todos.</div>
+      <table>
+        <tr><th>Columna</th><th>Descripción</th></tr>
+        <tr><td>MZ / LT</td><td>Clave de join</td></tr>
+        <tr><td>monto</td><td>Cargo por corte y reconexión (S/)</td></tr>
+      </table>
+    </div>
+
+    <div class="file-block input-manual">
+      <span class="badge manual">Manual — tesorero actualiza cada mes</span>
+      <div class="file-name">inputs/convenios/convenios.xlsx</div>
+      <div class="file-desc">Saldos de convenios de pago de deuda. Solo se lee la cuota del mes actual. Si no existe → <code>CONVENIO = 0</code> para todos.</div>
+      <table>
+        <tr><th>Columna</th><th>Descripción</th></tr>
+        <tr><td>MZ / LT</td><td>Clave de join</td></tr>
+        <tr><td>cuota_mes</td><td>Cuota que le corresponde pagar este mes (S/)</td></tr>
+      </table>
+    </div>
+
+    <div class="file-block input-manual">
+      <span class="badge manual">Manual — tesorero actualiza cada mes</span>
+      <div class="file-name">inputs/multas/multas.xlsx</div>
+      <div class="file-desc">Saldos de multas por faena, reunión u otras. Solo se lee el monto del mes actual. Si no existe → <code>MULTA = 0</code> para todos.</div>
+      <table>
+        <tr><th>Columna</th><th>Descripción</th></tr>
+        <tr><td>MZ / LT</td><td>Clave de join</td></tr>
+        <tr><td>monto_mes</td><td>Multa que le corresponde pagar este mes (S/)</td></tr>
+      </table>
+    </div>
+
+    <div class="file-block input-manual">
+      <span class="badge manual">Manual — tesorero actualiza cada mes</span>
+      <div class="file-name">inputs/acuerdos_asamblea/acuerdos_asamblea.xlsx</div>
+      <div class="file-desc">Aportes acordados en asamblea para obras de infraestructura (techado de local, tanque, etc.). Tiene su propio archivo de seguimiento. Si no existe → <code>ACUERDOS_ASAMBLEA = 0</code> para todos.</div>
+      <table>
+        <tr><th>Columna</th><th>Descripción</th></tr>
+        <tr><td>MZ / LT</td><td>Clave de join</td></tr>
+        <tr><td>monto_mes</td><td>Aporte que le corresponde pagar este mes según el acuerdo (S/)</td></tr>
+      </table>
+    </div>
+
+    <div class="note">
+      <strong>Clave de join (MZ, LT):</strong> MZ → uppercase sin espacios · LT → si es número flotante (<code>1.0</code>) convertir a <code>"1"</code> · si tiene letras conservar uppercase (<code>"11A"</code>).
+      Un usuario del arrastre que no esté en lecturas se <strong>ignora</strong> (log de advertencia).
+    </div>
+  </div>
+
+  <!-- REGLAS DE CÁLCULO -->
+  <div class="section">
+    <div class="sec-title">Reglas de cálculo</div>
+
+    <div class="rule-box">
+      <div class="rule-title">MES_ACTUAL</div>
+      <code>MES_ACTUAL = max(M3, 5)</code><br>
+      <span style="color:#555; font-size:11px; margin-top:4px; display:block;">Tarifa S/1 por m³ · mínimo de cobro S/5 — si el usuario consumió menos de 5 m³ se cobra 5 igual.</span>
+    </div>
+
+    <div class="rule-box">
+      <div class="rule-title">MANTENIMIENTO</div>
+      <code>MANTENIMIENTO = 3</code><br>
+      <span style="color:#555; font-size:11px; margin-top:4px; display:block;">S/3 fijo para todos los usuarios sin excepción.</span>
+    </div>
+
+    <div class="rule-box">
+      <div class="rule-title">TOTAL_A_PAGAR</div>
+      <code>TOTAL_A_PAGAR = MES_ACTUAL + MANTENIMIENTO + MES_ANTERIOR + CORTE_RECONEXION + CONVENIO + MULTA + ACUERDOS_ASAMBLEA + BLANCO + DEVOLUCION</code><br>
+      <span style="font-size:10px;color:#555;">BLANCO y DEVOLUCION los escribe 5_cobranza como valores negativos — Excel recalcula automáticamente</span>
+    </div>
+  </div>
+
+  <!-- PASOS INTERNOS -->
+  <div class="section">
+    <div class="sec-title">Pasos internos de main.py</div>
+    <div class="flow">
+      <div class="flow-step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title">Validar y cargar lecturas</div>
+          <div class="step-desc">Lee <code>inputs/lecturas/lecturas_planilla_YYYY-MM.xlsx</code>. Detecta el mes desde la columna <code>MES_ANO</code>. Normaliza claves (MZ, LT). Falla con mensaje claro si el archivo no existe.</div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title">Cargar arrastres (tolerante a ausencia)</div>
+          <div class="step-desc">Intenta leer los 4 archivos de arrastre buscando el YYYY-MM correspondiente. Si un archivo no existe → campo en 0, log de advertencia. No falla.</div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-title">Join por (MZ, LT)</div>
+          <div class="step-desc">Sobre la base de lecturas, agrega los montos de cada arrastre. Los usuarios sin par en el arrastre quedan en 0 para ese campo.</div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <div class="step-title">Calcular totales</div>
+          <div class="step-desc">
+            Para cada usuario:<br>
+            <code>MES_ACTUAL = max(M3, 5)</code><br>
+            <code>MANTENIMIENTO = 3</code><br>
+            <code>TOTAL_A_PAGAR = suma de los 6 conceptos</code>
+          </div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num">5</div>
+        <div class="step-body">
+          <div class="step-title">Exportar planilla</div>
+          <div class="step-desc">Escribe <code>outputs/planilla_YYYY-MM.xlsx</code> con las 18 columnas en orden exacto. Columnas de pago vacías. Si el archivo ya existe lo sobreescribe.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OUTPUT -->
+  <div class="section">
+    <div class="sec-title">Output — planilla_YYYY-MM.xlsx</div>
+
+    <div class="file-block output-perm">
+      <span class="badge perm">Permanente · entrada directa de 5_cobranza</span>
+      <div class="file-name">outputs/planilla_YYYY-MM.xlsx</div>
+      <div class="file-desc">Hoja única llamada <strong>Planilla</strong>. Columnas en este orden exacto:</div>
+      <table class="col-vacío">
+        <tr><th>#</th><th>Columna</th><th>Origen</th></tr>
+        <tr><td>1</td><td>MZ</td><td>lecturas</td></tr>
+        <tr><td>2</td><td>LT</td><td>lecturas</td></tr>
+        <tr><td>3</td><td>NOMBRE</td><td>lecturas</td></tr>
+        <tr><td>4</td><td>MES_ANO</td><td>lecturas</td></tr>
+        <tr><td>5</td><td>MARC_ANT</td><td>lecturas</td></tr>
+        <tr><td>6</td><td>MARC_ACT</td><td>lecturas</td></tr>
+        <tr><td>7</td><td>M3</td><td>lecturas</td></tr>
+        <tr><td>8</td><td>MES_ACTUAL</td><td>calculado · max(M3, 5)</td></tr>
+        <tr><td>9</td><td>MANTENIMIENTO</td><td>fijo · S/3</td></tr>
+        <tr><td>10</td><td>MES_ANTERIOR</td><td>arrastre_deuda (0 si no hay)</td></tr>
+        <tr><td>11</td><td>CORTE_RECONEXION</td><td>arrastre_corte (0 si no hay)</td></tr>
+        <tr><td>12</td><td>CONVENIO</td><td>convenios (0 si no hay)</td></tr>
+        <tr><td>13</td><td>MULTA</td><td>multas (0 si no hay)</td></tr>
+        <tr><td>14</td><td>ACUERDOS_ASAMBLEA</td><td>acuerdos_asamblea (0 si no hay) · aporte de infraestructura acordado en asamblea</td></tr>
+        <tr><td style="color:#4C1D95">15</td><td style="color:#4C1D95">BLANCO</td><td style="color:#4C1D95;font-style:italic">0 al generar · 5_cobranza escribe valor negativo cuando aplica descuento por blanco</td></tr>
+        <tr><td style="color:#4C1D95">16</td><td style="color:#4C1D95">DEVOLUCION</td><td style="color:#4C1D95;font-style:italic">0 al generar · 5_cobranza escribe valor negativo cuando devuelve exceso al usuario</td></tr>
+        <tr><td>17</td><td>TOTAL_A_PAGAR</td><td>fórmula Excel · suma cols 8–16 · BLANCO y DEVOLUCION negativos reducen el total</td></tr>
+        <tr><td style="color:#6C3483">18</td><td style="color:#6C3483">MONTO_YAPE</td><td style="color:#6C3483;font-style:italic">vacío → lo llena 5_cobranza</td></tr>
+        <tr><td style="color:#6C3483">19</td><td style="color:#6C3483">MONTO_EFECTIVO</td><td style="color:#6C3483;font-style:italic">vacío → lo llena 5_cobranza</td></tr>
+        <tr><td style="color:#6C3483">20</td><td style="color:#6C3483">ESTADO</td><td style="color:#6C3483;font-style:italic">vacío → lo llena 5_cobranza</td></tr>
+        <tr><td style="color:#6C3483">21</td><td style="color:#6C3483">FECHA_PAGO</td><td style="color:#6C3483;font-style:italic">vacío → lo llena 5_cobranza</td></tr>
+      </table>
+    </div>
+
+    <div class="note">
+      <strong>Columnas en morado</strong> — salen vacías de este módulo. Las completa <code>5_cobranza/yape</code>
+      después del matching. <strong>MONTO_YAPE + MONTO_EFECTIVO</strong> permite pagos mixtos sin perder información.
+    </div>
+  </div>
+
+  <!-- LIFECYCLE -->
+  <div class="section">
+    <div class="sec-title">Ciclo de vida de archivos</div>
+    <div class="life-row">
+      <div class="life-file">inputs/lecturas/lecturas_planilla_YYYY-MM.xlsx</div>
+      <div class="life-action">PERMANECE</div>
+      <div class="life-why">input del ciclo — no tocar</div>
+    </div>
+    <div class="life-row">
+      <div class="life-file">inputs/deuda_anterior/arrastre_deuda_YYYY-MM.xlsx</div>
+      <div class="life-action">PERMANECE</div>
+      <div class="life-why">input del ciclo — generado por 04b en el futuro</div>
+    </div>
+    <div class="life-row">
+      <div class="life-file">inputs/corte/arrastre_corte_YYYY-MM.xlsx</div>
+      <div class="life-action">PERMANECE</div>
+      <div class="life-why">input del ciclo — generado por 6_corte en el futuro</div>
+    </div>
+    <div class="life-row">
+      <div class="life-file">inputs/convenios/convenios.xlsx</div>
+      <div class="life-action">SE ACTUALIZA cada mes</div>
+      <div class="life-why">el tesorero actualiza cuota_mes antes de correr</div>
+    </div>
+    <div class="life-row">
+      <div class="life-file">inputs/multas/multas.xlsx</div>
+      <div class="life-action">SE ACTUALIZA cada mes</div>
+      <div class="life-why">el tesorero actualiza monto_mes antes de correr</div>
+    </div>
+    <div class="life-row">
+      <div class="life-file">outputs/planilla_YYYY-MM.xlsx</div>
+      <div class="life-action">PERMANECE · uno por mes</div>
+      <div class="life-why">fuente de verdad para 5_cobranza y 3_boletas</div>
+    </div>
+  </div>
+
+  <!-- ESTRUCTURA -->
+  <div class="section">
+    <div class="sec-title">Estructura de carpetas</div>
+    <div class="card">
+      <pre style="font-family:'IBM Plex Mono',monospace; font-size:11px; line-height:1.8; color:#333;">2_planilla/
+├── inputs/
+│   ├── lecturas/
+│   │   └── lecturas_planilla_YYYY-MM.xlsx    ← de 1_lecturas/outputs/
+│   ├── deuda_anterior/
+│   │   └── arrastre_deuda_YYYY-MM.xlsx       ← hoy manual · futuro 04b
+│   ├── corte/
+│   │   └── arrastre_corte_YYYY-MM.xlsx       ← hoy manual · futuro 6_corte
+│   ├── convenios/
+│   │   └── convenios.xlsx                    ← tesorero actualiza cada mes
+│   └── multas/
+│       └── multas.xlsx                       ← tesorero actualiza cada mes
+├── outputs/
+│   └── planilla_YYYY-MM.xlsx                 ← entrada de 5_cobranza
+├── docs/
+│   ├── arquitectura_2_planilla.html          ← este archivo
+│   └── decisiones/
+│       └── 2_planilla.md
+├── main.py
+├── config.py
+└── README.md</pre>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

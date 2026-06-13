@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>mesa_N.xlsx — contrato visual</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+
+  :root {
+    --font-sans: 'IBM Plex Sans', sans-serif;
+    --font-mono: 'IBM Plex Mono', monospace;
+    --border: #dee2e6;
+    --bg2: #f8f9fa;
+    --text3: #adb5bd;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font-sans); background: #fff; padding: 28px; font-size: 13px; color: #111; }
+
+  .title { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+  .sub   { font-size: 12px; color: #888; margin-bottom: 8px; }
+
+  .historia {
+    font-size: 11px; color: #555; margin-bottom: 16px;
+    background: #f8f9fa; border-left: 3px solid #dee2e6;
+    padding: 7px 12px; border-radius: 0 5px 5px 0;
+  }
+  .historia strong { color: #333; }
+
+  /* Excel tabs */
+  .tabs-wrap { display: flex; gap: 2px; margin-bottom: -1px; }
+  .tab {
+    display: inline-flex; align-items: center;
+    border: 0.5px solid var(--border); border-bottom: none;
+    border-radius: 6px 6px 0 0;
+    padding: 5px 14px; font-size: 11px; font-weight: 500;
+    font-family: var(--font-mono);
+  }
+  .tab.active { background: #EFF6FF; border-color: #BFDBFE; color: #1D4ED8; }
+  .tab.opt    { background: #f8f9fa; color: #aaa; font-style: italic; }
+
+  /* Table wrapper */
+  .tw { border: 0.5px solid var(--border); border-radius: 0 8px 8px 8px; overflow-x: auto; margin-bottom: 16px; }
+
+  table { border-collapse: collapse; font-size: 10px; font-family: var(--font-sans); }
+  th, td {
+    padding: 5px 8px;
+    border-bottom: 0.5px solid var(--border);
+    border-right: 0.5px solid var(--border);
+    white-space: nowrap; vertical-align: middle;
+  }
+
+  .num {
+    width: 22px; background: var(--bg2); color: var(--text3);
+    font-size: 9px; font-family: var(--font-mono); text-align: center; padding: 4px 2px;
+  }
+  .th-sep, .td-sep { width: 5px; background: var(--bg2); border-right: 2px solid var(--border); padding: 0; }
+
+  .gh  { font-size: 9px; font-weight: 600; text-align: center; letter-spacing: 0.05em; text-transform: uppercase; padding: 4px 8px; }
+  th.col { font-size: 9px; font-weight: 600; font-family: var(--font-mono); text-align: center; padding: 4px 8px; }
+
+  /* ── SECCIÓN 1: ¿Quién cobró? (azul) ── */
+  .gh-quien { background: #EFF6FF; color: #1D4ED8; }
+  .th-quien { background: #EFF6FF; color: #1D4ED8; }
+  .td-quien { background: #F8FBFF; color: #1D4ED8; }
+
+  /* ── SECCIÓN 2: ¿Dónde vive? (verde) ── */
+  .gh-lote { background: #E1F5EE; color: #085041; }
+  .th-lote { background: #E1F5EE; color: #085041; }
+  .td-lote { background: #F0FFF8; color: #085041; font-family: var(--font-mono); text-align: center; font-weight: 600; }
+
+  /* ── SECCIÓN 3: ¿Cuánto y cuándo? (amarillo) ── */
+  .gh-cobro { background: #FEF9E7; color: #7D6608; }
+  .th-cobro { background: #FEF9E7; color: #7D6608; }
+  .td-cobro { background: #FFFDF5; color: #7D6608; font-family: var(--font-mono); }
+
+  /* ── Sub-badge dentro de cabecera ── */
+  .sub-badge {
+    display: inline-block; font-size: 8px; font-weight: 700;
+    border-radius: 3px; padding: 0 4px; margin-left: 4px;
+    vertical-align: middle; letter-spacing: .03em;
+  }
+  .sub-badge.efec { background: #D1FAE5; color: #065F46; }
+  .sub-badge.yape { background: #EDE9FE; color: #4C1D95; }
+
+  /* ── SECCIÓN 4: ¿Alguna nota? (lila) ── */
+  .gh-com { background: #F4ECF7; color: #5B21B6; }
+  .th-com { background: #F4ECF7; color: #5B21B6; }
+  .td-com { background: #FAF5FF; color: #888; font-style: italic; }
+
+  /* ── LEYENDA ── */
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; align-items: center; }
+  .ld-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #555; }
+  .ld { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; border: 0.5px solid rgba(0,0,0,.12); }
+
+  /* ── REGLAS ── */
+  .section-title { font-size: 12px; font-weight: 600; color: #333; margin-bottom: 10px; margin-top: 20px; }
+  .rule-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 20px; }
+  .rule-card { border: 0.5px solid var(--border); border-radius: 6px; padding: 10px 12px; font-size: 11px; color: #555; line-height: 1.6; }
+  .rule-card strong { display: block; font-size: 9px; font-weight: 700; margin-bottom: 5px; color: #333; text-transform: uppercase; letter-spacing: 0.05em; }
+  .rule-card code { font-family: var(--font-mono); font-size: 10px; background: #f3f3f3; padding: 1px 4px; border-radius: 2px; }
+
+  /* ── ANCHOS ── */
+  .widths-table { border-collapse: collapse; font-size: 11px; }
+  .widths-table th, .widths-table td { border: 0.5px solid var(--border); padding: 4px 10px; text-align: left; }
+  .widths-table th { background: var(--bg2); font-weight: 600; font-size: 10px; }
+  .widths-table code { font-family: var(--font-mono); font-size: 10px; }
+
+  .example-row { font-size: 10px; color: #9CA3AF; font-style: italic; }
+</style>
+</head>
+<body>
+
+<p class="title">mesa_N.xlsx — contrato visual del input</p>
+<p class="sub">Hasta 3 hojas por archivo · el cobrador llena a mano · sagrado</p>
+
+<p class="historia">
+  <strong>Historia (izquierda → derecha):</strong>
+  ¿Quién cobró y cuándo lo registró? → ¿Dónde vive el usuario? → ¿Cuánto cobró en total, de ese total cuánto fue en efectivo y cuánto por Yape, y en qué fecha pagó? → ¿Alguna nota?<br><br>
+  Cada archivo representa una mesa física. Las hojas <code>registro_2</code> y <code>registro_3</code>
+  son opcionales — aparecen solo si hay 2.° o 3.° cobrador en esa mesa.
+  La fila 3 es un ejemplo en gris para guiar al cobrador — se borra antes de llenar.
+</p>
+
+<!-- ── LEYENDA ── -->
+<div class="legend">
+  <div class="ld-item"><div class="ld" style="background:#EFF6FF;border-color:#BFDBFE"></div>¿Quién cobró?</div>
+  <div class="ld-item"><div class="ld" style="background:#E1F5EE;border-color:#6EE7B7"></div>¿Dónde vive?</div>
+  <div class="ld-item"><div class="ld" style="background:#FEF9E7;border-color:#F9E79F"></div>¿Cuánto y cuándo?</div>
+  <div class="ld-item"><div class="ld" style="background:#F4ECF7;border-color:#D8B4FE"></div>¿Alguna nota?</div>
+</div>
+
+<!-- ── TABS ── -->
+<div class="tabs-wrap">
+  <div class="tab active">registro_1</div>
+  <div class="tab opt">registro_2 (opcional)</div>
+  <div class="tab opt">registro_3 (opcional)</div>
+</div>
+
+<div class="tw">
+<table>
+
+  <!-- FILA 1: SECCIONES -->
+  <tr>
+    <th class="num" rowspan="2"></th>
+    <th class="gh gh-quien" colspan="2">¿Quién cobró?</th>
+    <th class="th-sep" rowspan="2"></th>
+    <th class="gh gh-lote"  colspan="2">¿Dónde vive?</th>
+    <th class="th-sep" rowspan="2"></th>
+    <th class="gh gh-cobro" colspan="4">¿Cuánto y cuándo?</th>
+    <th class="th-sep" rowspan="2"></th>
+    <th class="gh gh-com"   colspan="1">¿Alguna nota?</th>
+  </tr>
+
+  <!-- FILA 2: COLUMNAS -->
+  <tr>
+    <th class="col th-quien">COBRADOR</th>
+    <th class="col th-quien">FECHA_REGISTRO</th>
+
+    <th class="col th-lote">MZ</th>
+    <th class="col th-lote">LT</th>
+
+    <th class="col th-cobro">MONTO</th>
+    <th class="col th-cobro">MONTO_EFECTIVO <span class="sub-badge efec">EFE</span></th>
+    <th class="col th-cobro">MONTO_YAPE <span class="sub-badge yape">YAPE</span></th>
+    <th class="col th-cobro">FECHA</th>
+
+    <th class="col th-com">COMENTARIO</th>
+  </tr>
+
+  <!-- FILA 3: ejemplo guía (en gris itálico, el cobrador la borra) -->
+  <tr>
+    <td class="num" style="color:#D1D5DB;">3</td>
+    <td class="example-row">María García</td>
+    <td class="example-row">10/06/2026</td>
+    <td class="td-sep"></td>
+    <td class="example-row" style="text-align:center">A</td>
+    <td class="example-row" style="text-align:center">8C</td>
+    <td class="td-sep"></td>
+    <td class="example-row" style="text-align:right">38.00</td>
+    <td class="example-row" style="text-align:right">20.00</td>
+    <td class="example-row" style="text-align:right">18.00</td>
+    <td class="example-row">03/06/2026</td>
+    <td class="td-sep"></td>
+    <td class="example-row"></td>
+  </tr>
+
+  <!-- FILA 4: pago íntegro por Yape -->
+  <tr>
+    <td class="num">4</td>
+    <td class="td-quien">Pedro Quispe</td>
+    <td class="td-quien" style="font-family:var(--font-mono)">10/06/2026</td>
+    <td class="td-sep"></td>
+    <td class="td-lote">A</td>
+    <td class="td-lote">7</td>
+    <td class="td-sep"></td>
+    <td class="td-cobro" style="text-align:right">S/ 38.00</td>
+    <td class="td-cobro" style="text-align:right">0.00</td>
+    <td class="td-cobro" style="text-align:right">38.00</td>
+    <td class="td-cobro">03/06/2026</td>
+    <td class="td-sep"></td>
+    <td class="td-com"></td>
+  </tr>
+
+  <!-- FILA 5: pago íntegro en efectivo -->
+  <tr>
+    <td class="num">5</td>
+    <td class="td-quien">Pedro Quispe</td>
+    <td class="td-quien" style="font-family:var(--font-mono)">10/06/2026</td>
+    <td class="td-sep"></td>
+    <td class="td-lote">B1</td>
+    <td class="td-lote">11A</td>
+    <td class="td-sep"></td>
+    <td class="td-cobro" style="text-align:right">S/ 21.00</td>
+    <td class="td-cobro" style="text-align:right">21.00</td>
+    <td class="td-cobro" style="text-align:right">0.00</td>
+    <td class="td-cobro">03/06/2026</td>
+    <td class="td-sep"></td>
+    <td class="td-com">Pagó con billete de 50</td>
+  </tr>
+
+</table>
+</div>
+
+<!-- ── REGLAS ── -->
+<p class="section-title">Reglas del archivo</p>
+<div class="rule-grid">
+  <div class="rule-card">
+    <strong>Nombres de hojas</strong>
+    Exactamente <code>registro_1</code>, <code>registro_2</code>, <code>registro_3</code>.
+    Sin espacios, sin mayúsculas. El código los busca por ese nombre exacto.
+  </div>
+  <div class="rule-card">
+    <strong>Fila de ejemplo</strong>
+    La fila 3 (en gris itálico) es solo una guía visual. El cobrador debe borrarla
+    antes de empezar a llenar datos reales.
+  </div>
+  <div class="rule-card">
+    <strong>FECHA vs FECHA_REGISTRO</strong>
+    <code>FECHA_REGISTRO</code> = día en que el cobrador llena el Excel.<br>
+    <code>FECHA</code> = día en que el usuario pagó (puede ser distinto).
+  </div>
+  <div class="rule-card">
+    <strong>MONTO (total)</strong>
+    Total cobrado al usuario. Debe ser igual a
+    <code>MONTO_EFECTIVO + MONTO_YAPE</code>.
+    Solo el número, sin "S/". Decimal con punto o coma.
+  </div>
+  <div class="rule-card">
+    <strong>MONTO_EFECTIVO</strong>
+    Parte del cobro recibida en billetes/monedas. Poner <code>0</code> si el usuario
+    pagó íntegramente por Yape.
+  </div>
+  <div class="rule-card">
+    <strong>MONTO_YAPE</strong>
+    Parte del cobro recibida por transferencia Yape. Poner <code>0</code> si el usuario
+    pagó íntegramente en efectivo.
+  </div>
+</div>
+
+<!-- ── ANCHOS OPENPYXL ── -->
+<p class="section-title">Reglas de formato — openpyxl (crear_templates.py)</p>
+<table class="widths-table">
+  <tr><th>Columna</th><th>Ancho</th><th>Sección (color)</th></tr>
+  <tr><td><code>COBRADOR</code></td><td>20</td><td>¿Quién cobró? — <code>EFF6FF / 1D4ED8</code></td></tr>
+  <tr><td><code>FECHA_REGISTRO</code></td><td>16</td><td>¿Quién cobró? — <code>EFF6FF / 1D4ED8</code></td></tr>
+  <tr><td><code>MZ</code></td><td>8</td><td>¿Dónde vive? — <code>E1F5EE / 085041</code></td></tr>
+  <tr><td><code>LT</code></td><td>8</td><td>¿Dónde vive? — <code>E1F5EE / 085041</code></td></tr>
+  <tr><td><code>MONTO</code></td><td>12</td><td>¿Cuánto y cuándo? — <code>FEF9E7 / 7D6608</code></td></tr>
+  <tr><td><code>MONTO_EFECTIVO</code></td><td>16</td><td>¿Cuánto y cuándo? — <code>FEF9E7 / 7D6608</code></td></tr>
+  <tr><td><code>MONTO_YAPE</code></td><td>14</td><td>¿Cuánto y cuándo? — <code>FEF9E7 / 7D6608</code></td></tr>
+  <tr><td><code>FECHA</code></td><td>14</td><td>¿Cuánto y cuándo? — <code>FEF9E7 / 7D6608</code></td></tr>
+  <tr><td><code>COMENTARIO</code></td><td>30</td><td>¿Alguna nota? — <code>F4ECF7 / 5B21B6</code></td></tr>
+</table>
+<p style="font-size:11px; color:#888; margin-top:8px;">
+  Fila 1 (secciones): altura 20px · negrita · texto centrado.<br>
+  Fila 2 (columnas): altura 22px · negrita · texto centrado.<br>
+  Fila 3 (ejemplo): fuente gris <code>9CA3AF</code> · itálica · se borra antes de usar.
+</p>
+
+</body>
+</html>

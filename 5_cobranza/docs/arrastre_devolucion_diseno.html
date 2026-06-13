@@ -1,0 +1,106 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+#w{font-family:var(--font-sans);padding:4px 0 16px}
+.instruc{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-left:3px solid #1D4ED8;border-radius:0 var(--border-radius-md) var(--border-radius-md) 0;padding:9px 13px;font-size:12px;color:var(--color-text-secondary);margin-bottom:12px;line-height:1.7}
+.instruc strong{color:var(--color-text-primary)}
+.tab-excel{display:inline-flex;align-items:center;gap:5px;background:#DBEAFE;border:0.5px solid #93C5FD;border-bottom:none;border-radius:6px 6px 0 0;padding:5px 14px;font-size:12px;font-weight:500;color:#1E3A8A;margin-bottom:-1px}
+.tw{border:0.5px solid var(--color-border-tertiary);border-radius:0 var(--border-radius-md) var(--border-radius-md) var(--border-radius-md);overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:11px;min-width:600px}
+th{padding:6px 8px;font-size:10px;font-weight:500;text-align:left;border-bottom:0.5px solid var(--color-border-tertiary);border-right:0.5px solid var(--color-border-tertiary);white-space:nowrap}
+th:last-child{border-right:none}
+td{padding:5px 8px;border-bottom:0.5px solid var(--color-border-tertiary);border-right:0.5px solid var(--color-border-tertiary);vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+td:last-child{border-right:none}
+tr:last-child td{border-bottom:none}
+.num{width:24px;background:var(--color-background-secondary);color:var(--color-text-tertiary);font-size:10px;font-family:var(--font-mono);text-align:center;border-right:0.5px solid var(--color-border-tertiary)}
+
+.th-quien{background:#EFF6FF;color:#1D4ED8}
+.th-monto{background:#EFF6FF;color:#1D4ED8}
+.th-traz {background:#EFF6FF;color:#1D4ED8}
+.th-sep  {width:4px;background:var(--color-background-secondary);padding:0;border-right:2px solid var(--color-border-secondary)}
+
+.td-quien{background:#F5F9FF;font-family:var(--font-mono);font-size:10px;color:#1D4ED8}
+.td-nombre{background:#F5F9FF;font-size:11px;color:var(--color-text-primary)}
+.td-monto{background:#F5F9FF;font-family:var(--font-mono);font-size:11px;font-weight:600;color:#1D4ED8;text-align:right}
+.td-traz {background:#F5F9FF;font-family:var(--font-mono);font-size:11px;color:#1D4ED8;text-align:center}
+.td-sep  {width:4px;background:var(--color-background-secondary);padding:0;border-right:2px solid var(--color-border-secondary)}
+
+.gh{font-size:9px;font-weight:600;text-align:center;padding:2px 0;letter-spacing:.05em;text-transform:uppercase;border-bottom:0.5px solid var(--color-border-tertiary)}
+
+.legend{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center}
+.leg{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--color-text-secondary)}
+.ld{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+</style>
+
+<div id="w">
+  <div class="instruc">
+    Generado por <strong>5_cobranza/main.py</strong> — solo lectura.<br>
+    Un registro por usuario con <strong>SALDO &lt; 0</strong> (pagó de más) al cierre del ciclo.<br>
+    El <strong>monto</strong> es el valor absoluto del exceso — lo que la JASS le debe al usuario.<br>
+    Este archivo se usa en <strong>7_cierre</strong> para acumular excesos pendientes de reclamo.
+  </div>
+
+  <div class="tab-excel">arrastre_devolucion_2026-06</div>
+  <div class="tw">
+    <table>
+      <thead>
+        <tr>
+          <th class="num" rowspan="2"></th>
+          <th class="th-quien gh" colspan="3">¿Quién es?</th>
+          <th class="th-sep" rowspan="2"></th>
+          <th class="th-monto gh" colspan="1">¿Cuánto sobra?</th>
+          <th class="th-sep" rowspan="2"></th>
+          <th class="th-traz gh" colspan="1">¿De qué mes?</th>
+        </tr>
+        <tr>
+          <th class="th-quien">MZ</th>
+          <th class="th-quien">LT</th>
+          <th class="th-quien">NOMBRE</th>
+
+          <th class="th-monto">monto</th>
+
+          <th class="th-traz">MES_ANO_ORIGEN</th>
+        </tr>
+      </thead>
+      <tbody>
+
+        <!-- fila 1: exceso por pago doble -->
+        <tr>
+          <td class="num">1</td>
+          <td class="td-quien">A</td><td class="td-quien">3</td><td class="td-nombre">MANUEL QUISPE FLORES</td>
+          <td class="td-sep"></td>
+          <td class="td-monto">12.50</td>
+          <td class="td-sep"></td>
+          <td class="td-traz">2026-06</td>
+        </tr>
+
+        <!-- fila 2: exceso por blanco aplicado después del pago -->
+        <tr>
+          <td class="num">2</td>
+          <td class="td-quien">C</td><td class="td-quien">7</td><td class="td-nombre">LUCY MAMANI CONDORI</td>
+          <td class="td-sep"></td>
+          <td class="td-monto">5.00</td>
+          <td class="td-sep"></td>
+          <td class="td-traz">2026-06</td>
+        </tr>
+
+        <!-- fila 3: exceso por pago mayor al total -->
+        <tr>
+          <td class="num">3</td>
+          <td class="td-quien">G1</td><td class="td-quien">2</td><td class="td-nombre">ROSA AURORA ROCA PARI</td>
+          <td class="td-sep"></td>
+          <td class="td-monto">8.00</td>
+          <td class="td-sep"></td>
+          <td class="td-traz">2026-06</td>
+        </tr>
+
+      </tbody>
+    </table>
+  </div>
+
+  <div class="legend">
+    <div class="leg"><div class="ld" style="background:#F5F9FF;border:0.5px solid #93C5FD"></div>¿Quién es?</div>
+    <div class="leg"><div class="ld" style="background:#F5F9FF;border:0.5px solid #93C5FD"></div>monto = |SALDO| del ciclo actual (exceso a devolver)</div>
+    <div class="leg"><div class="ld" style="background:#F5F9FF;border:0.5px solid #93C5FD"></div>mes en que se originó el exceso</div>
+  </div>
+</div>

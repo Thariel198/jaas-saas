@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>5_cobranza — arquitectura</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'IBM Plex Sans', sans-serif; background: #fff; color: #111; }
+  .wrap { padding: .5rem 0 3rem; max-width: 720px; margin: 0 auto; }
+
+  .title { font-size: 20px; font-weight: 600; color: #111; margin: 0 0 2px; }
+  .sub   { font-size: 12px; color: #666; margin: 0 0 20px; }
+
+  /* PIPELINE STRIP */
+  .pipeline-strip {
+    display: flex; align-items: center; gap: 4px;
+    background: #f5f5f5; border-radius: 8px;
+    padding: 8px 12px; margin-bottom: 20px; overflow-x: auto;
+  }
+  .pip-mod { font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 4px; white-space: nowrap; background: #e5e7eb; color: #6b7280; }
+  .pip-mod.active { background: #7C3AED; color: #fff; }
+  .pip-arrow { font-size: 12px; color: #aaa; flex-shrink: 0; }
+
+  /* SECTION */
+  .section { margin-bottom: 24px; }
+  .sec-title {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .08em; color: #7C3AED; border-bottom: 1.5px solid #C4B5FD;
+    padding-bottom: 4px; margin-bottom: 10px;
+  }
+
+  /* CARD */
+  .card { border: 0.5px solid #ddd; border-radius: 8px; padding: 10px 14px; margin-bottom: 8px; }
+  .card-title { font-size: 12px; font-weight: 600; color: #111; margin-bottom: 4px; }
+  .card-sub { font-size: 11px; color: #666; }
+
+  /* FILE BLOCKS */
+  .file-block { border-radius: 8px; padding: 10px 14px; margin-bottom: 10px; }
+  .file-block.from-planilla { background: #E9F7EF; border: 0.5px solid #A9DFBF; }
+  .file-block.from-pagos    { background: #EBF5FB; border: 0.5px solid #AED6F1; }
+  .file-block.shared        { background: #FEF9E7; border: 0.5px solid #F9E79F; }
+  .file-block.output-main   { background: #E9F7EF; border: 0.5px solid #A9DFBF; }
+  .file-block.output-amber  { background: #FEF9E7; border: 0.5px solid #F9E79F; }
+  .file-block.output-blue   { background: #EBF5FB; border: 0.5px solid #AED6F1; }
+  .file-block.output-teal   { background: #E8F8F5; border: 0.5px solid #A3E4D7; }
+
+  .file-name { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; margin-bottom: 2px; }
+  .file-block.from-planilla .file-name { color: #1E6B3C; }
+  .file-block.from-pagos    .file-name { color: #1A5276; }
+  .file-block.shared        .file-name { color: #7D6608; }
+  .file-block.output-main   .file-name { color: #1E6B3C; }
+  .file-block.output-amber  .file-name { color: #7D6608; }
+  .file-block.output-blue   .file-name { color: #1A5276; }
+  .file-block.output-teal   .file-name { color: #117A65; }
+
+  .file-desc { font-size: 11px; color: #444; margin-bottom: 6px; }
+
+  /* BADGE */
+  .badge {
+    display: inline-block; font-size: 9px; font-weight: 700;
+    padding: 1px 6px; border-radius: 3px;
+    text-transform: uppercase; letter-spacing: .04em; margin-bottom: 6px;
+  }
+  .badge.from-2    { background: #D5F5E3; color: #1E5C3A; }
+  .badge.from-4    { background: #D6EAF8; color: #1A5276; }
+  .badge.shared    { background: #FEF9C3; color: #7D6608; }
+  .badge.optional  { background: #FCD34D; color: #78350F; }
+  .badge.perm      { background: #D5F5E3; color: #1E8449; }
+  .badge.feeds     { background: #EDE9FE; color: #4C1D95; }
+  .badge.feeds-6   { background: #DBEAFE; color: #1E3A5F; }
+  .badge.feeds-2   { background: #D5F5E3; color: #1E5C3A; }
+
+  /* TABLE */
+  table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  th { background: #4C1D95; color: #fff; font-weight: 600; padding: 5px 8px; text-align: left; }
+  td { padding: 5px 8px; border-bottom: 0.5px solid #e5e7eb; color: #333; }
+  tr:last-child td { border-bottom: none; }
+  tr:nth-child(even) td { background: #f9f9f9; }
+
+  /* FLOW */
+  .flow { display: flex; flex-direction: column; gap: 0; }
+  .flow-step { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 0.5px solid #f0f0f0; }
+  .flow-step:last-child { border-bottom: none; }
+  .step-num {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: #7C3AED; color: #fff;
+    font-size: 11px; font-weight: 700; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .step-body { flex: 1; }
+  .step-title { font-size: 12px; font-weight: 600; color: #111; }
+  .step-desc  { font-size: 11px; color: #555; margin-top: 2px; }
+  .step-code  {
+    font-family: 'IBM Plex Mono', monospace; font-size: 10px;
+    background: #f5f5f5; border-radius: 4px; padding: 3px 7px;
+    display: inline-block; margin-top: 4px; color: #333;
+  }
+
+  /* RULE BOX */
+  .rule-box {
+    background: #F4F6F7; border: 0.5px solid #CCD1D1; border-radius: 6px;
+    padding: 8px 12px; font-size: 11px; margin-bottom: 8px;
+  }
+  .rule-box .rule-title { font-weight: 600; color: #4C1D95; margin-bottom: 4px; font-size: 12px; }
+  .rule-box code { font-family: 'IBM Plex Mono', monospace; background: #fff; padding: 1px 5px; border-radius: 3px; color: #4C1D95; }
+
+  /* NOTE */
+  .note {
+    font-size: 11px; color: #555; background: #f5f5f5;
+    border-left: 3px solid #aaa; border-radius: 0 6px 6px 0;
+    padding: 7px 12px; margin-top: 6px;
+  }
+  .note strong { color: #333; }
+  .note code { font-family: 'IBM Plex Mono', monospace; font-size: 10px; }
+
+  /* LIFECYCLE */
+  .life-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 0; border-bottom: 0.5px solid #f0f0f0; font-size: 11px;
+  }
+  .life-row:last-child { border-bottom: none; }
+  .life-file   { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #4C1D95; min-width: 260px; }
+  .life-action { color: #333; flex: 1; font-weight: 600; }
+  .life-why    { color: #888; font-size: 10px; }
+
+  code { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- HEADER -->
+  <p class="title">05 Cobranza — arquitectura</p>
+  <p class="sub">Módulo 5 del pipeline · Carga de pagos · estado de cobro · lista de corte · arrastre</p>
+
+  <!-- PIPELINE STRIP -->
+  <div class="pipeline-strip">
+    <span class="pip-mod">01 Lecturas</span>
+    <span class="pip-arrow">→</span>
+    <span class="pip-mod">02 Planilla</span>
+    <span class="pip-arrow">→</span>
+    <span class="pip-mod">04 Pagos</span>
+    <span class="pip-arrow">→</span>
+    <span class="pip-mod active">05 Cobranza</span>
+    <span class="pip-arrow">→</span>
+    <span class="pip-mod">05b Validación</span>
+    <span class="pip-arrow">→</span>
+    <span class="pip-mod">06 Corte</span>
+    <span class="pip-arrow">→</span>
+    <span class="pip-mod">03 Boletas</span>
+  </div>
+
+  <!-- QUÉ HACE -->
+  <div class="section">
+    <div class="sec-title">Qué hace</div>
+    <div class="card">
+      <div class="card-title">Cargar pagos · calcular saldo · generar estado final de cobro</div>
+      <div class="card-sub">
+        Lee la planilla del mes (2_planilla), los pagos identificados (4_pagos yape + efectivo)
+        y los blancos pendientes (shared). Cruza pagos con deudas, calcula el saldo de cada
+        usuario y genera el estado de cobro. Produce la lista de usuarios a cortar, la
+        trazabilidad de cada pago cargado, el resumen de recaudación y el arrastre de deuda
+        para el ciclo siguiente.
+      </div>
+    </div>
+    <div class="rule-box">
+      <div class="rule-title">Principio de este módulo</div>
+      La planilla original de 2_planilla <strong>nunca se modifica</strong>.
+      <code>planilla_cobrado.xlsx</code> es un output propio — copia enriquecida con los
+      pagos cargados. Re-correr con los mismos inputs produce el mismo output (idempotente):
+      si no hay pagos nuevos respecto a la trazabilidad, el módulo sale sin tocar nada.
+    </div>
+  </div>
+
+  <!-- INPUTS -->
+  <div class="section">
+    <div class="sec-title">Inputs</div>
+
+    <div class="file-block from-planilla">
+      <span class="badge from-2">Viene de 2_planilla / outputs</span>
+      <div class="file-name">inputs/planilla/planilla_YYYY-MM.xlsx</div>
+      <div class="file-desc">Planilla del mes con los 17 cargos calculados. Columnas de pago vacías (MONTO_YAPE, MONTO_EFECTIVO, ESTADO, FECHA_PAGO). 21 columnas totales.</div>
+      <table>
+        <tr><th>Columna</th><th>Descripción</th></tr>
+        <tr><td>MZ / LT / NOMBRE / MES_ANO</td><td>Identificación del usuario</td></tr>
+        <tr><td>MARC_ANT / MARC_ACT / M3</td><td>Lectura del mes</td></tr>
+        <tr><td>MES_ACTUAL / MANTENIMIENTO</td><td>Cargos calculados</td></tr>
+        <tr><td>MES_ANTERIOR / CORTE_RECONEXION / CONVENIO / MULTA / ACUERDOS_ASAMBLEA</td><td>Arrastres y cargos adicionales</td></tr>
+        <tr><td>BLANCO / DEVOLUCION</td><td>0 al llegar — 5_cobranza escribe negativos</td></tr>
+        <tr><td>TOTAL_A_PAGAR</td><td>Fórmula Excel — suma de cargos + descuentos</td></tr>
+        <tr><td>MONTO_YAPE / MONTO_EFECTIVO / ESTADO / FECHA_PAGO</td><td>Vacíos — los rellena este módulo</td></tr>
+      </table>
+    </div>
+
+    <div class="file-block from-pagos">
+      <span class="badge from-4">Viene de 4_pagos / yape</span>
+      <div class="file-name">inputs/pagos_yape/pagos_yape_tepago.xlsx</div>
+      <div class="file-desc">Pagos identificados vía Yape/tePagó. Se usa <code>MONTO_ASIGNA</code> para pagos multi-lote. Solo filas con <code>TIPO = TE PAGÓ</code>, MZ+LOTE identificados y sin CONCEPTO.</div>
+      <table>
+        <tr><th>Columna</th><th>Descripción</th></tr>
+        <tr><td>MZ / LT</td><td>Clave de join</td></tr>
+        <tr><td>MONTO_ASIGNA</td><td>Monto a cargar por este usuario</td></tr>
+        <tr><td>CICLO_CORRECCION</td><td>Ciclo de 4_pagos en que fue identificado</td></tr>
+      </table>
+    </div>
+
+    <div class="file-block from-pagos">
+      <span class="badge from-4">Viene de 4_pagos / efectivo</span>
+      <div class="file-name">inputs/pagos_efectivo/pagos_efectivo.xlsx</div>
+      <div class="file-desc">Pagos identificados en efectivo (mesa de cobro). Se usa la columna <code>MONTO</code>.</div>
+      <table>
+        <tr><th>Columna</th><th>Descripción</th></tr>
+        <tr><td>MZ / LT</td><td>Clave de join</td></tr>
+        <tr><td>MONTO</td><td>Monto pagado en efectivo</td></tr>
+        <tr><td>CICLO_CORRECCION</td><td>Ciclo de 4_pagos en que fue registrado</td></tr>
+      </table>
+    </div>
+
+    <div class="file-block shared">
+      <span class="badge shared">shared/</span>
+      <span class="badge optional">OPCIONAL</span>
+      <div class="file-name">shared/blancos_acumulados.xlsx</div>
+      <div class="file-desc">Blancos pendientes de aplicar. El módulo lee los registros con <code>ESTADO ≠ aplicado</code> y marca <code>ESTADO = aplicado</code> al finalizar. Si no existe → continúa sin blancos, log avisa.</div>
+      <table>
+        <tr><th>Columna</th><th>Descripción</th></tr>
+        <tr><td>MZ / LT</td><td>Clave de join</td></tr>
+        <tr><td>monto</td><td>Monto del blanco (negativo)</td></tr>
+        <tr><td>ESTADO</td><td>pendiente / aplicado</td></tr>
+        <tr><td>MES_APLICADO</td><td>Vacío → 5_cobranza lo rellena al aplicar</td></tr>
+      </table>
+    </div>
+
+    <div class="note">
+      <strong>Clave de join (MZ, LT):</strong> misma normalización que 2_planilla —
+      MZ uppercase sin espacios · LT número flotante → string entero (<code>1.0 → "1"</code>).
+    </div>
+  </div>
+
+  <!-- REGLAS DE NEGOCIO -->
+  <div class="section">
+    <div class="sec-title">Reglas de negocio</div>
+
+    <div class="rule-box">
+      <div class="rule-title">CICLO_COBRANZA — detección autónoma</div>
+      <code>nuevo_ciclo = max(CICLO_COBRANZA en trazabilidad_cobranza) + 1</code><br>
+      <span style="color:#555; font-size:11px; margin-top:4px; display:block;">
+        Si no hay trazabilidad previa → <code>CICLO_COBRANZA = 1</code>.
+        Si los pagos entrantes ya están en trazabilidad → salir sin modificar nada (idempotencia).
+        <code>CICLO_COBRANZA</code> se retroescribe también en <code>pagos_yape_tepago.xlsx</code>
+        y <code>pagos_efectivo.xlsx</code>.
+      </span>
+    </div>
+
+    <div class="rule-box">
+      <div class="rule-title">Estados de planilla_cobrado</div>
+      <table>
+        <tr><th>ESTADO</th><th>Condición</th></tr>
+        <tr><td>CANCELADO</td><td>saldo = 0 (tolerancia ±0.005)</td></tr>
+        <tr><td>EXCESO</td><td>saldo &lt; 0 — pagó de más · se registra, no se devuelve hasta reclamo</td></tr>
+        <tr><td>PARCIAL</td><td>saldo &gt; 0 y pagó algo</td></tr>
+        <tr><td>PENDIENTE</td><td>saldo &gt; 0 y no pagó nada</td></tr>
+      </table>
+    </div>
+
+    <div class="rule-box">
+      <div class="rule-title">Condición lista_corte</div>
+      <code>SALDO &gt; 0  AND  MES_ANTERIOR ≥ 8</code><br>
+      <span style="color:#555; font-size:11px; margin-top:4px; display:block;">
+        S/8 = mínimo mensual (mantenimiento S/3 + mínimo agua S/5).
+        Arrastre ≥ 8 confirma que no hubo ningún pago el mes anterior.
+        Usuarios con deuda nueva (ARRASTRE = 0) van como PARCIAL/PENDIENTE pero
+        <strong>no</strong> a lista_corte.
+      </span>
+      <br><code>PENALIDAD = S/20 · TOTAL_A_PAGAR_CORTE = SALDO + 20</code>
+    </div>
+  </div>
+
+  <!-- PASOS INTERNOS -->
+  <div class="section">
+    <div class="sec-title">Pasos internos de main.py</div>
+    <div class="flow">
+      <div class="flow-step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title">Cargar y validar inputs</div>
+          <div class="step-desc">Lee planilla, yape, efectivo. Falla con mensaje claro si alguno falta.
+            Normaliza claves (MZ, LT). Carga blancos si existen.</div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title">Detectar CICLO_COBRANZA</div>
+          <div class="step-desc">Lee <code>outputs/trazabilidad_cobranza.xlsx</code>.
+            Si no existe → ciclo 1. Si existe → <code>max(CICLO_COBRANZA) + 1</code>.
+            Determina las filas nuevas (no procesadas aún).</div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-title">Cruzar pagos por (MZ, LT)</div>
+          <div class="step-desc">Suma <code>MONTO_ASIGNA</code> de yape + <code>MONTO</code> de efectivo.
+            Registra <code>MONTO_YAPE</code>, <code>MONTO_EFECTIVO</code>, <code>FECHA_PAGO</code>.</div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <div class="step-title">Aplicar blancos pendientes</div>
+          <div class="step-desc">Para cada usuario con blanco pendiente:
+            escribe monto negativo en columna <code>BLANCO</code> de <code>planilla_cobrado</code>.
+            Marca <code>ESTADO = aplicado</code> y escribe <code>MES_APLICADO</code> en
+            <code>blancos_acumulados.xlsx</code>.</div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num">5</div>
+        <div class="step-body">
+          <div class="step-title">Calcular SALDO y ESTADO</div>
+          <div class="step-desc">
+            <code>SALDO = TOTAL_A_PAGAR - MONTO_YAPE - MONTO_EFECTIVO</code><br>
+            Asigna CANCELADO / EXCESO / PARCIAL / PENDIENTE según el saldo.
+          </div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num">6</div>
+        <div class="step-body">
+          <div class="step-title">Generar los 6 outputs</div>
+          <div class="step-desc">
+            planilla_cobrado · lista_corte (filtro SALDO&gt;0 AND ARRASTRE≥8) ·
+            trazabilidad_cobranza · resumen_recaudacion ·
+            arrastre_deuda (SALDO&gt;0) · arrastre_devolucion (SALDO&lt;0).
+          </div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num">7</div>
+        <div class="step-body">
+          <div class="step-title">Retroescritura de CICLO_COBRANZA</div>
+          <div class="step-desc">Escribe <code>CICLO_COBRANZA</code> en
+            <code>inputs/pagos_yape/pagos_yape_tepago.xlsx</code> e
+            <code>inputs/pagos_efectivo/pagos_efectivo.xlsx</code>.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OUTPUTS -->
+  <div class="section">
+    <div class="sec-title">Outputs</div>
+
+    <div class="file-block output-main">
+      <span class="badge perm">Permanente</span>
+      <span class="badge feeds">→ 3_boletas · 7_cierre</span>
+      <div class="file-name">outputs/planilla_cobrado.xlsx</div>
+      <div class="file-desc">21 columnas de la planilla + <code>CICLO_COBRANZA</code> (col 22). Fuente de verdad del ciclo. Incluye todos los usuarios.</div>
+      <table>
+        <tr><th>#</th><th>Columna</th><th>Origen / Quién llena</th></tr>
+        <tr><td>1–7</td><td>MZ · LT · NOMBRE · MES_ANO · MARC_ANT · MARC_ACT · M3</td><td>2_planilla (sin cambio)</td></tr>
+        <tr><td>8–16</td><td>MES_ACTUAL · MANTENIMIENTO · MES_ANTERIOR · CORTE_RECONEXION · CONVENIO · MULTA · ACUERDOS_ASAMBLEA · BLANCO · DEVOLUCION</td><td>2_planilla · BLANCO/DEVOLUCION escritos por 5_cobranza</td></tr>
+        <tr><td>17</td><td>TOTAL_A_PAGAR</td><td>Fórmula Excel</td></tr>
+        <tr><td>18</td><td>MONTO_YAPE</td><td>5_cobranza desde pagos_yape</td></tr>
+        <tr><td>19</td><td>MONTO_EFECTIVO</td><td>5_cobranza desde pagos_efectivo</td></tr>
+        <tr><td>20</td><td>ESTADO</td><td>5_cobranza · CANCELADO/EXCESO/PARCIAL/PENDIENTE</td></tr>
+        <tr><td>21</td><td>FECHA_PAGO</td><td>5_cobranza · fecha del pago más reciente</td></tr>
+        <tr><td>22</td><td>CICLO_COBRANZA</td><td>5_cobranza · agregado (no existe en planilla original)</td></tr>
+      </table>
+    </div>
+
+    <div class="file-block output-amber">
+      <span class="badge feeds-6">→ 6_corte</span>
+      <div class="file-name">outputs/lista_corte.xlsx</div>
+      <div class="file-desc">Solo usuarios con <code>SALDO &gt; 0 AND MES_ANTERIOR ≥ 8</code>. Penalidad S/20. El operador filtra ya-cortados antes de pasar a 6_corte.</div>
+      <table>
+        <tr><th>Columna</th><th>Descripción</th></tr>
+        <tr><td>MZ / LT / NOMBRE</td><td>Identificación</td></tr>
+        <tr><td>DEUDA_ARRASTRE</td><td>MES_ANTERIOR de la planilla</td></tr>
+        <tr><td>SALDO</td><td>Deuda pendiente del mes actual</td></tr>
+        <tr><td>PENALIDAD</td><td>S/20 fijo</td></tr>
+        <tr><td>TOTAL_A_PAGAR</td><td>SALDO + 20</td></tr>
+      </table>
+    </div>
+
+    <div class="file-block output-amber">
+      <div class="file-name">outputs/trazabilidad_cobranza.xlsx</div>
+      <div class="file-desc">Un registro por pago cargado en este ciclo. Acumulada: cada corrida agrega filas sin borrar las anteriores.</div>
+      <table>
+        <tr><th>Columna</th><th>Descripción</th></tr>
+        <tr><td>MZ / LT / NOMBRE</td><td>Identificación</td></tr>
+        <tr><td>MONTO</td><td>Monto cargado</td></tr>
+        <tr><td>FUENTE</td><td>yape / efectivo / mixto</td></tr>
+        <tr><td>CICLO_CORRECCION_ORIGEN</td><td>Ciclo de 4_pagos en que fue identificado</td></tr>
+        <tr><td>CICLO_COBRANZA</td><td>Ciclo de este módulo en que fue procesado</td></tr>
+        <tr><td>FECHA_CARGA</td><td>Timestamp de la corrida</td></tr>
+      </table>
+    </div>
+
+    <div class="file-block output-blue">
+      <div class="file-name">outputs/resumen_recaudacion.xlsx</div>
+      <div class="file-desc">Totales del mes: deuda total, recaudado por canal, saldo pendiente, conteo por estado y N° de usuarios en lista_corte.</div>
+    </div>
+
+    <div class="file-block output-teal">
+      <span class="badge feeds-2">→ 2_planilla próximo ciclo</span>
+      <div class="file-name">outputs/arrastre_deuda_YYYY-MM.xlsx</div>
+      <div class="file-desc">Solo usuarios con <code>SALDO &gt; 0</code>. Alimenta <code>inputs/deuda_anterior/</code> de 2_planilla el mes siguiente.</div>
+      <table>
+        <tr><th>Columna</th><th>Descripción</th></tr>
+        <tr><td>MZ / LT / NOMBRE</td><td>Identificación</td></tr>
+        <tr><td>monto</td><td>SALDO pendiente del mes actual (S/)</td></tr>
+        <tr><td>MES_ANO_ORIGEN</td><td>Mes en que se originó la deuda (ej: 2026-06)</td></tr>
+      </table>
+    </div>
+
+    <div class="file-block output-blue">
+      <span class="badge feeds">→ 7_cierre</span>
+      <div class="file-name">outputs/arrastre_devolucion_YYYY-MM.xlsx</div>
+      <div class="file-desc">Solo usuarios con <code>SALDO &lt; 0</code> (EXCESO — pagaron de más). <code>monto = |SALDO|</code>. La JASS los debe; no se devuelve hasta que el usuario reclame. 7_cierre acumula estos excesos en shared/.</div>
+      <table>
+        <tr><th>Columna</th><th>Descripción</th></tr>
+        <tr><td>MZ / LT / NOMBRE</td><td>Identificación</td></tr>
+        <tr><td>monto</td><td>Exceso a devolver — valor absoluto del SALDO (S/)</td></tr>
+        <tr><td>MES_ANO_ORIGEN</td><td>Mes en que se originó el exceso (ej: 2026-06)</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- LIFECYCLE -->
+  <div class="section">
+    <div class="sec-title">Ciclo de vida de archivos</div>
+    <div class="life-row">
+      <div class="life-file">inputs/planilla/planilla_YYYY-MM.xlsx</div>
+      <div class="life-action">PERMANECE</div>
+      <div class="life-why">input del ciclo — no tocar</div>
+    </div>
+    <div class="life-row">
+      <div class="life-file">inputs/pagos_yape/pagos_yape_tepago.xlsx</div>
+      <div class="life-action">SE RETROESCRIBE</div>
+      <div class="life-why">5_cobranza agrega columna CICLO_COBRANZA</div>
+    </div>
+    <div class="life-row">
+      <div class="life-file">inputs/pagos_efectivo/pagos_efectivo.xlsx</div>
+      <div class="life-action">SE RETROESCRIBE</div>
+      <div class="life-why">5_cobranza agrega columna CICLO_COBRANZA</div>
+    </div>
+    <div class="life-row">
+      <div class="life-file">shared/blancos_acumulados.xlsx</div>
+      <div class="life-action">SE ACTUALIZA</div>
+      <div class="life-why">5_cobranza marca ESTADO = aplicado al procesar blancos</div>
+    </div>
+    <div class="life-row">
+      <div class="life-file">outputs/planilla_cobrado.xlsx</div>
+      <div class="life-action">PERMANENTE · se sobreescribe cada corrida</div>
+      <div class="life-why">fuente de verdad — 3_boletas, 7_cierre</div>
+    </div>
+    <div class="life-row">
+      <div class="life-file">outputs/trazabilidad_cobranza.xlsx</div>
+      <div class="life-action">ACUMULADA · agrega filas cada ciclo</div>
+      <div class="life-why">auditoría permanente de todos los pagos cargados</div>
+    </div>
+    <div class="life-row">
+      <div class="life-file">outputs/arrastre_deuda_YYYY-MM.xlsx</div>
+      <div class="life-action">PERMANENTE · uno por mes</div>
+      <div class="life-why">input de 2_planilla en el siguiente ciclo</div>
+    </div>
+    <div class="life-row">
+      <div class="life-file">outputs/arrastre_devolucion_YYYY-MM.xlsx</div>
+      <div class="life-action">PERMANENTE · uno por mes</div>
+      <div class="life-why">7_cierre acumula excesos pendientes en shared/</div>
+    </div>
+  </div>
+
+  <!-- ESTRUCTURA -->
+  <div class="section">
+    <div class="sec-title">Estructura de carpetas</div>
+    <div class="card">
+      <pre style="font-family:'IBM Plex Mono',monospace; font-size:11px; line-height:1.8; color:#333;">5_cobranza/
+├── inputs/
+│   ├── planilla/
+│   │   └── planilla_YYYY-MM.xlsx         ← de 2_planilla/outputs/
+│   ├── pagos_yape/
+│   │   └── pagos_yape_tepago.xlsx        ← de 4_pagos/yape/outputs/
+│   └── pagos_efectivo/
+│       └── pagos_efectivo.xlsx           ← de 4_pagos/efectivo/outputs/
+├── outputs/
+│   ├── planilla_cobrado.xlsx
+│   ├── lista_corte.xlsx
+│   ├── trazabilidad_cobranza.xlsx
+│   ├── resumen_recaudacion.xlsx
+│   ├── arrastre_deuda_YYYY-MM.xlsx
+│   ├── arrastre_devolucion_YYYY-MM.xlsx
+│   ├── run.log
+│   ├── run_validacion.log              ← genera validacion_planilla_cobrado.py
+│   └── validacion_errores.xlsx         ← solo si hay errores
+├── docs/
+│   ├── arquitectura_5_cobranza.html      ← este archivo
+│   ├── diagrama_5_cobranza.html
+│   ├── planilla_cobrado_diseno.html
+│   ├── lista_corte_diseno.html
+│   ├── trazabilidad_cobranza.html
+│   ├── arrastre_deuda_diseno.html
+│   └── arrastre_devolucion_diseno.html
+├── tests/
+│   └── test_cobranza.py
+├── main.py
+└── validacion_planilla_cobrado.py</pre>
+    </div>
+  </div>
+
+  <!-- VALIDACIÓN -->
+  <div class="section">
+    <div class="sec-title">Validación post-cobranza</div>
+    <div class="rule-box">
+      <div class="rule-title">validacion_planilla_cobrado.py</div>
+      Script independiente que verifica la coherencia interna de los 6 outputs.
+      Se corre <strong>después</strong> de <code>main.py</code>.
+      Exit code <code>0</code> = todo OK · <code>1</code> = errores encontrados.<br>
+      Si hay errores → genera <code>outputs/validacion_errores.xlsx</code> (una hoja por bloque).
+    </div>
+    <table>
+      <tr><th>Bloque</th><th>Qué verifica</th></tr>
+      <tr><td>1 — Re-cálculo SALDO</td><td>Recalcula TOTAL_A_PAGAR y SALDO desde los 9 conceptos · verifica ESTADO consistente</td></tr>
+      <tr><td>2 — Trazabilidad ↔ planilla</td><td>sum(MONTO por FUENTE) en trazabilidad == MONTO_YAPE / MONTO_EFECTIVO · huérfanos</td></tr>
+      <tr><td>3 — arrastre_deuda ↔ planilla</td><td>SALDO &gt; 0 · monto == SALDO · faltantes y huérfanos</td></tr>
+      <tr><td>3 — arrastre_devolucion ↔ planilla</td><td>SALDO &lt; 0 · monto == |SALDO| · faltantes y huérfanos (espejo)</td></tr>
+    </table>
+    <div class="note" style="margin-top:8px">
+      <strong>Huérfanos en Bloque 2:</strong> pagos en mesa con MZ-LT inexistentes en la planilla.
+      Corregir en <code>4_pagos/efectivo/</code> antes de continuar al ciclo siguiente.
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

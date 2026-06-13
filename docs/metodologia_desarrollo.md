@@ -1,7 +1,7 @@
 # Metodología de Desarrollo — jass_system
 ## Cómo construir sistemas de IA sin improvisar
 
-Versión 1.2 — Mayo 2026
+Versión 2.9 — Junio 2026
 Basada en la experiencia construyendo motor_matching y jass_system
 
 ---
@@ -117,6 +117,50 @@ Ese ciclo sale mucho más caro que haber explorado primero en Chat.
 
 **Problema de la compresión:** En sesiones largas, el contexto anterior se comprime y Code
 pierde el hilo. Para tareas de diseño que no requieren ver el código, usá Chat.
+
+#### División de modelos dentro de Code — Opus codifica, Sonnet acompaña
+
+Dentro de Code hay dos modelos disponibles. El error caro no es elegir cuál usar:
+es codificar lógica compleja con el modelo más débil y descubrirlo después en debugging.
+
+**Principio:** las tareas que requieren razonamiento sobre el código — debatir su estructura, planearlo, escribirlo, debuggearlo — van con Opus. Las mecánicas (leer, transcribir, git) van con Sonnet.
+
+| Tarea dentro de Code | Modelo | Por qué |
+|---|---|---|
+| **Debatir el problema a codificar** (¿qué hojas tiene cada output? ¿una clase o dos? ¿dónde vive esta responsabilidad?) | **Opus** | El debate de diseño tiene el mismo costo de error que el código mismo: si la conversación sale floja, el código bien escrito implementa una mala decisión. |
+| **Planear la implementación** antes de escribir código | **Opus** | Mismo razonamiento que el debate. El plan dicta el código. |
+| **Escribir o refactorizar código Python no trivial** | **Opus** | Un bug en lógica compleja cuesta más que el token premium. Opus minimiza fallas en cross-checks, ciclos, transformaciones de datos. |
+| **Debugging** de errores reales en código | **Opus** | El razonamiento sobre causa-raíz es donde Opus saca más ventaja. |
+| **Escribir HTMLs de contrato de formato** (cualquiera: formato_*.html, arquitectura, diagramas) | Sonnet | Cuando se escribe el HTML el diseño YA está cerrado por Opus. Sonnet solo lee la decisión y la transcribe a HTML — no diseña, no decide, no agrega. |
+| Leer archivos, hacer Glob/Grep, explorar el repo | Sonnet | Tareas mecánicas — el modelo no es el cuello de botella. |
+| **Correr el módulo, leer el run.log, validar outputs** | Sonnet | Ejecutar un script, leer el log, verificar que el Excel tiene las columnas correctas — mecánico. |
+| Actualizar README, arquitectura, metodología, memorias | Sonnet | Escritura conversacional, no algorítmica. |
+| Git, tests, validaciones de output | Sonnet | Operaciones mecánicas sobre el repo. |
+
+**Cómo aplicarlo en práctica:**
+1. Apenas el usuario empieza a **debatir cómo se va a estructurar el código** → cambiar a Opus.
+2. Mantener Opus durante el debate, el plan y la implementación.
+3. Al terminar el bloque de código → volver a Sonnet para transcribir HTMLs aprobados, commitear, documentar.
+
+**Regla:** si la próxima conversación es "¿cómo deberíamos hacer X en el código?", el modelo se cambia
+*antes* de empezar a debatir. No solo antes de escribir.
+
+**Regla de recordatorio activo — la IA avisa antes de empezar:**
+
+La IA no espera que el usuario recuerde cambiar el modelo. Lo dice ella primero, antes de empezar la tarea:
+
+| Situación | Qué dice la IA antes de empezar |
+|---|---|
+| Va a escribir o actualizar un HTML | *"Voy a escribir el HTML — estás en Sonnet, es el modelo correcto para esto."* |
+| Va a empezar a debatir diseño de código | *"Esto es debate de diseño — cambia a Opus antes de empezar."* |
+| Va a escribir código Python no trivial | *"Voy a codificar — cambia a Opus si todavía no lo hiciste."* |
+| Va a hacer debugging de un error real | *"Para debuggear esto bien — cambia a Opus."* |
+| Va a correr el módulo, leer el log o validar outputs | *"Voy a correr y validar — cambia a Sonnet."* |
+| Va a hacer git, tests, actualizar docs | *"Esto es mecánico — cambia a Sonnet si no lo hiciste."* |
+
+El recordatorio es una sola línea, antes del trabajo, no después. Si ya está en el modelo correcto, no hace falta decir nada.
+
+**Error frecuente a evitar:** terminar de codificar en Opus y seguir directamente a correr el código sin avisar el cambio. El run, el log y la validación de outputs van con Sonnet — avisar antes de ejecutar el primer comando.
 
 ### Claude Scheduled (fin de día)
 
@@ -299,6 +343,21 @@ Leer README junto con arquitectura y preguntarse:
 
 Corregir antes de avanzar.
 
+**Regla: el orden del pipeline refleja la realidad del negocio**
+
+El orden de los módulos debe coincidir con el flujo real del negocio, no con la conveniencia técnica. Si en la vida real el cliente recibe la boleta antes de pagar, `3_boletas` va antes que `4_pagos`. Un pipeline cuyo orden no coincide con el flujo real genera confusión cuando alguien lo lee o lo audita.
+
+Señal de que el orden está mal: el nombre del módulo M describe una acción que lógicamente ocurre después de la acción del módulo M+1.
+
+**Regla: sub-módulo vs módulo independiente**
+
+Cuando un paso intermedio produce un archivo que solo consume el siguiente paso dentro del mismo módulo, pertenece como sub-carpeta del módulo padre — no como módulo independiente de nivel superior.
+
+- Sub-módulo: el output es específico del módulo y no lo usan otros módulos
+- Módulo independiente: el output es consumido por 2+ módulos del sistema
+
+Ejemplo: `3_boletas/enriquecimiento/` (3.1) produce `data_boletas.xlsx` que solo usa `3_boletas/render/` (3.2). Pertenece adentro de `3_boletas`, no como módulo propio.
+
 #### Entregables de Fase 1
 - [ ] `README.md` raíz
 - [ ] `arquitectura_SISTEMA.html`
@@ -398,8 +457,33 @@ Cuando alguien proponga cambiar el enfoque, este archivo explica por qué se des
 
 ---
 
-**2.1 README del módulo** ← primero siempre
-Crear `README_MODULO.md` con:
+**2.1 Diagrama visual del módulo** ← primero siempre, antes del README
+
+Un diagrama de una sola página que muestra de un vistazo: qué entra, qué hace el módulo,
+qué sale y quién consume el output. Si el diagrama está mal, se corrige antes de escribir
+el README. Es más barato corregir una imagen que tres documentos.
+
+Formato: HTML en `MODULO/docs/diagrama_MODULO.html` — dentro de la carpeta `docs/`
+del propio módulo, no en la carpeta `docs/` global del sistema.
+
+Ejemplo: `4_pagos/efectivo/docs/diagrama_efectivo.html`
+
+Contenido mínimo:
+- Bloque de inputs con su origen (¿viene de otro módulo, es manual, es shared?)
+- Bloque central con las reglas clave del módulo (3-5 líneas máximo)
+- Bloque de output con las columnas que genera
+- Flecha al módulo siguiente
+
+**Señal de aprobación:** el usuario confirma que el diagrama refleja bien la idea.
+Solo entonces se escribe el README.
+
+---
+
+**2.2 README del módulo** ← después del diagrama aprobado
+Formato: **Markdown (`.md`)** — nunca Word ni PDF. MD es el estándar profesional:
+vive en Git, se lee en GitHub, cualquier editor lo renderiza, y no requiere instalar nada.
+
+Crear `README.md` en la raíz del módulo con:
 - Qué hace
 - Cuándo se corre
 - Estructura de carpetas
@@ -409,8 +493,8 @@ Crear `README_MODULO.md` con:
 - Lo que NO hace este módulo
 - Errores comunes
 
-**2.2 Arquitectura del módulo** ← resumen visual del README
-Crear `arquitectura_MODULO.html` con:
+**2.3 Arquitectura del módulo** ← resumen visual del README
+Crear `MODULO/docs/arquitectura_MODULO.html` (dentro de la carpeta `docs/` del módulo) con:
 - Estructura de carpetas del módulo — exactamente como dice el README
 - Inputs con su origen
 - Outputs con su destino
@@ -420,27 +504,76 @@ Crear `arquitectura_MODULO.html` con:
 
 > Si arquitectura y README se contradicen → el README manda.
 
-**2.3 Validar que cuentan la misma historia**
+**2.4 Validar que cuentan la misma historia**
 - ¿Las carpetas que muestra la arquitectura son las del README?
 - ¿Los outputs mencionados en arquitectura coinciden con el README?
 - ¿Hay algo en la arquitectura que el README no menciona? → eliminar o agregar al README primero
 
-**2.4 Crear rutas de carpetas del módulo**
+**Regla de actualización atómica**
+
+Cuando un diseño se acuerda en conversación y se plasma en un HTML (diagrama, formato, arquitectura),
+actualizar **todos los documentos relacionados en la misma pasada**: README + arquitectura + diagrama + formato.
+
+No esperar a que el usuario abra y apruebe el HTML para tocar los demás archivos.
+La aprobación en conversación es suficiente para actualizar todos los artefactos.
+
+La única excepción es el paso 2.1 (diagrama visual inicial): ahí sí esperar aprobación
+antes de escribir el README, porque es la primera vez que se plasma el diseño en papel
+y puede haber malentendidos de fondo que cambiarían el README entero.
+
+**2.5 Crear rutas de carpetas del módulo**
 Crear físicamente las carpetas internas según el README.
 
-**2.5 Diseño de outputs** ← README de cada archivo complejo
-Por cada archivo que produce el módulo, diseñar:
-- Columnas y su significado
-- Quién escribe cada campo (sistema / usuario / banco)
-- Reglas de negocio del archivo
-- README propio si el archivo es complejo
+**2.6 Diseño de outputs** ← contrato visual + reglas de formato
 
-Orden sugerido:
-1. Inputs que el usuario llena (ej: pendientes.xlsx)
-2. Archivos de trazabilidad
-3. Output principal (ej: pagos_yape.xlsx)
+Por cada archivo Excel que produce el módulo, crear `MODULO/docs/formato_ARCHIVO.html`
+(dentro de la carpeta `docs/` del propio módulo) con:
+- **Historia visual**: agrupación de columnas en secciones con nombre (¿Quién es? / ¿Qué hizo? / ¿Cuánto debe? / etc.)
+- **Paleta de colores**: un color por sección (header bg, data bg, border) — reutilizar la paleta del proyecto
+- **Tabla HTML de muestra**: 2–3 filas con datos reales para validar que la historia tiene sentido
+- **Reglas de formato para openpyxl**: tipo de dato, formato de número, alineación, negrita, ancho de columna
+- **Leyenda**: qué significa cada color
+- **Columnas vacías**: identificar cuáles salen vacías y qué módulo las completa después
 
-**2.6 Definir el esquema de inputs esperado**
+Este archivo es el contrato que el código debe replicar exactamente con openpyxl.
+Sin este contrato, cada módulo queda con el formato que "parece bien" al momento de codificar.
+
+**Columnas completadas por módulos posteriores — escribir como fórmula Excel**
+
+Si una columna es la suma de otras columnas en la misma fila, y algunas de esas columnas serán llenadas por un módulo posterior, escribirla como fórmula Excel — no como valor calculado en Python:
+
+```python
+# Ejemplo: TOTAL_A_PAGAR depende de BLANCO y DEVOLUCION que llena 4_pagos
+ws[f"Q{row}"] = f"=H{row}+I{row}+J{row}+K{row}+L{row}+M{row}+N{row}+O{row}+P{row}"
+```
+
+Si Python calcula el valor al momento de escribir (BLANCO=0, DEVOLUCION=0), ese valor queda congelado. Cuando 4_pagos llena esas columnas, el total no se actualiza. Con fórmula, Excel recalcula automáticamente al abrir o al editar.
+
+Orden de columnas: debe contar una historia de izquierda a derecha.
+El lector que abre el Excel debe entender el flujo sin leer ningún README.
+
+Paleta base del proyecto (reutilizar, no inventar colores):
+
+| Sección | Header bg | Header text | Data bg | Border |
+|---------|-----------|-------------|---------|--------|
+| Identidad | `#EBF5FB` | `#1A5276` | `#F4FAFF` | `#AED6F1` |
+| Datos operario / lectura | `#E6F1FB` | `#0C447C` | `#F0F8FF` | `#AED6F1` |
+| Calculado por sistema | `#E9F7EF` | `#1E5C3A` | `#F4FBF7` | `#A9DFBF` |
+| Total / columna clave | `#1E8449` (bg) | `#FFFFFF` | `#D5F5E3` | — |
+| Pendiente / otro módulo llena | `#F3E8FF` | `#5B21B6` | `#FAF5FF` | `#C4B5FD` |
+
+**Registro de auditoría vs vista operacional**
+
+Al diseñar los outputs, clasificar cada archivo en una de dos categorías:
+
+- **Registro de auditoría** — contiene todos los eventos sin filtrar. Solo crece. Nunca se filtra ni se borra. Es la fuente de verdad institucional. Pregunta que responde: *"¿qué ocurrió exactamente?"*
+- **Vista operacional** — proyección filtrada del registro de auditoría para un consumidor específico. Se puede regenerar desde la fuente. Pregunta que responde: *"¿qué necesita ver el módulo X?"*
+
+Regla: si un módulo downstream necesita un subconjunto de los datos → crear una vista operacional separada, no pasarle el archivo de auditoría completo ni modificarlo.
+
+Ejemplo: `pagos_yape_pagaste.xlsx` (auditoría: todos los egresos JASS) produce `pagos_yape_devolucion.xlsx` (vista: solo devoluciones con MZ+LOTE → 5_cobranza). Si mañana la lógica de filtrado cambia, el registro de auditoría no cambia — solo se regenera la vista.
+
+**2.7 Definir el esquema de inputs esperado**
 Por cada input del módulo, documentar:
 - Columnas requeridas y sus nombres exactos (incluyendo alias aceptados)
 - Tipos de dato esperados
@@ -448,13 +581,43 @@ Por cada input del módulo, documentar:
 
 Esto se convierte en la validación que corre al inicio del módulo (ver Fase 3).
 
-**2.7 Validar el diseño completo**
+**Retrocompatibilidad de lectura — cuando el schema va a cambiar**
+
+Si este input va a renombrar una columna en el futuro, documentar el nombre anterior como alias aceptado.
+El código lector maneja ambos mientras conviven archivos con el schema viejo y el nuevo.
+
+```python
+try:
+    i_ciclo = idx("CICLO_CORRECCION")  # schema nuevo
+except KeyError:
+    i_ciclo = idx("CICLO")             # fallback: schema viejo
+```
+
+No es lo mismo que la migración. La migración actualiza el archivo. La retrocompatibilidad cubre el período de transición donde ambos schemas coexisten — en un sistema de uso mensual puede durar ciclos enteros.
+
+Documentar en el esquema de inputs: nombre actual · alias aceptado · desde qué versión aplica.
+
+**2.8 Validar el diseño completo**
 - ¿Las columnas diseñadas son suficientes para el código?
 - ¿Hay reglas de negocio que no están documentadas?
 - ¿Los archivos temporales y permanentes están bien identificados?
 - ¿El módulo hace algo que no le corresponde?
 
 Corregir antes de avanzar.
+
+---
+
+**2.9 Diseño de la migración** ← solo cuando hay datos manuales en archivos del schema anterior
+
+Cuando el rediseño cambia las columnas de un archivo que los usuarios ya llenaron a mano,
+hay trabajo en riesgo. Antes de codificar el módulo nuevo, planear cómo migrar esos datos.
+
+**Señal de que aplica:**
+- Los usuarios ya entregaron archivos con el schema viejo
+- Se agregan, renombran o reordenan columnas en esos archivos
+- Si el archivo solo tiene datos del sistema (no manual) → no aplica, basta regenerar
+
+Si aplica, seguir el **Protocolo de Migración** documentado al final de este archivo antes de avanzar a Fase 3.
 
 #### Entregables de Fase 2 — por módulo
 - [ ] `README_MODULO.md` — fuente de verdad
@@ -464,6 +627,7 @@ Corregir antes de avanzar.
 - [ ] Diseño de cada output (columnas + reglas)
 - [ ] README por archivo complejo
 - [ ] Esquema de inputs documentado
+- [ ] Migración de schema planificada y ejecutada (si hay datos manuales en el schema anterior)
 
 ---
 
@@ -481,6 +645,24 @@ Si durante el código descubres algo que cambia el diseño:
 Nunca dejes que el código contradiga la documentación.
 
 #### Pasos
+
+**3.0 Auditar contratos de formato — ANTES de escribir una sola línea**
+
+Este paso es obligatorio aunque hayas hecho bien la Fase 2.
+Cuando retomás un módulo o lo extendés, puede que falten HTMLs de outputs nuevos.
+
+```
+1. Glob MODULO/docs/*.html  →  listar todos los HTMLs presentes
+2. Listar todos los archivos Excel que produce este módulo (outputs/ + trazabilidad/)
+3. Verificar que existe formato_ARCHIVO.html para CADA uno
+   - Si falta alguno → crearlo ahora, NO empezar el código
+4. Leer cada formato_*.html de arriba a abajo (columnas, anchos, colores, formatos)
+   - No asumir que se recuerda el contenido — releerlo siempre
+```
+
+**Señal de que podés avanzar al 3.1:**
+- [ ] Hay un `formato_ARCHIVO.html` aprobado por cada output Excel del módulo
+- [ ] Leíste cada contrato en esta sesión, no en una sesión anterior
 
 **3.1 Revisar skills relevantes**
 Antes de escribir una línea, leer las skills que aplican al módulo.
@@ -507,22 +689,29 @@ Cada módulo escribe un log con timestamp, no solo print a consola:
 
 ```python
 import logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s  %(levelname)s  %(message)s",
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler("outputs/run.log", encoding="utf-8"),
-    ]
-)
-log = logging.getLogger(__name__)
 
-log.info("Iniciando motor_matching")
-log.warning("3 registros sin MZ/LOTE — van a blancos")
-log.error("maestro_yape.xlsx no encontrado")
+def main() -> None:
+    config.OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s  %(levelname)s  %(message)s",
+        handlers=[
+            logging.StreamHandler(sys.stdout),
+            logging.FileHandler(config.OUTPUTS_DIR / "run.log", encoding="utf-8"),
+        ],
+        force=True,
+    )
+    log = logging.getLogger(__name__)
+    log.info("Iniciando modulo")
 ```
 
 El archivo `run.log` queda en outputs/ junto al Excel. Si algo falla, el log dice exactamente qué y cuándo.
+
+**Dos reglas obligatorias:**
+
+1. **`force=True`** — sin este flag, si el root logger ya estaba configurado (por ejemplo, por un test runner o por un import previo), `basicConfig` no hace nada y el `FileHandler` nunca se agrega. El log a consola funciona, el log a archivo silenciosamente no.
+
+2. **Dentro de `main()`**, no a nivel de módulo — la razón es que `config.OUTPUTS_DIR` puede haber sido monkey-patcheado por el test antes de llamar a `main()`. Si `basicConfig` corre al importar el módulo, apunta al path original de producción, no al path temporal del test.
 
 **3.4 Documentar el por qué en el código**
 Cada función importante lleva un comentario del por qué existe,
@@ -554,6 +743,209 @@ Niveles de test según la criticidad del módulo:
 - **Unitario** — función por función con datos inventados
 - **Integración** — flujo completo con datos reales conocidos
 - **Regresión** — comparar output actual con output de referencia guardado
+
+**Patrón: test de integración con datos sintéticos**
+
+Cuando los datos reales ya están limpios y no gatillan los casos borde, construir
+fixtures sintéticos que fuercen cada regla deliberadamente.
+
+```python
+# tests/test_MODULO_integracion.py
+import shutil, sys
+from pathlib import Path
+from collections import Counter
+
+THIS = Path(__file__).resolve()
+sys.path.insert(0, str(THIS.parent.parent))
+import config  # noqa: E402
+
+TEST_ROOT = THIS.parent / "_tmp_integracion"
+
+def _setup_paths():
+    """Redirige todos los paths de config a la carpeta temporal."""
+    if TEST_ROOT.exists():
+        shutil.rmtree(TEST_ROOT)
+    (TEST_ROOT / "inputs").mkdir(parents=True)
+    (TEST_ROOT / "outputs").mkdir(parents=True)
+    # Monkey-patch: el módulo usa config.RUTA, no strings hardcodeados
+    config.INPUTS_DIR  = TEST_ROOT / "inputs"
+    config.OUTPUTS_DIR = TEST_ROOT / "outputs"
+    config.MI_ARCHIVO_PATH = TEST_ROOT / "inputs" / "mi_archivo.xlsx"
+    # ... etc por cada path del módulo
+
+def _build_fixture(casos: list) -> None:
+    """Construye el archivo de entrada con casos diseñados para forzar cada regla."""
+    # Escribir el Excel con openpyxl directamente
+    ...
+
+def _verificar() -> tuple[bool, list[str]]:
+    """Lee los outputs y compara con lo esperado."""
+    msgs, ok = [], True
+    filas = leer_output(config.OUTPUTS_DIR / "output.xlsx")
+    tipos = Counter(f["tipo"] for f in filas)
+    for tipo, esperado in ESPERADO.items():
+        obtenido = tipos.get(tipo, 0)
+        marca = "✓" if obtenido == esperado else "✗"
+        msgs.append(f"  {marca} {tipo:<24} esperado={esperado}  obtenido={obtenido}")
+        if obtenido != esperado:
+            ok = False
+    return ok, msgs
+
+def main():
+    _setup_paths()
+    _build_fixture(CASOS_SINTETICOS)
+    import main as mod_main
+    mod_main.main()      # corre el flujo completo
+    ok, msgs = _verificar()
+    for m in msgs:
+        print(m)
+    return 0 if ok else 1
+```
+
+Reglas del patrón:
+- Los fixtures van en `tests/_tmp_integracion/` (en `.gitignore`) — nunca en producción
+- El monkey-patch se hace antes de importar `main` para que los paths ya estén redefinidos
+- Diseñar UN caso por regla, nombrado explícitamente en el comentario
+- La verificación cuenta instancias por tipo — no verifica el contenido exacto de cada celda
+- `_tmp_integracion/` se elimina al inicio de cada corrida → idempotente
+
+**3.6b Patrón: bypass por resoluciones en ciclos**
+
+En módulos con ciclos de corrección (Ciclo 1 → correcciones → Ciclo 2+), las filas ya
+resueltas en el ciclo anterior no deben re-evaluarse con las reglas de detección.
+El patrón es un mapa `resoluciones` que la función de detección consulta antes de aplicar
+cualquier regla.
+
+```python
+# Al aplicar correcciones del ciclo previo, construir el mapa
+resoluciones: dict = {}   # (mz, lt) → resuelto_por
+
+for fila in correcciones_anteriores:
+    key = (fila["mz"], fila["lt"])
+    if fila["resuelto"]:
+        resoluciones[key] = fila["resuelto"]
+
+# En la función de detección, consultar antes de evaluar reglas
+def _detectar_anomalias(filas, historial, resoluciones=None):
+    resoluciones = resoluciones or {}
+    for fila in filas:
+        key = (fila["mz"], fila["lt"])
+        resuelto = resoluciones.get(key)
+        if resuelto in ("acepta_original", "maquillaje", "campo", "corrige_dato"):
+            # Ya resuelto — va directo a confirmados con origen='corregido'
+            confirmados.append({**fila, "origen": "corregido"})
+            continue
+        # recién aquí se evalúan las reglas normales
+        ...
+```
+
+Reglas del patrón:
+- Las resoluciones que bypasean son las que el supervisor aplicó manualmente
+  (`acepta_original`, `maquillaje`, `campo`, `corrige_dato`)
+- Las resoluciones administrativas (`borra_duplicado`, `marca_baja`) se manejan
+  antes, en la función que aplica correcciones — eliminan la fila del flujo
+- El mapa `resoluciones` se pasa como argumento — la función de detección no
+  importa ni lee el archivo de correcciones directamente
+- El bypass debe producir el origen correcto en el output (`"corregido"`)
+  para que el archivo final sea auditable
+
+**3.6c Regla: verificar comportamientos nuevos con test sintético — no con datos reales**
+
+Cuando se agrega un patrón de comportamiento nuevo a un módulo (preservación de ediciones manuales, bypass por resoluciones, backup automático, etc.), la verificación correcta es un `test_verificacion.py` que:
+
+1. Construye el estado mínimo necesario para activar el comportamiento (archivo de entrada con valores pre-llenados)
+2. Corre el módulo
+3. Afirma que el invariante se cumple (los valores sobrevivieron, el backup existe, el contador es correcto)
+4. Falla con mensaje claro si el invariante se rompe
+
+**Lo que NO se hace:** editar manualmente archivos reales de producción, borrar un output, correr el módulo y verificar visualmente. Ese proceso:
+- Toca datos reales de producción (riesgo de pérdida si algo falla)
+- No es repetible — la próxima vez hay que volver a hacerlo manualmente
+- No detecta regresiones futuras
+- Requiere que el desarrollador recuerde exactamente qué verificar
+
+```python
+# tests/test_preservacion.py  — verifica que los valores manuales sobreviven al re-run
+import shutil, sys
+from pathlib import Path
+import openpyxl
+
+THIS = Path(__file__).resolve()
+sys.path.insert(0, str(THIS.parent.parent))
+import config
+
+TEST_ROOT = THIS.parent / "_tmp_preservacion"
+
+def _setup():
+    if TEST_ROOT.exists():
+        shutil.rmtree(TEST_ROOT)
+    (TEST_ROOT / "outputs").mkdir(parents=True)
+    config.OUTPUTS_DIR = TEST_ROOT / "outputs"
+
+def _build_discrepancias_con_edicion():
+    """Crea discrepancias.xlsx con una fila que ya tiene MZ_CORRECTO/LT_CORRECTO."""
+    path = TEST_ROOT / "outputs" / "discrepancias.xlsx"
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "pago_multi_mesa"
+    ws.append(["MZ", "LT", "MESA", "OK", "MZ_CORRECTO", "LT_CORRECTO"])
+    ws.append(["R", "7", "mesa_2", None, "R", "7"])   # supervisor ya llenó MZ/LT
+    wb.save(path)
+
+def _verificar(expected_mz, expected_lt):
+    path = TEST_ROOT / "outputs" / "discrepancias.xlsx"
+    wb = openpyxl.load_workbook(path, data_only=True)
+    ws = wb["pago_multi_mesa"]
+    headers = [c.value for c in ws[1]]
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        d = dict(zip(headers, row))
+        if d.get("MZ") == "R" and d.get("LT") == "7":
+            assert d.get("MZ_CORRECTO") == expected_mz, f"MZ_CORRECTO perdido: {d}"
+            assert d.get("LT_CORRECTO") == expected_lt, f"LT_CORRECTO perdido: {d}"
+            print("✓ Preservación verificada")
+            return
+    raise AssertionError("Fila R-7 no encontrada en el output")
+
+def main():
+    _setup()
+    _build_discrepancias_con_edicion()
+    import main as mod_main
+    mod_main.main()
+    _verificar("R", "7")
+
+if __name__ == "__main__":
+    main()
+```
+
+Reglas del patrón:
+- El test construye el estado mínimo necesario — no depende de los archivos reales del mes en curso
+- Un assert fallido dice exactamente qué se esperaba y qué se obtuvo
+- El test es idempotente: borra y recrea su carpeta temp en cada corrida
+- Vive en `tests/` como cualquier otro test del módulo
+
+**3.6d Patrón: preservación de trabajo manual en re-corridas**
+
+En sistemas donde humanos y automatización comparten el mismo archivo, cada re-corrida del módulo
+debe distinguir entre "lo que el sistema generó" (regenerable) y "lo que el humano decidió" (sagrado).
+El patrón tiene tres capas que trabajan juntas:
+
+| Capa | Función | Sin esta capa |
+|------|---------|---------------|
+| 1. Backup | Copia el archivo antes de tocar nada | Si falla la escritura, no hay punto de restauración |
+| 2. Leer decisiones humanas | Extrae lo que el humano escribió antes de regenerar | Las decisiones del humano se borran al regenerar |
+| 3. Set de ya-procesados | Deduplicación por contenido entre corridas | Los registros confirmados reaparecen como pendientes |
+
+```python
+def main():
+    if PENDIENTES_FILE.exists():
+        _backup(PENDIENTES_FILE)                     # capa 1
+        preservados = _leer_decisiones_humanas(...)  # capa 2
+    ya_confirmados = _cargar_ya_confirmados()         # capa 3
+    # regenerar solo lo que no está en ya_confirmados ni en preservados
+```
+
+Este patrón no es solo para migraciones — aplica en **cada ejecución** del módulo mientras el mes está abierto.
+El módulo puede re-correrse 10 veces en el mismo ciclo: el trabajo manual siempre sobrevive.
 
 **3.7 Commits con Conventional Commits**
 Formato estándar que hace el git log legible como historia del proyecto:
@@ -630,6 +1022,31 @@ Anotar en `docs/CHANGELOG.md` (no en el README):
 
 ## Reglas generales — siempre
 
+### Convenciones de nombres — una sola fuente para todo
+
+Estas reglas aplican en carpetas, archivos, código Python y columnas Excel.
+No hay excepciones: si el nombre ya existe en un input externo, se conserva tal como viene.
+
+| Qué | Formato | Ejemplo |
+|-----|---------|---------|
+| Módulos del sistema | `NN_nombre_modulo` | `1_lecturas`, `2_planilla` |
+| Carpetas internas | `lower_snake_case` | `inputs/`, `outputs/`, `docs/` |
+| Archivos Python | `lower_snake_case.py` | `main.py`, `config.py` |
+| Archivos Excel con periodo | `nombre_YYYY-MM.xlsx` | `planilla_2026-06.xlsx`, `arrastre_deuda_2026-06.xlsx` |
+| Archivos Excel sin periodo | `lower_snake_case.xlsx` | `convenios.xlsx`, `multas.xlsx` |
+| Variables Python | `lower_snake_case` | `df_lecturas`, `total_mes` |
+| Constantes Python (`config.py`) | `UPPER_SNAKE_CASE` | `TARIFA_M3`, `MANT_FIJO`, `INPUTS_DIR` |
+| Columnas Excel (todas) | `UPPER_SNAKE_CASE` | `MZ`, `LT`, `MES_ACTUAL`, `TOTAL_A_PAGAR`, `MONTO_YAPE` |
+
+**Columnas Excel: una sola regla**
+Todas las columnas Excel — sin importar si las llenó un humano o las calculó el sistema → `UPPER_SNAKE_CASE`.
+La distinción campo/sistema se comunica con **color** en el Excel (verde = sistema, morado = 4_pagos), no con capitalización.
+
+**Nombres cortos y descriptivos:** el nombre debe decir qué es, no de dónde viene ni cómo se calcula.
+`MES_ACTUAL` (no `TOTAL_MES_ACTUAL_CALCULADO`) · `MES_ANTERIOR` (no `ARRASTRE_DEUDA_MONTO`)
+
+---
+
 **README primero — Documentation-Driven Design**
 Siempre escribir el README antes de la arquitectura visual.
 El README es la fuente de verdad. La arquitectura es su resumen visual.
@@ -698,6 +1115,133 @@ restaurar desde Git o desde la carpeta `backup/` del módulo.
 
 ---
 
+## Protocolo de Migración
+
+Un "schema change" ocurre cuando rediseñas las columnas de un archivo que los usuarios ya llenaron manualmente.
+Es el momento de mayor riesgo del ciclo de desarrollo: hay que cambiar el formato SIN perder el trabajo existente.
+
+### Cuándo aplica
+
+Aplicar cuando el rediseño afecta archivos con datos manuales (inputs que llenan usuarios, no outputs del sistema).
+Si el archivo solo tiene datos calculados por el sistema → no aplica, basta regenerar.
+
+### El error más común — cómo ocurre
+
+Un script de migración importa otro módulo que tiene código a nivel de módulo (sin guard).
+Al importar, Python ejecuta ese código y sobreescribe los archivos que ibas a migrar.
+
+```python
+# PELIGROSO — si crear_templates.py tiene código fuera del guard, esto ejecuta la migración al importar
+from crear_templates import GRUPOS, COLUMNAS
+
+# CORRECTO — definir las constantes inline en el script de migración, o importar solo módulos puros
+```
+
+**Regla:** toda importación en un script de migración debe ser de módulos que NO tienen efectos al importarse.
+
+### Pasos obligatorios
+
+**M.1 — Backup ANTES que todo**
+```
+1. Identificar todos los archivos afectados (glob por patrón si son N archivos)
+2. Crear backup/migracion_YYYY-MM/
+3. Copiar TODOS los archivos afectados al backup
+4. Verificar que el backup está completo (contar archivos)
+5. Recién ahora continuar — no hay M.2 sin M.1 completo
+```
+
+**M.2 — Asegurar que existe un output consolidado reciente**
+
+Antes de migrar, correr el módulo actual para que el output consolidado (ej. `pagos_efectivo.xlsx`) esté al día.
+Este consolidado es el plan B si la migración falla y el backup se corrompe.
+
+**M.3 — Guard obligatorio en todo script que toca archivos**
+```python
+# Al final del script — sin esto, cualquier `import migrar` ejecuta la migración automáticamente
+if __name__ == "__main__":
+    main()
+```
+
+**M.4 — Migración idempotente — detectar y saltar si ya migrado**
+
+El script detecta si un archivo ya tiene el nuevo schema y lo salta.
+Correr dos veces produce el mismo resultado que correr una vez.
+
+```python
+headers = [c.value for c in ws[2]]  # fila 2 = headers en el patrón del proyecto
+if "NUEVA_COLUMNA" in headers:
+    print(f"  {archivo.name} ya v2 → skip")
+    continue
+```
+
+**M.5 — Leer por nombre de columna, no por posición**
+
+Al leer el archivo viejo, acceder por nombre de columna.
+El orden puede haber cambiado entre versiones.
+
+```python
+# FRÁGIL — rompe si el orden cambió
+valor = fila[3]
+
+# ROBUSTO — funciona independientemente del orden
+headers = [c.value for c in ws[2]]
+idx = {h: i for i, h in enumerate(headers) if h}
+valor = fila[idx["COLUMNA"]]
+```
+
+**M.6 — Columnas nuevas vacías**
+
+Columnas nuevas que el usuario debe llenar → dejar en `None`.
+No inventar valores. No propagar otra columna. El usuario decide.
+
+```python
+ws.cell(row=r, column=col_nueva).value = None  # usuario llenará
+```
+
+**M.7 — Probar en un archivo antes de correr en N**
+
+```
+1. Correr la migración en un solo archivo
+2. Abrir en Excel, verificar visualmente:
+   - ¿Mismo número de filas?
+   - ¿Los datos existentes se preservaron exactamente?
+   - ¿Las columnas nuevas están vacías?
+3. Confirmar con el usuario si hay datos de verdad en juego
+4. Recién entonces correr en todos los archivos
+```
+
+### Plan de recuperación — escribirlo antes de ejecutar
+
+Antes de correr la migración, escribir en 3 líneas qué hacer si algo sale mal:
+- Si falla a la mitad → restaurar de `backup/migracion_YYYY-MM/`
+- Si el backup se corrompe → reconstruir desde el output consolidado del mes
+- Si el output consolidado tampoco existe → escalar a recuperación manual
+
+Tener el plan escrito antes de necesitarlo elimina el pánico.
+
+### Señales de que la migración fue exitosa
+
+- Mismo número de filas antes y después
+- Los datos existentes tienen exactamente los mismos valores que antes
+- Las columnas nuevas están vacías
+- El script es idempotente: correrlo de nuevo no cambia nada
+
+### Caso real — módulo efectivo junio 2026
+
+**Schema change:** `crear_templates.py` pasó de 7 a 9 columnas (agregó MONTO_EFECTIVO y MONTO_YAPE).
+Los usuarios ya habían llenado 7 mesas con el schema viejo.
+
+**Error cometido:** `migrar_formato_v2.py` importó `crear_templates.py` que tenía código a nivel de módulo.
+El import ejecutó la creación de templates, sobreescribió los 7 archivos de mesa con plantillas vacías.
+
+**Recuperación:** Los datos existían en `outputs/pagos_efectivo.xlsx` (output consolidado del mes).
+Se escribió `recuperar_mesas.py` que leyó ese consolidado y reconstruyó los 7 archivos.
+
+**Lección clave:** El output consolidado salvó la situación (paso M.2 aplicado sin saberlo).
+Si no hubiera existido, los datos se habrían perdido permanentemente.
+
+---
+
 ## Gestión de dependencias
 
 Mantener un `requirements.txt` en la raíz del proyecto:
@@ -762,3 +1306,18 @@ Si el código descubre algo que contradice el diseño → para y corrige el READ
 | 1.2 | Mayo 2026 | Eliminado contenido duplicado (v1.0 que contradecía v1.1) · Fase 2.6: esquema de inputs · Fase 3.2: validación de inputs · Fase 3.3: logging a archivo · Fase 3.7: Conventional Commits + tags de ciclo · Fase 4: CHANGELOG separado del README · Protocolo de rollback · Gestión de dependencias |
 | 1.3 | Mayo 2026 | División profesional de herramientas IA (Chat/Code/Scheduled) · Fase 2.0: flujo de evaluación de enfoques antes de diseñar · Reglas: "Lo manual es el ancla" y "Nunca codifiques la primera idea" |
 | 1.4 | Mayo 2026 | Fase 0 (Exploración condicional) — para problemas nuevos o datos desconocidos · Renombrado "4 fases" a "fases de desarrollo" |
+| 1.5 | Junio 2026 | Fase 3.6: patrón de test de integración con datos sintéticos · Fase 3.6b: patrón de bypass por resoluciones en ciclos de corrección |
+| 1.6 | Junio 2026 | Convenciones de nombres — sección única para carpetas, archivos, Python y columnas Excel |
+| 1.7 | Junio 2026 | Fase 2.6: diseño de outputs ampliado — formato visual Excel obligatorio (historia, paleta, openpyxl) antes de codificar |
+| 1.8 | Junio 2026 | Regla de actualización atómica en 2.4 — cuando el diseño se acuerda en conversación, actualizar todos los documentos en la misma pasada sin esperar aprobación del HTML |
+| 1.9 | Junio 2026 | Paso 3.3: logging dentro de `main()` con `force=True` — obligatorio para que FileHandler funcione en tests · Paso 2.6: columnas completadas por módulos posteriores deben ser fórmulas Excel, no valores Python · Fase 1.4: regla de orden de pipeline por realidad de negocio · Fase 1.4: regla de sub-módulo vs módulo independiente |
+| 2.0 | Junio 2026 | Pasos 2.1, 2.3, 2.6: los artefactos de diseño de módulo (diagrama, arquitectura, formato outputs) viven en `MODULO/docs/` — no en la carpeta `docs/` global del sistema |
+| 2.1 | Junio 2026 | Paso 3.0: auditoría obligatoria de contratos HTML antes de codificar — Glob *.html, verificar que existe formato para cada output, leer cada contrato en la sesión actual |
+| 2.2 | Junio 2026 | División de modelos dentro de Code — Opus codifica lógica Python no trivial y hace debugging; Sonnet hace diseño, HTMLs, lectura, planning, docs y git |
+| 2.3 | Junio 2026 | Corrección a 2.2 — Opus también para **debatir y planear** el código (no solo escribir). El razonamiento sobre el código y el código mismo son la misma actividad cognitiva |
+| 2.4 | Junio 2026 | Aclaración a 2.3 — **escribir cualquier HTML** (formato_*, arquitectura, diagramas) va con Sonnet; el diseño YA lo cerró Opus, Sonnet solo transcribe |
+| 2.5 | Junio 2026 | Regla de recordatorio activo — la IA avisa antes de empezar si el modelo no es el correcto para la tarea (HTML → Sonnet, código/debate/debug → Opus) |
+| 2.6 | Junio 2026 | Explícito en tabla y recordatorio: correr módulo + leer log + validar outputs → Sonnet. Error frecuente documentado: no avisar el cambio al terminar de codificar en Opus antes de correr. |
+| 2.7 | Junio 2026 | Paso 3.6c: verificar comportamientos nuevos con test sintético — no con datos reales. Verificación manual (editar archivos reales, borrar output, re-correr) no es repetible, toca producción, y no detecta regresiones. La forma correcta es un `test_verificacion.py` con estado mínimo sintético, assert con mensaje claro, y carpeta temp idempotente. |
+| 2.8 | Junio 2026 | Paso 2.9: diseño de migración (obligatorio cuando el schema cambia y hay datos manuales). Protocolo de Migración completo con 7 pasos: backup primero, output consolidado como plan B, guard `if __name__ == "__main__":` obligatorio, idempotencia, lectura por nombre de columna, columnas nuevas vacías, probar en uno antes de N. Caso real documentado (módulo efectivo junio 2026). |
+| 2.9 | Junio 2026 | Tres patrones nuevos. Paso 2.6: Registro de auditoría vs vista operacional — clasificar outputs en fuente de verdad (nunca se filtra) vs proyección para downstream (regenerable). Paso 2.7: Retrocompatibilidad de lectura — try/except por nombre de columna para coexistencia de schemas durante transición, diferente a migración. Paso 3.6d: Preservación en tres capas (backup + leer decisiones humanas + set ya-procesados) — aplica en cada re-corrida del módulo, no solo en migraciones. |

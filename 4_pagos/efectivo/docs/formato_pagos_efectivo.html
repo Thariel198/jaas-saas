@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>pagos_efectivo.xlsx — contrato visual</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+
+  :root {
+    --font-sans: 'IBM Plex Sans', sans-serif;
+    --font-mono: 'IBM Plex Mono', monospace;
+    --border: #dee2e6;
+    --bg2: #f8f9fa;
+    --text3: #adb5bd;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font-sans); background: #fff; padding: 28px; font-size: 13px; color: #111; }
+
+  .title { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+  .sub   { font-size: 12px; color: #888; margin-bottom: 8px; }
+
+  .historia {
+    font-size: 11px; color: #555; margin-bottom: 16px;
+    background: #f8f9fa; border-left: 3px solid #dee2e6;
+    padding: 7px 12px; border-radius: 0 5px 5px 0;
+  }
+  .historia strong { color: #333; }
+
+  /* Excel tab */
+  .tab-wrap { display: inline-block; margin-bottom: -1px; }
+  .tab {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: #E9F7EF; border: 0.5px solid #A9DFBF;
+    border-bottom: none; border-radius: 6px 6px 0 0;
+    padding: 5px 14px; font-size: 12px; font-weight: 500;
+    color: #1E5C3A; font-family: var(--font-mono);
+  }
+
+  /* Table wrapper */
+  .tw { border: 0.5px solid var(--border); border-radius: 0 8px 8px 8px; overflow-x: auto; margin-bottom: 16px; }
+
+  table { border-collapse: collapse; font-size: 10px; font-family: var(--font-sans); }
+
+  th, td {
+    padding: 5px 8px;
+    border-bottom: 0.5px solid var(--border);
+    border-right: 0.5px solid var(--border);
+    white-space: nowrap; vertical-align: middle;
+  }
+
+  .num {
+    width: 22px; background: var(--bg2); color: var(--text3);
+    font-size: 9px; font-family: var(--font-mono); text-align: center; padding: 4px 2px;
+  }
+
+  .th-sep, .td-sep { width: 5px; background: var(--bg2); border-right: 2px solid var(--border); padding: 0; }
+
+  .gh { font-size: 9px; font-weight: 600; text-align: center; letter-spacing: 0.05em; text-transform: uppercase; padding: 4px 8px; }
+  th.col { font-size: 9px; font-weight: 600; font-family: var(--font-mono); text-align: center; padding: 4px 8px; }
+
+  /* ── SECCIÓN 1: ¿Dónde vive? (azul) ── */
+  .gh-id  { background: #EBF5FB; color: #1A5276; }
+  .th-id  { background: #EBF5FB; color: #1A5276; }
+  .td-id  { background: #F4FAFF; color: #1A5276; font-family: var(--font-mono); }
+
+  /* ── SECCIÓN 2: ¿Cuánto pagó? (verde) ── */
+  .gh-cob { background: #E9F7EF; color: #1E5C3A; }
+  .th-cob { background: #E9F7EF; color: #1E5C3A; }
+  .td-cob { background: #F4FBF7; color: #1E5C3A; font-family: var(--font-mono); text-align: right; }
+
+  /* ── SECCIÓN 3: ¿De qué mesa? (amarillo) ── */
+  .gh-mesa { background: #FEF9E7; color: #7D6608; }
+  .th-mesa { background: #FEF9E7; color: #7D6608; }
+  .td-mesa { background: #FFFDF5; color: #7D6608; font-family: var(--font-mono); text-align: center; }
+
+  /* ── SECCIÓN 4: ¿Es confiable? (morado) ── */
+  .gh-est { background: #F3E8FF; color: #5B21B6; }
+  .th-est { background: #F3E8FF; color: #5B21B6; }
+  .td-est { background: #FAF5FF; font-family: var(--font-mono); text-align: center; font-size: 9px; font-weight: 600; }
+  .est-conf   { color: #1E5C3A; }
+  .est-solo   { color: #7D6608; }
+  .est-mayor  { color: #1A5276; }
+
+  /* ── SECCIÓN 5: ¿Quién cobró? (azul gris) ── */
+  .gh-who { background: #EBF5FB; color: #1A5276; }
+  .th-who { background: #EBF5FB; color: #1A5276; }
+  .td-who { background: #F4FAFF; color: #333; }
+
+  /* ── SECCIÓN 6: ¿Alguna nota? (lila) ── */
+  .gh-com { background: #F4ECF7; color: #5B21B6; }
+  .th-com { background: #F4ECF7; color: #5B21B6; }
+  .td-com { background: #FAF5FF; color: #888; font-style: italic; }
+
+  /* ── SECCIÓN 7: Trazabilidad (morado) ── */
+  .gh-traz { background: #F3E8FF; color: #5B21B6; }
+  .th-traz { background: #F3E8FF; color: #5B21B6; }
+  .td-traz { background: #FAF5FF; color: #5B21B6; font-family: var(--font-mono); text-align: center; }
+
+  .mono { font-family: var(--font-mono); }
+
+  /* ── LEYENDA ── */
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 24px; align-items: center; }
+  .ld-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #555; }
+  .ld { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; border: 0.5px solid rgba(0,0,0,.12); }
+
+  /* ── REGLAS ── */
+  .section-title { font-size: 12px; font-weight: 600; color: #333; margin-bottom: 10px; margin-top: 20px; }
+  .rule-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 20px; }
+  .rule-card { border: 0.5px solid var(--border); border-radius: 6px; padding: 10px 12px; font-size: 11px; color: #555; line-height: 1.6; }
+  .rule-card strong { display: block; font-size: 9px; font-weight: 700; margin-bottom: 5px; color: #333; text-transform: uppercase; letter-spacing: 0.05em; }
+  .rule-card code { font-family: var(--font-mono); font-size: 10px; background: #f3f3f3; padding: 1px 4px; border-radius: 2px; }
+
+  /* ── ANCHOS ── */
+  .widths-table { border-collapse: collapse; font-size: 11px; }
+  .widths-table th, .widths-table td { border: 0.5px solid var(--border); padding: 4px 10px; text-align: left; }
+  .widths-table th { background: var(--bg2); font-weight: 600; font-size: 10px; }
+  .widths-table code { font-family: var(--font-mono); font-size: 10px; }
+
+  /* ── ESTADO PILLS ── */
+  .pill {
+    display: inline-block; font-size: 9px; font-weight: 700;
+    padding: 2px 7px; border-radius: 10px; font-family: var(--font-mono);
+  }
+  .pill.conf   { background: #D5F5E3; color: #1E5C3A; }
+  .pill.solo   { background: #FEF9C3; color: #7D6608; }
+  .pill.mayor  { background: #DBEAFE; color: #1A5276; }
+</style>
+</head>
+<body>
+
+<p class="title">pagos_efectivo.xlsx — contrato visual</p>
+<p class="sub">Hoja única: <strong>pagos_efectivo</strong> · 10 columnas · orden exacto</p>
+
+<p class="historia">
+  <strong>Historia (izquierda → derecha):</strong>
+  ¿Dónde vive? → ¿Cuánto pagó y cuándo? → ¿De qué mesa vino? → ¿Qué tan confiable es el registro? → ¿Quién cobró? → ¿Alguna nota?<br><br>
+  El campo <strong>ESTADO</strong> es la columna clave: indica si el pago fue cruzado por 2+ cobradores
+  (<code>confirmado</code>), si solo hubo un cobrador (<code>solo_un_cobrador</code>),
+  o si la mayoría prevaleció sobre uno diferente (<code>mayoria_aplicada</code>).
+</p>
+
+<!-- ── LEYENDA ── -->
+<div class="legend">
+  <div class="ld-item"><div class="ld" style="background:#EBF5FB;border-color:#AED6F1"></div>¿Dónde vive?</div>
+  <div class="ld-item"><div class="ld" style="background:#E9F7EF;border-color:#A9DFBF"></div>¿Cuánto pagó?</div>
+  <div class="ld-item"><div class="ld" style="background:#FEF9E7;border-color:#F9E79F"></div>¿De qué mesa?</div>
+  <div class="ld-item"><div class="ld" style="background:#F3E8FF;border-color:#C4B5FD"></div>¿Es confiable?</div>
+  <div class="ld-item"><div class="ld" style="background:#EBF5FB;border-color:#AED6F1"></div>¿Quién cobró?</div>
+  <div class="ld-item"><div class="ld" style="background:#F4ECF7;border-color:#D8B4FE"></div>¿Alguna nota?</div>
+  <div class="ld-item"><div class="ld" style="background:#F3E8FF;border-color:#C4B5FD"></div>Trazabilidad</div>
+</div>
+
+<!-- ── TAB + TABLE ── -->
+<div class="tab-wrap">
+  <div class="tab">pagos_efectivo</div>
+</div>
+
+<div class="tw">
+<table>
+
+  <!-- FILA 1: SECCIONES -->
+  <tr>
+    <th class="num" rowspan="2"></th>
+    <th class="gh gh-id"   colspan="2">¿Dónde vive?</th>
+    <th class="th-sep"     rowspan="2"></th>
+    <th class="gh gh-cob"  colspan="2">¿Cuánto pagó?</th>
+    <th class="th-sep"     rowspan="2"></th>
+    <th class="gh gh-mesa" colspan="1">¿De qué mesa?</th>
+    <th class="th-sep"     rowspan="2"></th>
+    <th class="gh gh-est"  colspan="1">¿Es confiable?</th>
+    <th class="th-sep"     rowspan="2"></th>
+    <th class="gh gh-who"  colspan="1">¿Quién cobró?</th>
+    <th class="th-sep"     rowspan="2"></th>
+    <th class="gh gh-com"  colspan="1">¿Alguna nota?</th>
+    <th class="th-sep"     rowspan="2"></th>
+    <th class="gh gh-traz" colspan="2">Trazabilidad</th>
+  </tr>
+
+  <!-- FILA 2: COLUMNAS -->
+  <tr>
+    <th class="col th-id">MZ</th>
+    <th class="col th-id">LT</th>
+
+    <th class="col th-cob">MONTO</th>
+    <th class="col th-cob">FECHA</th>
+
+    <th class="col th-mesa">MESA</th>
+
+    <th class="col th-est">ESTADO</th>
+
+    <th class="col th-who">COBRADOR</th>
+
+    <th class="col th-com">COMENTARIO</th>
+
+    <th class="col th-traz">CICLO_CORRECCION</th>
+    <th class="col th-traz" title="la llena 5_cobranza">CICLO_COBRANZA</th>
+  </tr>
+
+  <!-- FILA 1: cross-check confirmado (2 cobradores coinciden) -->
+  <tr>
+    <td class="num">1</td>
+    <td class="td-id">A</td>
+    <td class="td-id">7</td>
+    <td class="td-sep"></td>
+    <td class="td-cob">S/ 38.00</td>
+    <td class="td-cob">03/06/2026</td>
+    <td class="td-sep"></td>
+    <td class="td-mesa">mesa_2</td>
+    <td class="td-sep"></td>
+    <td class="td-est est-conf"><span class="pill conf">confirmado</span></td>
+    <td class="td-sep"></td>
+    <td class="td-who">María García</td>
+    <td class="td-sep"></td>
+    <td class="td-com"></td>
+    <td class="td-sep"></td>
+    <td class="td-traz">1</td>
+    <td class="td-traz">—</td>
+  </tr>
+
+  <!-- FILA 2: solo un cobrador por mesa este mes -->
+  <tr>
+    <td class="num">2</td>
+    <td class="td-id">B1</td>
+    <td class="td-id">11A</td>
+    <td class="td-sep"></td>
+    <td class="td-cob">S/ 21.00</td>
+    <td class="td-cob">03/06/2026</td>
+    <td class="td-sep"></td>
+    <td class="td-mesa">mesa_1</td>
+    <td class="td-sep"></td>
+    <td class="td-est est-solo"><span class="pill solo">solo_un_cobrador</span></td>
+    <td class="td-sep"></td>
+    <td class="td-who">Pedro Quispe</td>
+    <td class="td-sep"></td>
+    <td class="td-com">Pagó con billete de 50</td>
+    <td class="td-sep"></td>
+    <td class="td-traz">1</td>
+    <td class="td-traz">—</td>
+  </tr>
+
+  <!-- FILA 3: mayoría aplicada (2 de 3 coinciden) -->
+  <tr>
+    <td class="num">3</td>
+    <td class="td-id">C</td>
+    <td class="td-id">3</td>
+    <td class="td-sep"></td>
+    <td class="td-cob">S/ 45.00</td>
+    <td class="td-cob">03/06/2026</td>
+    <td class="td-sep"></td>
+    <td class="td-mesa">mesa_4</td>
+    <td class="td-sep"></td>
+    <td class="td-est est-mayor"><span class="pill mayor">mayoria_aplicada</span></td>
+    <td class="td-sep"></td>
+    <td class="td-who">Ana Mamani</td>
+    <td class="td-sep"></td>
+    <td class="td-com"></td>
+    <td class="td-sep"></td>
+    <td class="td-traz">1</td>
+    <td class="td-traz">—</td>
+  </tr>
+
+</table>
+</div>
+
+<!-- ── VALORES VÁLIDOS DE ESTADO ── -->
+<p class="section-title">Valores válidos de ESTADO</p>
+<div class="rule-grid">
+  <div class="rule-card">
+    <strong><span class="pill conf">confirmado</span></strong>
+    2 o 3 hojas de la mesa coinciden en <code>MZ + LT + MONTO</code>.
+    Máxima confianza — ninguna acción requerida.
+  </div>
+  <div class="rule-card">
+    <strong><span class="pill solo">solo_un_cobrador</span></strong>
+    Solo había 1 hoja en la mesa. Se acepta sin cruzar.
+    Alerta de auditoría en <code>trazabilidad/incidencias</code>.
+  </div>
+  <div class="rule-card">
+    <strong><span class="pill mayor">mayoria_aplicada</span></strong>
+    2 de 3 hojas coinciden, 1 difiere.
+    Se toma la mayoría. La fila discrepante queda en <code>trazabilidad/incidencias</code>.
+  </div>
+  <div class="rule-card">
+    <strong><span class="pill" style="background:#FCE4EC;color:#880E4F;">multi_mesa_resuelta</span></strong>
+    Pago que apareció en varias mesas y fue resuelto por el supervisor en <code>discrepancias.xlsx</code>.
+    MZ/LT pueden diferir de los originales si hubo corrección de predio.
+  </div>
+</div>
+
+<!-- ── REGLAS DE FORMATO OPENPYXL ── -->
+<p class="section-title">Reglas de formato — openpyxl</p>
+<table class="widths-table">
+  <tr>
+    <th>Columna</th>
+    <th>Ancho</th>
+    <th>Tipo Python</th>
+    <th>Formato celda</th>
+    <th>Alineación</th>
+  </tr>
+  <tr><td><code>MZ</code></td><td>8</td><td>str</td><td>— (texto)</td><td>centro</td></tr>
+  <tr><td><code>LT</code></td><td>8</td><td>str</td><td>— (texto)</td><td>centro</td></tr>
+  <tr><td><code>MONTO</code></td><td>12</td><td>float</td><td><code>"S/ #,##0.00"</code></td><td>derecha</td></tr>
+  <tr><td><code>FECHA</code></td><td>14</td><td>date</td><td><code>"DD/MM/YYYY"</code></td><td>centro</td></tr>
+  <tr><td><code>MESA</code></td><td>10</td><td>str</td><td>— (texto)</td><td>centro</td></tr>
+  <tr><td><code>ESTADO</code></td><td>20</td><td>str</td><td>— (texto)</td><td>centro</td></tr>
+  <tr><td><code>COBRADOR</code></td><td>22</td><td>str</td><td>— (texto)</td><td>izquierda</td></tr>
+  <tr><td><code>COMENTARIO</code></td><td>30</td><td>str</td><td>— (texto)</td><td>izquierda</td></tr>
+  <tr><td><code>CICLO_CORRECCION</code></td><td>10</td><td>int</td><td>número entero</td><td>centro</td></tr>
+  <tr><td><code>CICLO_COBRANZA</code></td><td>12</td><td>int / vacío</td><td>número entero · la llena 5_cobranza</td><td>centro</td></tr>
+</table>
+
+<p style="font-size:11px; color:#888; margin-top:8px;">
+  Fila 1 (secciones) y fila 2 (columnas): <strong>negrita</strong>, altura 18px y 22px respectivamente.
+  Filas de datos: altura 18px. Freeze en fila 3 (<code>ws.freeze_panes = "A3"</code>).
+</p>
+
+<!-- ── PALETA ── -->
+<p class="section-title">Paleta de colores — openpyxl</p>
+<table class="widths-table">
+  <tr><th>Sección</th><th>Header bg</th><th>Header text</th><th>Data bg</th></tr>
+  <tr><td>¿Dónde vive?</td><td><code>EBF5FB</code></td><td><code>1A5276</code></td><td><code>F4FAFF</code></td></tr>
+  <tr><td>¿Cuánto pagó?</td><td><code>E9F7EF</code></td><td><code>1E5C3A</code></td><td><code>F4FBF7</code></td></tr>
+  <tr><td>¿De qué mesa?</td><td><code>FEF9E7</code></td><td><code>7D6608</code></td><td><code>FFFDF5</code></td></tr>
+  <tr><td>¿Es confiable?</td><td><code>F3E8FF</code></td><td><code>5B21B6</code></td><td><code>FAF5FF</code></td></tr>
+  <tr><td>¿Quién cobró?</td><td><code>EBF5FB</code></td><td><code>1A5276</code></td><td><code>F4FAFF</code></td></tr>
+  <tr><td>¿Alguna nota?</td><td><code>F4ECF7</code></td><td><code>5B21B6</code></td><td><code>FAF5FF</code></td></tr>
+  <tr><td>Trazabilidad</td><td><code>F3E8FF</code></td><td><code>5B21B6</code></td><td><code>FAF5FF</code></td></tr>
+</table>
+
+</body>
+</html>

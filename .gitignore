@@ -1,8 +1,16 @@
 __pycache__/
 *.pyc
+*.pyo
 Outputs/
+outputs/
 Correcciones/
+correcciones/
 *.log
+
+# Virtual environments
+.venv/
+venv/
+env/
 
 # Office lock files
 ~$*
@@ -12,3 +20,5 @@ _tmp_integracion/
 
 # Outputs copiados (archivos grandes que exceden límite de GitHub)
 06_boletas/Outputs - copia/
+3_boletas/Outputs - copia/
+**/Outputs - copia/

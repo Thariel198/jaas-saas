@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>4_pagos/efectivo — diagrama</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'IBM Plex Sans', sans-serif; background: #fff; padding: 24px; }
+
+  .title { font-size: 18px; font-weight: 600; color: #111; margin-bottom: 4px; }
+  .sub   { font-size: 12px; color: #888; margin-bottom: 28px; }
+
+  /* LAYOUT */
+  .diagram {
+    display: grid;
+    grid-template-columns: 210px 40px 220px 40px 230px;
+    grid-template-rows: auto;
+    align-items: start;
+    gap: 0;
+  }
+
+  /* ARROW */
+  .arrow {
+    text-align: center; font-size: 22px; color: #bbb; font-weight: 300;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    padding-top: 80px;
+  }
+  .arrow-label { font-size: 9px; color: #aaa; letter-spacing: .04em; text-transform: uppercase; }
+
+  /* INPUTS COLUMN */
+  .inputs-col { display: flex; flex-direction: column; gap: 8px; }
+
+  .input-box {
+    border-radius: 7px; padding: 8px 10px;
+    font-size: 11px;
+  }
+  .input-box.manual { background: #FEF9E7; border: 1px solid #F9E79F; }
+
+  .input-box .src {
+    font-size: 9px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .05em; margin-bottom: 3px; color: #7D6608;
+  }
+  .input-box .fname {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; font-weight: 600; color: #111; margin-bottom: 4px;
+  }
+  .input-box .sheets {
+    font-size: 10px; color: #666;
+  }
+  .input-box .sheets span {
+    display: inline-block;
+    background: #FFF3CD; border: 1px solid #F9E79F;
+    border-radius: 3px; padding: 1px 5px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px; color: #7D6608; margin: 1px 2px 1px 0;
+  }
+  .input-box .sheets .optional {
+    background: #F8F9FA; border-color: #dee2e6;
+    color: #999; font-style: italic;
+  }
+
+  .mesa-group-label {
+    font-size: 10px; color: #999; text-align: center;
+    padding: 2px 0 4px; letter-spacing: .03em;
+  }
+
+  /* PROCESS BOX */
+  .process-box {
+    background: #E9F7EF; border: 2px solid #1E8449;
+    border-radius: 10px; padding: 14px 16px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .process-title {
+    font-size: 13px; font-weight: 700; color: #1E5C3A;
+    text-align: center; border-bottom: 1px solid #A9DFBF;
+    padding-bottom: 8px; margin-bottom: 2px;
+  }
+  .process-rule {
+    font-size: 10px; color: #1E5C3A;
+    background: #fff; border-radius: 5px;
+    padding: 5px 8px; border-left: 3px solid #1E8449;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .process-rule .label {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 9px; font-weight: 700; color: #888;
+    text-transform: uppercase; letter-spacing: .04em;
+    display: block; margin-bottom: 2px;
+  }
+
+  /* OUTPUT COLUMN */
+  .output-col { display: flex; flex-direction: column; gap: 8px; }
+
+  .output-box {
+    border-radius: 7px; overflow: hidden;
+  }
+  .output-box.permanent { background: #E9F7EF; border: 1px solid #A9DFBF; }
+  .output-box.temp      { background: #FEF9E7; border: 1px solid #F9E79F; }
+  .output-box.trace     { background: #EBF5FB; border: 1px solid #AED6F1; }
+
+  .output-header {
+    color: #fff; font-size: 11px; font-weight: 600;
+    padding: 7px 10px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .output-box.permanent .output-header { background: #1E8449; }
+  .output-box.temp      .output-header { background: #B7770D; }
+  .output-box.trace     .output-header { background: #1A5276; }
+
+  .output-section { padding: 6px 10px; border-bottom: 1px solid; }
+  .output-box.permanent .output-section { border-color: #A9DFBF; }
+  .output-box.temp      .output-section { border-color: #F9E79F; }
+  .output-box.trace     .output-section { border-color: #AED6F1; }
+  .output-section:last-child { border-bottom: none; }
+
+  .output-section-title {
+    font-size: 9px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .05em; margin-bottom: 3px;
+  }
+  .output-box.permanent .output-section-title { color: #1E5C3A; }
+  .output-box.temp      .output-section-title { color: #7D6608; }
+  .output-box.trace     .output-section-title { color: #1A5276; }
+
+  .output-col-item {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; color: #111; line-height: 1.7;
+  }
+
+  .lifecycle-tag {
+    display: inline-block; font-size: 9px; font-weight: 700;
+    padding: 1px 6px; border-radius: 10px; margin-top: 4px;
+  }
+  .lifecycle-tag.perm { background: #D5F5E3; color: #1E5C3A; }
+  .lifecycle-tag.temp { background: #FEF3C7; color: #B7770D; }
+
+  /* CONSUMER */
+  .consumer {
+    background: #F3E8FF; border: 1px solid #C4B5FD;
+    border-radius: 7px; padding: 8px 10px;
+    text-align: center;
+    font-size: 11px; color: #5B21B6; font-weight: 600;
+  }
+  .consumer .sub-c { font-size: 10px; color: #8B5CF6; font-weight: 400; margin-top: 2px; }
+
+  /* FOOTER NOTE */
+  .note {
+    margin-top: 20px;
+    background: #F8F9FA; border: 1px solid #dee2e6;
+    border-left: 3px solid #6c757d;
+    border-radius: 0 6px 6px 0;
+    padding: 7px 12px; font-size: 11px; color: #555;
+  }
+  .note strong { color: #333; }
+  .note code {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; background: #fff; padding: 1px 4px; border-radius: 3px;
+  }
+</style>
+</head>
+<body>
+
+<p class="title">4_pagos/efectivo — diagrama de flujo</p>
+<p class="sub">Entrada: registros de cobradores por mesa · Salida: pagos confirmados + trazabilidad</p>
+
+<div class="diagram">
+
+  <!-- INPUTS -->
+  <div class="inputs-col">
+
+    <p class="mesa-group-label">inputs/ — hasta 7 mesas</p>
+
+    <div class="input-box manual">
+      <div class="src">cobrador llena a mano</div>
+      <div class="fname">mesa_1.xlsx</div>
+      <div class="sheets">
+        <span>registro_1</span>
+        <span class="optional">registro_2?</span>
+        <span class="optional">registro_3?</span>
+      </div>
+    </div>
+
+    <div class="input-box manual">
+      <div class="src">cobrador llena a mano</div>
+      <div class="fname">mesa_2.xlsx</div>
+      <div class="sheets">
+        <span>registro_1</span>
+        <span class="optional">registro_2?</span>
+        <span class="optional">registro_3?</span>
+      </div>
+    </div>
+
+    <div class="input-box manual" style="border-style: dashed; opacity: .65;">
+      <div class="src">idem</div>
+      <div class="fname">mesa_3 … mesa_7.xlsx</div>
+      <div class="sheets">misma estructura</div>
+    </div>
+
+    <div style="font-size:10px; color:#999; margin-top:4px; padding: 0 2px;">
+      Columnas por hoja:<br>
+      <span style="font-family: monospace; font-size:9px;">
+        COBRADOR · FECHA_REGISTRO<br>
+        MZ · LT · MONTO · FECHA<br>
+        COMENTARIO
+      </span>
+    </div>
+
+  </div>
+
+  <!-- ARROW IN -->
+  <div class="arrow">
+    <span>→</span>
+    <span class="arrow-label">por<br>mesa</span>
+  </div>
+
+  <!-- PROCESS -->
+  <div class="process-box">
+    <div class="process-title">main.py — efectivo</div>
+
+    <div class="process-rule">
+      <span class="label">1 hoja en la mesa</span>
+      → solo_un_cobrador<br>
+      acepta sin comparar
+    </div>
+
+    <div class="process-rule">
+      <span class="label">2-3 hojas — coinciden</span>
+      → confirmado
+    </div>
+
+    <div class="process-rule">
+      <span class="label">2-3 hojas — difieren</span>
+      → discrepancia<br>
+      mayoría 2/3 gana · minoría se traza
+    </div>
+
+    <div class="process-rule">
+      <span class="label">Mismo MZ+LT en dos mesas</span>
+      → pago_multi_mesa<br>
+      alerta · se traza
+    </div>
+  </div>
+
+  <!-- ARROW OUT -->
+  <div class="arrow">
+    <span>→</span>
+  </div>
+
+  <!-- OUTPUTS -->
+  <div class="output-col">
+
+    <div class="output-box permanent">
+      <div class="output-header">pagos_efectivo.xlsx</div>
+      <div class="output-section">
+        <div class="output-section-title">Filas incluidas</div>
+        <div class="output-col-item">confirmado</div>
+        <div class="output-col-item">solo_un_cobrador</div>
+        <div class="output-col-item">mayoría_aplicada</div>
+      </div>
+      <div class="output-section">
+        <div class="output-section-title">Columnas clave</div>
+        <div class="output-col-item">MZ · LT · MONTO · FECHA</div>
+        <div class="output-col-item">MESA · ESTADO · COBRADOR</div>
+      </div>
+      <div class="output-section">
+        <span class="lifecycle-tag perm">permanente · va a 5_cobranza</span>
+      </div>
+    </div>
+
+    <div class="output-box temp">
+      <div class="output-header">discrepancias.xlsx</div>
+      <div class="output-section">
+        <div class="output-section-title">Filas incluidas</div>
+        <div class="output-col-item">discrepancias sin resolver</div>
+      </div>
+      <div class="output-section">
+        <span class="lifecycle-tag temp">temporal · desaparece al resolverse</span>
+      </div>
+    </div>
+
+    <div class="output-box trace">
+      <div class="output-header">trazabilidad/</div>
+      <div class="output-section">
+        <div class="output-section-title">consolidado_YYYY-MM.xlsx</div>
+        <div class="output-col-item">todo lo procesado en el mes</div>
+      </div>
+      <div class="output-section">
+        <div class="output-section-title">incidencias_YYYY-MM.xlsx</div>
+        <div class="output-col-item">pago_multi_mesa · minoría 2/3</div>
+        <div class="output-col-item">solo_un_cobrador (alertas)</div>
+      </div>
+      <div class="output-section">
+        <span class="lifecycle-tag perm">permanente · acumula mes a mes</span>
+      </div>
+    </div>
+
+    <div class="consumer">
+      5_cobranza
+      <div class="sub-c">consume pagos_efectivo.xlsx</div>
+    </div>
+
+  </div>
+
+</div>
+
+<div class="note">
+  <strong>Regla de mayoría:</strong> si 2 de 3 hojas coinciden en <code>MZ+LT+MONTO</code>,
+  se toma la mayoría como verdad y la fila de la minoría se guarda en
+  <code>trazabilidad/incidencias_YYYY-MM.xlsx</code> para auditoría.<br><br>
+  <strong>Este mes (junio 2026):</strong> solo hay 1 cobrador por mesa → todas las filas
+  salen como <code>solo_un_cobrador</code>. Es el comportamiento esperado y correcto.
+</div>
+
+</body>
+</html>

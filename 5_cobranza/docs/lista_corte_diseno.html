@@ -1,0 +1,109 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+#w{font-family:var(--font-sans);padding:4px 0 16px}
+.instruc{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-left:3px solid #DC2626;border-radius:0 var(--border-radius-md) var(--border-radius-md) 0;padding:9px 13px;font-size:12px;color:var(--color-text-secondary);margin-bottom:12px;line-height:1.7}
+.instruc strong{color:var(--color-text-primary)}
+.tab-excel{display:inline-flex;align-items:center;gap:5px;background:#FEF2F2;border:0.5px solid #FCA5A5;border-bottom:none;border-radius:6px 6px 0 0;padding:5px 14px;font-size:12px;font-weight:500;color:#991B1B;margin-bottom:-1px}
+.tw{border:0.5px solid var(--color-border-tertiary);border-radius:0 var(--border-radius-md) var(--border-radius-md) var(--border-radius-md);overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:11px;min-width:700px}
+th{padding:6px 8px;font-size:10px;font-weight:500;text-align:left;border-bottom:0.5px solid var(--color-border-tertiary);border-right:0.5px solid var(--color-border-tertiary);white-space:nowrap}
+th:last-child{border-right:none}
+td{padding:5px 8px;border-bottom:0.5px solid var(--color-border-tertiary);border-right:0.5px solid var(--color-border-tertiary);vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+td:last-child{border-right:none}
+tr:last-child td{border-bottom:none}
+.num{width:24px;background:var(--color-background-secondary);color:var(--color-text-tertiary);font-size:10px;font-family:var(--font-mono);text-align:center;border-right:0.5px solid var(--color-border-tertiary)}
+
+.th-quien  {background:#F4ECF7;color:#5B21B6}
+.th-porque {background:#FEF9E7;color:#7D6608}
+.th-pagar  {background:#FEF2F2;color:#991B1B}
+.th-sep    {width:4px;background:var(--color-background-secondary);padding:0;border-right:2px solid var(--color-border-secondary)}
+
+.td-quien  {background:#FAF5FF;font-family:var(--font-mono);font-size:10px;color:#5B21B6}
+.td-nombre {background:#FAF5FF;font-size:11px;color:var(--color-text-primary)}
+.td-porque {background:#FEFCE8;font-family:var(--font-mono);font-size:11px;font-weight:500;color:#92400E}
+.td-pagar  {background:#FEF2F2;font-family:var(--font-mono);font-size:11px;font-weight:500;color:#991B1B}
+.td-total  {background:#FEF2F2;font-family:var(--font-mono);font-size:12px;font-weight:700;color:#7F1D1D}
+.td-sep    {width:4px;background:var(--color-background-secondary);padding:0;border-right:2px solid var(--color-border-secondary)}
+
+.gh{font-size:9px;font-weight:600;text-align:center;padding:2px 0;letter-spacing:.05em;text-transform:uppercase;border-bottom:0.5px solid var(--color-border-tertiary)}
+
+.legend{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center}
+.leg{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--color-text-secondary)}
+.ld{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+</style>
+
+<div id="w">
+  <div class="instruc">
+    Generado por <strong>5_cobranza/main.py</strong> — solo lectura.<br>
+    Condición de corte: <strong>SALDO &gt; 0</strong> y <strong>DEUDA_ARRASTRE ≥ 8</strong> (≥ 8 confirma que no pagó nada el mes pasado — mínimo mensual es S/8 mantenimiento).<br>
+    Fuente: filtrado directo de <strong>planilla_cobrado</strong> · excluir manualmente usuarios ya cortados en meses anteriores.<br>
+    <strong>PENALIDAD</strong> fija S/20 por reconexión · <strong>TOTAL_A_PAGAR</strong> = SALDO + PENALIDAD.
+  </div>
+
+  <div class="tab-excel">lista_corte</div>
+  <div class="tw">
+    <table>
+      <thead>
+        <tr>
+          <th class="num" rowspan="2"></th>
+          <th class="th-quien gh" colspan="3">¿Quién es?</th>
+          <th class="th-sep" rowspan="2"></th>
+          <th class="th-porque gh" colspan="2">¿Por qué va a corte?</th>
+          <th class="th-sep" rowspan="2"></th>
+          <th class="th-pagar gh" colspan="2">¿Qué debe pagar?</th>
+        </tr>
+        <tr>
+          <th class="th-quien">MZ</th>
+          <th class="th-quien">LT</th>
+          <th class="th-quien">NOMBRE</th>
+
+          <th class="th-porque">DEUDA_ARRASTRE</th>
+          <th class="th-porque">SALDO</th>
+
+          <th class="th-pagar">PENALIDAD</th>
+          <th class="th-pagar">TOTAL_A_PAGAR</th>
+        </tr>
+      </thead>
+      <tbody>
+
+        <!-- fila 1: pendiente — no pagó nada -->
+        <tr>
+          <td class="num">1</td>
+          <td class="td-quien">C</td><td class="td-quien">12</td><td class="td-nombre">LINDA PAJUELO CASTILLO</td>
+          <td class="td-sep"></td>
+          <td class="td-porque">50.00</td><td class="td-porque">88.00</td>
+          <td class="td-sep"></td>
+          <td class="td-pagar">20.00</td><td class="td-total">108.00</td>
+        </tr>
+
+        <!-- fila 2: parcial — pagó algo pero sigue con arrastre -->
+        <tr>
+          <td class="num">2</td>
+          <td class="td-quien">B</td><td class="td-quien">5</td><td class="td-nombre">ROSA AURORA ROCA</td>
+          <td class="td-sep"></td>
+          <td class="td-porque">25.00</td><td class="td-porque">31.00</td>
+          <td class="td-sep"></td>
+          <td class="td-pagar">20.00</td><td class="td-total">51.00</td>
+        </tr>
+
+        <!-- fila 3: deuda acumulada alta -->
+        <tr>
+          <td class="num">3</td>
+          <td class="td-quien">F</td><td class="td-quien">9</td><td class="td-nombre">CARLOS QUISPE MAMANI</td>
+          <td class="td-sep"></td>
+          <td class="td-porque">120.00</td><td class="td-porque">150.00</td>
+          <td class="td-sep"></td>
+          <td class="td-pagar">20.00</td><td class="td-total">170.00</td>
+        </tr>
+
+      </tbody>
+    </table>
+  </div>
+
+  <div class="legend">
+    <div class="leg"><div class="ld" style="background:#FAF5FF;border:0.5px solid #C4B5FD"></div>¿Quién es?</div>
+    <div class="leg"><div class="ld" style="background:#FEFCE8;border:0.5px solid #FCD34D"></div>deuda que disparó el corte — ARRASTRE ≥ 8 confirma no pago anterior</div>
+    <div class="leg"><div class="ld" style="background:#FEF2F2;border:0.5px solid #FCA5A5"></div>lo que debe pagar para reconectarse — SALDO + PENALIDAD fija S/20</div>
+  </div>
+</div>
