@@ -1113,6 +1113,31 @@ def leer_correcciones(planilla: dict = None) -> tuple[dict, dict, dict, list, li
             corr_multiples             = _leer_hoja_multiples(wb_acum)
             validados_ambiguos         = _leer_acum_ambiguos_traz(wb_acum)
             validados_maestro_inexacto = _leer_acum_maestro_inexacto_traz(wb_acum)
+            # Persistir correcciones de maestro_inexacto en corr_simples: la trazabilidad
+            # Maestro_inexacto es el único lugar donde queda registro de MZ-LOTE validados,
+            # ya que exportar_trazabilidad las excluye del sheet Sin_identificar.
+            # Si la clave ya existe en corr_simples (residuo de versión previa del código
+            # que escribía maestro_inexacto en Sin_identificar), se la marca con
+            # _fuente="maestro_inexacto" para que el próximo export la saque de ahí.
+            for r in validados_maestro_inexacto:
+                mz = r.get("mz", "")
+                if not mz or mz.upper() in ("NAN", "NONE", ""):
+                    continue
+                clave = f"{r['origen'].upper()}|{r['fecha']}"
+                if clave in corr_simples:
+                    corr_simples[clave]["_fuente"] = "maestro_inexacto"
+                else:
+                    corr_simples[clave] = {
+                        "mz":       mz,
+                        "lote":     r.get("lote", ""),
+                        "concepto": r.get("concepto", ""),
+                        "motivo":   r.get("motivo", ""),
+                        "tipo":     r.get("tipo", "TE PAGÓ"),
+                        "destino":  r.get("destino", ""),
+                        "monto":    r.get("monto", ""),
+                        "mensaje":  r.get("mensaje", ""),
+                        "_fuente":  "maestro_inexacto",
+                    }
             wb_acum.close()
         except Exception as e:
             print(f"  ⚠ No se pudo leer acumuladas: {e}")
@@ -1156,7 +1181,10 @@ def leer_correcciones(planilla: dict = None) -> tuple[dict, dict, dict, list, li
                 if concepto and concepto.upper() not in ("NAN","NONE",""):
                     if k not in corr_simples:
                         n_nuevas += 1
-                    v["_fuente"] = "ambiguo"
+                    # Concepto-only: persistir vía Sin_identificar (no via Ambiguos)
+                    # porque validados_ambiguos exige MZ; sin este cambio el concepto
+                    # nunca llega a trazabilidad y el pago reaparece en pendientes.
+                    v["_fuente"] = "sin_identificar"
                     corr_simples[k] = v
                     continue
                 if not mz or mz in ("NAN","NONE",""):
