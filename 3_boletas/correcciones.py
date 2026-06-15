@@ -59,9 +59,8 @@ SHEET_DATA_BOLETAS = "Data"
 #  EDITAR AQUI — pares (MZ, LT) a reimprimir
 # ══════════════════════════════════════════════════════════════
 RECIBOS_A_REIMPRIMIR = [
-    ("A1", "12"),
-    ("I",  "16"),
-    ("C1", "7"),
+    ("W",  "1"),    # NELLY MORENO LICITO - nombre corregido
+    ("C1", "16"),   # NELLY MORENO LICITO - lote nuevo con deudas
 ]
 # ══════════════════════════════════════════════════════════════
 

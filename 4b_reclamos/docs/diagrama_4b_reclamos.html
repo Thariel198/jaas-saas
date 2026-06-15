@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>4b_reclamos — diagrama de flujo</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'IBM Plex Sans', sans-serif; background: #fff; padding: 24px; color: #111; }
+
+  .title { font-size: 19px; font-weight: 700; color: #111; margin-bottom: 4px; }
+  .sub   { font-size: 12px; color: #888; margin-bottom: 22px; }
+
+  /* STAGE — un bloque por etapa */
+  .stage {
+    margin-bottom: 18px;
+    border-radius: 10px;
+    padding: 14px 16px;
+    background: #FAFAFA;
+    border: 1px solid #E5E7EB;
+  }
+  .stage-header {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #E5E7EB;
+  }
+  .stage-num {
+    width: 26px; height: 26px;
+    background: #5B21B6; color: #fff;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700;
+  }
+  .stage-title { font-size: 13px; font-weight: 700; color: #111; }
+  .stage-sub   { font-size: 11px; color: #6B7280; margin-left: 6px; }
+
+  /* GRID INPUTS → SCRIPT → OUTPUTS */
+  .grid {
+    display: grid;
+    grid-template-columns: 230px 32px 250px 32px 250px;
+    align-items: start;
+    gap: 0;
+  }
+
+  .arrow {
+    text-align: center; font-size: 22px; color: #bbb; font-weight: 300;
+    padding-top: 38px;
+  }
+
+  /* INPUT box */
+  .box {
+    border-radius: 7px;
+    padding: 8px 10px;
+    font-size: 11px;
+    margin-bottom: 8px;
+  }
+  .box.in-auto    { background: #E9F7EF; border: 1px solid #A9DFBF; }
+  .box.in-manual  { background: #FEF9E7; border: 1px solid #F9E79F; }
+  .box.in-extern  { background: #EBF5FB; border: 1px solid #AED6F1; }
+
+  .box .src {
+    font-size: 9px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .05em; margin-bottom: 3px;
+  }
+  .box.in-auto   .src { color: #1E5C3A; }
+  .box.in-manual .src { color: #7D6608; }
+  .box.in-extern .src { color: #1A5276; }
+
+  .box .fname {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; font-weight: 700; color: #111; margin-bottom: 4px;
+  }
+  .box .detail { font-size: 10px; line-height: 1.5; }
+  .box.in-auto   .detail { color: #1E5C3A; }
+  .box.in-manual .detail { color: #7D6608; }
+  .box.in-extern .detail { color: #1A5276; }
+
+  /* SCRIPT box */
+  .script {
+    background: #F3E8FF; border: 2px solid #7C3AED;
+    border-radius: 10px; padding: 12px 14px;
+  }
+  .script-title {
+    font-size: 13px; font-weight: 700; color: #5B21B6;
+    text-align: center; border-bottom: 1px solid #C4B5FD;
+    padding-bottom: 7px; margin-bottom: 8px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .rule {
+    font-size: 10px; color: #5B21B6;
+    background: #fff; border-radius: 5px;
+    padding: 5px 8px; border-left: 3px solid #7C3AED;
+    margin-bottom: 5px;
+    line-height: 1.45;
+  }
+  .rule:last-child { margin-bottom: 0; }
+  .rule b { color: #4C1D95; }
+
+  /* OUTPUT box */
+  .out {
+    border-radius: 7px; overflow: hidden;
+    margin-bottom: 8px;
+  }
+  .out.vista { background: #FEF9E7; border: 1px solid #F9E79F; }
+  .out.trace { background: #EBF5FB; border: 1px solid #AED6F1; }
+  .out-header {
+    color: #fff; font-size: 10.5px; font-weight: 700;
+    padding: 6px 9px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .out.vista .out-header { background: #B7770D; }
+  .out.trace .out-header { background: #1A5276; }
+  .out-body { padding: 6px 9px; font-size: 10px; color: #111; line-height: 1.55; }
+  .out-body b { font-weight: 700; }
+  .out-body .auto { color: #1E5C3A; font-weight: 700; }
+  .out-body .manual { color: #7D6608; font-weight: 700; }
+
+  .lifecycle {
+    display: inline-block; font-size: 9px; font-weight: 700;
+    padding: 1px 6px; border-radius: 10px; margin-top: 4px;
+  }
+  .lifecycle.perm    { background: #D5F5E3; color: #1E5C3A; }
+  .lifecycle.mensual { background: #FEF3C7; color: #B7770D; }
+
+  /* USER ACTION badge */
+  .user-action {
+    display: flex; align-items: center; gap: 8px;
+    background: #FEF3C7; border: 1px solid #FCD34D;
+    border-left: 4px solid #B7770D;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 11px; color: #78350F;
+    margin: 10px 0 4px;
+  }
+  .user-action .icon {
+    font-size: 16px;
+  }
+  .user-action b { color: #4C1D95; }
+  .user-action code {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; background: #fff; padding: 1px 5px; border-radius: 3px;
+    color: #5B21B6;
+  }
+
+  .col-label {
+    font-size: 9.5px; color: #999; text-align: center;
+    text-transform: uppercase; letter-spacing: .05em;
+    padding: 0 0 6px;
+  }
+
+  /* FOOTER */
+  .legend {
+    margin-top: 18px;
+    display: flex; gap: 14px; flex-wrap: wrap;
+    font-size: 10px; color: #555;
+  }
+  .legend-item { display: flex; align-items: center; gap: 5px; }
+  .swatch {
+    width: 12px; height: 12px; border-radius: 3px; border: 1px solid #999;
+  }
+
+  .alert {
+    margin-top: 12px;
+    background: #FEF2F2; border: 1px solid #FECACA;
+    border-left: 3px solid #DC2626;
+    border-radius: 0 6px 6px 0;
+    padding: 8px 12px; font-size: 11px; color: #7F1D1D;
+  }
+  .alert b { color: #991B1B; }
+  .alert code {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; background: #fff; padding: 1px 4px; border-radius: 3px;
+  }
+</style>
+</head>
+<body>
+
+<p class="title">4b_reclamos — diagrama de flujo</p>
+<p class="sub">Detecta · clasifica · cruza con DATA_boletas · registra corrección · auditoría unificada</p>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- STAGE 1 — DETECTAR -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="stage">
+  <div class="stage-header">
+    <div class="stage-num">1</div>
+    <div class="stage-title">Detectar reclamos</div>
+    <div class="stage-sub">corre cuando llegan nuevos pagos de efectivo</div>
+  </div>
+
+  <div class="grid">
+
+    <!-- INPUTS -->
+    <div>
+      <p class="col-label">inputs</p>
+      <div class="box in-auto">
+        <div class="src">copia desde 4_pagos/efectivo</div>
+        <div class="fname">inputs/pagos_efectivo.xlsx</div>
+        <div class="detail">
+          fuente de detección:<br>
+          COMENTARIO contiene "reclamo"<br><br>
+          columnas usadas:<br>
+          MZ · LT · NOMBRE · COMENTARIO<br>
+          MESA · COBRADOR · FECHA_COBRO · MONTO
+        </div>
+      </div>
+      <div class="box in-manual">
+        <div class="src">re-lectura del output previo</div>
+        <div class="fname">outputs/reclamos_YYYY-MM.xlsx</div>
+        <div class="detail">
+          preservar trabajo manual:<br>
+          TIPO_RECLAMO · ESTADO · FECHA_RESOLUCION<br><br>
+          clave: (MESA, MZ, LT, FECHA_COBRO)
+        </div>
+      </div>
+    </div>
+
+    <div class="arrow">→</div>
+
+    <!-- SCRIPT -->
+    <div>
+      <p class="col-label">script</p>
+      <div class="script">
+        <div class="script-title">main.py</div>
+        <div class="rule"><b>1.</b> filtrar pagos con COMENTARIO "reclamo"</div>
+        <div class="rule"><b>2.</b> preservar manual por clave compuesta</div>
+        <div class="rule"><b>3.</b> arrastrar PENDIENTE/EN_REVISION del mes anterior</div>
+        <div class="rule"><b>4.</b> mover RESUELTO/RECHAZADO a trazabilidad</div>
+      </div>
+    </div>
+
+    <div class="arrow">→</div>
+
+    <!-- OUTPUTS -->
+    <div>
+      <p class="col-label">outputs</p>
+      <div class="out vista">
+        <div class="out-header">reclamos_YYYY-MM.xlsx</div>
+        <div class="out-body">
+          vista operacional · estados<br>
+          <b>PENDIENTE · EN_REVISION</b><br>
+          <span class="manual">TIPO_RECLAMO</span> ← supervisor llena<br>
+          <span class="lifecycle mensual">se regenera cada mes</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="user-action">
+    <span class="icon">👤</span>
+    <span>Supervisor abre <code>reclamos_YYYY-MM.xlsx</code> y llena <b>TIPO_RECLAMO</b> (dropdown) para cada fila pendiente.</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- STAGE 2 — PREPARAR CORRECCIÓN -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="stage">
+  <div class="stage-header">
+    <div class="stage-num">2</div>
+    <div class="stage-title">Preparar corrección</div>
+    <div class="stage-sub">corre cuando TIPO_RECLAMO está clasificado</div>
+  </div>
+
+  <div class="grid">
+
+    <!-- INPUTS -->
+    <div>
+      <p class="col-label">inputs</p>
+      <div class="box in-manual">
+        <div class="src">vista del stage 1 ya clasificada</div>
+        <div class="fname">outputs/reclamos_YYYY-MM.xlsx</div>
+        <div class="detail">
+          solo filas con<br>
+          TIPO_RECLAMO no vacío<br><br>
+          columnas usadas:<br>
+          MZ · LT · NOMBRE · COMENTARIO<br>
+          TIPO_RECLAMO · MES_ANO_ORIGEN
+        </div>
+      </div>
+      <div class="box in-extern">
+        <div class="src">lectura directa de 3_boletas</div>
+        <div class="fname">3_boletas/inputs/DATA_boletas.xlsx</div>
+        <div class="detail">
+          fuente del VALOR_ACTUAL<br>
+          se lee directo — sin copia<br><br>
+          mapeo TIPO_RECLAMO → columna:<br>
+          convenio → Convenio<br>
+          mes_anterior → MES ANTERIOR<br>
+          multa → Multa (faena + reunión)<br>
+          etc.
+        </div>
+      </div>
+    </div>
+
+    <div class="arrow">→</div>
+
+    <!-- SCRIPT -->
+    <div>
+      <p class="col-label">script</p>
+      <div class="script">
+        <div class="script-title">resolucion.py</div>
+        <div class="rule"><b>1.</b> leer reclamos con TIPO_RECLAMO clasificado</div>
+        <div class="rule"><b>2.</b> mapear TIPO_RECLAMO → CAMPO (normalizado UPPER_SNAKE)</div>
+        <div class="rule"><b>3.</b> buscar (MZ, LT) en DATA_boletas → VALOR_ACTUAL</div>
+        <div class="rule"><b>4.</b> preservar VALOR_A_CORREGIR y RESOLUCION de corrida previa</div>
+      </div>
+    </div>
+
+    <div class="arrow">→</div>
+
+    <!-- OUTPUTS -->
+    <div>
+      <p class="col-label">outputs</p>
+      <div class="out vista">
+        <div class="out-header">resolucion_reclamos_YYYY-MM.xlsx</div>
+        <div class="out-body">
+          vista de corrección · 11 columnas<br>
+          <span class="auto">CAMPO · VALOR_ACTUAL</span> ← auto<br>
+          <span class="manual">VALOR_A_CORREGIR · RESOLUCION</span> ← supervisor<br>
+          <span class="manual">ESTADO · FECHA_RESOLUCION</span> ← supervisor<br>
+          <span class="lifecycle mensual">se regenera cada mes</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="user-action">
+    <span class="icon">👤</span>
+    <span>Supervisor abre <code>resolucion_reclamos_YYYY-MM.xlsx</code>, llena <b>VALOR_A_CORREGIR</b> + <b>RESOLUCION</b> (texto libre) + <b>ESTADO</b>=RESUELTO/RECHAZADO + <b>FECHA_RESOLUCION</b>.</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- STAGE 3 — CERRAR A TRAZABILIDAD -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="stage">
+  <div class="stage-header">
+    <div class="stage-num">3</div>
+    <div class="stage-title">Cerrar a trazabilidad</div>
+    <div class="stage-sub">re-corrida de main.py</div>
+  </div>
+
+  <div class="grid">
+
+    <!-- INPUTS -->
+    <div>
+      <p class="col-label">inputs</p>
+      <div class="box in-manual">
+        <div class="src">vista clasificada</div>
+        <div class="fname">outputs/reclamos_YYYY-MM.xlsx</div>
+        <div class="detail">
+          aporta:<br>
+          TIPO_RECLAMO · MES_ANO_ORIGEN<br>
+          MZ · LT · NOMBRE · COMENTARIO
+        </div>
+      </div>
+      <div class="box in-manual">
+        <div class="src">vista de corrección llena</div>
+        <div class="fname">outputs/resolucion_reclamos_YYYY-MM.xlsx</div>
+        <div class="detail">
+          aporta:<br>
+          CAMPO · VALOR_ANTERIOR · VALOR_APLICADO<br>
+          RESOLUCION · ESTADO · FECHA_RESOLUCION
+        </div>
+      </div>
+    </div>
+
+    <div class="arrow">→</div>
+
+    <!-- SCRIPT -->
+    <div>
+      <p class="col-label">script</p>
+      <div class="script">
+        <div class="script-title">main.py (re-corrida)</div>
+        <div class="rule"><b>1.</b> sincronizar ESTADO/FECHA/RESOLUCION desde resolucion → reclamos</div>
+        <div class="rule"><b>2.</b> detectar filas con ESTADO=RESUELTO/RECHAZADO</div>
+        <div class="rule"><b>3.</b> mergear datos de corrección por clave (MESA, MZ, LT, FECHA_COBRO)</div>
+        <div class="rule"><b>4.</b> append a trazabilidad — append-only, nunca borra</div>
+        <div class="rule"><b>5.</b> remover de la vista mensual</div>
+      </div>
+    </div>
+
+    <div class="arrow">→</div>
+
+    <!-- OUTPUTS -->
+    <div>
+      <p class="col-label">outputs</p>
+      <div class="out trace">
+        <div class="out-header">trazabilidad_reclamos.xlsx</div>
+        <div class="out-body">
+          auditoría unificada · 11 columnas<br>
+          RESUELTO: CAMPO · VALOR_ANTERIOR · VALOR_APLICADO llenos<br>
+          RECHAZADO: las 3 últimas vacías<br>
+          <span class="lifecycle perm">permanente · append-only</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- LEYENDA -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="legend">
+  <div class="legend-item"><div class="swatch" style="background:#E9F7EF; border-color:#A9DFBF;"></div>input auto (sistema)</div>
+  <div class="legend-item"><div class="swatch" style="background:#FEF9E7; border-color:#F9E79F;"></div>input/output con trabajo manual</div>
+  <div class="legend-item"><div class="swatch" style="background:#EBF5FB; border-color:#AED6F1;"></div>input externo (otro módulo, lectura directa)</div>
+  <div class="legend-item"><div class="swatch" style="background:#F3E8FF; border-color:#7C3AED;"></div>script del módulo</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- SEÑALES DE ALERTA -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="alert">
+  <b>Señales de alerta:</b><br>
+  · <code>trazabilidad</code> crece pero <code>reclamos_YYYY-MM</code> no decrece → ningún reclamo se está cerrando (problema de proceso, no de código).<br>
+  · <code>resolucion.py</code> reporta WARN: <code>MZ-LT no encontrado en DATA_boletas</code> → el lote no existe en boletas o el formato MZ/LT difiere (normalizar antes de cruzar).<br>
+  · TIPO_RECLAMO se llena pero VALOR_ACTUAL sale vacío → mapeo TIPO→CAMPO no cubre ese caso, revisar diccionario en <code>resolucion.py</code>.
+</div>
+
+</body>
+</html>

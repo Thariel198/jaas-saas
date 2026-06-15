@@ -24,19 +24,25 @@ de nuevo hasta que `discrepancias.xlsx` desaparezca.
 │   ├── ...
 │   └── mesa_7.xlsx
 ├── outputs/
-│   ├── pagos_efectivo.xlsx  ← resultado limpio → 5_cobranza
-│   └── discrepancias.xlsx   ← temporal, desaparece al resolverse todo
+│   ├── pagos_efectivo.xlsx       ← resultado limpio → 5_cobranza
+│   ├── discrepancias.xlsx        ← temporal, desaparece al resolverse todo
+│   └── reclamos_YYYY-MM.xlsx     ← vista operacional de reclamos del mes
 ├── trazabilidad/
-│   ├── consolidado_YYYY-MM.xlsx     ← todo lo procesado (permanente)
-│   └── incidencias_YYYY-MM.xlsx     ← anomalías del mes (permanente)
+│   ├── consolidado_YYYY-MM.xlsx        ← todo lo procesado (permanente)
+│   ├── incidencias_YYYY-MM.xlsx        ← anomalías del mes (permanente)
+│   └── trazabilidad_reclamos.xlsx      ← auditoría histórica de reclamos cerrados
 ├── backup/
 │   └── migracion_YYYY-MM/           ← archivos anteriores al rediseño
 ├── docs/
 │   ├── diagrama_efectivo.html
+│   ├── diagrama_reclamos.html
 │   ├── arquitectura_efectivo.html
-│   └── formato_pagos_efectivo.html
+│   ├── formato_pagos_efectivo.html
+│   ├── formato_reclamos.html
+│   └── formato_trazabilidad_reclamos.html
 ├── tests/
 ├── main.py
+├── reclamos.py
 └── crear_templates.py
 ```
 
@@ -126,9 +132,54 @@ python main.py
 |---|---|---|---|
 | `outputs/pagos_efectivo.xlsx` | permanente | cada corrida | nunca (se sobreescribe) |
 | `outputs/discrepancias.xlsx` | temporal | si hay discrepancias | cuando todas se resuelven |
+| `outputs/reclamos_YYYY-MM.xlsx` | mensual | cada corrida de `reclamos.py` | nunca (se sobreescribe) |
 | `trazabilidad/consolidado_YYYY-MM.xlsx` | permanente | cada corrida | nunca |
 | `trazabilidad/incidencias_YYYY-MM.xlsx` | permanente | si hay anomalías | nunca |
+| `trazabilidad/trazabilidad_reclamos.xlsx` | permanente | primera vez que hay reclamos cerrados | nunca — solo crece |
 | `inputs/mesa_N.xlsx` | manual — sagrado | el cobrador lo llena | nunca se borra sin backup |
+
+---
+
+---
+
+## Reclamos
+
+Los cobradores anotan "reclamo" (u otras variantes) en la columna `COMENTARIO` de los registros
+de mesa cuando un usuario cuestiona su cobro. El sub-módulo `reclamos.py` convierte esas notas
+sueltas en un sistema de seguimiento auditable.
+
+### Cómo funciona
+
+```bash
+# Después de correr main.py (pagos_efectivo.xlsx actualizado):
+python reclamos.py --mes 2026-06
+```
+
+1. **Detecta** todas las filas de `pagos_efectivo.xlsx` donde `COMENTARIO` contiene "reclamo"
+   (sin distinción de mayúsculas/minúsculas).
+2. **Preserva** el trabajo manual del supervisor: si ya existe `reclamos_YYYY-MM.xlsx`, copia
+   las columnas `RECLAMO`, `ESTADO` y `FECHA_RESOLUCION` usando la clave `(MESA, MZ, LT, FECHA_COBRO)`.
+3. **Arrastra** reclamos PENDIENTE o EN_REVISION del mes anterior que no tienen match en el
+   mes actual (el usuario sigue sin resolver su reclamo).
+4. **Cierra** filas con `ESTADO = RESUELTO` o `RECHAZADO`: las mueve a
+   `trazabilidad/trazabilidad_reclamos.xlsx` y las elimina de la vista del mes.
+
+### Estados de reclamo
+
+| Estado | Significado | Siguiente corrida |
+|--------|-------------|-------------------|
+| `PENDIENTE` | Detectado, sin gestionar | Se mantiene en vista; se arrastra si no hay match |
+| `EN_REVISION` | El supervisor está gestionando | Se mantiene en vista; se arrastra si no hay match |
+| `RESUELTO` | Cerrado favorablemente | Mueve a trazabilidad, sale de vista |
+| `RECHAZADO` | Evaluado y descartado | Mueve a trazabilidad, sale de vista |
+
+El supervisor llena `RECLAMO` (texto libre), `ESTADO` (dropdown) y `FECHA_RESOLUCION`
+directamente en `outputs/reclamos_YYYY-MM.xlsx`. Ese trabajo se preserva en cada re-corrida.
+
+### Señales de alerta
+
+- Vista del mes con >50 filas PENDIENTE → revisar si el filtro captura demasiados falsos positivos.
+- Trazabilidad crece pero vista del mes no baja → ningún reclamo se está cerrando; problema de proceso.
 
 ---
 

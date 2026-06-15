@@ -23,6 +23,12 @@ ACUERDOS_PATH         = INPUTS_DIR / "acuerdos_asamblea" / "acuerdos_asamblea.xl
 def output_path(mes: str) -> Path:
     return OUTPUTS_DIR / f"planilla_{mes}.xlsx"
 
+# Publicación a shared/ — donde 4_pagos lee la planilla del mes activo
+SHARED_PLANILLA_DIR = BASE_DIR.parent / "shared" / "planilla_mes"
+
+def shared_planilla_path(mes: str) -> Path:
+    return SHARED_PLANILLA_DIR / f"planilla_{mes}.xlsx"
+
 OUTPUT_SHEET = "Planilla"
 
 # ── Reglas de negocio ──────────────────────────────────────────────────────

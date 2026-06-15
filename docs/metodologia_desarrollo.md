@@ -1,7 +1,7 @@
 # Metodología de Desarrollo — jass_system
 ## Cómo construir sistemas de IA sin improvisar
 
-Versión 2.9 — Junio 2026
+Versión 3.0 — Junio 2026
 Basada en la experiencia construyendo motor_matching y jass_system
 
 ---
@@ -947,6 +947,52 @@ def main():
 Este patrón no es solo para migraciones — aplica en **cada ejecución** del módulo mientras el mes está abierto.
 El módulo puede re-correrse 10 veces en el mismo ciclo: el trabajo manual siempre sobrevive.
 
+**3.6e Patrón: thin layer of shared primitives**
+
+Cuando varios módulos implementan el mismo patrón conceptual, hay tres caminos:
+
+```
+(A) Duplicar todo          (B) Módulo compartido grande    (C) Thin layer ← profesional
+    main_limpieza.py           preservar.py (8 parámetros)     shared/utils_preservacion.py
+    main_matching.py           callbacks, if modulo == X           solo primitivos puros
+    main_pendientes.py         acoplamiento fuerte                 orquestación en cada main.py
+```
+
+El camino (B) parece DRY pero termina con 8 parámetros configurables y callbacks porque cada módulo tiene sus propias reglas. El punto medio correcto es (C).
+
+**Test rápido para decidir qué va en `shared/`:**
+
+| Pregunta | Respuesta → decisión |
+|---|---|
+| ¿La función necesita un `if modulo == "X"` adentro? | Sí → **no compartir**, vive en cada módulo |
+| ¿Es genuinamente la misma cosa sin importar el llamador? | Sí → **compartir** en `shared/` |
+| ¿Es orquestación (orden de pasos, qué columnas, cuándo aplicar)? | Siempre en `main.py`, nunca en `shared/` |
+
+**Qué vive en `shared/utils_*.py`:** funciones puras sin lógica de negocio — `backup_con_timestamp()`, `normalize()`, `leer_xlsx_a_mapa()`. Estables: si cambian, el cambio aplica igual para todos los módulos.
+
+**Regla del Tres:** no abstraer hasta tener 3+ usos REALES de lógica GENUINAMENTE IDÉNTICA donde el cambio futuro afectaría a todos por igual. Si dos módulos comparten el 80% pero el 20% difiere por razones de negocio, la abstracción completa es prematura.
+
+Este patrón lo usan kernel Linux, React y pandas: primitivos compartidos estables + orquestación local en cada módulo.
+
+**3.6f Patrón: columna REVISADO en archivos de autorización**
+
+En archivos donde el operario escribe "Si" para aprobar un cambio, la columna AUTORIZAR sola es ambigua:
+
+| Estado real | AUTORIZAR | El sistema no puede distinguir |
+|---|---|---|
+| Fila nueva, el operario no la vio | vacío | ¿No la vio o decidió no autorizar? |
+| Vista, decidió conservar lo que había | vacío | Idéntico — imposible diferenciar |
+
+**Solución: agregar columna REVISADO**
+
+| REVISADO | AUTORIZAR | Significado | Acción del sistema |
+|---|---|---|---|
+| vacío | vacío | Nueva — el operario no la vio | Resaltar en rojo (requiere atención) |
+| Si | vacío | Vista, decidió conservar | Sin cambios (fondo neutro) |
+| Si | Si | Vista, autoriza el cambio | Aplicar automáticamente en próxima corrida |
+
+Las filas rojas son las que requieren acción del operario. El sistema puede re-correrse sin confundir "nuevo" con "decidido, mantener". La preservación por clave recupera REVISADO y AUTORIZAR de la corrida anterior.
+
 **3.7 Commits con Conventional Commits**
 Formato estándar que hace el git log legible como historia del proyecto:
 
@@ -1321,3 +1367,4 @@ Si el código descubre algo que contradice el diseño → para y corrige el READ
 | 2.7 | Junio 2026 | Paso 3.6c: verificar comportamientos nuevos con test sintético — no con datos reales. Verificación manual (editar archivos reales, borrar output, re-correr) no es repetible, toca producción, y no detecta regresiones. La forma correcta es un `test_verificacion.py` con estado mínimo sintético, assert con mensaje claro, y carpeta temp idempotente. |
 | 2.8 | Junio 2026 | Paso 2.9: diseño de migración (obligatorio cuando el schema cambia y hay datos manuales). Protocolo de Migración completo con 7 pasos: backup primero, output consolidado como plan B, guard `if __name__ == "__main__":` obligatorio, idempotencia, lectura por nombre de columna, columnas nuevas vacías, probar en uno antes de N. Caso real documentado (módulo efectivo junio 2026). |
 | 2.9 | Junio 2026 | Tres patrones nuevos. Paso 2.6: Registro de auditoría vs vista operacional — clasificar outputs en fuente de verdad (nunca se filtra) vs proyección para downstream (regenerable). Paso 2.7: Retrocompatibilidad de lectura — try/except por nombre de columna para coexistencia de schemas durante transición, diferente a migración. Paso 3.6d: Preservación en tres capas (backup + leer decisiones humanas + set ya-procesados) — aplica en cada re-corrida del módulo, no solo en migraciones. |
+| 3.0 | Junio 2026 | Paso 3.6e: Thin layer of shared primitives — el punto medio entre duplicación pura y módulo compartido grande. Regla del Tres + test rápido (`if modulo == X` → no compartir). `shared/utils_*.py` solo para primitivos puros sin lógica de negocio; la orquestación siempre en el `main.py` del módulo. Paso 3.6f: Columna REVISADO en archivos de autorización — distingue "no vista aún" (rojo) de "vista, decidida" (neutro) de "autorizada para aplicar". Elimina ambigüedad cuando AUTORIZAR está vacío. |

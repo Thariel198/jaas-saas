@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Arquitectura — 4b_reclamos</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'IBM Plex Sans', sans-serif; background: #fff; padding: 24px; color: #1f2937; }
+
+  .title { font-size: 18px; font-weight: 600; color: #111; margin-bottom: 4px; }
+  .sub   { font-size: 12px; color: #888; margin-bottom: 20px; }
+
+  .meta { display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap;
+          background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 10px 14px; }
+  .meta-item { font-size: 11px; color: #6b7280; }
+  .meta-item span { font-weight: 600; color: #374151; }
+
+  h2 { font-size: 13px; font-weight: 600; color: #374151; margin: 20px 0 8px;
+       border-left: 3px solid #7C3AED; padding-left: 8px; }
+
+  /* Two-column layout */
+  .cols { display: grid; grid-template-columns: 270px 1fr; gap: 16px; margin-bottom: 20px; }
+
+  /* Folder tree */
+  .tree-box {
+    background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 8px;
+    padding: 14px 16px;
+  }
+  .tree-box h3 { font-size: 10px; font-weight: 700; color: #6b7280;
+                  text-transform: uppercase; letter-spacing: .05em; margin-bottom: 10px; }
+  .tree { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #374151; line-height: 1.9; }
+  .tree .dir    { color: #1A5276; font-weight: 600; }
+  .tree .script { color: #5B21B6; font-weight: 600; }
+  .tree .key    { color: #1E5C3A; font-weight: 600; }
+  .tree .dim    { color: #aaa; font-size: 9px; }
+
+  /* Scripts panel */
+  .scripts-box { display: flex; flex-direction: column; gap: 10px; }
+  .script-card { border-radius: 8px; overflow: hidden; border: 1px solid; }
+  .script-card.main { border-color: #C4B5FD; }
+  .script-card.res  { border-color: #A9DFBF; }
+  .script-header { padding: 8px 12px; font-size: 12px; font-weight: 700;
+                   font-family: 'IBM Plex Mono', monospace; }
+  .script-card.main .script-header { background: #5B21B6; color: #fff; }
+  .script-card.res  .script-header { background: #1E5C3A; color: #fff; }
+  .script-body { padding: 10px 12px; font-size: 11px; }
+  .script-card.main .script-body { background: #FAF5FF; color: #5B21B6; }
+  .script-card.res  .script-body { background: #F4FBF7; color: #1E5C3A; }
+  .io-row { display: flex; gap: 8px; margin: 3px 0; align-items: flex-start; }
+  .io-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
+              min-width: 36px; margin-top: 1px; opacity: .65; }
+  .io-val { font-family: 'IBM Plex Mono', monospace; font-size: 10px; line-height: 1.6; }
+  .rule-list { margin: 4px 0 0 0; padding-left: 16px; }
+  .rule-list li { font-size: 10.5px; margin: 3px 0; }
+
+  /* External deps */
+  .dep-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 16px; }
+  .dep-table th { background: #F3F4F6; color: #374151; font-size: 10px; font-weight: 700;
+                  text-transform: uppercase; letter-spacing: .04em;
+                  padding: 5px 10px; text-align: left; }
+  .dep-table td { padding: 5px 10px; border-bottom: 1px solid #F3F4F6; vertical-align: top; }
+
+  /* Invariants */
+  .inv-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .inv-card { border-radius: 6px; padding: 10px 12px; font-size: 10.5px; line-height: 1.5; }
+  .inv-card .inv-title { font-size: 9px; font-weight: 700; text-transform: uppercase;
+                          letter-spacing: .05em; margin-bottom: 5px; display: block; }
+  .inv-card.pres  { background: #FEF3C7; border: 1px solid #FCD34D; color: #78350F; }
+  .inv-card.idem  { background: #DBEAFE; border: 1px solid #93C5FD; color: #1E3A8A; }
+  .inv-card.una   { background: #D1FAE5; border: 1px solid #6EE7B7; color: #065F46; }
+  .inv-card.null  { background: #F3E8FF; border: 1px solid #C4B5FD; color: #5B21B6; }
+  .inv-card.dir   { background: #E9F7EF; border: 1px solid #A9DFBF; color: #1E5C3A; }
+  .inv-card.nomod { background: #FEF2F2; border: 1px solid #FECACA; color: #991B1B; }
+
+  code { font-family: 'IBM Plex Mono', monospace; font-size: 10px;
+         background: rgba(0,0,0,.06); padding: 1px 4px; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<p class="title">4b_reclamos — arquitectura del módulo</p>
+<p class="sub">Módulo independiente de gestión de reclamos · lee de 4_pagos + 3_boletas · auditoría permanente</p>
+
+<div class="meta">
+  <div class="meta-item"><span>Módulo:</span> 4b_reclamos</div>
+  <div class="meta-item"><span>Scripts:</span> main.py · resolucion.py</div>
+  <div class="meta-item"><span>Outputs:</span> reclamos_YYYY-MM.xlsx · resolucion_reclamos_YYYY-MM.xlsx · trazabilidad_reclamos.xlsx</div>
+  <div class="meta-item"><span>Versión:</span> 1.0 · 14/06/2026</div>
+</div>
+
+<!-- ── COLS: Folder tree + Scripts ── -->
+<div class="cols">
+
+  <!-- Folder tree -->
+  <div class="tree-box">
+    <h3>Estructura de carpetas</h3>
+    <div class="tree">
+<span class="dir">4b_reclamos/</span><br>
+├── <span class="script">main.py</span><br>
+├── <span class="script">resolucion.py</span><br>
+├── <span class="dir">inputs/</span> <span class="dim">(vacío)</span><br>
+├── <span class="dir">outputs/</span><br>
+│&nbsp;&nbsp;&nbsp;├── <span class="key">reclamos_YYYY-MM.xlsx</span><br>
+│&nbsp;&nbsp;&nbsp;└── <span class="key">resolucion_reclamos_YYYY-MM.xlsx</span><br>
+├── <span class="dir">trazabilidad/</span><br>
+│&nbsp;&nbsp;&nbsp;└── <span class="key">trazabilidad_reclamos.xlsx</span><br>
+├── <span class="dir">backup/</span><br>
+│&nbsp;&nbsp;&nbsp;└── <span class="dir">reclamos/</span><br>
+├── <span class="dir">tests/</span><br>
+└── <span class="dir">docs/</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── diagrama_4b_reclamos.html<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── arquitectura_4b_reclamos.html<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── formato_reclamos.html<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── formato_resolucion_reclamos.html<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── formato_trazabilidad_reclamos.html
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <div class="scripts-box">
+
+    <div class="script-card main">
+      <div class="script-header">main.py</div>
+      <div class="script-body">
+        <div class="io-row">
+          <div class="io-label">Lee</div>
+          <div class="io-val">
+            <code>4_pagos/efectivo/outputs/pagos_efectivo.xlsx</code><br>
+            <code>outputs/reclamos_YYYY-MM.xlsx</code> (previo, si existe)<br>
+            <code>outputs/resolucion_reclamos_YYYY-MM.xlsx</code> (si existe, para merge al cerrar)
+          </div>
+        </div>
+        <div class="io-row" style="margin-top:6px;">
+          <div class="io-label">Escribe</div>
+          <div class="io-val">
+            <code>outputs/reclamos_YYYY-MM.xlsx</code> — solo PENDIENTE + EN_REVISION<br>
+            <code>trazabilidad/trazabilidad_reclamos.xlsx</code> — append RESUELTO/RECHAZADO
+          </div>
+        </div>
+        <div class="io-row" style="margin-top:6px;">
+          <div class="io-label">Hace</div>
+          <div class="io-val">
+            <ul class="rule-list">
+              <li>Detecta COMENTARIO="reclamo" en pagos_efectivo</li>
+              <li>Preserva RECLAMO / TIPO_RECLAMO / RESOLUCION / ESTADO / FECHA_RESOLUCION</li>
+              <li>Arrastra PENDIENTE/EN_REVISION del mes anterior sin match</li>
+              <li>Cierra RESUELTO/RECHAZADO a trazabilidad con datos de corrección mergeados</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="script-card res">
+      <div class="script-header">resolucion.py</div>
+      <div class="script-body">
+        <div class="io-row">
+          <div class="io-label">Lee</div>
+          <div class="io-val">
+            <code>outputs/reclamos_YYYY-MM.xlsx</code> (con TIPO_RECLAMO ya clasificado)<br>
+            <code>3_boletas/inputs/DATA_boletas.xlsx</code> (valor vigente — sin snapshot)
+          </div>
+        </div>
+        <div class="io-row" style="margin-top:6px;">
+          <div class="io-label">Escribe</div>
+          <div class="io-val">
+            <code>outputs/resolucion_reclamos_YYYY-MM.xlsx</code> — CAMPO + VALOR_ACTUAL auto-llenados
+          </div>
+        </div>
+        <div class="io-row" style="margin-top:6px;">
+          <div class="io-label">Hace</div>
+          <div class="io-val">
+            <ul class="rule-list">
+              <li>Cruza (MZ, LT) de reclamos contra DATA_boletas</li>
+              <li>Mapea TIPO_RECLAMO → columna en DATA_boletas → CAMPO</li>
+              <li>Auto-popula CAMPO y VALOR_ACTUAL para el supervisor</li>
+              <li>El supervisor llena VALOR_A_CORREGIR, RESOLUCION, ESTADO</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── External dependencies ── -->
+<h2>Dependencias externas (solo lectura)</h2>
+<table class="dep-table">
+  <tr>
+    <th>Archivo</th>
+    <th>Ruta</th>
+    <th>Usado por</th>
+    <th>Por qué no se copia a inputs/</th>
+  </tr>
+  <tr>
+    <td><code>pagos_efectivo.xlsx</code></td>
+    <td><code>4_pagos/efectivo/outputs/</code></td>
+    <td>main.py</td>
+    <td>Output estable del ciclo previo; no cambia mid-mes</td>
+  </tr>
+  <tr>
+    <td><code>DATA_boletas.xlsx</code></td>
+    <td><code>3_boletas/inputs/</code></td>
+    <td>resolucion.py</td>
+    <td>Necesitamos el VALOR_ACTUAL vigente al momento del cruce; snapshot puede quedar desactualizado si 3_boletas regenera mid-mes</td>
+  </tr>
+</table>
+
+<!-- ── Invariants ── -->
+<h2>Invariantes del módulo</h2>
+<div class="inv-grid">
+  <div class="inv-card pres">
+    <span class="inv-title">Preservación manual</span>
+    Clave <code>(MESA, MZ, LT, FECHA_COBRO)</code>. Nunca sobreescribir lo que el supervisor llenó en re-corridas.
+  </div>
+  <div class="inv-card idem">
+    <span class="inv-title">Idempotencia</span>
+    Re-correr sin cambios en inputs no modifica ningún output. Seguro de ejecutar en cualquier momento del mes.
+  </div>
+  <div class="inv-card una">
+    <span class="inv-title">Una historia por reclamo</span>
+    Todo el ciclo vive en una sola fila de <code>trazabilidad_reclamos.xlsx</code>. Sin JOINs para responder "¿qué pasó?".
+  </div>
+  <div class="inv-card null">
+    <span class="inv-title">Corrección null para RECHAZADO</span>
+    CAMPO / VALOR_ANTERIOR / VALOR_APLICADO quedan vacíos si ESTADO_FINAL = RECHAZADO.
+  </div>
+  <div class="inv-card dir">
+    <span class="inv-title">Lectura directa de DATA_boletas</span>
+    Siempre el dato vigente. Nunca snapshot. El supervisor ve el valor real al momento de corregir.
+  </div>
+  <div class="inv-card nomod">
+    <span class="inv-title">No modifica orígenes</span>
+    <code>DATA_boletas.xlsx</code> y <code>pagos_efectivo.xlsx</code> son solo lectura para este módulo.
+  </div>
+</div>
+
+<hr style="margin-top:24px; border-color:#e5e7eb;">
+<p style="font-size:11px; color:#9ca3af; margin-top:8px;">
+  Módulo: 4b_reclamos &nbsp;|&nbsp; Versión: 1.0 &nbsp;|&nbsp; Fecha: 14/06/2026
+</p>
+
+</body>
+</html>

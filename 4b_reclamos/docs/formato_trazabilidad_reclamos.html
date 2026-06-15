@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Contrato de formato — trazabilidad_reclamos.xlsx</title>
+<style>
+  body { font-family: Arial, sans-serif; font-size: 13px; margin: 30px; color: #1f2937; }
+  h1   { font-size: 18px; color: #1e3a5f; border-bottom: 2px solid #1e3a5f; padding-bottom: 6px; }
+  h2   { font-size: 14px; color: #374151; margin-top: 28px; border-left: 4px solid #6b7280; padding-left: 8px; }
+  h3   { font-size: 13px; color: #4b5563; margin-top: 20px; }
+  p    { margin: 6px 0; }
+  .meta { background:#f3f4f6; border:1px solid #d1d5db; border-radius:4px; padding:10px 14px; margin-bottom:18px; }
+  .meta span { font-weight:bold; }
+
+  /* ── Pestañas ── */
+  .tabs { display:flex; gap:6px; margin:18px 0 0; }
+  .tab  { padding:5px 14px; border-radius:4px 4px 0 0; font-size:12px; font-weight:bold; cursor:default; border:1px solid #d1d5db; border-bottom:none; }
+  .tab.active   { background:#1A5276; color:#fff; }
+  .tab.inactive { background:#e5e7eb; color:#6b7280; }
+
+  /* ── Tabla Excel simulada ── */
+  table { border-collapse: collapse; margin: 0 0 20px; font-size: 11.5px; }
+  th, td { border: 1px solid #fff; padding: 3px 8px; white-space: nowrap; }
+
+  .sec { font-weight:bold; font-size:10px; text-align:center; }
+  .col { font-weight:bold; font-size:10px; text-align:center; }
+  .dat { font-size:10px; }
+
+  /* Sección ¿Cuál es el predio? — azul */
+  .s-predio { background:#EBF5FB; color:#1A5276; }
+  .d-predio { background:#F4FAFF; color:#1A5276; }
+
+  /* Sección ¿Quién cobró? — verde */
+  .s-cobro { background:#E9F7EF; color:#1E5C3A; }
+  .d-cobro { background:#F4FBF7; color:#1E5C3A; }
+
+  /* Sección Período — gris neutro */
+  .s-mes { background:#F3F4F6; color:#374151; }
+  .d-mes { background:#F9FAFB; color:#374151; }
+
+  /* Sección ¿Qué tipo? — ámbar */
+  .s-tipo { background:#FEF3C7; color:#92400E; }
+  .d-tipo { background:#FFFBEB; color:#92400E; }
+
+  /* Sección Reclamo registrado — morado */
+  .s-manual { background:#F3E8FF; color:#5B21B6; }
+  .d-manual { background:#FAF5FF; color:#5B21B6; }
+
+  /* Sección Corrección aplicada — naranja (NUEVA) */
+  .s-corr { background:#FEF0E0; color:#7C2D12; }
+  .d-corr { background:#FFFAF5; color:#7C2D12; }
+  .d-corr-null { background:#F9FAFB; color:#D1D5DB; font-style:italic; }
+
+  /* Sección Cierre — azul oscuro trazabilidad */
+  .s-cierre { background:#D6EAF8; color:#1A5276; }
+  .d-cierre { background:#EBF5FB; color:#1A5276; }
+
+  /* Estados */
+  .d-cierre-resuelto  { background:#D1FAE5; color:#065F46; font-weight:bold; }
+  .d-cierre-rechazado { background:#FEE2E2; color:#991B1B; font-weight:bold; }
+
+  .nota { background:#fffbeb; border:1px solid #fcd34d; border-radius:4px;
+          padding:8px 12px; margin:12px 0; font-size:12px; }
+  .logica-box { background:#EBF5FB; border:1px solid #AED6F1; border-radius:4px;
+                padding:10px 14px; margin:12px 0; font-size:12px; }
+  .logica-box b { color:#1A5276; }
+  .corr-box { background:#FEF0E0; border:1px solid #FDBA74; border-radius:4px;
+              padding:10px 14px; margin:12px 0; font-size:12px; }
+  .corr-box b { color:#7C2D12; }
+  ul { margin:4px 0 4px 18px; }
+  li { margin:3px 0; }
+  code { background:#f3f4f6; padding:1px 5px; border-radius:3px; font-size:11px; }
+</style>
+</head>
+<body>
+
+<h1>Contrato de formato — trazabilidad_reclamos.xlsx</h1>
+
+<div class="meta">
+  <span>Módulo:</span> 4b_reclamos &nbsp;|&nbsp;
+  <span>Ruta:</span> trazabilidad/trazabilidad_reclamos.xlsx &nbsp;|&nbsp;
+  <span>Lifecycle:</span> permanente — nunca se borra &nbsp;|&nbsp;
+  <span>Hojas:</span> 1 (Trazabilidad)
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2>Propósito</h2>
+
+<div class="logica-box">
+  <b>Registro de auditoría permanente.</b><br>
+  Acumula todos los reclamos cerrados (RESUELTO o RECHAZADO), mes a mes, sin eliminar filas antiguas.
+  Cada fila contiene el ciclo completo: quién reclamó, qué tipo, qué se decidió, y qué corrección se acordó.<br><br>
+  <ul>
+    <li>Cada vez que <code>main.py</code> detecta un reclamo con <code>ESTADO = RESUELTO</code> o <code>RECHAZADO</code>, lo mueve aquí.</li>
+    <li>Al cerrar, se mergean los datos de <code>resolucion_reclamos_YYYY-MM.xlsx</code> (CAMPO, VALOR_ACTUAL → VALOR_ANTERIOR, VALOR_A_CORREGIR → VALOR_APLICADO).</li>
+    <li>El archivo crece indefinidamente. No se limita por mes. Las filas nuevas se agregan al final.</li>
+    <li>Nunca se eliminan filas ya escritas — es el historial completo de reclamos cerrados.</li>
+  </ul>
+</div>
+
+<div class="corr-box">
+  <b>Sección "Corrección aplicada" (columnas naranjas):</b><br>
+  Registra la corrección acordada — el componente afectado, el valor que tenía antes, y el valor que debería tener.<br><br>
+  <ul>
+    <li>CAMPO: nombre del componente disputado (ej. <code>Convenio</code>, <code>MES ANTERIOR</code>).</li>
+    <li>VALOR_ANTERIOR: valor que tenía DATA_boletas al momento en que se corrió <code>resolucion.py</code> (= VALOR_ACTUAL de resolucion_reclamos).</li>
+    <li>VALOR_APLICADO: valor que el supervisor decidió que debería ser (= VALOR_A_CORREGIR de resolucion_reclamos).</li>
+    <li>Para reclamos <b>RECHAZADO</b>: estas tres columnas quedan vacías (no hubo corrección acordada).</li>
+    <li>Para reclamos cerrados <b>antes de 2026-07</b> (migración): estas columnas quedan vacías por retrocompatibilidad.</li>
+  </ul>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2>Hoja: Trazabilidad</h2>
+
+<div class="tabs">
+  <div class="tab active">Trazabilidad</div>
+</div>
+
+<table>
+  <tr>
+    <th class="sec s-predio"  colspan="2">¿Cuál es el predio?</th>
+    <th class="sec s-cobro"   colspan="4">¿Quién cobró?</th>
+    <th class="sec s-mes"     colspan="2">Período</th>
+    <th class="sec s-tipo"    colspan="1">¿Qué tipo?</th>
+    <th class="sec s-manual"  colspan="3">Reclamo registrado</th>
+    <th class="sec s-corr"    colspan="3">Corrección aplicada</th>
+    <th class="sec s-cierre"  colspan="3">Cierre</th>
+  </tr>
+  <tr>
+    <th class="col s-predio">MZ</th>
+    <th class="col s-predio">LT</th>
+    <th class="col s-cobro">MESA</th>
+    <th class="col s-cobro">COBRADOR</th>
+    <th class="col s-cobro">FECHA_COBRO</th>
+    <th class="col s-cobro">MONTO</th>
+    <th class="col s-mes">MES_ANO_DETECTADO</th>
+    <th class="col s-mes">MES_ANO_ORIGEN</th>
+    <th class="col s-tipo">TIPO_RECLAMO</th>
+    <th class="col s-manual">RECLAMO</th>
+    <th class="col s-manual">RESOLUCION</th>
+    <th class="col s-manual">ESTADO_FINAL</th>
+    <th class="col s-corr">CAMPO</th>
+    <th class="col s-corr">VALOR_ANTERIOR</th>
+    <th class="col s-corr">VALOR_APLICADO</th>
+    <th class="col s-cierre">FECHA_RESOLUCION</th>
+    <th class="col s-cierre">MES_CIERRE</th>
+    <th class="col s-cierre">FECHA_REGISTRO_CIERRE</th>
+  </tr>
+  <!-- Fila resuelta con corrección -->
+  <tr>
+    <td class="dat d-predio">A</td>
+    <td class="dat d-predio">12</td>
+    <td class="dat d-cobro">mesa_2</td>
+    <td class="dat d-cobro">Yerald Romero</td>
+    <td class="dat d-cobro">05/05/2026</td>
+    <td class="dat d-cobro">42.00</td>
+    <td class="dat d-mes">2026-06</td>
+    <td class="dat d-mes">2026-05</td>
+    <td class="dat d-tipo">mes_anterior</td>
+    <td class="dat d-manual">ya pagué mes anterior, tengo recibo</td>
+    <td class="dat d-manual">verificado con recibo N°88</td>
+    <td class="dat d-cierre-resuelto">RESUELTO</td>
+    <td class="dat d-corr">MES ANTERIOR</td>
+    <td class="dat d-corr">35.00</td>
+    <td class="dat d-corr">0.00</td>
+    <td class="dat d-cierre">10/06/2026</td>
+    <td class="dat d-cierre">2026-06</td>
+    <td class="dat d-cierre">14/06/2026</td>
+  </tr>
+  <!-- Fila rechazada — corrección vacía -->
+  <tr>
+    <td class="dat d-predio">D</td>
+    <td class="dat d-predio">4</td>
+    <td class="dat d-cobro">mesa_1</td>
+    <td class="dat d-cobro">Wilder Trujillo</td>
+    <td class="dat d-cobro">03/06/2026</td>
+    <td class="dat d-cobro">35.00</td>
+    <td class="dat d-mes">2026-06</td>
+    <td class="dat d-mes">2026-06</td>
+    <td class="dat d-tipo">convenio</td>
+    <td class="dat d-manual">dice que no debe convenio</td>
+    <td class="dat d-manual">cobrador confirmó deuda activa</td>
+    <td class="dat d-cierre-rechazado">RECHAZADO</td>
+    <td class="dat d-corr-null">(vacío)</td>
+    <td class="dat d-corr-null">(vacío)</td>
+    <td class="dat d-corr-null">(vacío)</td>
+    <td class="dat d-cierre">12/06/2026</td>
+    <td class="dat d-cierre">2026-06</td>
+    <td class="dat d-cierre">14/06/2026</td>
+  </tr>
+</table>
+
+<div class="nota">
+  <b>ESTADO_FINAL</b> = valor que tenía la columna <code>ESTADO</code> en <code>reclamos_YYYY-MM.xlsx</code> cuando se cerró (siempre RESUELTO o RECHAZADO).<br><br>
+  <b>VALOR_ANTERIOR</b> = VALOR_ACTUAL que tenía <code>DATA_boletas.xlsx</code> al momento en que se corrió <code>resolucion.py</code>.<br>
+  <b>VALOR_APLICADO</b> = VALOR_A_CORREGIR que el supervisor aprobó en <code>resolucion_reclamos_YYYY-MM.xlsx</code>.<br><br>
+  <b>MES_CIERRE</b> = mes en que <code>main.py</code> procesó el cierre (YYYY-MM).<br>
+  <b>FECHA_REGISTRO_CIERRE</b> = fecha de sistema en que se ejecutó <code>main.py</code> y se movió la fila aquí.
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2>Anchos de columna</h2>
+<table>
+  <tr style="background:#f9fafb;">
+    <th style="padding:4px 10px;">Columna</th>
+    <th style="padding:4px 10px;">Ancho</th>
+    <th style="padding:4px 10px;">Formato</th>
+    <th style="padding:4px 10px;">Sección</th>
+  </tr>
+  <tr><td>MZ</td><td>6</td><td>texto</td><td>¿Cuál es el predio?</td></tr>
+  <tr><td>LT</td><td>7</td><td>texto</td><td>¿Cuál es el predio?</td></tr>
+  <tr><td>MESA</td><td>12</td><td>texto</td><td>¿Quién cobró?</td></tr>
+  <tr><td>COBRADOR</td><td>22</td><td>texto</td><td>¿Quién cobró?</td></tr>
+  <tr><td>FECHA_COBRO</td><td>14</td><td>DD/MM/YYYY</td><td>¿Quién cobró?</td></tr>
+  <tr><td>MONTO</td><td>12</td><td>"S/ "#,##0.00</td><td>¿Quién cobró?</td></tr>
+  <tr><td>MES_ANO_DETECTADO</td><td>16</td><td>texto (YYYY-MM)</td><td>Período</td></tr>
+  <tr><td>MES_ANO_ORIGEN</td><td>14</td><td>texto (YYYY-MM)</td><td>Período</td></tr>
+  <tr><td>TIPO_RECLAMO</td><td>20</td><td>texto — clasificación del supervisor</td><td>¿Qué tipo?</td></tr>
+  <tr><td>RECLAMO</td><td>40</td><td>texto — copiado desde vista mensual</td><td>Reclamo registrado</td></tr>
+  <tr><td>RESOLUCION</td><td>40</td><td>texto — qué se decidió hacer</td><td>Reclamo registrado</td></tr>
+  <tr><td>ESTADO_FINAL</td><td>14</td><td>texto — RESUELTO o RECHAZADO</td><td>Reclamo registrado</td></tr>
+  <tr><td>CAMPO</td><td>24</td><td>texto — nombre del componente corregido; vacío si RECHAZADO</td><td>Corrección aplicada</td></tr>
+  <tr><td>VALOR_ANTERIOR</td><td>16</td><td>número #,##0.00 — valor antes de la corrección; vacío si RECHAZADO</td><td>Corrección aplicada</td></tr>
+  <tr><td>VALOR_APLICADO</td><td>16</td><td>número #,##0.00 — valor acordado por el supervisor; vacío si RECHAZADO</td><td>Corrección aplicada</td></tr>
+  <tr><td>FECHA_RESOLUCION</td><td>16</td><td>DD/MM/YYYY</td><td>Cierre</td></tr>
+  <tr><td>MES_CIERRE</td><td>12</td><td>texto (YYYY-MM)</td><td>Cierre</td></tr>
+  <tr><td>FECHA_REGISTRO_CIERRE</td><td>20</td><td>DD/MM/YYYY</td><td>Cierre</td></tr>
+</table>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2>Leyenda de colores</h2>
+<table>
+  <tr style="background:#f9fafb;">
+    <th style="padding:4px 10px;">Color</th>
+    <th style="padding:4px 10px;">Sección</th>
+    <th style="padding:4px 10px;">Significado</th>
+  </tr>
+  <tr><td style="background:#EBF5FB; padding:4px 10px;">Azul</td><td>¿Cuál es el predio?</td><td>Identificador del predio</td></tr>
+  <tr><td style="background:#E9F7EF; padding:4px 10px;">Verde</td><td>¿Quién cobró?</td><td>Datos del cobro en campo</td></tr>
+  <tr><td style="background:#F3F4F6; padding:4px 10px;">Gris</td><td>Período</td><td>Mes de detección y origen</td></tr>
+  <tr><td style="background:#FEF3C7; padding:4px 10px;">Ámbar</td><td>¿Qué tipo?</td><td>Clasificación del reclamo</td></tr>
+  <tr><td style="background:#F3E8FF; padding:4px 10px;">Morado</td><td>Reclamo registrado</td><td>El reclamo, la resolución y el estado final</td></tr>
+  <tr><td style="background:#FEF0E0; padding:4px 10px;">Naranja</td><td>Corrección aplicada</td><td>Campo afectado, valor anterior y valor acordado — vacío si RECHAZADO</td></tr>
+  <tr><td style="background:#D6EAF8; padding:4px 10px;">Azul oscuro</td><td>Cierre</td><td>Fechas y mes en que se cerró el reclamo</td></tr>
+</table>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2>Freeze panes</h2>
+<p><code>freeze_panes = "A3"</code> — filas 1 y 2 fijas (sección + columnas).</p>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2>Señales de alerta</h2>
+<table>
+  <tr style="background:#f9fafb;">
+    <th style="padding:4px 10px;">Señal</th>
+    <th style="padding:4px 10px;">Interpretación</th>
+  </tr>
+  <tr>
+    <td>Trazabilidad crece pero <code>reclamos_YYYY-MM.xlsx</code> no baja</td>
+    <td>No se está cerrando ningún reclamo — problema de proceso, no de código</td>
+  </tr>
+  <tr>
+    <td>Más del 50% de filas son RECHAZADO</td>
+    <td>El filtro COMENTARIO="reclamo" puede estar capturando demasiados falsos positivos</td>
+  </tr>
+  <tr>
+    <td>Mismo (MESA, MZ, LT, FECHA_COBRO) aparece dos veces</td>
+    <td>Error de duplicado — investigar antes de continuar</td>
+  </tr>
+  <tr>
+    <td>CAMPO vacío en un reclamo RESUELTO</td>
+    <td>El merge con resolucion_reclamos no encontró la fila — revisar que la clave (MESA, MZ, LT, FECHA_COBRO) coincide</td>
+  </tr>
+</table>
+
+<hr style="margin-top:30px; border-color:#e5e7eb;">
+<p style="font-size:11px; color:#9ca3af;">
+  Contrato visual aprobado — el código en main.py debe replicar exactamente este formato.<br>
+  Módulo: 4b_reclamos &nbsp;|&nbsp; Versión: 2.0 &nbsp;|&nbsp; Fecha: 14/06/2026
+</p>
+
+</body>
+</html>

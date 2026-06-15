@@ -1,5 +1,6 @@
 import glob
 import logging
+import shutil
 import sys
 from pathlib import Path
 
@@ -272,6 +273,20 @@ def main() -> None:
 
     df = build_planilla(mes)
     write_excel(df, mes)
+    publicar_a_shared(mes)
+
+
+def publicar_a_shared(mes: str) -> None:
+    """
+    Copia planilla_{mes}.xlsx a shared/planilla_mes/ — donde 4_pagos espera leerla.
+    Sobreescribe el archivo del mismo mes; no toca archivos de otros meses.
+    """
+    src = config.output_path(mes)
+    dest = config.shared_planilla_path(mes)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(src, dest)
+    log = logging.getLogger(__name__)
+    log.info(f"Publicada a shared: {dest}")
 
 
 if __name__ == "__main__":
