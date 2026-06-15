@@ -139,10 +139,10 @@ tr:last-child td{border-bottom:none}
   <!-- HOJA 2: AMBIGUOS -->
   <div id="amb" class="sheet">
     <div class="instruc">
-      Una fila por pago · <strong>CANDIDATOS</strong> = todos los lotes posibles con su deuda y diff · el sistema elige el de menor diff automáticamente · solo lectura.
+      Una fila por pago · <strong>CANDIDATOS</strong> = todos los lotes posibles con su deuda y diff · el sistema elige el de menor diff automáticamente · si la resolución manual fue por concepto (ej. cobro de vecino), se llena <strong>CONCEPTO</strong> en vez de MZ_FINAL/LOTE_FINAL.
     </div>
     <div class="tab-excel te-amber">Ambiguos</div>
-    <div class="tw"><table style="min-width:900px">
+    <div class="tw"><table style="min-width:1000px">
       <thead>
         <tr>
           <th class="num"></th>
@@ -152,7 +152,7 @@ tr:last-child td{border-bottom:none}
           <th class="th-sep"></th>
           <th class="th-cand gh">Candidatos</th>
           <th class="th-sep"></th>
-          <th class="th-fin gh" colspan="2">Elegido</th>
+          <th class="th-fin gh" colspan="3">¿Cómo se resolvió?</th>
           <th class="th-sep"></th>
           <th class="th-cuan gh" colspan="3">¿Cuándo?</th>
         </tr>
@@ -165,7 +165,7 @@ tr:last-child td{border-bottom:none}
           <th class="th-sep"></th>
           <th class="th-cand">CANDIDATOS</th>
           <th class="th-sep"></th>
-          <th class="th-fin">MZ_FINAL</th><th class="th-fin">LOTE_FINAL</th>
+          <th class="th-fin">MZ_FINAL</th><th class="th-fin">LOTE_FINAL</th><th class="th-fin">CONCEPTO</th>
           <th class="th-sep"></th>
           <th class="th-cuan">CICLO_CORRECCION</th><th class="th-cuan" title="la llena 5_cobranza">CICLO_COBRANZA</th><th class="th-cuan">FECHA_CORRECCION</th>
         </tr>
@@ -180,7 +180,7 @@ tr:last-child td{border-bottom:none}
           <td class="td-sep"></td>
           <td class="td-cand">D-1(38,0) · D-19(47,-9)</td>
           <td class="td-sep"></td>
-          <td class="td-fin">D</td><td class="td-fin">1</td>
+          <td class="td-fin">D</td><td class="td-fin">1</td><td class="td-res-e">—</td>
           <td class="td-sep"></td>
           <td class="td-cuan">1</td><td class="td-cuan" style="opacity:0.5;font-style:italic">—</td><td class="td-cuan">16/05/2026 09:43</td>
         </tr>
@@ -193,22 +193,23 @@ tr:last-child td{border-bottom:none}
           <td class="td-sep"></td>
           <td class="td-cand">D-1(38,-23) · D-19(47,-32)</td>
           <td class="td-sep"></td>
-          <td class="td-fin">D</td><td class="td-fin">19</td>
+          <td class="td-fin">D</td><td class="td-fin">19</td><td class="td-res-e">—</td>
           <td class="td-sep"></td>
           <td class="td-cuan">1</td><td class="td-cuan" style="opacity:0.5;font-style:italic">—</td><td class="td-cuan">16/05/2026 09:43</td>
         </tr>
         <tr>
           <td class="num">3</td>
-          <td class="td-quien">U0168</td><td class="td-nombre">AURELIO DE LA CRUZ PEREZ</td>
+          <td class="td-quien">—</td><td class="td-nombre">VECINO INFORMÓ</td>
           <td class="td-sep"></td>
-          <td class="td-banco">Nelly De-*</td>
-          <td class="td-monto">S/40.00</td><td class="td-msg">—</td><td class="td-banco">02/05/2026 10:15</td>
+          <td class="td-banco">Janet Vil*</td>
+          <td class="td-monto">S/152.00</td><td class="td-msg">geral cobro de agua</td><td class="td-banco">07/06/2026 10:39</td>
           <td class="td-sep"></td>
-          <td class="td-cand">I-6(40,0) · O-15(22,+18)</td>
+          <td class="td-cand">G-3(123,+29) · W-19(89,+63)</td>
           <td class="td-sep"></td>
-          <td class="td-fin">I</td><td class="td-fin">6</td>
+          <td class="td-res-e">—</td><td class="td-res-e">—</td>
+          <td class="td-res" style="font-style:italic;color:#085041">cobro de agua (Yerald)</td>
           <td class="td-sep"></td>
-          <td class="td-cuan">1</td><td class="td-cuan" style="opacity:0.5;font-style:italic">—</td><td class="td-cuan">16/05/2026 09:43</td>
+          <td class="td-cuan">2</td><td class="td-cuan" style="opacity:0.5;font-style:italic">—</td><td class="td-cuan">15/06/2026 06:00</td>
         </tr>
       </tbody>
     </table></div>
@@ -216,7 +217,7 @@ tr:last-child td{border-bottom:none}
       <div class="leg"><div class="ld" style="background:#FAF5FF;border:0.5px solid #C4B5FD"></div>¿Quién es?</div>
       <div class="leg"><div class="ld" style="background:#F0F8FF;border:0.5px solid #AED6F1"></div>banco</div>
       <div class="leg"><div class="ld" style="background:#FFFBF0;border:0.5px solid #EF9F27"></div>candidatos MZ-LOTE(deuda,diff)</div>
-      <div class="leg"><div class="ld" style="background:#F0FFF8;border:0.5px solid #9FE1CB"></div>elegido por menor diff</div>
+      <div class="leg"><div class="ld" style="background:#F0FFF8;border:0.5px solid #9FE1CB"></div>MZ_FINAL/LOTE_FINAL elegido · o CONCEPTO si no fue lote</div>
     </div>
   </div>
 

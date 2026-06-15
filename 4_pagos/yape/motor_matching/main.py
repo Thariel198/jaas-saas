@@ -686,7 +686,8 @@ def _leer_hoja_multiples(wb) -> dict:
 
 
 def _leer_acum_ambiguos_traz(wb) -> list:
-    """Lee hoja Ambiguos de trazabilidad → lista de dicts acumulados (mismo formato que validados_ambiguos)."""
+    """Lee hoja Ambiguos de trazabilidad → lista de dicts (incluye CONCEPTO).
+    Acepta entries con MZ_FINAL o CONCEPTO (al menos uno debe estar)."""
     if "Ambiguos" not in wb.sheetnames:
         return []
     filas = list(wb["Ambiguos"].values)
@@ -701,6 +702,7 @@ def _leer_acum_ambiguos_traz(wb) -> list:
     i_msg  = idx("MENSAJE"); i_fec  = idx("FECHA")
     i_cand = idx("CANDIDATOS")
     i_mzf  = idx("MZ_FINAL"); i_lotf = idx("LOTE_FINAL")
+    i_conc = idx("CONCEPTO")
     if i_orig is None:
         return []
     resultado = []
@@ -710,8 +712,11 @@ def _leer_acum_ambiguos_traz(wb) -> list:
         origen = str(fila[i_orig]).strip() if i_orig < len(fila) and fila[i_orig] else ""
         if not origen or origen.upper() in ("NAN", "NONE", ""):
             continue
-        mz = str(fila[i_mzf]).strip().upper() if i_mzf is not None and i_mzf < len(fila) and fila[i_mzf] else ""
-        if not mz:
+        mz       = str(fila[i_mzf]).strip().upper() if i_mzf  is not None and i_mzf  < len(fila) and fila[i_mzf]  else ""
+        concepto = str(fila[i_conc]).strip()        if i_conc is not None and i_conc < len(fila) and fila[i_conc] else ""
+        mz_vacio   = not mz or mz in ("NAN", "NONE")
+        conc_vacio = not concepto or concepto.upper() in ("NAN", "NONE")
+        if mz_vacio and conc_vacio:
             continue
         resultado.append({
             "user_id":    str(fila[i_uid]).strip()    if i_uid  is not None and i_uid  < len(fila) and fila[i_uid]  else "",
@@ -721,8 +726,9 @@ def _leer_acum_ambiguos_traz(wb) -> list:
             "mensaje":    str(fila[i_msg]).strip()    if i_msg  is not None and i_msg  < len(fila) and fila[i_msg]  else "",
             "fecha":      str(fila[i_fec]).strip()    if i_fec  is not None and i_fec  < len(fila) and fila[i_fec]  else "",
             "candidatos": str(fila[i_cand]).strip()   if i_cand is not None and i_cand < len(fila) and fila[i_cand] else "",
-            "mz_final":   mz,
-            "lote_final": limpiar_lote(fila[i_lotf])  if i_lotf is not None and i_lotf < len(fila) and fila[i_lotf] else "",
+            "mz_final":   "" if mz_vacio else mz,
+            "lote_final": "" if mz_vacio else (limpiar_lote(fila[i_lotf]) if i_lotf is not None and i_lotf < len(fila) and fila[i_lotf] else ""),
+            "concepto":   "" if conc_vacio else concepto,
         })
     return resultado
 
@@ -773,8 +779,9 @@ def _leer_acum_maestro_inexacto_traz(wb) -> list:
 
 def _leer_hoja_ambiguos(wb) -> dict:
     """
-    Lee hoja Ambiguos de trazabilidad (formato nuevo: MZ_FINAL, LOTE_FINAL).
-    Retorna dict: origen_upper → {mz, lote}
+    Lee hoja Ambiguos de trazabilidad → dict para matching.
+    Retorna dict: "ORIGEN|FECHA" → {mz, lote, concepto}
+    Acepta entries con MZ_FINAL o CONCEPTO (al menos uno debe estar).
     """
     if "Ambiguos" not in wb.sheetnames:
         return {}
@@ -782,7 +789,6 @@ def _leer_hoja_ambiguos(wb) -> dict:
     data = list(ws.values)
     if len(data) < 3:
         return {}
-    # fila 0 = grupos, fila 1 = cabecera, fila 2+ = datos
     headers = [str(h).strip().upper() if h else "" for h in data[1]]
     resultado = {}
     for fila in data[2:]:
@@ -790,12 +796,21 @@ def _leer_hoja_ambiguos(wb) -> dict:
             continue
         row    = dict(zip(headers, fila))
         origen = str(row.get("ORIGEN", "")).strip().upper()
-        mz     = str(row.get("MZ_FINAL", "")).strip().upper()
-        if not origen or not mz or origen in ("NAN", "") or mz in ("NAN", ""):
+        if not origen or origen in ("NAN", ""):
+            continue
+        mz       = str(row.get("MZ_FINAL", "")).strip().upper()
+        concepto = str(row.get("CONCEPTO", "")).strip()
+        mz_vacio   = (not mz or mz in ("NAN", "NONE"))
+        conc_vacio = (not concepto or concepto.upper() in ("NAN", "NONE"))
+        if mz_vacio and conc_vacio:
             continue
         lote  = limpiar_lote(row.get("LOTE_FINAL", ""))
         fecha = str(row.get("FECHA", "")).strip()
-        resultado[f"{origen}|{fecha}"] = {"mz": mz, "lote": lote}
+        resultado[f"{origen}|{fecha}"] = {
+            "mz":       "" if mz_vacio else mz,
+            "lote":     "" if mz_vacio else lote,
+            "concepto": "" if conc_vacio else concepto,
+        }
     return resultado
 
 
@@ -979,7 +994,8 @@ def _cargar_pagaste_existentes() -> list:
 
 
 def _leer_validados_ambiguos(wb) -> list:
-    """Lee pendientes Hoja Ambiguos (OK=SI) — campos completos para trazabilidad."""
+    """Lee pendientes Hoja Ambiguos (OK=SI) — campos completos para trazabilidad.
+    Acepta entries con MZ+LOTE o CONCEPTO (al menos uno debe estar)."""
     if "Ambiguos" not in wb.sheetnames:
         return []
     filas = list(wb["Ambiguos"].values)
@@ -996,6 +1012,7 @@ def _leer_validados_ambiguos(wb) -> list:
     i_msg  = idx("MENSAJE");   i_fec  = idx("FECHA")
     i_cand = idx("CANDIDATOS")
     i_mz   = idx("MZ");        i_lote = idx("LOTE")
+    i_conc = idx("CONCEPTO")
     i_ok   = idx("OK")
 
     if i_orig is None or i_ok is None:
@@ -1011,9 +1028,12 @@ def _leer_validados_ambiguos(wb) -> list:
         origen = str(fila[i_orig]).strip() if i_orig < len(fila) and fila[i_orig] else ""
         if not origen or origen.upper() in ("NAN", "NONE", ""):
             continue
-        mz   = str(fila[i_mz]).strip().upper()  if i_mz   is not None and i_mz   < len(fila) and fila[i_mz]   else ""
-        lote = limpiar_lote(fila[i_lote])        if i_lote is not None and i_lote < len(fila) and fila[i_lote] else ""
-        if not mz:
+        mz       = str(fila[i_mz]).strip().upper()  if i_mz   is not None and i_mz   < len(fila) and fila[i_mz]   else ""
+        lote     = limpiar_lote(fila[i_lote])       if i_lote is not None and i_lote < len(fila) and fila[i_lote] else ""
+        concepto = str(fila[i_conc]).strip()        if i_conc is not None and i_conc < len(fila) and fila[i_conc] else ""
+        mz_vacio   = not mz or mz in ("NAN", "NONE")
+        conc_vacio = not concepto or concepto.upper() in ("NAN", "NONE")
+        if mz_vacio and conc_vacio:
             continue
         resultado.append({
             "user_id":    str(fila[i_uid]).strip()    if i_uid  is not None and i_uid  < len(fila) and fila[i_uid]  else "",
@@ -1023,8 +1043,9 @@ def _leer_validados_ambiguos(wb) -> list:
             "mensaje":    str(fila[i_msg]).strip()    if i_msg  is not None and i_msg  < len(fila) and fila[i_msg]  else "",
             "fecha":      str(fila[i_fec]).strip()    if i_fec  is not None and i_fec  < len(fila) and fila[i_fec]  else "",
             "candidatos": str(fila[i_cand]).strip()   if i_cand is not None and i_cand < len(fila) and fila[i_cand] else "",
-            "mz_final":   mz,
-            "lote_final": lote,
+            "mz_final":   "" if mz_vacio else mz,
+            "lote_final": "" if mz_vacio else lote,
+            "concepto":   "" if conc_vacio else concepto,
         })
     return resultado
 
@@ -1181,10 +1202,7 @@ def leer_correcciones(planilla: dict = None) -> tuple[dict, dict, dict, list, li
                 if concepto and concepto.upper() not in ("NAN","NONE",""):
                     if k not in corr_simples:
                         n_nuevas += 1
-                    # Concepto-only: persistir vía Sin_identificar (no via Ambiguos)
-                    # porque validados_ambiguos exige MZ; sin este cambio el concepto
-                    # nunca llega a trazabilidad y el pago reaparece en pendientes.
-                    v["_fuente"] = "sin_identificar"
+                    v["_fuente"] = "ambiguo"
                     corr_simples[k] = v
                     continue
                 if not mz or mz in ("NAN","NONE",""):
