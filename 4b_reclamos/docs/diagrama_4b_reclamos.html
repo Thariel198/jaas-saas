@@ -172,12 +172,27 @@
     font-family: 'IBM Plex Mono', monospace;
     font-size: 10px; background: #fff; padding: 1px 4px; border-radius: 3px;
   }
+
+  /* Output de verificación — teal/cyan */
+  .out.val { background: #ECFEFF; border: 1px solid #67E8F9; }
+  .out.val .out-header { background: #0E7490; }
+
+  /* Output vía repo — violeta (servicio de escritura centralizada) */
+  .out.repo { background: #EDE9FE; border: 1px solid #A78BFA; }
+  .out.repo .out-header { background: #6D28D9; }
+
+  /* Caja input que apunta al repo */
+  .box.in-repo {
+    background: #EDE9FE; border: 1px solid #A78BFA;
+  }
+  .box.in-repo .src { color: #5B21B6; }
+  .box.in-repo .detail { color: #5B21B6; }
 </style>
 </head>
 <body>
 
 <p class="title">4b_reclamos — diagrama de flujo</p>
-<p class="sub">Detecta · clasifica · cruza con DATA_boletas · registra corrección · auditoría unificada</p>
+<p class="sub">Detecta · clasifica · prepara · cierra · aplica vía repo · verifica</p>
 
 <!-- ═══════════════════════════════════════════════ -->
 <!-- STAGE 1 — DETECTAR -->
@@ -280,16 +295,16 @@
           TIPO_RECLAMO · MES_ANO_ORIGEN
         </div>
       </div>
-      <div class="box in-extern">
-        <div class="src">lectura directa de 3_boletas</div>
-        <div class="fname">3_boletas/inputs/DATA_boletas.xlsx</div>
+      <div class="box in-repo">
+        <div class="src">vía repo (lectura)</div>
+        <div class="fname">shared/data_boletas_repo</div>
         <div class="detail">
-          fuente del VALOR_ACTUAL<br>
-          se lee directo — sin copia<br><br>
+          repo.get_predio(mz, lt)<br>
+          → valor vigente de la<br>
+          columna CAMPO<br><br>
           mapeo TIPO_RECLAMO → columna:<br>
           convenio → Convenio<br>
           mes_anterior → MES ANTERIOR<br>
-          multa → Multa (faena + reunión)<br>
           etc.
         </div>
       </div>
@@ -303,8 +318,8 @@
       <div class="script">
         <div class="script-title">resolucion.py</div>
         <div class="rule"><b>1.</b> leer reclamos con TIPO_RECLAMO clasificado</div>
-        <div class="rule"><b>2.</b> mapear TIPO_RECLAMO → CAMPO (normalizado UPPER_SNAKE)</div>
-        <div class="rule"><b>3.</b> buscar (MZ, LT) en DATA_boletas → VALOR_ACTUAL</div>
+        <div class="rule"><b>2.</b> mapear TIPO_RECLAMO → CAMPO</div>
+        <div class="rule"><b>3.</b> repo.get_predio(mz, lt) → VALOR_ACTUAL</div>
         <div class="rule"><b>4.</b> preservar VALOR_A_CORREGIR y RESOLUCION de corrida previa</div>
       </div>
     </div>
@@ -396,6 +411,158 @@
           RESUELTO: CAMPO · VALOR_ANTERIOR · VALOR_APLICADO llenos<br>
           RECHAZADO: las 3 últimas vacías<br>
           <span class="lifecycle perm">permanente · append-only</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- STAGE 4 — APLICAR CORRECCIONES A DATA_BOLETAS -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="stage">
+  <div class="stage-header">
+    <div class="stage-num">4</div>
+    <div class="stage-title">Aplicar correcciones a DATA_boletas</div>
+    <div class="stage-sub">corre después de que main.py cerró los RESUELTO a trazabilidad</div>
+  </div>
+
+  <div class="grid">
+
+    <!-- INPUTS -->
+    <div>
+      <p class="col-label">inputs</p>
+      <div class="box in-manual">
+        <div class="src">vista de corrección llena</div>
+        <div class="fname">outputs/resolucion_reclamos_YYYY-MM.xlsx</div>
+        <div class="detail">
+          filtro aplicado:<br>
+          ESTADO = RESUELTO<br>
+          CAMPO no vacío<br>
+          VALOR_A_CORREGIR no vacío<br><br>
+          columnas usadas:<br>
+          MZ · LT · CAMPO<br>
+          VALOR_A_CORREGIR · RESOLUCION
+        </div>
+      </div>
+    </div>
+
+    <div class="arrow">→</div>
+
+    <!-- SCRIPT -->
+    <div>
+      <p class="col-label">script</p>
+      <div class="script">
+        <div class="script-title">aplicar_correcciones.py</div>
+        <div class="rule"><b>1.</b> filtrar resolucion: RESUELTO + CAMPO + VALOR_A_CORREGIR</div>
+        <div class="rule"><b>2.</b> por cada fila → <b>repo.apply_correction(...)</b></div>
+        <div class="rule"><b>3.</b> el repo encapsula: backup → write → audit (sin filtración de detalles a este script)</div>
+        <div class="rule"><b>4.</b> resumen en consola: aplicados / skipped / errores</div>
+      </div>
+    </div>
+
+    <div class="arrow">→</div>
+
+    <!-- OUTPUTS -->
+    <div>
+      <p class="col-label">outputs (vía repo)</p>
+      <div class="out repo">
+        <div class="out-header">DATA_boletas.xlsx</div>
+        <div class="out-body">
+          UPDATE columna CAMPO<br>
+          en fila (MZ, LT) → VALOR_A_CORREGIR<br>
+          <span class="lifecycle perm">fuente de verdad</span>
+        </div>
+      </div>
+      <div class="out repo">
+        <div class="out-header">shared/data_boletas_audit.xlsx</div>
+        <div class="out-body">
+          APPEND: timestamp · mz · lt · campo<br>
+          valor_antes · valor_despues<br>
+          source · audit_ref · motivo<br>
+          <span class="lifecycle perm">permanente · append-only</span>
+        </div>
+      </div>
+      <div class="out repo">
+        <div class="out-header">3_boletas/backup/DATA_boletas/</div>
+        <div class="out-body">
+          snapshot completo<br>
+          antes de cada corrida<br>
+          <span class="lifecycle perm">timestamp</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- STAGE 5 — VERIFICAR CORRECCIONES -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="stage">
+  <div class="stage-header">
+    <div class="stage-num">5</div>
+    <div class="stage-title">Verificar correcciones</div>
+    <div class="stage-sub">confirma que aplicar_correcciones funcionó (esperado: 100% OK)</div>
+  </div>
+
+  <div class="grid">
+
+    <!-- INPUTS -->
+    <div>
+      <p class="col-label">inputs</p>
+      <div class="box in-extern">
+        <div class="src">auditoría permanente</div>
+        <div class="fname">trazabilidad/trazabilidad_reclamos.xlsx</div>
+        <div class="detail">
+          filtro:<br>
+          ESTADO_FINAL=RESUELTO<br>
+          MES_CIERRE=mes<br><br>
+          columnas:<br>
+          MZ · LT · CAMPO · VALOR_APLICADO
+        </div>
+      </div>
+      <div class="box in-repo">
+        <div class="src">vía repo (lectura)</div>
+        <div class="fname">shared/data_boletas_repo</div>
+        <div class="detail">
+          repo.read_padron()<br>
+          → valor vigente al momento<br>
+          de la verificación<br><br>
+          recupera columna CAMPO<br>
+          para cada (MZ, LT)
+        </div>
+      </div>
+    </div>
+
+    <div class="arrow">→</div>
+
+    <!-- SCRIPT -->
+    <div>
+      <p class="col-label">script</p>
+      <div class="script" style="border-color:#0E7490; background:#ECFEFF;">
+        <div class="script-title" style="color:#0E7490; border-color:#67E8F9;">validacion_resolucion_correcciones.py</div>
+        <div class="rule" style="color:#0E7490; border-color:#0E7490;"><b>1.</b> filtrar trazabilidad: RESUELTO del mes</div>
+        <div class="rule" style="color:#0E7490; border-color:#0E7490;"><b>2.</b> repo.read_padron() → VALOR_EN_BOLETAS por (MZ, LT)</div>
+        <div class="rule" style="color:#0E7490; border-color:#0E7490;"><b>3.</b> comparar VALOR_APLICADO vs VALOR_EN_BOLETAS (±0.01)</div>
+        <div class="rule" style="color:#0E7490; border-color:#0E7490;"><b>4.</b> clasificar: OK / ERR / AUSENTE / SIN_MAP</div>
+      </div>
+    </div>
+
+    <div class="arrow">→</div>
+
+    <!-- OUTPUTS -->
+    <div>
+      <p class="col-label">outputs</p>
+      <div class="out val">
+        <div class="out-header">validacion_correcciones_YYYY-MM.xlsx</div>
+        <div class="out-body">
+          <b>Hoja 1 — Resumen:</b> 4 contadores<br>
+          ✔ OK · ✗ ERR · ✗ AUSENTE · ⊘ SIN_MAP<br><br>
+          <b>Hoja 2 — Detalle:</b> una fila por RESUELTO<br>
+          VALOR_APLICADO vs VALOR_EN_BOLETAS<br>
+          <span class="lifecycle mensual">mensual opcional</span>
         </div>
       </div>
     </div>

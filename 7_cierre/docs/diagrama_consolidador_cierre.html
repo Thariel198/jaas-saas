@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>7_cierre — Diagrama Consolidador de Cierre</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; background: #F8FAFB; color: #1A1A1A; font-size: 13px; }
+
+  /* ─── Layout ─── */
+  .page { max-width: 1100px; margin: 0 auto; padding: 24px 20px 60px; }
+  h1 { font-size: 20px; color: #1A5276; border-bottom: 3px solid #1A5276; padding-bottom: 8px; margin-bottom: 4px; }
+  .subtitle { color: #555; font-size: 12px; margin-bottom: 28px; }
+
+  section { margin-bottom: 32px; }
+  h2 { font-size: 13px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;
+       color: #555; border-bottom: 1px solid #DDD; padding-bottom: 4px; margin-bottom: 14px; }
+
+  /* ─── Approach cards (top 3-column) ─── */
+  .approaches { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .card { border-radius: 6px; padding: 14px; border: 2px solid transparent; }
+  .card-rejected { background: #FEF2F2; border-color: #FCA5A5; }
+  .card-chosen   { background: #ECFDF5; border-color: #34D399; }
+  .card-title { font-weight: bold; font-size: 12px; margin-bottom: 6px; }
+  .card-rejected .card-title { color: #991B1B; }
+  .card-chosen   .card-title { color: #065F46; }
+  .badge { display: inline-block; border-radius: 4px; padding: 1px 7px; font-size: 10px; font-weight: bold; margin-bottom: 6px; }
+  .badge-no  { background: #FCA5A5; color: #991B1B; }
+  .badge-yes { background: #34D399; color: #065F46; }
+  .card ul { padding-left: 14px; }
+  .card ul li { margin-bottom: 3px; color: #444; font-size: 12px; }
+  .card-rejected ul li { color: #7F1D1D; }
+  .card-chosen   ul li { color: #064E3B; }
+
+  /* ─── Timeline flow ─── */
+  .timeline { display: flex; gap: 0; align-items: flex-start; }
+  .tphase { flex: 1; }
+  .tphase-header { padding: 7px 12px; border-radius: 4px 4px 0 0; font-weight: bold; font-size: 11px;
+                   text-transform: uppercase; letter-spacing: 0.4px; }
+  .phase-blue   { background: #1A5276; color: #FFF; }
+  .phase-green  { background: #1E8449; color: #FFF; }
+  .phase-purple { background: #5B21B6; color: #FFF; }
+  .tphase-body  { background: #FFF; border: 1px solid #DDD; border-top: none; padding: 12px; min-height: 140px; border-radius: 0 0 4px 4px; }
+  .arrow-between { display: flex; align-items: center; padding-top: 36px; color: #999; font-size: 20px; flex: 0 0 32px; justify-content: center; }
+
+  /* ─── Script boxes ─── */
+  .script-box { background: #EBF5FB; border: 1px solid #AED6F1; border-radius: 4px; padding: 8px 10px; margin-bottom: 8px; }
+  .script-name { font-family: Consolas, monospace; font-size: 11px; font-weight: bold; color: #1A5276; }
+  .script-desc { font-size: 11px; color: #555; margin-top: 2px; }
+
+  /* ─── Output file tags ─── */
+  .file-tag { display: inline-block; border-radius: 3px; padding: 3px 8px; font-family: Consolas, monospace;
+              font-size: 10px; font-weight: bold; margin: 2px 0; }
+  .file-audit   { background: #EBF5FB; color: #1A5276; border: 1px solid #AED6F1; }
+  .file-operat  { background: #E9F7EF; color: #1E5C3A; border: 1px solid #A9DFBF; }
+  .file-inter   { background: #FFF3CD; color: #7D5A00; border: 1px solid #FFDB70; }
+  .file-final   { background: #D5F5E3; color: #145A32; border: 1px solid #82E0AA; }
+  .file-block   { display: block; margin-bottom: 4px; }
+
+  /* ─── Business rules table ─── */
+  .rules-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 0; border: 1px solid #DDD; border-radius: 6px; overflow: hidden; }
+  .rules-header { background: #34495E; color: #FFF; font-weight: bold; padding: 8px 10px; font-size: 11px; }
+  .rule-row-even { background: #F8F8F8; }
+  .rule-row-odd  { background: #FFF; }
+  .rules-cell { padding: 8px 10px; font-size: 11px; border-top: 1px solid #EEE; vertical-align: top; }
+  .case-cortado    { color: #7D5A00; font-weight: bold; }
+  .case-infundado  { color: #7F1D1D; font-weight: bold; }
+  .case-fundado    { color: #065F46; font-weight: bold; }
+  .case-revision   { color: #5B21B6; font-weight: bold; }
+  .outcome-ok   { color: #065F46; }
+  .outcome-warn { color: #7D5A00; }
+  .outcome-dev  { color: #1A5276; }
+  .outcome-blk  { color: #5B21B6; }
+
+  /* ─── 7_cierre consolidator box ─── */
+  .consolidator { background: #FFF; border: 2px solid #1E8449; border-radius: 8px; padding: 16px 20px; }
+  .consolidator-title { font-weight: bold; color: #1E8449; font-size: 15px; margin-bottom: 4px; }
+  .consolidator-sub { color: #555; font-size: 11px; margin-bottom: 14px; }
+  .con-row { display: grid; grid-template-columns: 1fr 60px 1fr; gap: 0; align-items: center; }
+  .con-col { }
+  .con-arrow { text-align: center; color: #1E8449; font-size: 22px; }
+  .con-label { font-size: 10px; font-weight: bold; text-transform: uppercase; color: #888; margin-bottom: 6px; letter-spacing: 0.4px; }
+  .input-list, .output-list { list-style: none; padding: 0; }
+  .input-list li, .output-list li { margin-bottom: 5px; }
+
+  /* ─── Design questions ─── */
+  .questions { background: #FFF3CD; border: 1px solid #FFC107; border-radius: 6px; padding: 14px 16px; }
+  .questions h3 { color: #7D5A00; font-size: 12px; font-weight: bold; margin-bottom: 8px; }
+  .questions ul { padding-left: 16px; }
+  .questions ul li { color: #7D5A00; font-size: 12px; margin-bottom: 5px; }
+
+  /* ─── Legend ─── */
+  .legend { display: flex; gap: 12px; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #444; }
+  .legend-dot { width: 14px; height: 14px; border-radius: 2px; flex-shrink: 0; }
+
+  /* ─── Nota de negocio ─── */
+  .nota { background: #F3E8FF; border-left: 3px solid #5B21B6; padding: 10px 14px; border-radius: 0 4px 4px 0; font-size: 12px; color: #5B21B6; margin-top: 12px; }
+  .nota strong { color: #3B0764; }
+
+  /* ─── Divider ─── */
+  .divider { border: none; border-top: 1px dashed #CCC; margin: 28px 0; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <h1>7_cierre — Diagrama Consolidador de Cierre</h1>
+  <div class="subtitle">Junio 2026 · Diseño acordado en sesión · Pendiente de aprobación antes de codificar</div>
+
+  <!-- ══════════════════════════════════════════════════
+       SECCIÓN 1: Los 3 enfoques — por qué se elige 7_cierre
+       ══════════════════════════════════════════════════ -->
+  <section>
+    <h2>¿Por qué 7_cierre? — 3 enfoques evaluados</h2>
+    <div class="approaches">
+
+      <div class="card card-rejected">
+        <span class="badge badge-no">✗ Descartado</span>
+        <div class="card-title">Enfoque A — Push directo</div>
+        <ul>
+          <li>6_corte escribe la penalidad (S/40) directo en arrastre</li>
+          <li>No sabe si el reclamo fue fundado o no</li>
+          <li><strong>Problema:</strong> escribe penalidad sin conocer el resultado del reclamo</li>
+          <li>Habría que borrar / corregir después → antipatrón</li>
+        </ul>
+      </div>
+
+      <div class="card card-rejected">
+        <span class="badge badge-no">✗ Descartado</span>
+        <div class="card-title">Enfoque B — 4b como segundo writer</div>
+        <ul>
+          <li>4b_reclamos escribe también en arrastre_corte</li>
+          <li>Rompe el principio: <em>un archivo = un solo writer</em></li>
+          <li><strong>Problema:</strong> dos módulos tocan el mismo archivo con lógica distinta</li>
+          <li>Difícil de auditar, propenso a condiciones de carrera</li>
+        </ul>
+      </div>
+
+      <div class="card card-chosen">
+        <span class="badge badge-yes">✓ Elegido</span>
+        <div class="card-title">Enfoque C — 7_cierre Consolidador</div>
+        <ul>
+          <li>6_corte genera un arrastre <em>intermedio</em> (sin decisión final)</li>
+          <li>4b_reclamos resuelve los reclamos (archivos propios)</li>
+          <li>7_cierre lee ambos al cierre y produce el arrastre <em>final</em></li>
+          <li>Un único escritor por archivo · Auditable · Idempotente</li>
+        </ul>
+      </div>
+
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- ══════════════════════════════════════════════════
+       SECCIÓN 2: Flujo durante el mes
+       ══════════════════════════════════════════════════ -->
+  <section>
+    <h2>Flujo durante el mes — qué genera cada módulo</h2>
+
+    <div class="timeline">
+
+      <!-- FASE 1: 6_corte -->
+      <div class="tphase">
+        <div class="tphase-header phase-blue">① 6_corte · Inicio de corte</div>
+        <div class="tphase-body">
+          <div class="script-box">
+            <div class="script-name">generar_lista.py</div>
+            <div class="script-desc">Lee planilla_cobrado · filtra SALDO &gt; 0 AND MES_ANTERIOR ≥ 8<br>
+              Cruza con reclamos_YYYY-MM.xlsx → agrega ESTADO_RECLAMO y EJECUTAR_CORTE
+            </div>
+          </div>
+          <span class="file-tag file-audit file-block">lista_corte.xlsx — AUDITORÍA<br><small>Todos los elegibles + ESTADO_RECLAMO + EJECUTAR_CORTE</small></span>
+          <span class="file-tag file-operat file-block">corte_fisico_YYYY-MM.xlsx — OPERARIO<br><small>Solo EJECUTAR_CORTE = SI · sin reclamos bloqueados</small></span>
+          <span class="file-tag file-inter file-block">arrastre_corte_intermedio_YYYY-MM.xlsx<br><small>Todos los cortados · estado de reclamo · SIN penalidad final</small></span>
+        </div>
+      </div>
+
+      <div class="arrow-between">→</div>
+
+      <!-- FASE 2: Operario + Supervisor -->
+      <div class="tphase">
+        <div class="tphase-header phase-purple">② Durante el mes · Humanos deciden</div>
+        <div class="tphase-body">
+          <div class="script-box" style="background:#F3E8FF;border-color:#C4B5FD;">
+            <div class="script-name" style="color:#5B21B6;">Operario — corte físico</div>
+            <div class="script-desc">Lee <em>corte_fisico</em> · solo visita hogares con EJECUTAR=SI<br>
+              No ve los que tienen reclamo bloqueado</div>
+          </div>
+          <div class="script-box" style="background:#F3E8FF;border-color:#C4B5FD;">
+            <div class="script-name" style="color:#5B21B6;">Supervisor — resolución reclamos</div>
+            <div class="script-desc">4b_reclamos: resuelve EN_REVISION<br>
+              Marca ESTADO = RESUELTO / RECHAZADO / FUNDADO<br>
+              Escribe resolucion_reclamos_YYYY-MM.xlsx</div>
+          </div>
+          <span class="file-tag file-block" style="background:#F3E8FF;color:#5B21B6;border-color:#C4B5FD;">resolucion_reclamos_YYYY-MM.xlsx</span>
+        </div>
+      </div>
+
+      <div class="arrow-between">→</div>
+
+      <!-- FASE 3: 7_cierre -->
+      <div class="tphase">
+        <div class="tphase-header phase-green">③ Fin de mes · 7_cierre consolida</div>
+        <div class="tphase-body">
+          <div class="script-box" style="background:#E9F7EF;border-color:#A9DFBF;">
+            <div class="script-name" style="color:#1E5C3A;">consolidar_cierre.py</div>
+            <div class="script-desc">Lee arrastre_intermedio + resolucion_reclamos<br>
+              Aplica reglas de penalidad final<br>
+              Produce arrastres <em>finales</em> para el próximo mes
+            </div>
+          </div>
+          <span class="file-tag file-final file-block">arrastre_corte_final_YYYY-MM.xlsx<br><small>Para 2_planilla del próximo mes</small></span>
+          <span class="file-tag file-final file-block">arrastre_deuda_final_YYYY-MM.xlsx<br><small>Para 2_planilla del próximo mes</small></span>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- ══════════════════════════════════════════════════
+       SECCIÓN 3: 7_cierre — entradas y salidas detalladas
+       ══════════════════════════════════════════════════ -->
+  <section>
+    <h2>7_cierre — Entradas y salidas</h2>
+
+    <div class="consolidator">
+      <div class="consolidator-title">7_cierre / consolidar_cierre.py</div>
+      <div class="consolidator-sub">Único módulo que escribe arrastre_corte_final. Corre una vez al cierre del período de gracia.</div>
+
+      <div class="con-row">
+        <!-- INPUTS -->
+        <div class="con-col">
+          <div class="con-label">Lee (inputs)</div>
+          <ul class="input-list">
+            <li><span class="file-tag file-inter">arrastre_corte_intermedio_YYYY-MM.xlsx</span><br>
+                <small style="color:#888;padding-left:4px;">de 6_corte/outputs/ · todos los cortados con ESTADO_RECLAMO</small></li>
+            <li style="margin-top:8px;"><span class="file-tag" style="background:#F3E8FF;color:#5B21B6;border:1px solid #C4B5FD;">resolucion_reclamos_YYYY-MM.xlsx</span><br>
+                <small style="color:#888;padding-left:4px;">de 4b_reclamos/outputs/ · decisiones del supervisor</small></li>
+            <li style="margin-top:8px;"><span class="file-tag file-audit">planilla_cobrado_YYYY-MM.xlsx</span><br>
+                <small style="color:#888;padding-left:4px;">de 5_cobranza/outputs/ · arrastre de deuda vigente</small></li>
+          </ul>
+        </div>
+
+        <!-- ARROW -->
+        <div class="con-arrow">⟹</div>
+
+        <!-- OUTPUTS -->
+        <div class="con-col">
+          <div class="con-label">Produce (outputs) y copia a 2_planilla/inputs/</div>
+          <ul class="output-list">
+            <li><span class="file-tag file-final">arrastre_corte_final_YYYY-MM.xlsx</span><br>
+                <small style="color:#888;padding-left:4px;">Columnas: MZ · LT · NOMBRE · CORTE_RECONEXION · PENALIDAD · ESTADO_DECISION · MES_ORIGEN</small></li>
+            <li style="margin-top:8px;"><span class="file-tag file-final">arrastre_deuda_final_YYYY-MM.xlsx</span><br>
+                <small style="color:#888;padding-left:4px;">Columnas: MZ · LT · NOMBRE · SALDO · MES_ANTERIOR · MES_ORIGEN</small></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- ══════════════════════════════════════════════════
+       SECCIÓN 4: Reglas de negocio — qué hace 7_cierre con cada caso
+       ══════════════════════════════════════════════════ -->
+  <section>
+    <h2>Reglas de negocio — qué hace 7_cierre con cada usuario</h2>
+
+    <div class="rules-grid">
+      <div class="rules-header">Caso</div>
+      <div class="rules-header">¿Va en corte_fisico?</div>
+      <div class="rules-header">¿Va en arrastre_corte_final?</div>
+      <div class="rules-header">¿Con qué monto?</div>
+
+      <!-- Fila 1 -->
+      <div class="rules-cell rule-row-even"><span class="case-cortado">Cortado · sin reclamo</span></div>
+      <div class="rules-cell rule-row-even outcome-ok">✓ Sí — operario lo visita</div>
+      <div class="rules-cell rule-row-even outcome-ok">✓ Sí</div>
+      <div class="rules-cell rule-row-even outcome-ok">S/40 total<br><small>(S/20 penalidad + S/20 reconexión)</small></div>
+
+      <!-- Fila 2 -->
+      <div class="rules-cell rule-row-odd"><span class="case-infundado">Cortado · reclamo RECHAZADO</span><br><small>(supervisor rechazó el reclamo)</small></div>
+      <div class="rules-cell rule-row-odd outcome-warn">✓ Sí — igual se corta</div>
+      <div class="rules-cell rule-row-odd outcome-warn">✓ Sí</div>
+      <div class="rules-cell rule-row-odd outcome-warn">S/40 total<br><small>(S/20 penalidad que ya tenía + S/20 reconexión retroactiva)</small></div>
+
+      <!-- Fila 3 -->
+      <div class="rules-cell rule-row-even"><span class="case-fundado">Cortado · reclamo FUNDADO</span><br><small>(supervisor aprobó, el reclamo era válido)</small></div>
+      <div class="rules-cell rule-row-even" style="color:#7F1D1D;">✗ No — bloqueado<br><small>(retroactivo: no se debió cortar)</small></div>
+      <div class="rules-cell rule-row-even" style="color:#7F1D1D;">✗ No va en arrastre</div>
+      <div class="rules-cell rule-row-even outcome-dev">S/0 — sin cargo<br><small>Devolución si ya pagó S/20 de penalidad</small></div>
+
+      <!-- Fila 4 -->
+      <div class="rules-cell rule-row-odd"><span class="case-revision">EN_REVISION o PENDIENTE</span><br><small>(aún no resuelta al cierre)</small></div>
+      <div class="rules-cell rule-row-odd outcome-blk">✗ No — bloqueado<br><small>No se corta físicamente este mes</small></div>
+      <div class="rules-cell rule-row-odd outcome-blk">⏳ Se arrastra SIN penalidad<br><small>Queda como MES_ANTERIOR aumentado para el próximo mes</small></div>
+      <div class="rules-cell rule-row-odd outcome-blk">Sin S/20 de penalidad ahora<br><small>Si el próximo mes no paga → entra como deuda acumulada</small></div>
+    </div>
+
+    <div class="nota">
+      <strong>Regla de negocio especial — Ciclo junio 2026:</strong>
+      Los reclamos EN_REVISION no se cortan físicamente este mes porque el sistema aún está en rodaje y
+      hay muchos reclamos pendientes. En ciclos futuros esto puede cambiar a: "si no resuelve en período
+      de gracia → el corte procede de todos modos". Esta regla temporal debe documentarse en README del módulo.
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- ══════════════════════════════════════════════════
+       SECCIÓN 5: Dos archivos de 6_corte — auditoría vs operación
+       ══════════════════════════════════════════════════ -->
+  <section>
+    <h2>Dos archivos de 6_corte — ¿por qué dos?</h2>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+
+      <div style="border:1px solid #AED6F1;border-radius:6px;padding:14px;background:#EBF5FB;">
+        <div style="font-weight:bold;color:#1A5276;margin-bottom:6px;">lista_corte.xlsx — AUDITORÍA</div>
+        <ul style="padding-left:16px;font-size:12px;color:#1A5276;">
+          <li>Contiene <strong>todos los elegibles</strong> sin excepción</li>
+          <li>Columna ESTADO_RECLAMO: SIN_RECLAMO / EN_REVISION / PENDIENTE</li>
+          <li>Columna EJECUTAR_CORTE: SI / NO + MOTIVO</li>
+          <li>Para auditoría y revisión del supervisor</li>
+          <li>No se filtra nunca · es la fuente de verdad</li>
+        </ul>
+        <div style="margin-top:8px;font-size:11px;color:#555;">
+          Pregunta que responde: <em>"¿quién era elegible para corte y por qué o por qué no se ejecutó?"</em>
+        </div>
+      </div>
+
+      <div style="border:1px solid #A9DFBF;border-radius:6px;padding:14px;background:#E9F7EF;">
+        <div style="font-weight:bold;color:#1E5C3A;margin-bottom:6px;">corte_fisico_YYYY-MM.xlsx — OPERARIO</div>
+        <ul style="padding-left:16px;font-size:12px;color:#1E5C3A;">
+          <li>Solo los usuarios con <strong>EJECUTAR_CORTE = SI</strong></li>
+          <li>Sin columna de reclamos (no confunde al operario)</li>
+          <li>Lista limpia de visitas a realizar</li>
+          <li>Se puede regenerar desde lista_corte en cualquier momento</li>
+        </ul>
+        <div style="margin-top:8px;font-size:11px;color:#555;">
+          Pregunta que responde: <em>"¿a quién voy hoy a hacer el corte físico?"</em>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- ══════════════════════════════════════════════════
+       SECCIÓN 6: Preguntas de diseño abiertas (a confirmar)
+       ══════════════════════════════════════════════════ -->
+  <section>
+    <h2>Decisiones de diseño pendientes — confirmar antes de codificar</h2>
+
+    <div class="questions">
+      <h3>⚠ Preguntas abiertas</h3>
+      <ul>
+        <li><strong>¿Cuándo corre 7_cierre exactamente?</strong>
+          ¿Una sola vez al vencer el período de gracia, o puede correrse varias veces (idempotente)
+          mientras los reclamos siguen resolviéndose?</li>
+        <li><strong>¿7_cierre copia directo a 2_planilla/inputs/?</strong>
+          ¿O solo escribe en 7_cierre/outputs/ y el usuario copia manualmente?
+          El agentic SaaS preferirá que lo copie automáticamente.</li>
+        <li><strong>Naming del arrastre de deuda final:</strong>
+          ¿5_cobranza ya emite un "arrastre_deuda" o 7_cierre lo renombra/fusiona?
+          ¿Existe ya arrastre_deuda_YYYY-MM.xlsx producido por 5_cobranza?</li>
+        <li><strong>¿El MES_ANTERIOR del próximo mes incluye el SALDO acumulado por reclamos EN_REVISION?</strong>
+          ¿Se suma al arrastre_deuda o va como campo separado SALDO_RECLAMO_PENDIENTE?</li>
+      </ul>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- ══════════════════════════════════════════════════
+       LEYENDA
+       ══════════════════════════════════════════════════ -->
+  <section>
+    <h2>Leyenda</h2>
+    <div class="legend">
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#EBF5FB;border:1px solid #AED6F1;"></div>
+        Archivo de auditoría · fuente de verdad · no se filtra
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#E9F7EF;border:1px solid #A9DFBF;"></div>
+        Archivo operacional / vista filtrada · regenerable
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#FFF3CD;border:1px solid #FFDB70;"></div>
+        Archivo intermedio · pendiente de decisión final
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#D5F5E3;border:1px solid #82E0AA;"></div>
+        Archivo final · listo para el próximo ciclo
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#F3E8FF;border:1px solid #C4B5FD;"></div>
+        Acción humana · no es automática
+      </div>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>

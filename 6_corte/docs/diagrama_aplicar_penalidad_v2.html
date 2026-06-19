@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Flujo — aplicar_penalidad.py v2 (reconciliación)</title>
+<style>
+  body { font-family: Arial, sans-serif; font-size: 13px; margin: 30px; color: #1f2937; background: #f9fafb; }
+  h1   { font-size: 17px; color: #1e3a5f; border-bottom: 2px solid #1e3a5f; padding-bottom: 6px; margin-bottom: 4px; }
+  .sub { font-size: 12px; color: #6b7280; margin-bottom: 28px; }
+
+  /* ── layout ── */
+  .flow { display: flex; flex-direction: column; align-items: center; gap: 0; }
+
+  /* bloques */
+  .box {
+    border-radius: 8px; padding: 10px 20px; text-align: center;
+    font-size: 12px; font-weight: bold; min-width: 220px; position: relative;
+  }
+  .box-script  { background: #1e3a5f; color: #fff; border-radius: 8px; }
+  .box-file    { background: #EBF5FB; color: #1A5276; border: 2px solid #AED6F1; border-radius: 6px; }
+  .box-file-out{ background: #E9F7EF; color: #1E5C3A; border: 2px solid #A9DFBF; border-radius: 6px; }
+  .box-logic   { background: #F3E8FF; color: #5B21B6; border: 2px solid #C4B5FD; border-radius: 6px; }
+  .box-set     { background: #FFF7ED; color: #92400E; border: 2px solid #FCD34D; border-radius: 6px; min-width: 170px; }
+  .box-action-apply  { background: #D5F5E3; color: #145A32; border: 2px solid #A9DFBF; border-radius: 6px; min-width: 200px; }
+  .box-action-revert { background: #FADBD8; color: #7B241C; border: 2px solid #F1948A; border-radius: 6px; min-width: 200px; }
+  .box-action-skip   { background: #F3F4F6; color: #374151; border: 2px solid #D1D5DB; border-radius: 6px; min-width: 200px; }
+  .box-audit   { background: #FAF5FF; color: #4A235A; border: 2px solid #C4B5FD; border-radius: 6px; }
+  .box-planilla{ background: #FEF9C3; color: #78350F; border: 2px solid #FCD34D; border-radius: 6px; }
+
+  .label-small { font-size: 10px; font-weight: normal; margin-top: 2px; }
+
+  /* flechas */
+  .arrow { width: 2px; background: #9CA3AF; height: 24px; margin: 0 auto; }
+  .arrow-label { font-size: 10px; color: #6b7280; text-align: center; margin: -4px 0; }
+
+  /* fila horizontal */
+  .row  { display: flex; gap: 20px; align-items: flex-start; justify-content: center; }
+  .col  { display: flex; flex-direction: column; align-items: center; gap: 0; }
+
+  /* conector horizontal */
+  .h-line { height: 2px; background: #9CA3AF; flex: 1; margin-top: 20px; }
+  .h-line-red { height: 2px; background: #F1948A; flex: 1; margin-top: 20px; }
+  .h-line-grn { height: 2px; background: #A9DFBF; flex: 1; margin-top: 20px; }
+  .h-line-gry { height: 2px; background: #D1D5DB; flex: 1; margin-top: 20px; }
+
+  /* burbuja conjunto */
+  .set-zone {
+    display: flex; gap: 28px; align-items: flex-start; justify-content: center;
+    padding: 18px 24px; border-radius: 10px;
+    background: #FFFBEB; border: 2px dashed #FCD34D;
+    margin: 4px 0;
+  }
+  .set-label {
+    font-size: 10px; font-weight: bold; color: #78350F;
+    margin-bottom: 6px; text-align: center;
+  }
+
+  .result-zone {
+    display: flex; gap: 20px; align-items: flex-start; justify-content: center;
+    padding: 16px 20px; border-radius: 10px;
+    background: #F0F4FF; border: 2px dashed #A5B4FC;
+    margin: 4px 0; width: fit-content;
+  }
+
+  .badge {
+    display: inline-block; border-radius: 4px; padding: 2px 8px;
+    font-size: 10px; font-weight: bold; margin-top: 4px;
+  }
+  .badge-new    { background: #D5F5E3; color: #145A32; }
+  .badge-rev    { background: #FADBD8; color: #7B241C; }
+  .badge-skip   { background: #F3F4F6; color: #374151; }
+  .badge-apl    { background: #D5F5E3; color: #145A32; }
+  .badge-rvt    { background: #FADBD8; color: #7B241C; }
+
+  .formula {
+    font-family: Consolas, monospace; font-size: 11px; color: #374151;
+    background: #F3F4F6; border-radius: 4px; padding: 2px 7px; margin-top: 3px;
+    display: inline-block;
+  }
+
+  .nota { background:#FFF3CD; border-left:3px solid #F0C040; padding:8px 14px;
+          border-radius:0 4px 4px 0; font-size:11.5px; color:#7D5A00; margin:18px auto 0;
+          max-width: 680px; }
+  .nota b { color: #78350F; }
+
+  /* idempotencia badge */
+  .idem-badge {
+    background: #1e3a5f; color: #fff; border-radius: 20px;
+    padding: 4px 14px; font-size: 11px; font-weight: bold;
+    margin-top: 6px; display: inline-block;
+  }
+</style>
+</head>
+<body>
+
+<h1>Flujo — aplicar_penalidad.py v2 · Reconciliación automática</h1>
+<p class="sub">Re-correr siempre produce el estado correcto · sin scripts extra · sin pasos manuales</p>
+
+<div class="flow">
+
+  <!-- PASO 0: generar_lista -->
+  <div class="box box-script" style="width:260px;">
+    generar_lista.py
+    <div class="label-small">Excluye CORTADO + EXONERADO</div>
+  </div>
+  <div class="arrow"></div>
+
+  <!-- ARCHIVO lista_corte -->
+  <div class="box box-file" style="width:260px;">
+    lista_corte.xlsx
+    <div class="label-small">EJECUTAR_CORTE = SI</div>
+  </div>
+  <div class="arrow"></div>
+  <div class="arrow-label">lee</div>
+  <div class="arrow"></div>
+
+  <!-- PASO 1: aplicar_penalidad lee los dos inputs -->
+  <div class="box box-script" style="width:260px;">
+    aplicar_penalidad.py
+    <div class="label-small">v2 — reconciliación</div>
+  </div>
+
+  <div class="arrow" style="height:16px;"></div>
+
+  <!-- ZONA SETS -->
+  <div class="set-zone">
+
+    <div class="col">
+      <div class="set-label">INPUT 1</div>
+      <div class="box box-set">
+        SET_DEBE
+        <div class="label-small">{(MZ,LT) con<br>EJECUTAR=SI}</div>
+        <div class="label-small" style="margin-top:4px;color:#78350F;">← lista_corte.xlsx</div>
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:center;font-size:22px;color:#9CA3AF;margin-top:32px;">⊕</div>
+
+    <div class="col">
+      <div class="set-label">INPUT 2</div>
+      <div class="box box-set">
+        SET_TIENE
+        <div class="label-small">{(MZ,LT) con<br>ACCION=APLICADO}<br>− {ACCION=REVERTIDO}</div>
+        <div class="label-small" style="margin-top:4px;color:#78350F;">← audit_penalidad.xlsx</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="arrow" style="height:16px;"></div>
+  <div class="arrow-label" style="font-size:11px;color:#5B21B6;font-weight:bold;">comparación</div>
+  <div class="arrow" style="height:16px;"></div>
+
+  <!-- ZONA RESULTADOS -->
+  <div class="result-zone">
+
+    <!-- NUEVOS -->
+    <div class="col">
+      <div class="box box-action-apply">
+        <span class="badge badge-new">NUEVOS</span>
+        <div class="formula">DEBE − TIENE</div>
+        <div class="label-small" style="margin-top:6px;">+S/20 en planilla<br>→ audit APLICADO</div>
+      </div>
+    </div>
+
+    <!-- SOBRANTES -->
+    <div class="col">
+      <div class="box box-action-revert">
+        <span class="badge badge-rev">SOBRANTES</span>
+        <div class="formula">TIENE − DEBE</div>
+        <div class="label-small" style="margin-top:6px;">−S/20 en planilla<br>→ audit REVERTIDO</div>
+      </div>
+    </div>
+
+    <!-- SKIP -->
+    <div class="col">
+      <div class="box box-action-skip">
+        <span class="badge badge-skip">CORRECTOS</span>
+        <div class="formula">DEBE ∩ TIENE</div>
+        <div class="label-small" style="margin-top:6px;">sin cambio<br>(idempotente)</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="arrow" style="height:16px;"></div>
+
+  <!-- OUTPUTS -->
+  <div style="display:flex;gap:28px;align-items:flex-start;justify-content:center;">
+
+    <div class="col">
+      <div class="box box-planilla" style="min-width:200px;">
+        planilla_2026-06.xlsx
+        <div class="label-small">CORTE_RECONEXION siempre<br>consistente con lista_corte</div>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="box box-audit" style="min-width:200px;">
+        audit_penalidad.xlsx
+        <div class="label-small">
+          <span class="badge badge-apl">APLICADO</span>
+          <span class="badge badge-rvt">REVERTIDO</span><br>
+          trazabilidad completa
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- IDEMPOTENCIA -->
+  <div style="margin-top:18px;text-align:center;">
+    <div class="idem-badge">Re-correr cualquier número de veces = mismo resultado</div>
+  </div>
+
+</div>
+
+<!-- NOTA: cambio de schema -->
+<div class="nota">
+  <b>Único cambio de schema:</b> audit_penalidad.xlsx agrega columna <code>ACCION</code>
+  (<code>APLICADO</code> / <code>REVERTIDO</code>) para que el script pueda calcular
+  el net de cargos activos. Las filas anteriores sin ACCION se tratan como <code>APLICADO</code>
+  (retrocompatible). El resto del formato (colores, anchos, secciones) no cambia.
+</div>
+
+<!-- EJEMPLO CONCRETO HOY -->
+<div class="nota" style="border-color:#F1948A;background:#FADBD8;color:#7B241C;margin-top:12px;">
+  <b>Caso de hoy:</b> generar_lista excluye 4 CORTADOS + 4 EXONERADOS → lista_corte = 32 EJECUTAR=SI.<br>
+  audit tiene 42 APLICADOS. <b>SOBRANTES = 42 − 32 = 10</b> → script descuenta S/20 de esos 10 en planilla
+  y escribe 10 filas REVERTIDO en audit. Sin intervención manual.
+</div>
+
+<hr style="margin-top:30px;border-color:#e5e7eb;">
+<p style="font-size:11px;color:#9ca3af;">
+  Diseño — aplicar_penalidad.py v2 &nbsp;|&nbsp; Módulo 6_corte &nbsp;|&nbsp; 16/06/2026
+</p>
+
+</body>
+</html>

@@ -333,11 +333,16 @@ def leer_hoja(path: Path, hoja: str) -> list:
         mz         = _norm(row.get("MZ"))
         lt         = _norm(row.get("LT"))
         monto_efec = _monto(row.get("MONTO_EFECTIVO"))
-        if not mz or not lt or monto_efec <= 0:
+        coment     = str(row.get("COMENTARIO") or "").strip()
+        if not mz or not lt:
+            continue
+        # Reclamos sin pago (MONTO_EFECTIVO=0 + COMENTARIO contiene "reclamo") pasan
+        # para que 4b_reclamos los detecte vía pagos_efectivo.xlsx.
+        if monto_efec <= 0 and "reclamo" not in coment.lower():
             continue
         monto_total = _monto(row.get("MONTO"))
         monto_yape  = _monto(row.get("MONTO_YAPE"))
-        if abs(monto_efec + monto_yape - monto_total) > 0.01:
+        if monto_efec > 0 and abs(monto_efec + monto_yape - monto_total) > 0.01:
             logging.warning(
                 f"  [{path.name}/{hoja}] MZ={mz} LT={lt}: "
                 f"MONTO_EFECTIVO({monto_efec})+MONTO_YAPE({monto_yape}) ≠ MONTO({monto_total})"
@@ -348,7 +353,6 @@ def leer_hoja(path: Path, hoja: str) -> list:
             fecha = fecha_raw.strftime("%d/%m/%Y")
         else:
             fecha = str(fecha_raw or "").strip()
-        coment = str(row.get("COMENTARIO") or "").strip()
         registros.append({
             "llave":      _llave(mz, lt),
             "mz":         mz,
@@ -516,12 +520,16 @@ def detectar_multi_mesa(confirmados: list) -> tuple:
       - r["_ya_rechazado"] → se descarta (no va a limpios ni a multi_mesa)
     """
     limpios_ya_resueltos = []
+    reclamos_sin_pago    = []  # bypassan multi_mesa: no son cobros, no compiten
     procesables          = []
     for r in confirmados:
         if r.get("_ya_rechazado"):
             continue  # descartado por resolución previa
         if r.get("_ya_resuelto"):
             limpios_ya_resueltos.append(r)
+            continue
+        if r.get("monto", 0) <= 0 and "reclamo" in str(r.get("comentario") or "").lower():
+            reclamos_sin_pago.append(r)
             continue
         procesables.append(r)
 
@@ -548,6 +556,7 @@ def detectar_multi_mesa(confirmados: list) -> tuple:
             limpios.extend(rows)
 
     limpios.extend(limpios_ya_resueltos)
+    limpios.extend(reclamos_sin_pago)
     return limpios, multi_mesa
 
 

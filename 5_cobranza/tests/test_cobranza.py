@@ -2,15 +2,19 @@
 
 Construye una planilla mínima + pagos diseñados para forzar cada regla del módulo:
 
-  CANCELADO       — paga exacto                              (A-1)
-  EXCESO          — paga de más → arrastre_devolucion        (A-2)
-  PARCIAL nuevo   — paga algo · sin arrastre → NO lista_corte (A-3)
-  PENDIENTE nuevo — no paga    · sin arrastre → NO lista_corte (A-4)
-  CORTE PARCIAL   — paga algo · MES_ANTERIOR>=8 → lista_corte (B-1)
-  CORTE PENDIENTE — no paga    · MES_ANTERIOR>=8 → lista_corte (B-2)
-  BLANCO aplicado — blanco descuenta, paga el resto          (C-1)
-  PAGO HUERFANO   — MZ-LT no en planilla → warning, ignorado (X-99)
+  CANCELADO       — paga exacto                                  (A-1)
+  EXCESO          — paga de más → arrastre_devolucion            (A-2)
+  PARCIAL nuevo   — paga algo · sin arrastre → NO elegible corte (A-3)
+  PENDIENTE nuevo — no paga    · sin arrastre → NO elegible corte (A-4)
+  CORTE PARCIAL   — paga algo · MES_ANTERIOR>=8 → elegible corte (B-1)
+  CORTE PENDIENTE — no paga    · MES_ANTERIOR>=8 → elegible corte (B-2)
+  BLANCO aplicado — blanco descuenta, paga el resto              (C-1)
+  PAGO HUERFANO   — MZ-LT no en planilla → warning, ignorado     (X-99)
   Idempotencia    — 2da corrida no agrega filas a trazabilidad
+
+Nota: lista_corte.xlsx ya no es output de 5_cobranza — la genera 6_corte
+leyendo SALDO + MES_ANTERIOR de planilla_cobrado. Este test verifica que
+planilla_cobrado expone los datos correctos para que 6_corte decida.
 
 Patrón sigue metodología 3.6: fixtures en _tmp_integracion/, monkey-patch
 de paths antes de importar main, verificación por conteo de instancias.
@@ -55,7 +59,7 @@ PAGOS_YAPE = [
 
 PAGOS_EFECTIVO = [
     ("A", "3", 10.00),    # debe 23, paga 10 → PARCIAL saldo 13
-    ("B", "1",  5.00),    # debe 30 (15+3+12), paga 5 → PARCIAL saldo 25 → lista_corte
+    ("B", "1",  5.00),    # debe 30 (15+3+12), paga 5 → PARCIAL saldo 25 → elegible corte
     ("C", "1", 15.00),    # con blanco -3 → debe 15, paga 15 → CANCELADO
     ("X", "99", 99.00),   # HUERFANO: MZ-LT no existe en planilla
 ]
@@ -72,7 +76,7 @@ ESPERADO = {
         "PARCIAL":   2,    # A-3, B-1
         "PENDIENTE": 2,    # A-4, B-2
     },
-    "n_lista_corte":         2,   # B-1, B-2
+    "n_elegibles_corte":     2,   # B-1, B-2 (SALDO>0 AND MES_ANTERIOR>=8)
     "n_arrastre_deuda":      4,   # A-3, A-4, B-1, B-2
     "n_arrastre_devolucion": 1,   # A-2
     "n_blancos_aplicados":   1,   # C-1
@@ -255,11 +259,17 @@ def _verificar_primera(mod) -> tuple[bool, list[str]]:
 
     chk(abs(_saldo_calc(fila_c1) - 0) < 0.01, "C-1 SALDO=0 tras blanco", 0, _saldo_calc(fila_c1))
 
-    # ── lista_corte ──
-    corte_path = mod.OUTPUTS_DIR / "lista_corte.xlsx"
-    _, filas_corte = _leer_dh(corte_path)
-    chk(len(filas_corte) == ESPERADO["n_lista_corte"],
-        "lista_corte · filas", ESPERADO["n_lista_corte"], len(filas_corte))
+    # ── elegibles para corte ──
+    # planilla_cobrado debe exponer SALDO y MES_ANTERIOR para que 6_corte
+    # decida quién va a la lista. Acá contamos los que cumplen el filtro.
+    elegibles = sum(
+        1 for r in filas
+        if (_col(headers, r, "SALDO") or 0) > 0.005
+        and (_col(headers, r, "MES_ANTERIOR") or 0) >= 8 - 0.005
+    )
+    chk(elegibles == ESPERADO["n_elegibles_corte"],
+        "elegibles corte (SALDO>0 & MES_ANT>=8)",
+        ESPERADO["n_elegibles_corte"], elegibles)
 
     # ── arrastre_deuda ──
     ad_path = mod.OUTPUTS_DIR / f"arrastre_deuda_{MES_TEST}.xlsx"
@@ -304,7 +314,6 @@ def _snapshot(mod) -> dict:
         return len(filas)
     return {
         "planilla":            _n(mod.OUTPUTS_DIR / "planilla_cobrado.xlsx"),
-        "lista_corte":         _n(mod.OUTPUTS_DIR / "lista_corte.xlsx"),
         "arrastre_deuda":      _n(mod.OUTPUTS_DIR / f"arrastre_deuda_{MES_TEST}.xlsx"),
         "arrastre_devolucion": _n(mod.OUTPUTS_DIR / f"arrastre_devolucion_{MES_TEST}.xlsx"),
         "trazabilidad":        _n(mod.OUTPUTS_DIR / "trazabilidad_cobranza.xlsx"),

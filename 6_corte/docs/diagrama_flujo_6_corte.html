@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>6_corte — Flujo visual</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Arial, sans-serif; background: #F0F4F8; font-size: 13px; }
+.page { padding: 28px 24px 60px; max-width: 1020px; margin: 0 auto; }
+h1   { font-size: 17px; color: #1A5276; margin-bottom: 4px; }
+.sub { font-size: 11px; color: #888; margin-bottom: 36px; }
+
+/* ═══ FILA PRINCIPAL: script arriba, archivo abajo ═══ */
+.flow { display: flex; align-items: flex-start; gap: 0; }
+
+/* columna de script + archivo que genera */
+.step { display: flex; flex-direction: column; align-items: center; flex: 1; }
+
+/* flecha horizontal entre pasos */
+.harr {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; flex: 0 0 32px; padding-top: 34px;
+}
+.harr-line { border-top: 2px dashed #BBB; width: 100%; }
+.harr-tip  { color: #AAA; font-size: 14px; line-height: 1; margin-top: -2px; }
+
+/* flecha vertical */
+.varr { color: #AAA; font-size: 20px; margin: 5px 0; line-height: 1; }
+
+/* ═══ SCRIPTS ═══ */
+.script {
+  width: 100%; border-radius: 8px; padding: 10px 12px;
+  text-align: center; border: 2px solid transparent;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+}
+.sc-name { font-family: Consolas, monospace; font-size: 11px; font-weight: bold; }
+.sc-note { font-size: 10px; opacity: 0.85; }
+
+.sc-blue   { background: #D6EAF8; border-color: #1A5276; color: #1A5276; }
+.sc-purple { background: #EDE9FE; border-color: #5B21B6; color: #5B21B6; }
+.sc-orange { background: #FDEBD0; border-color: #CA6F1E; color: #7D5A00; }
+.sc-green  { background: #D5F5E3; border-color: #1E8449; color: #1E5C3A; }
+
+/* ═══ ARCHIVOS ═══ */
+.file-wrap { width: 100%; display: flex; flex-direction: column; gap: 4px; margin-top: 2px; }
+
+.file {
+  border-radius: 5px; padding: 5px 8px; font-size: 10px;
+  font-family: Consolas, monospace; font-weight: bold;
+  text-align: left; width: 100%; line-height: 1.5;
+  border-left: 3px solid transparent;
+}
+.file small { font-weight: normal; font-family: Arial, sans-serif; display: block; color: inherit; opacity: 0.8; }
+
+/* tipo de archivo */
+.fa { background: #EBF5FB; color: #1A5276; border-left-color: #1A5276; }   /* auditoría */
+.ff { background: #D5F5E3; color: #145A32; border-left-color: #1E8449; }   /* final/operario */
+.fp { background: #F3E8FF; color: #5B21B6; border-left-color: #5B21B6; }   /* 7_cierre */
+.fn { background: #FEF3C7; color: #7D5A00; border-left-color: #CA6F1E; }   /* planilla_cobrado input */
+
+/* etiqueta GENERA / LEE */
+.tag {
+  font-size: 9px; font-weight: bold; text-transform: uppercase;
+  letter-spacing: 0.4px; margin-bottom: 3px; color: #888;
+}
+.tag-green { color: #1E8449; }
+.tag-blue  { color: #1A5276; }
+
+/* ═══ BIFURCACIÓN ═══ */
+.split {
+  width: 100%; background: #FFF8E1; border: 2px dashed #F0C040;
+  border-radius: 8px; padding: 8px 10px; text-align: center;
+  font-size: 11px; color: #7D5A00; font-weight: bold; margin: 4px 0;
+}
+.br-si {
+  background: #D5F5E3; color: #145A32; border: 1px solid #82E0AA;
+  border-radius: 4px; padding: 4px 8px; font-size: 10px;
+  font-weight: bold; text-align: center; margin: 2px 0; width: 100%;
+}
+.br-no {
+  background: #FADBD8; color: #7B241C; border: 1px solid #F1948A;
+  border-radius: 4px; padding: 4px 8px; font-size: 10px;
+  font-weight: bold; text-align: center; margin: 2px 0; width: 100%;
+}
+
+/* ═══ CHIPS RESULTADO ═══ */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 36px; }
+.chip  { border-radius: 20px; padding: 6px 16px; font-size: 11px; font-weight: bold; line-height: 1.5; }
+.ch-g { background: #D5F5E3; color: #145A32; border: 1px solid #52BE80; }
+.ch-o { background: #FEF3C7; color: #7D5A00; border: 1px solid #F0C040; }
+.ch-p { background: #F3E8FF; color: #4A235A; border: 1px solid #C4B5FD; }
+.ch-r { background: #FADBD8; color: #7B241C; border: 1px solid #F1948A; }
+
+/* ═══ LEYENDA ═══ */
+.legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 28px;
+          padding-top: 14px; border-top: 1px dashed #CCC; justify-content: center; }
+.leg { display: flex; align-items: center; gap: 5px; font-size: 10px; color: #555; }
+.leg-dot { width: 12px; height: 12px; border-radius: 2px; flex-shrink: 0; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <h1>6_corte — Flujo visual del ciclo</h1>
+  <div class="sub">Muestra qué genera y qué consume cada script · 16/06/2026</div>
+
+  <div class="flow">
+
+    <!-- ══ PASO 1: generar_lista ══ -->
+    <div class="step">
+
+      <!-- LEE -->
+      <div class="tag tag-blue">Lee</div>
+      <div class="file-wrap">
+        <div class="file fn">planilla_cobrado.xlsx<small>de 5_cobranza/outputs/</small></div>
+        <div class="file fn">reclamos_2026-06.xlsx<small>de 4b_reclamos/outputs/</small></div>
+        <div class="file fn">registro_cortes.xlsx<small>de 6_corte/inputs/ · excluye CORTADO activos</small></div>
+      </div>
+      <div class="varr">↓</div>
+
+      <!-- SCRIPT -->
+      <div class="script sc-blue">
+        <div class="sc-name">① generar_lista.py</div>
+        <div class="sc-note">filtra SALDO&gt;0 AND MES_ANT≥8<br>excluye ESTADO=CORTADO<br>cruza con reclamos → EJECUTAR_CORTE</div>
+      </div>
+      <div class="varr">↓</div>
+
+      <!-- GENERA: UN SOLO ARCHIVO -->
+      <div class="tag tag-green">Genera — 1 archivo</div>
+      <div class="file-wrap">
+        <div class="file fa">
+          lista_corte.xlsx — AUDITORÍA<br>
+          <small>Todos los elegibles · ESTADO_RECLAMO · EJECUTAR_CORTE=SI/NO</small>
+        </div>
+      </div>
+      <div class="varr">↓</div>
+
+      <!-- SPLIT -->
+      <div class="split">Columna EJECUTAR_CORTE</div>
+      <div class="br-si">SI → sin reclamo → sigue el flujo →</div>
+      <div class="br-no">NO → EN_REVISION → bloqueado → 7_cierre al cierre →</div>
+
+    </div>
+
+    <div class="harr"><div class="harr-line"></div><div class="harr-tip">›</div></div>
+
+    <!-- ══ PASO 2: aplicar_penalidad ══ -->
+    <div class="step">
+
+      <!-- LEE -->
+      <div class="tag tag-blue">Lee</div>
+      <div class="file-wrap">
+        <div class="file fa">lista_corte.xlsx<small>filtra EJECUTAR_CORTE = SI</small></div>
+      </div>
+      <div class="varr">↓</div>
+
+      <!-- SCRIPT -->
+      <div class="script sc-blue">
+        <div class="sc-name">② aplicar_penalidad.py</div>
+        <div class="sc-note">carga S/20 a CORTE_RECONEXION<br>en planilla del mes</div>
+      </div>
+      <div class="varr">↓</div>
+
+      <!-- PERÍODO DE GRACIA -->
+      <div class="script sc-purple" style="margin-top:4px;">
+        <div class="sc-name">Usuarios pagan</div>
+        <div class="sc-note">pueden abonar S/20 durante<br>el período de gracia</div>
+      </div>
+      <div class="varr" style="color:#5B21B6;">↕</div>
+      <div style="font-size:10px;color:#5B21B6;text-align:center;
+                  background:#F3E8FF;border:1px solid #C4B5FD;border-radius:4px;
+                  padding:5px 8px;width:100%;">
+        EN_REVISION: supervisor resuelve<br>reclamos durante este período
+      </div>
+
+    </div>
+
+    <div class="harr"><div class="harr-line"></div><div class="harr-tip">›</div></div>
+
+    <!-- ══ PASO 3: seguimiento ══ -->
+    <div class="step">
+
+      <!-- LEE -->
+      <div class="tag tag-blue">Lee</div>
+      <div class="file-wrap">
+        <div class="file fa">lista_corte.xlsx<small>filtra EJECUTAR_CORTE = SI</small></div>
+        <div class="file fn">pagos del período de gracia<small>de 4_pagos/5_cobranza</small></div>
+      </div>
+      <div class="varr">↓</div>
+
+      <!-- SCRIPT -->
+      <div class="script sc-orange">
+        <div class="sc-name">③ seguimiento.py</div>
+        <div class="sc-note">¿pagaron los S/20 de penalidad?</div>
+      </div>
+      <div class="varr">↓</div>
+
+      <div class="br-si">✓ Pagaron → no van a corte físico</div>
+      <div class="br-no">✗ No pagaron → penalidad escala a S/40</div>
+      <div class="varr">↓</div>
+
+      <!-- GENERA -->
+      <div class="tag tag-green">Genera — 2 archivos</div>
+      <div class="file-wrap">
+        <div class="file ff">
+          corte_fisico.xlsx<br>
+          <small>Solo los que NO pagaron · PENALIDAD_FINAL=S/40 · → operario</small>
+        </div>
+        <div class="file fa">
+          registro_cortes.xlsx<br>
+          <small>Agrega nuevos CORTADO · supervisor marca REACTIVADO manual</small>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="harr"><div class="harr-line"></div><div class="harr-tip">›</div></div>
+
+    <!-- ══ PASO 4: 7_cierre ══ -->
+    <div class="step">
+
+      <!-- LEE -->
+      <div class="tag tag-blue">Lee</div>
+      <div class="file-wrap">
+        <div class="file fa">lista_corte.xlsx<small>usuarios EN_REVISION</small></div>
+        <div class="file fn">resolucion_reclamos.xlsx<small>de 4b_reclamos/outputs/</small></div>
+        <div class="file fn">planilla_cobrado.xlsx<small>saldos finales del mes</small></div>
+      </div>
+      <div class="varr">↓</div>
+
+      <!-- SCRIPT -->
+      <div class="script sc-green">
+        <div class="sc-name">④ 7_cierre</div>
+        <div class="sc-note">consolida reclamos + cortes<br>al cierre del período</div>
+      </div>
+      <div class="varr">↓</div>
+
+      <!-- GENERA -->
+      <div class="tag tag-green">Genera — 2 archivos</div>
+      <div class="file-wrap">
+        <div class="file ff">arrastre_corte_final_2026-06.xlsx<small>PENALIDAD S/40 · FUNDADO=sin cargo</small></div>
+        <div class="file ff">arrastre_deuda_final_2026-06.xlsx<small>saldos → MES_ANTERIOR próximo mes</small></div>
+      </div>
+      <div class="varr">↓</div>
+      <div style="font-size:10px;text-align:center;background:#E8ECF0;
+                  border-radius:4px;padding:5px 8px;width:100%;color:#444;font-weight:bold;">
+        → 2_planilla/inputs/<br><span style="font-weight:normal;">próximo ciclo</span>
+      </div>
+
+    </div>
+
+  </div><!-- end flow -->
+
+  <!-- CHIPS -->
+  <div style="text-align:center;font-size:10px;text-transform:uppercase;
+              letter-spacing:0.5px;color:#888;margin-top:40px;margin-bottom:10px;">
+    ¿Qué le pasa a cada usuario?
+  </div>
+  <div class="chips">
+    <div class="chip ch-g">Sin reclamo + pagó S/20 → no va a corte físico</div>
+    <div class="chip ch-o">Sin reclamo + NO pagó → corte_fisico.xlsx · S/40</div>
+    <div class="chip ch-p">EN_REVISION → bloqueado · 7_cierre decide al cierre</div>
+    <div class="chip ch-r">Servicio ya CORTADO → excluido de lista_corte todos los meses hasta que supervisor marque REACTIVADO</div>
+  </div>
+
+  <!-- LEYENDA -->
+  <div class="legend">
+    <div class="leg"><div class="leg-dot" style="background:#D6EAF8;border:1px solid #1A5276;"></div>Script automático</div>
+    <div class="leg"><div class="leg-dot" style="background:#EDE9FE;border:1px solid #5B21B6;"></div>Acción humana</div>
+    <div class="leg"><div class="leg-dot" style="background:#EBF5FB;border:1px solid #AED6F1;"></div>Auditoría (todos, no se filtra)</div>
+    <div class="leg"><div class="leg-dot" style="background:#D5F5E3;border:1px solid #52BE80;"></div>Output final / operario / próximo mes</div>
+    <div class="leg"><div class="leg-dot" style="background:#FEF3C7;border:1px solid #F0C040;"></div>Input de otro módulo</div>
+    <div class="leg"><div class="leg-dot" style="background:#F3E8FF;border:1px solid #C4B5FD;"></div>EN_REVISION → 7_cierre</div>
+    <div class="leg"><div class="leg-dot" style="background:#FADBD8;border:1px solid #F1948A;"></div>Estado persistente (registro_cortes — persiste entre meses)</div>
+  </div>
+
+</div>
+</body>
+</html>

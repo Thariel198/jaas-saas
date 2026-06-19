@@ -1,7 +1,7 @@
 # Metodología de Desarrollo — jass_system
 ## Cómo construir sistemas de IA sin improvisar
 
-Versión 3.0 — Junio 2026
+Versión 3.8 — Junio 2026
 Basada en la experiencia construyendo motor_matching y jass_system
 
 ---
@@ -44,6 +44,19 @@ Código (implementa el README)
 Un archivo HTML aprobado es una especificación visual que el código debe replicar exactamente.
 
 **Regla:** Antes de tocar código, pedir el HTML actual. Nunca generarlo desde cero si ya existe uno aprobado. El HTML es el contrato — el código lo implementa.
+
+### Template Excel como Guía de Llenado
+
+Todo archivo Excel generado como template de input (mesa_N.xlsx, pagos_efectivo_devolucion.xlsx, etc.) debe incluir en la **fila 3** una fila de ejemplo con datos representativos reales, en fuente gris itálico (`9CA3AF`).
+
+**Regla:** la fila 3 de todo template es el ejemplo que el cobrador/operario mira para saber cómo llenar. El cobrador la deja como referencia o la borra antes de ingresar datos reales. No usar "EJEMPLO" en mayúsculas ni texto genérico — usar datos reales del tipo que se espera (nombres, fechas, montos, manzanas y lotes reales de la JASS).
+
+```
+Fila 1 — cabecera de sección    (colores, fusionada)
+Fila 2 — nombres de columnas    (colores, negrita)
+Fila 3 — ejemplo guía           (gris itálico, datos reales)   ← OBLIGATORIO
+Fila 4+ — datos reales del cobrador
+```
 
 ---
 
@@ -386,6 +399,49 @@ El costo de cambiar un enfoque cuando el código ya está escrito es empezar des
 
 Este paso se hace en **Claude Chat** — no en Claude Code. No necesitás ver el código aún.
 
+**Paso 2.0.0 — Método CRAD: estructurar el problema antes de explorar soluciones**
+
+Antes de escribir el prompt al LLM (Chat o Code), estructurar el problema con el método CRAD.
+CRAD actúa como un formulario que fuerza a explicitar lo que se sabe, lo que no se sabe, y lo que
+necesita decidirse — antes de que la IA proponga soluciones.
+
+| Capa | Pregunta central | Por qué es obligatoria |
+|------|-----------------|------------------------|
+| **C**ontexto | ¿En qué módulo vivimos? ¿Qué archivos ya existen con qué columnas? ¿Qué hace el operario hoy paso a paso? | Sin contexto, la IA propone soluciones para un problema genérico, no para tu sistema |
+| **R**ealidad actual | ¿Qué datos fluyen hoy? ¿Quién los llena? ¿Con qué frecuencia cambian? ¿Cuántos registros tiene el archivo? | Separa "cómo debería ser" de "cómo es ahora mismo" — la solución debe funcionar con lo que existe |
+| **A**mbigüedades | ¿Qué pasa si el usuario no aparece? ¿Cómo se corrige un error? ¿Qué varía mes a mes? ¿Qué es fijo? | Saca los casos borde a la superficie ANTES del diseño, cuando cuesta cero resolverlos |
+| **D**ecisiones | ¿Qué archivo(s) genera? ¿Quién los consume? ¿Cómo se rastrea el historial? ¿Quién deshace si algo falla? | Define los outputs concretos antes de codificar — sin esto el diseño queda en el aire |
+
+**Las 8 preguntas universales** — aplican a cualquier módulo o feature nueva de jass_system:
+
+1. ¿Quién ejecuta esto? (rol exacto: operario, supervisor, sistema automático) ¿Con qué frecuencia? ¿En qué momento del ciclo mensual?
+2. ¿Qué archivo(s) ya existen HOY con qué columnas exactas?
+3. ¿Qué archivo(s) debe generar este módulo y quién los consume después?
+4. ¿Qué en esta lista **varía mes a mes**? ¿Qué es **fijo** (regla de negocio invariable)?
+5. ¿Cómo se rastrea el **historial**? ¿Una foto del mes o estado acumulado que persiste entre meses?
+6. ¿Qué pasa si un registro **no aparece** en el archivo de entrada ese mes?
+7. ¿Cómo el supervisor/operario **corrige un error** después de que el sistema corrió?
+8. ¿Cuál es el **impacto** si el sistema falla o no se corre un mes?
+
+**Cómo usar CRAD en la práctica:**
+
+Completar CRAD en un párrafo o lista antes de escribir el prompt. Lo que quede en blanco en **A**
+(ambigüedades) y **D** (decisiones) son exactamente las preguntas que la IA debe hacer antes de diseñar —
+no preguntas genéricas, sino las brechas específicas del problema.
+
+Señal de que CRAD está completo:
+- C: hay al menos un archivo real con columnas reales mencionadas
+- R: hay un actor concreto (no "el sistema" genérico) y una frecuencia
+- A: hay al menos una ambigüedad explícita (algo que NO se sabe todavía)
+- D: hay al menos un archivo de output con nombre tentativo y destinatario
+
+Señal de que falta trabajo:
+- CRAD habla de "datos", "usuarios", "sistema" sin especificar nombres de archivos ni columnas
+- No hay ninguna ambigüedad — el problema "parece claro" → probablemente no se pensó en casos borde
+- Las decisiones describen comportamientos ("debe calcular X") en lugar de archivos ("genera registro_cortes.xlsx con columnas MZ, LT, ESTADO")
+
+---
+
 **Paso 2.0.1 — Describir el problema, no la solución**
 
 Escribir en Chat:
@@ -457,24 +513,64 @@ Cuando alguien proponga cambiar el enfoque, este archivo explica por qué se des
 
 ---
 
-**2.1 Diagrama visual del módulo** ← primero siempre, antes del README
+**2.1 Diagramas visuales del módulo** ← primero siempre, antes del README
 
-Un diagrama de una sola página que muestra de un vistazo: qué entra, qué hace el módulo,
-qué sale y quién consume el output. Si el diagrama está mal, se corrige antes de escribir
-el README. Es más barato corregir una imagen que tres documentos.
+Cada módulo lleva **dos diagramas HTML** separados, porque cumplen funciones distintas
+y mezclarlos en uno solo termina en un documento que ni explica bien ni se lee rápido.
 
-Formato: HTML en `MODULO/docs/diagrama_MODULO.html` — dentro de la carpeta `docs/`
-del propio módulo, no en la carpeta `docs/` global del sistema.
+| Archivo | Para qué sirve | Qué contiene | Qué NO contiene |
+|---|---|---|---|
+| `diagrama_flujo_MODULO.html` | Entender el proceso **de un vistazo**, sin leer | Cajas + flechas con nombre de cada paso y nombre del archivo de entrada/salida | Reglas, fórmulas, lógica de clasificación |
+| `diagrama_MODULO.html` | Entender **qué hace cada paso** en detalle | Inputs con origen · reglas clave (3-5 líneas) · outputs con columnas · acoplamiento con otros módulos | — |
 
-Ejemplo: `4_pagos/efectivo/docs/diagrama_efectivo.html`
+Ambos viven en `MODULO/docs/`. El **flujo se mira primero** (vista 5 segundos), el detallado
+se abre cuando hace falta entender una regla específica. Si el flujo no es claro en 5 segundos
+de mirar, está mal — corregir antes de avanzar.
 
-Contenido mínimo:
-- Bloque de inputs con su origen (¿viene de otro módulo, es manual, es shared?)
-- Bloque central con las reglas clave del módulo (3-5 líneas máximo)
+Ejemplos:
+- `6_corte/docs/diagrama_flujo_6_corte.html`
+- `6_corte/docs/diagrama_6_corte.html`
+
+**Reglas del diagrama de flujo:**
+- Una caja por paso ejecutable (script automático, acción manual, espera de negocio)
+- Color por tipo (auto / manual / espera)
+- Nada de fórmulas, condicionales, reglas — esas van en el diagrama detallado
+
+**Cada script muestra obligatoriamente dos secciones:**
+
+```
+┌─────────────────────────────────┐
+│  LEE                            │  ← archivos que consume, con su módulo de origen
+│  • planilla_cobrado.xlsx        │
+│    (de 5_cobranza/outputs/)     │
+├─────────────────────────────────┤
+│  ① nombre_script.py             │  ← número de paso + nombre del script
+│  descripción breve de qué hace  │
+├─────────────────────────────────┤
+│  GENERA — N archivo(s)          │  ← cuántos y cuáles archivos produce
+│  • lista_corte.xlsx             │
+│    todos los elegibles          │
+└─────────────────────────────────┘
+```
+
+**Por qué es obligatorio mostrar LEE y GENERA:**
+sin esta información el diagrama no responde la pregunta clave del operario o del agente:
+"¿de dónde viene el input?" y "¿qué queda en disco después de correr este script?"
+Un diagrama que solo muestra nombres de scripts no es suficiente para validar el diseño antes de codificar.
+
+**Señal de que el diagrama de flujo está bien:**
+- Se puede responder en 5 segundos: ¿cuántos archivos genera el paso X? ¿de dónde lee el paso Y?
+- Si hay bifurcación (SI/NO), muestra en qué rama va cada tipo de usuario
+- Si un usuario se pregunta "¿pero qué archivo le llega al operario?", la respuesta está visible sin leer texto
+
+**Reglas del diagrama detallado:**
+- Bloque de inputs con su origen (otro módulo, manual, shared)
+- Bloque central con las reglas clave (3-5 líneas máximo por paso)
 - Bloque de output con las columnas que genera
 - Flecha al módulo siguiente
+- Acoplamientos explícitos (qué archivo de otro módulo se lee o modifica)
 
-**Señal de aprobación:** el usuario confirma que el diagrama refleja bien la idea.
+**Señal de aprobación:** el usuario confirma que ambos diagramas reflejan la idea.
 Solo entonces se escribe el README.
 
 ---
@@ -520,6 +616,79 @@ La aprobación en conversación es suficiente para actualizar todos los artefact
 La única excepción es el paso 2.1 (diagrama visual inicial): ahí sí esperar aprobación
 antes de escribir el README, porque es la primera vez que se plasma el diseño en papel
 y puede haber malentendidos de fondo que cambiarían el README entero.
+
+**Regla: el proyecto escala a agentic SaaS — diseñar para tools de agente**
+
+Este sistema va a evolucionar a una plataforma SaaS donde agentes IA orquestan los módulos.
+Cuando una decisión de diseño tiene varias opciones técnicamente válidas, preferir la que
+se traduce mejor en "herramientas" que un agente pueda invocar.
+
+| Dimensión | Forma que escala a agente | Forma que NO escala |
+|---|---|---|
+| Entrada / salida | Un script = una responsabilidad clara (`generar_lista.py`, `aplicar_penalidad.py`) | `main.py` monolítico con muchos sub-comandos crípticos |
+| Naming | Nombre explícito y self-documenting | Nombre genérico (`main`, `run`, `process`) que obliga a leer el código |
+| Estado | Idempotente — el agente puede reintentar sin duplicar | Estado implícito que asume "se corre una sola vez" |
+| Audit | Cada invocación queda en un log persistente con `source`, `audit_ref`, `motivo` | Solo `print()` a consola que se pierde |
+| Escritura compartida | Un único módulo "writer" con API explícita (patrón repo) | Cada script abre y modifica el archivo compartido directo |
+| Acoplamiento | Inputs/outputs por archivo o función pura — sin globals ni estado entre módulos | Módulos que se importan entre sí con efectos al importar |
+
+**Cómo aplicar:** ante una decisión de estructura ("¿main.py con subcomandos o N scripts separados?"),
+elegir la opción que un agente externo entendería sin documentación adicional. El operador humano puede
+aprender un patrón compacto; el agente necesita explícito.
+
+**Caso real:** 6_corte resuelto con tres scripts (`generar_lista.py`, `aplicar_penalidad.py`, `seguimiento.py`)
+en lugar de `main.py generar / seguimiento`. Cada uno es una tool con nombre que se explica solo —
+el agente la encuentra en una lista de capabilities sin tener que leer el código.
+
+---
+
+**Regla: el texto en consola no persiste — crear HTML**
+
+Cuando en una conversación se resuelve una pregunta de diseño que tiene dimensión visual
+(relación entre módulos, flujo de inputs/outputs, diferencia entre dos archivos, schema de un formato),
+el texto explicado en consola **no es un artefacto** — desaparece al cerrar la sesión.
+
+El único artefacto duradero es el HTML.
+
+| Situación | Qué hacer |
+|---|---|
+| Explico en consola la diferencia entre dos archivos | Crear `docs/diagrama_*.html` con el flujo |
+| Acuerdo el schema de un output nuevo | Crear `formato_*.html` antes de seguir |
+| Resuelvo en conversación cómo conectan dos módulos | Actualizar `arquitectura_jass_sistema.html` |
+| Explico en texto el orden del pipeline | No basta — el HTML de arquitectura es la memoria |
+
+**Regla:** si la respuesta tiene flechas, cajas o una tabla de columnas → crear el HTML.
+Si es solo texto en consola → se pierde.
+
+---
+
+**Regla: comparar opciones de diseño con diagrama visual — no con texto**
+
+Cuando el usuario debe elegir entre 2+ enfoques de diseño y cada uno tiene múltiples
+dimensiones (archivos afectados, quién escribe, timing, acoplamientos), presentar las
+opciones como bloques de texto produce un muro difícil de procesar.
+
+La forma correcta: crear el HTML visual **antes** de pedir la decisión.
+
+| Situación | Forma incorrecta | Forma correcta |
+|---|---|---|
+| 3 enfoques con 4+ dimensiones de comparación | Escribir párrafos en consola explicando cada uno | Crear HTML con columnas: una por enfoque, filas por dimensión |
+| Flujo de módulo con ramificaciones por caso | Describir el flujo en texto | Crear `diagrama_flujo_MODULO.html` con cajas y flechas |
+| Schema de un archivo con 7+ columnas | Listar las columnas en consola | Crear `formato_ARCHIVO.html` con la tabla de muestra |
+
+**Señal de que aplica esta regla:**
+- El usuario tiene que leer más de 10 líneas para entender las opciones
+- Las opciones tienen más de 2 dimensiones de comparación
+- La respuesta natural incluiría la palabra "opción A / opción B / opción C"
+
+**Señal de que NO aplica:**
+- La decisión es binaria y obvia (sí/no, antes/después)
+- Una sola dimensión de comparación (más rápido vs más simple)
+
+**Regla:** si vas a presentar 3+ opciones de diseño → crear el HTML visual primero,
+luego pedir la decisión. El texto que acompaña es un resumen, no la fuente de comparación.
+
+---
 
 **2.5 Crear rutas de carpetas del módulo**
 Crear físicamente las carpetas internas según el README.
@@ -663,6 +832,35 @@ Cuando retomás un módulo o lo extendés, puede que falten HTMLs de outputs nue
 **Señal de que podés avanzar al 3.1:**
 - [ ] Hay un `formato_ARCHIVO.html` aprobado por cada output Excel del módulo
 - [ ] Leíste cada contrato en esta sesión, no en una sesión anterior
+
+---
+
+**Regla: validar el flujo con diagrama visual ANTES de codificar cambios a un módulo existente**
+
+Cuando se va a modificar un módulo ya implementado — nuevas columnas, nueva lógica de filtro,
+nueva bifurcación, nuevo archivo de output — la IA puede haber entendido el cambio de forma
+distinta a lo que el usuario imaginó. El error se descubre recién al revisar el código terminado.
+
+La forma correcta: crear o actualizar el `diagrama_flujo_MODULO.html` y presentarlo al usuario
+**antes de escribir una sola línea de código**. El usuario confirma que el diagrama refleja
+al menos el 80% de la idea. Recién entonces se codifica.
+
+| Situación | Qué hacer antes de codificar |
+|---|---|
+| Se agrega una columna nueva a un output existente | Actualizar `diagrama_flujo` + presentar |
+| Se cambia la lógica de filtro de un módulo | Actualizar `diagrama_flujo` + presentar |
+| Se agrega un archivo nuevo al flujo | Crear `diagrama_flujo` actualizado + presentar |
+| Se modifica cómo dos módulos se conectan | Actualizar diagrama de arquitectura + presentar |
+
+**Criterio de avance:** el usuario confirma que el diagrama refleja la idea (no hace falta
+aprobación formal — "sí, así es" alcanza). Si no confirma, ajustar el diagrama hasta que lo haga.
+
+**Por qué importa:** el texto en conversación es ambiguo. El diagrama fuerza a ser explícito
+sobre qué archivos entran, cuáles salen, y qué pasa en cada bifurcación. Un malentendido
+que se detecta en el diagrama cuesta 5 minutos. El mismo malentendido detectado en el código
+ya escrito cuesta rehacerlo completo.
+
+---
 
 **3.1 Revisar skills relevantes**
 Antes de escribir una línea, leer las skills que aplican al módulo.
@@ -974,6 +1172,60 @@ El camino (B) parece DRY pero termina con 8 parámetros configurables y callback
 
 Este patrón lo usan kernel Linux, React y pandas: primitivos compartidos estables + orquestación local en cada módulo.
 
+**3.6g Patrón: reconciliación bidireccional en scripts writers**
+
+Cuando un script aplica cambios a un archivo compartido (sumar cargos en planilla, actualizar
+estados), la idempotencia unidireccional no alcanza: puede no duplicar, pero no revierte lo que
+ya no debería estar.
+
+El patrón bidireccional compara dos sets en cada ejecución:
+
+| Set | Qué contiene | Fuente |
+|-----|-------------|--------|
+| **SET_DEBE** | Quiénes deben tener el cargo aplicado ahora | Lista de control actual (ej. `lista_corte` EJECUTAR=SI) |
+| **SET_TIENE** | Quiénes ya tienen el cargo (net: APLICADO − REVERTIDO) | Audit log con columna `ACCION` |
+
+Y ejecuta la reconciliación:
+- `SET_DEBE − SET_TIENE` → **NUEVOS** — aplica el cargo, registra `ACCION=APLICADO` en audit
+- `SET_TIENE − SET_DEBE` → **SOBRANTES** — revierte el cargo, registra `ACCION=REVERTIDO` en audit
+- `SET_DEBE ∩ SET_TIENE` → **CORRECTOS** — sin cambio (skip)
+
+**Cambio de schema en el audit:** agregar columna `ACCION` (APLICADO / REVERTIDO).
+Para retrocompatibilidad, filas sin `ACCION` se tratan como `APLICADO`.
+
+```python
+def _net_aplicados(mes_ano: str) -> set[tuple[str, str]]:
+    """Net de (mz, lt) con cargo activo = APLICADO − REVERTIDO."""
+    df = pd.read_excel(AUDIT_PATH, header=1, dtype=str).fillna("")
+    aplicados: set = set()
+    for _, f in df.iterrows():
+        if f.get("MES_ANO") != mes_ano:
+            continue
+        key = (_norm_mz(f["MZ"]), _norm_lt(f["LT"]))
+        accion = str(f.get("ACCION", "APLICADO")).strip().upper()
+        if accion == "APLICADO":
+            aplicados.add(key)
+        elif accion == "REVERTIDO":
+            aplicados.discard(key)
+    return aplicados
+
+# En main(): reconciliar
+set_debe  = {(r["mz"], r["lt"]) for r in lista_corte_ejecutar_si}
+set_tiene = _net_aplicados(mes_ano)
+nuevos    = set_debe - set_tiene    # aplicar
+sobrantes = set_tiene - set_debe    # revertir
+```
+
+**Cuándo aplica:** script que suma/resta en un archivo compartido y la lista de beneficiarios
+puede cambiar entre corridas (exclusiones, correcciones del supervisor, nuevos estados).
+
+**Cuándo NO aplica:** el script solo genera archivos nuevos sin modificar archivos compartidos.
+
+**Caso real:** `aplicar_penalidad.py` en 6_corte — al agregar exclusión de CORTADOS y EXONERADOS,
+re-correr revirtió automáticamente 10 cargos erróneos en `planilla_mes` sin intervención manual.
+
+---
+
 **3.6f Patrón: columna REVISADO en archivos de autorización**
 
 En archivos donde el operario escribe "Si" para aprobar un cambio, la columna AUTORIZAR sola es ambigua:
@@ -1048,8 +1300,41 @@ Al confirmar que el mes cerró correctamente:
 git tag v2026-05 -m "Ciclo Mayo 2026 — completado"
 ```
 
-**4.4 Actualizar skills**
+**4.4 Actualizar skills y escribir el reporte de aprendizaje**
+
 Si encontraste algo nuevo que costó tiempo resolverlo, convertirlo en skill.
+
+Cada sesión genera un `reporte_aprendizaje_YYYYMMDD.md` en `docs/aprendizaje/`.
+El reporte tiene secciones fijas — pero la más importante, y la que distingue un buen reporte
+de una lista de conceptos, es **"¿Cómo lo descubrimos?"**:
+
+```
+## ¿Cómo lo descubrimos? — La historia del descubrimiento
+
+### [Nombre del concepto o patrón]
+
+**El setup:** qué estábamos tratando de hacer cuando apareció el problema
+
+**El supuesto incorrecto:** qué creíamos antes / qué asumíamos
+
+**El momento de quiebre:** qué pasó exactamente que nos hizo ver que algo estaba mal
+  (un error inesperado / el usuario interrumpió / los números no cuadraban / etc.)
+
+**La corrección:** qué cambiamos y por qué
+
+**Por qué importa para el sistema:** qué habría pasado si no lo hubiéramos descubierto
+```
+
+**Por qué es obligatorio capturar la historia:**
+- Los conceptos sin historia se olvidan — la historia ancla el concepto en la memoria
+- La historia revela el razonamiento detrás del diseño — no solo el resultado
+- Para futuras explicaciones (videos, onboarding, documentación) la historia es el contenido,
+  el concepto es solo el título
+- Un error bien documentado con su historia vale más que 10 conceptos listados sin contexto
+
+**Regla:** si en la sesión hubo un momento donde algo no funcionó como esperabas, donde el usuario
+te corrigió, o donde descubriste algo que cambió el diseño — eso es el primer candidato para
+"¿Cómo lo descubrimos?". No escribir solo el concepto aprendido. Escribir la historia completa.
 
 **4.5 Actualizar CHANGELOG**
 Anotar en `docs/CHANGELOG.md` (no en el README):
@@ -1367,4 +1652,12 @@ Si el código descubre algo que contradice el diseño → para y corrige el READ
 | 2.7 | Junio 2026 | Paso 3.6c: verificar comportamientos nuevos con test sintético — no con datos reales. Verificación manual (editar archivos reales, borrar output, re-correr) no es repetible, toca producción, y no detecta regresiones. La forma correcta es un `test_verificacion.py` con estado mínimo sintético, assert con mensaje claro, y carpeta temp idempotente. |
 | 2.8 | Junio 2026 | Paso 2.9: diseño de migración (obligatorio cuando el schema cambia y hay datos manuales). Protocolo de Migración completo con 7 pasos: backup primero, output consolidado como plan B, guard `if __name__ == "__main__":` obligatorio, idempotencia, lectura por nombre de columna, columnas nuevas vacías, probar en uno antes de N. Caso real documentado (módulo efectivo junio 2026). |
 | 2.9 | Junio 2026 | Tres patrones nuevos. Paso 2.6: Registro de auditoría vs vista operacional — clasificar outputs en fuente de verdad (nunca se filtra) vs proyección para downstream (regenerable). Paso 2.7: Retrocompatibilidad de lectura — try/except por nombre de columna para coexistencia de schemas durante transición, diferente a migración. Paso 3.6d: Preservación en tres capas (backup + leer decisiones humanas + set ya-procesados) — aplica en cada re-corrida del módulo, no solo en migraciones. |
+| 3.3 | Junio 2026 | Paso 2.1: cada módulo lleva DOS diagramas HTML — `diagrama_flujo_MODULO.html` (cajas + flechas, vista de 5 segundos, sin reglas) y `diagrama_MODULO.html` (detallado con reglas, I/O, acoplamientos). Mezclar ambos en uno solo termina en un doc que ni explica bien ni se lee rápido. |
+| 3.2 | Junio 2026 | Regla en 2.4: el proyecto escala a agentic SaaS — diseñar estructura (scripts, naming, idempotencia, audit, repo pattern) para que cada pieza sea una tool clara que un agente pueda invocar sin leer código |
+| 3.1 | Junio 2026 | Regla en 2.4: el texto en consola no persiste — cualquier decisión con dimensión visual (flujo, schema, relación entre módulos) debe plasmarse en HTML inmediatamente; el texto en consola desaparece al cerrar la sesión |
+| 3.6 | Junio 2026 | Regla en 2.1: diagrama_flujo obligatorio muestra LEE (inputs con origen) y GENERA (N archivos con nombre) por cada script — sin esa info el diagrama no permite validar el diseño antes de codificar |
+| 3.5 | Junio 2026 | Regla en 3.0: validar el flujo con diagrama visual ANTES de codificar cambios a un módulo existente — presentar diagrama_flujo actualizado al usuario, esperar confirmación de al menos 80%, recién entonces codificar |
+| 3.4 | Junio 2026 | Regla en 2.4: comparar opciones de diseño con diagrama visual antes de pedir decisión — cuando hay 3+ enfoques con múltiples dimensiones, el HTML visual va primero; el texto en consola es el resumen, no la fuente de comparación |
+| 3.7 | Junio 2026 | Paso 2.0.0: Método CRAD (Contexto, Realidad, Ambigüedades, Decisiones) — framework estructurado para definir el problema antes de diseñar. Las 8 preguntas universales para cualquier módulo de jass_system. Señales de CRAD completo vs incompleto. |
+| 3.8 | Junio 2026 | Paso 3.6g: Reconciliación bidireccional en scripts writers — patrón SET_DEBE vs SET_TIENE con columna ACCION (APLICADO/REVERTIDO) en audit. Re-correr siempre produce el estado correcto: aplica nuevos, revierte sobrantes, skipea correctos. Más potente que idempotencia unidireccional cuando la lista de beneficiarios puede cambiar entre corridas. |
 | 3.0 | Junio 2026 | Paso 3.6e: Thin layer of shared primitives — el punto medio entre duplicación pura y módulo compartido grande. Regla del Tres + test rápido (`if modulo == X` → no compartir). `shared/utils_*.py` solo para primitivos puros sin lógica de negocio; la orquestación siempre en el `main.py` del módulo. Paso 3.6f: Columna REVISADO en archivos de autorización — distingue "no vista aún" (rojo) de "vista, decidida" (neutro) de "autorizada para aplicar". Elimina ambigüedad cuando AUTORIZAR está vacío. |

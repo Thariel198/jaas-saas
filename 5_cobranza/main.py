@@ -1,13 +1,15 @@
 """5_cobranza/main.py — Carga pagos en planilla · genera estado de cobro
 
 Lee planilla (de 2_planilla) + pagos_yape + pagos_efectivo (de 4_pagos).
-Genera 6 outputs:
-  · planilla_cobrado.xlsx          — copia enriquecida con pagos cargados
-  · lista_corte.xlsx               — usuarios con SALDO>0 AND MES_ANTERIOR>=8
+Genera 5 outputs:
+  · planilla_cobrado.xlsx          — copia enriquecida con pagos + SALDO + ESTADO
   · trazabilidad_cobranza.xlsx     — un registro por pago cargado (acumulada)
   · resumen_recaudacion.xlsx       — totales del mes
   · arrastre_deuda_YYYY-MM.xlsx    — SALDO>0  → 2_planilla del próximo mes
   · arrastre_devolucion_YYYY-MM.xlsx — SALDO<0 → excesos pendientes de reclamo
+
+SALDO sale como columna explícita en planilla_cobrado — la lista de corte la
+genera 6_corte/generar_lista.py leyendo SALDO + MES_ANTERIOR desde acá.
 
 Idempotente: si los pagos no cambiaron respecto a la trazabilidad existente,
 sale sin modificar nada.
@@ -75,13 +77,9 @@ ESTADO_TXT = {"CANCELADO": "085041", "EXCESO": "1D4ED8",
 RETORNO_BG  = {"yape": "E1F5EE", "efectivo": "EFF6FF", "mixto": "FEF9E7"}
 RETORNO_TXT = {"yape": "085041", "efectivo": "1D4ED8", "mixto": "854F0B"}
 
-# Paleta lista_corte (coincide con lista_corte_diseno.html)
-GH_LC_QUIEN  = ("F4ECF7", "5B21B6")
-GH_LC_PORQUE = ("FEF9E7", "7D6608")
-GH_LC_PAGAR  = ("FEF2F2", "991B1B")
-TD_LC_QUIEN  = "FAF5FF"
-TD_LC_PORQUE = "FEFCE8"
-TD_LC_PAGAR  = "FEF2F2"
+# Paleta trazabilidad — ¿Quién es? (morado/lila)
+GH_TZ_QUIEN  = ("F4ECF7", "5B21B6")
+TD_TZ_QUIEN  = "FAF5FF"
 
 # Paleta arrastre_deuda (coincide con arrastre_deuda_diseno.html)
 GH_AD_QUIEN  = ("E8F8F5", "0E6655")
@@ -804,9 +802,12 @@ def _calcular(usuarios: list[dict],
 #  17-18  Descuentos     BLANCO DEVOLUCION
 #  19     Total          TOTAL_A_PAGAR
 #  20     sep
-#  21-25  Pago→5_cob     MONTO_YAPE MONTO_EFECTIVO RETORNO ESTADO FECHA_PAGO
-#  26     sep
-#  27     ¿Cuándo?       CICLO_COBRANZA
+#  21-26  Pago→5_cob     MONTO_YAPE MONTO_EFECTIVO SALDO RETORNO ESTADO FECHA_PAGO
+#  27     sep
+#  28     ¿Cuándo?       CICLO_COBRANZA
+#
+# SALDO se expone como columna del contrato — la consumen 6_corte y futuras
+# tools sin re-implementar la fórmula (total − pagado).
 # ─────────────────────────────────────────────────────────────────────────────
 
 _PC_GRUPOS = [
@@ -815,8 +816,8 @@ _PC_GRUPOS = [
     (10, 16, "Cobro — cargos",       *GH_COB),
     (17, 18, "Descuentos",           *GH_DESC),
     (19, 19, "Total",                *GH_TOTAL),
-    (21, 25, "Pago → 5_cobranza",    *GH_PAGO),
-    (27, 27, "¿Cuándo?",             *GH_TRAZ),
+    (21, 26, "Pago → 5_cobranza",    *GH_PAGO),
+    (28, 28, "¿Cuándo?",             *GH_TRAZ),
 ]
 _PC_COLS = [
     (1,  "MZ",                *GH_QUIEN,   6),
@@ -838,12 +839,13 @@ _PC_COLS = [
     (19, "TOTAL_A_PAGAR",     *GH_TOTAL,  13),
     (21, "MONTO_YAPE",        *GH_PAGO,   11),
     (22, "MONTO_EFECTIVO",    *GH_PAGO,   14),
-    (23, "RETORNO",           *GH_PAGO,   10),
-    (24, "ESTADO",            *GH_PAGO,   11),
-    (25, "FECHA_PAGO",        *GH_PAGO,   11),
-    (27, "CICLO_COBRANZA",    *GH_TRAZ,   14),
+    (23, "SALDO",             *GH_PAGO,   12),
+    (24, "RETORNO",           *GH_PAGO,   10),
+    (25, "ESTADO",            *GH_PAGO,   11),
+    (26, "FECHA_PAGO",        *GH_PAGO,   11),
+    (28, "CICLO_COBRANZA",    *GH_TRAZ,   14),
 ]
-_PC_SEP_COLS = [5, 9, 20, 26]
+_PC_SEP_COLS = [5, 9, 20, 27]
 
 
 def _exportar_planilla_cobrado(resultado: list[dict]):
@@ -927,32 +929,43 @@ def _exportar_planilla_cobrado(resultado: list[dict]):
             _c(ws, ri, 21, None, TD_PAGO, "5B21B6", mono=True, align="right")
         _pag(22, r["monto_efectivo"])
 
+        # SALDO — total − pagado. Puede ser positivo (debe), 0 (cancelado),
+        # negativo (exceso). Lo expone como columna del contrato para que
+        # 6_corte y otras tools lean directo sin re-computar.
+        saldo_val = r["saldo"]
+        if abs(saldo_val) > TOL:
+            _c(ws, ri, 23, saldo_val, TD_PAGO, "5B21B6",
+               mono=True, align="right", bold=True, fmt=MONEY)
+        else:
+            _c(ws, ri, 23, 0, TD_PAGO, "5B21B6",
+               mono=True, align="right", fmt=MONEY)
+
         # RETORNO badge (vacio si no hubo retorno)
         if r["retorno"]:
             ret_bg  = RETORNO_BG.get(r["retorno"], "FFFFFF")
             ret_txt = RETORNO_TXT.get(r["retorno"], "333333")
-            c_ret = ws.cell(row=ri, column=23, value=r["retorno"])
+            c_ret = ws.cell(row=ri, column=24, value=r["retorno"])
             c_ret.font      = Font(name="Arial", size=9, bold=True, color=ret_txt)
             c_ret.fill      = PatternFill("solid", start_color=ret_bg)
             c_ret.alignment = Alignment(horizontal="center", vertical="center")
             c_ret.border    = _borde()
         else:
-            _c(ws, ri, 23, None, TD_PAGO, "5B21B6", mono=True, align="center")
+            _c(ws, ri, 24, None, TD_PAGO, "5B21B6", mono=True, align="center")
 
         # ESTADO badge
         est_bg  = ESTADO_BG.get(r["estado"], "FFFFFF")
         est_txt = ESTADO_TXT.get(r["estado"], "333333")
-        c_est = ws.cell(row=ri, column=24, value=r["estado"])
+        c_est = ws.cell(row=ri, column=25, value=r["estado"])
         c_est.font      = Font(name="Arial", size=9, bold=True, color=est_txt)
         c_est.fill      = PatternFill("solid", start_color=est_bg)
         c_est.alignment = Alignment(horizontal="center", vertical="center")
         c_est.border    = _borde()
 
-        _c(ws, ri, 25, r["fecha_pago"] or None, TD_PAGO, "7C3AED",
+        _c(ws, ri, 26, r["fecha_pago"] or None, TD_PAGO, "7C3AED",
            mono=True, align="center")
 
         # CICLO_COBRANZA
-        _c(ws, ri, 27, r["ciclo_cobranza"], TD_TRAZ, "7D6608",
+        _c(ws, ri, 28, r["ciclo_cobranza"], TD_TRAZ, "7D6608",
            mono=True, align="center", bold=True)
 
         ws.row_dimensions[ri].height = 17
@@ -962,69 +975,7 @@ def _exportar_planilla_cobrado(resultado: list[dict]):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-#  OUTPUT 2 — lista_corte.xlsx
-# ─────────────────────────────────────────────────────────────────────────────
-_LC_GRUPOS = [
-    (1, 3, "¿Quién es?",            *GH_LC_QUIEN),
-    (5, 6, "¿Por qué va a corte?",  *GH_LC_PORQUE),
-    (8, 9, "¿Qué debe pagar?",      *GH_LC_PAGAR),
-]
-_LC_COLS = [
-    (1, "MZ",              *GH_LC_QUIEN,    6),
-    (2, "LT",              *GH_LC_QUIEN,    6),
-    (3, "NOMBRE",          *GH_LC_QUIEN,   26),
-    (5, "DEUDA_ARRASTRE",  *GH_LC_PORQUE, 16),
-    (6, "SALDO",           *GH_LC_PORQUE, 11),
-    (8, "PENALIDAD",       *GH_LC_PAGAR,  11),
-    (9, "TOTAL_A_PAGAR",   *GH_LC_PAGAR,  14),
-]
-_LC_SEP_COLS = [4, 7]
-
-
-def _exportar_lista_corte(resultado: list[dict]) -> int:
-    corte = [r for r in resultado
-             if r["saldo"] > TOL and r["mes_anterior"] >= ARRASTRE_MIN - TOL]
-    last_row = max(len(corte) + 2, 3)
-
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "lista_corte"
-    ws.freeze_panes = "A3"
-
-    for cs, ce, texto, bg, txt in _LC_GRUPOS:
-        _gh(ws, 1, cs, ce, texto, bg, txt)
-    for sc in _LC_SEP_COLS:
-        _sep(ws, sc, last_row)
-    for col, nombre, bg, txt, ancho in _LC_COLS:
-        _ch(ws, 2, col, nombre, bg, txt)
-        _w(ws, col, ancho)
-
-    ws.row_dimensions[1].height = 18
-    ws.row_dimensions[2].height = 22
-
-    MONEY = '"S/ "#,##0.00'
-    for ri, r in enumerate(corte, 3):
-        tap = round(r["saldo"] + PENALIDAD, 2)
-        _c(ws, ri, 1, r["mz"],     TD_LC_QUIEN,  "5B21B6", mono=True, align="center")
-        _c(ws, ri, 2, r["lt"],     TD_LC_QUIEN,  "5B21B6", mono=True, align="center")
-        _c(ws, ri, 3, r["nombre"], TD_LC_QUIEN,  "333333", align="left")
-        _c(ws, ri, 5, r["mes_anterior"], TD_LC_PORQUE, "92400E",
-           mono=True, align="right", fmt=MONEY)
-        _c(ws, ri, 6, r["saldo"],        TD_LC_PORQUE, "92400E",
-           mono=True, align="right", fmt=MONEY)
-        _c(ws, ri, 8, PENALIDAD,         TD_LC_PAGAR,  "991B1B",
-           mono=True, align="right", fmt=MONEY)
-        _c(ws, ri, 9, tap,               TD_LC_PAGAR,  "7F1D1D",
-           mono=True, align="right", bold=True, size=10, fmt=MONEY)
-        ws.row_dimensions[ri].height = 17
-
-    wb.save(OUTPUTS_DIR / "lista_corte.xlsx")
-    log.info(f"lista_corte.xlsx → {len(corte)} usuarios")
-    return len(corte)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  OUTPUT 3 — trazabilidad_cobranza.xlsx (acumulada)
+#  OUTPUT 2 — trazabilidad_cobranza.xlsx (acumulada)
 # ─────────────────────────────────────────────────────────────────────────────
 # Layout (matching trazabilidad_cobranza.html):
 #   1-3  ¿Quién es?              MZ LT NOMBRE
@@ -1035,15 +986,15 @@ def _exportar_lista_corte(resultado: list[dict]) -> int:
 # (Agregamos también FECHA del pago, útil para matching futuro)
 
 _TZ_GRUPOS = [
-    (1,  3,  "¿Quién es?",          *GH_LC_QUIEN),
+    (1,  3,  "¿Quién es?",          *GH_TZ_QUIEN),
     (5,  7,  "¿Qué se cargó?",      *GH_COB),
     (9,  12, "¿Cuándo y de dónde?", *GH_TRAZ),
     (14, 15, "Lote corregido",       *GH_DC_CORR),
 ]
 _TZ_COLS = [
-    (1,  "MZ",                       *GH_LC_QUIEN,   6),
-    (2,  "LT",                       *GH_LC_QUIEN,   6),
-    (3,  "NOMBRE",                   *GH_LC_QUIEN, 26),
+    (1,  "MZ",                       *GH_TZ_QUIEN,   6),
+    (2,  "LT",                       *GH_TZ_QUIEN,   6),
+    (3,  "NOMBRE",                   *GH_TZ_QUIEN, 26),
     (5,  "MONTO",                    *GH_COB,      11),
     (6,  "FUENTE",                   *GH_COB,      10),
     (7,  "RETORNO",                  *GH_COB,      10),
@@ -1142,9 +1093,9 @@ def _exportar_trazabilidad_cobranza(
 
     MONEY = '"S/ "#,##0.00'
     for ri, t in enumerate(todas, 3):
-        _c(ws, ri, 1, t["mz"],     TD_LC_QUIEN, "5B21B6", mono=True, align="center")
-        _c(ws, ri, 2, t["lt"],     TD_LC_QUIEN, "5B21B6", mono=True, align="center")
-        _c(ws, ri, 3, t["nombre"], TD_LC_QUIEN, "333333", align="left")
+        _c(ws, ri, 1, t["mz"],     TD_TZ_QUIEN, "5B21B6", mono=True, align="center")
+        _c(ws, ri, 2, t["lt"],     TD_TZ_QUIEN, "5B21B6", mono=True, align="center")
+        _c(ws, ri, 3, t["nombre"], TD_TZ_QUIEN, "333333", align="left")
         _c(ws, ri, 5, t["monto"],  TD_COB,      "065F46",
            mono=True, align="right", bold=True, fmt=MONEY)
 
@@ -1192,7 +1143,7 @@ def _exportar_trazabilidad_cobranza(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-#  OUTPUT 4 — resumen_recaudacion.xlsx
+#  OUTPUT 3 — resumen_recaudacion.xlsx
 # ─────────────────────────────────────────────────────────────────────────────
 def _exportar_resumen(resultado: list[dict], n_corte: int,
                       mes_ano: str, ciclo_nuevo: int):
@@ -1221,7 +1172,7 @@ def _exportar_resumen(resultado: list[dict], n_corte: int,
         ("PARCIAL",                                   cnt["PARCIAL"],   "usuarios"),
         ("PENDIENTE",                                 cnt["PENDIENTE"], "usuarios"),
         ("── CORTE ────────────────────────",         None,           None),
-        ("En lista_corte (penalidad S/20)",           n_corte,         "usuarios"),
+        ("Elegibles para corte (SALDO>0 & MES_ANT>=8)", n_corte,        "usuarios"),
     ]
 
     wb = Workbook()
@@ -1256,7 +1207,7 @@ def _exportar_resumen(resultado: list[dict], n_corte: int,
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-#  OUTPUT 5 — arrastre_deuda_YYYY-MM.xlsx
+#  OUTPUT 4 — arrastre_deuda_YYYY-MM.xlsx
 # ─────────────────────────────────────────────────────────────────────────────
 _AD_GRUPOS = [
     (1, 3, "¿Quién es?",      *GH_AD_QUIEN),
@@ -1309,7 +1260,7 @@ def _exportar_arrastre_deuda(resultado: list[dict], mes_ano: str):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-#  OUTPUT 6 — arrastre_devolucion_YYYY-MM.xlsx
+#  OUTPUT 5 — arrastre_devolucion_YYYY-MM.xlsx
 #  Paralelo a arrastre_deuda · misma estructura · paleta azul EXCESO.
 #  monto = |saldo| (positivo · lo que la JASS le debe al usuario).
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1365,7 +1316,7 @@ def _exportar_arrastre_devolucion(resultado: list[dict], mes_ano: str):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-#  OUTPUT 7 — discrepancias_cobranza.xlsx
+#  OUTPUT 6 — discrepancias_cobranza.xlsx
 #  Pagos cuyo MZ+LT no existe en planilla — no pudieron imputarse a un usuario.
 #  Layout (matching formato_discrepancias_cobranza.html):
 #
@@ -1669,7 +1620,10 @@ def main():
 
     print("\n[5/6] Exportando outputs...")
     _exportar_planilla_cobrado(resultado)
-    n_corte = _exportar_lista_corte(resultado)
+    # Contar elegibles para corte — la lista_corte la genera 6_corte leyendo
+    # SALDO + MES_ANTERIOR desde planilla_cobrado. Acá solo se reporta el conteo.
+    n_corte = sum(1 for r in resultado
+                  if r["saldo"] > TOL and r["mes_anterior"] >= ARRASTRE_MIN - TOL)
     _exportar_trazabilidad_cobranza(
         resultado, pagos_yape, pagos_efectivo,
         ciclo_nuevo, pagos_nuevos, traz_path,
@@ -1696,8 +1650,7 @@ def main():
     print("\n" + "═" * 60)
     print(f"  Cobranza completada · ciclo {ciclo_nuevo} · {mes_ano}")
     print(f"  Outputs → 5_cobranza/outputs/")
-    print(f"  · planilla_cobrado.xlsx  ({len(resultado)} usuarios)")
-    print(f"  · lista_corte.xlsx       ({n_corte} a cortar)")
+    print(f"  · planilla_cobrado.xlsx  ({len(resultado)} usuarios · SALDO expuesto)")
     print(f"  · trazabilidad_cobranza.xlsx")
     print(f"  · resumen_recaudacion.xlsx")
     n_exceso = sum(1 for r in resultado if r["saldo"] < -TOL)
@@ -1708,7 +1661,8 @@ def main():
               f"({len(disc_yape)} yape · {len(disc_efec)} efectivo)")
         print(f"    → Pagos cuyo MZ+LT no existe en planilla — corregir el archivo de origen")
     if n_corte:
-        print(f"\n  → Filtrar ya-cortados y pasar lista_corte.xlsx a 6_corte")
+        print(f"\n  → {n_corte} usuarios elegibles para corte "
+              f"(SALDO>0 & MES_ANT>=8) — correr 6_corte/generar_lista.py")
     print("═" * 60 + "\n")
 
 

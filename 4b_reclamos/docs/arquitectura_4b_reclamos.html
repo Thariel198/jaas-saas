@@ -19,10 +19,8 @@
   h2 { font-size: 13px; font-weight: 600; color: #374151; margin: 20px 0 8px;
        border-left: 3px solid #7C3AED; padding-left: 8px; }
 
-  /* Two-column layout */
   .cols { display: grid; grid-template-columns: 270px 1fr; gap: 16px; margin-bottom: 20px; }
 
-  /* Folder tree */
   .tree-box {
     background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 8px;
     padding: 14px 16px;
@@ -32,21 +30,28 @@
   .tree { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #374151; line-height: 1.9; }
   .tree .dir    { color: #1A5276; font-weight: 600; }
   .tree .script { color: #5B21B6; font-weight: 600; }
+  .tree .val    { color: #0E7490; font-weight: 600; }
+  .tree .apl    { color: #6D28D9; font-weight: 600; }
   .tree .key    { color: #1E5C3A; font-weight: 600; }
   .tree .dim    { color: #aaa; font-size: 9px; }
 
-  /* Scripts panel */
   .scripts-box { display: flex; flex-direction: column; gap: 10px; }
   .script-card { border-radius: 8px; overflow: hidden; border: 1px solid; }
   .script-card.main { border-color: #C4B5FD; }
   .script-card.res  { border-color: #A9DFBF; }
+  .script-card.val  { border-color: #67E8F9; }
+  .script-card.apl  { border-color: #A78BFA; }
   .script-header { padding: 8px 12px; font-size: 12px; font-weight: 700;
                    font-family: 'IBM Plex Mono', monospace; }
   .script-card.main .script-header { background: #5B21B6; color: #fff; }
   .script-card.res  .script-header { background: #1E5C3A; color: #fff; }
+  .script-card.val  .script-header { background: #0E7490; color: #fff; }
+  .script-card.apl  .script-header { background: #6D28D9; color: #fff; }
   .script-body { padding: 10px 12px; font-size: 11px; }
   .script-card.main .script-body { background: #FAF5FF; color: #5B21B6; }
   .script-card.res  .script-body { background: #F4FBF7; color: #1E5C3A; }
+  .script-card.val  .script-body { background: #ECFEFF; color: #0E7490; }
+  .script-card.apl  .script-body { background: #EDE9FE; color: #6D28D9; }
   .io-row { display: flex; gap: 8px; margin: 3px 0; align-items: flex-start; }
   .io-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
               min-width: 36px; margin-top: 1px; opacity: .65; }
@@ -54,14 +59,12 @@
   .rule-list { margin: 4px 0 0 0; padding-left: 16px; }
   .rule-list li { font-size: 10.5px; margin: 3px 0; }
 
-  /* External deps */
   .dep-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 16px; }
   .dep-table th { background: #F3F4F6; color: #374151; font-size: 10px; font-weight: 700;
                   text-transform: uppercase; letter-spacing: .04em;
                   padding: 5px 10px; text-align: left; }
   .dep-table td { padding: 5px 10px; border-bottom: 1px solid #F3F4F6; vertical-align: top; }
 
-  /* Invariants */
   .inv-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
   .inv-card { border-radius: 6px; padding: 10px 12px; font-size: 10.5px; line-height: 1.5; }
   .inv-card .inv-title { font-size: 9px; font-weight: 700; text-transform: uppercase;
@@ -71,7 +74,9 @@
   .inv-card.una   { background: #D1FAE5; border: 1px solid #6EE7B7; color: #065F46; }
   .inv-card.null  { background: #F3E8FF; border: 1px solid #C4B5FD; color: #5B21B6; }
   .inv-card.dir   { background: #E9F7EF; border: 1px solid #A9DFBF; color: #1E5C3A; }
-  .inv-card.nomod { background: #FEF2F2; border: 1px solid #FECACA; color: #991B1B; }
+  .inv-card.repo  { background: #EDE9FE; border: 1px solid #A78BFA; color: #6D28D9; }
+  .inv-card.verif { background: #ECFEFF; border: 1px solid #67E8F9; color: #0E7490; }
+  .inv-card.audit { background: #FEF0E0; border: 1px solid #FDBA74; color: #7C2D12; }
 
   code { font-family: 'IBM Plex Mono', monospace; font-size: 10px;
          background: rgba(0,0,0,.06); padding: 1px 4px; border-radius: 3px; }
@@ -80,29 +85,31 @@
 <body>
 
 <p class="title">4b_reclamos — arquitectura del módulo</p>
-<p class="sub">Módulo independiente de gestión de reclamos · lee de 4_pagos + 3_boletas · auditoría permanente</p>
+<p class="sub">Detecta · clasifica · cierra · aplica correcciones vía repo · verifica</p>
 
 <div class="meta">
   <div class="meta-item"><span>Módulo:</span> 4b_reclamos</div>
-  <div class="meta-item"><span>Scripts:</span> main.py · resolucion.py</div>
-  <div class="meta-item"><span>Outputs:</span> reclamos_YYYY-MM.xlsx · resolucion_reclamos_YYYY-MM.xlsx · trazabilidad_reclamos.xlsx</div>
-  <div class="meta-item"><span>Versión:</span> 1.0 · 14/06/2026</div>
+  <div class="meta-item"><span>Scripts:</span> main.py · resolucion.py · aplicar_correcciones.py · validacion_resolucion_correcciones.py</div>
+  <div class="meta-item"><span>Outputs:</span> reclamos_YYYY-MM.xlsx · resolucion_reclamos_YYYY-MM.xlsx · validacion_correcciones_YYYY-MM.xlsx · trazabilidad_reclamos.xlsx</div>
+  <div class="meta-item"><span>Dependencia clave:</span> shared/data_boletas_repo (lecturas + escritura a DATA_boletas)</div>
+  <div class="meta-item"><span>Versión:</span> 1.2 · 15/06/2026</div>
 </div>
 
-<!-- ── COLS: Folder tree + Scripts ── -->
 <div class="cols">
 
-  <!-- Folder tree -->
   <div class="tree-box">
     <h3>Estructura de carpetas</h3>
     <div class="tree">
 <span class="dir">4b_reclamos/</span><br>
 ├── <span class="script">main.py</span><br>
 ├── <span class="script">resolucion.py</span><br>
+├── <span class="apl">aplicar_correcciones.py</span><br>
+├── <span class="val">validacion_resolucion_correcciones.py</span><br>
 ├── <span class="dir">inputs/</span> <span class="dim">(vacío)</span><br>
 ├── <span class="dir">outputs/</span><br>
 │&nbsp;&nbsp;&nbsp;├── <span class="key">reclamos_YYYY-MM.xlsx</span><br>
-│&nbsp;&nbsp;&nbsp;└── <span class="key">resolucion_reclamos_YYYY-MM.xlsx</span><br>
+│&nbsp;&nbsp;&nbsp;├── <span class="key">resolucion_reclamos_YYYY-MM.xlsx</span><br>
+│&nbsp;&nbsp;&nbsp;└── <span class="key">validacion_correcciones_YYYY-MM.xlsx</span><br>
 ├── <span class="dir">trazabilidad/</span><br>
 │&nbsp;&nbsp;&nbsp;└── <span class="key">trazabilidad_reclamos.xlsx</span><br>
 ├── <span class="dir">backup/</span><br>
@@ -113,11 +120,11 @@
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── arquitectura_4b_reclamos.html<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── formato_reclamos.html<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── formato_resolucion_reclamos.html<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── formato_trazabilidad_reclamos.html
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── formato_trazabilidad_reclamos.html<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── formato_validacion_correcciones.html
     </div>
   </div>
 
-  <!-- Scripts -->
   <div class="scripts-box">
 
     <div class="script-card main">
@@ -159,7 +166,7 @@
           <div class="io-label">Lee</div>
           <div class="io-val">
             <code>outputs/reclamos_YYYY-MM.xlsx</code> (con TIPO_RECLAMO ya clasificado)<br>
-            <code>3_boletas/inputs/DATA_boletas.xlsx</code> (valor vigente — sin snapshot)
+            <code>shared/data_boletas_repo.get_predio(mz, lt)</code> — valor vigente vía repo
           </div>
         </div>
         <div class="io-row" style="margin-top:6px;">
@@ -172,7 +179,7 @@
           <div class="io-label">Hace</div>
           <div class="io-val">
             <ul class="rule-list">
-              <li>Cruza (MZ, LT) de reclamos contra DATA_boletas</li>
+              <li>Cruza (MZ, LT) de reclamos contra DATA_boletas vía repo</li>
               <li>Mapea TIPO_RECLAMO → columna en DATA_boletas → CAMPO</li>
               <li>Auto-popula CAMPO y VALOR_ACTUAL para el supervisor</li>
               <li>El supervisor llena VALOR_A_CORREGIR, RESOLUCION, ESTADO</li>
@@ -182,33 +189,101 @@
       </div>
     </div>
 
+    <div class="script-card apl">
+      <div class="script-header">aplicar_correcciones.py ★</div>
+      <div class="script-body">
+        <div class="io-row">
+          <div class="io-label">Lee</div>
+          <div class="io-val">
+            <code>outputs/resolucion_reclamos_YYYY-MM.xlsx</code><br>
+            <span style="opacity:.7;">filtro: ESTADO=RESUELTO + CAMPO + VALOR_A_CORREGIR no vacíos</span>
+          </div>
+        </div>
+        <div class="io-row" style="margin-top:6px;">
+          <div class="io-label">Escribe</div>
+          <div class="io-val">
+            <b>Nada directamente.</b> Toda la persistencia es vía <code>shared/data_boletas_repo.apply_correction(...)</code>:<br>
+            &nbsp;→ update <code>DATA_boletas.xlsx</code><br>
+            &nbsp;→ append a <code>shared/data_boletas_audit.xlsx</code><br>
+            &nbsp;→ backup en <code>3_boletas/backup/DATA_boletas/</code>
+          </div>
+        </div>
+        <div class="io-row" style="margin-top:6px;">
+          <div class="io-label">Hace</div>
+          <div class="io-val">
+            <ul class="rule-list">
+              <li>Filtra resolucion: RESUELTO + CAMPO + VALOR_A_CORREGIR</li>
+              <li>Por cada fila → <code>repo.apply_correction(mz, lt, campo, valor, source="4b_reclamos", audit_ref=(MESA, FECHA_COBRO), motivo=RESOLUCION)</code></li>
+              <li>El repo encapsula backup + write + audit (este script no sabe los detalles)</li>
+              <li>Resumen en consola: aplicados / skipped / errores</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="script-card val">
+      <div class="script-header">validacion_resolucion_correcciones.py</div>
+      <div class="script-body">
+        <div class="io-row">
+          <div class="io-label">Lee</div>
+          <div class="io-val">
+            <code>trazabilidad/trazabilidad_reclamos.xlsx</code> (filas RESUELTO del mes)<br>
+            <code>shared/data_boletas_repo.read_padron()</code> — valor vigente vía repo
+          </div>
+        </div>
+        <div class="io-row" style="margin-top:6px;">
+          <div class="io-label">Escribe</div>
+          <div class="io-val">
+            <code>outputs/validacion_correcciones_YYYY-MM.xlsx</code> — Resumen + Detalle
+          </div>
+        </div>
+        <div class="io-row" style="margin-top:6px;">
+          <div class="io-label">Hace</div>
+          <div class="io-val">
+            <ul class="rule-list">
+              <li>Filtra trazabilidad: ESTADO_FINAL=RESUELTO Y MES_CIERRE=mes</li>
+              <li>Cruza (MZ, LT) + CAMPO vía repo → VALOR_EN_BOLETAS</li>
+              <li>Compara VALOR_APLICADO vs VALOR_EN_BOLETAS (±0.01)</li>
+              <li>Clasifica: OK / ERR / AUSENTE / SIN_MAP</li>
+              <li>Después de aplicar_correcciones, esperado: 100% OK</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </div>
 
-<!-- ── External dependencies ── -->
-<h2>Dependencias externas (solo lectura)</h2>
+<h2>Dependencias externas</h2>
 <table class="dep-table">
   <tr>
-    <th>Archivo</th>
-    <th>Ruta</th>
+    <th>Recurso</th>
+    <th>Tipo</th>
     <th>Usado por</th>
-    <th>Por qué no se copia a inputs/</th>
+    <th>Por qué</th>
   </tr>
   <tr>
     <td><code>pagos_efectivo.xlsx</code></td>
-    <td><code>4_pagos/efectivo/outputs/</code></td>
+    <td>archivo (lectura directa)</td>
     <td>main.py</td>
-    <td>Output estable del ciclo previo; no cambia mid-mes</td>
+    <td>Output estable del ciclo previo de 4_pagos; no cambia mid-mes</td>
   </tr>
   <tr>
-    <td><code>DATA_boletas.xlsx</code></td>
-    <td><code>3_boletas/inputs/</code></td>
-    <td>resolucion.py</td>
-    <td>Necesitamos el VALOR_ACTUAL vigente al momento del cruce; snapshot puede quedar desactualizado si 3_boletas regenera mid-mes</td>
+    <td><code>shared/data_boletas_repo</code></td>
+    <td>módulo (API)</td>
+    <td>resolucion.py (read) · aplicar_correcciones.py (write) · validacion_*.py (read)</td>
+    <td>Única puerta a DATA_boletas — encapsula backup + audit + escritura</td>
+  </tr>
+  <tr>
+    <td><code>shared/utils_lote</code></td>
+    <td>módulo (utilidad pura)</td>
+    <td>main.py · resolucion.py</td>
+    <td>Lee correcciones_lote.xlsx para remapear MZ/LT antes de cruzar con DATA_boletas</td>
   </tr>
 </table>
 
-<!-- ── Invariants ── -->
 <h2>Invariantes del módulo</h2>
 <div class="inv-grid">
   <div class="inv-card pres">
@@ -217,7 +292,7 @@
   </div>
   <div class="inv-card idem">
     <span class="inv-title">Idempotencia</span>
-    Re-correr sin cambios en inputs no modifica ningún output. Seguro de ejecutar en cualquier momento del mes.
+    Re-correr sin cambios en inputs no modifica ningún output. El repo además garantiza idempotencia de aplicación: aplicar el mismo audit_ref dos veces produce un solo write efectivo.
   </div>
   <div class="inv-card una">
     <span class="inv-title">Una historia por reclamo</span>
@@ -225,21 +300,25 @@
   </div>
   <div class="inv-card null">
     <span class="inv-title">Corrección null para RECHAZADO</span>
-    CAMPO / VALOR_ANTERIOR / VALOR_APLICADO quedan vacíos si ESTADO_FINAL = RECHAZADO.
+    CAMPO / VALOR_ANTERIOR / VALOR_APLICADO quedan vacíos si ESTADO_FINAL = RECHAZADO. No se llama al repo en estos casos.
   </div>
-  <div class="inv-card dir">
-    <span class="inv-title">Lectura directa de DATA_boletas</span>
-    Siempre el dato vigente. Nunca snapshot. El supervisor ve el valor real al momento de corregir.
+  <div class="inv-card repo">
+    <span class="inv-title">DATA_boletas solo vía repo</span>
+    Ningún script de este módulo abre <code>DATA_boletas.xlsx</code> directamente — ni para leer ni para escribir. Todo pasa por <code>shared/data_boletas_repo</code>. Sustituye la antigua invariante "no modifica orígenes".
   </div>
-  <div class="inv-card nomod">
-    <span class="inv-title">No modifica orígenes</span>
-    <code>DATA_boletas.xlsx</code> y <code>pagos_efectivo.xlsx</code> son solo lectura para este módulo.
+  <div class="inv-card audit">
+    <span class="inv-title">Audit obligatorio en cada write</span>
+    Cuando <code>aplicar_correcciones.py</code> llama al repo, este registra source=4b_reclamos, audit_ref=(MESA|FECHA_COBRO), motivo=RESOLUCION en <code>shared/data_boletas_audit.xlsx</code>.
+  </div>
+  <div class="inv-card verif">
+    <span class="inv-title">Verificación no bloquea</span>
+    <code>validacion_resolucion_correcciones.py</code> reporta discrepancias pero nunca modifica nada. Es auditoría, no control de flujo.
   </div>
 </div>
 
 <hr style="margin-top:24px; border-color:#e5e7eb;">
 <p style="font-size:11px; color:#9ca3af; margin-top:8px;">
-  Módulo: 4b_reclamos &nbsp;|&nbsp; Versión: 1.0 &nbsp;|&nbsp; Fecha: 14/06/2026
+  Módulo: 4b_reclamos &nbsp;|&nbsp; Versión: 1.2 &nbsp;|&nbsp; Fecha: 15/06/2026
 </p>
 
 </body>

@@ -32,6 +32,10 @@ import sys
 from datetime import date, datetime
 from pathlib import Path
 
+import sys
+sys.path.insert(0, str(Path(__file__).parent.parent / "shared"))
+from utils_lote import leer_correcciones_lote
+
 import pandas as pd
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Alignment, Font, PatternFill
@@ -58,9 +62,13 @@ SEC_MANUAL = ("F3E8FF", "5B21B6", "FAF5FF", "5B21B6")
 SEC_CORR   = ("FEF0E0", "7C2D12", "FFFAF5", "7C2D12")  # Corrección aplicada (naranja)
 SEC_CIERRE = ("D6EAF8", "1A5276", "EBF5FB", "1A5276")
 
-ESTADOS_VALIDOS = ["PENDIENTE", "EN_REVISION", "RESUELTO", "RECHAZADO"]
+ESTADOS_VALIDOS = ["PENDIENTE", "EN_REVISION", "RESUELTO", "RECHAZADO", "INFORMADO"]
 ESTADOS_ACTIVOS = {"PENDIENTE", "EN_REVISION"}
-ESTADOS_CERRADOS = {"RESUELTO", "RECHAZADO"}
+ESTADOS_CERRADOS = {"RESUELTO", "RECHAZADO", "INFORMADO"}
+
+# Estados cuya corrección persiste en trazabilidad con CAMPO + VALOR_ANTERIOR.
+# RESUELTO también lleva VALOR_APLICADO; INFORMADO no (no hubo corrección al repo).
+ESTADOS_CON_CAMPO = {"RESUELTO", "INFORMADO"}
 
 # Clasificación del supervisor — qué componente de DATA_boletas está disputado
 TIPOS_RECLAMO_VALIDOS = [
@@ -118,7 +126,14 @@ def _norm_fecha(v) -> str:
         return s
 
 def _pres_key(mesa, mz, lt, fecha) -> tuple:
+    """Clave 'evento reclamo': identifica un cobro único (mesa+predio+fecha).
+    Un evento puede tener N correcciones (N TIPO_RECLAMO distintos)."""
     return (_norm(mesa), _norm(mz), _norm(lt), _norm_fecha(fecha))
+
+def _full_key(mesa, mz, lt, fecha, tipo_reclamo) -> tuple:
+    """Clave 'corrección única': evento + TIPO_RECLAMO.
+    Permite que X-10/mesa_3 tenga multa + mes_actual como dos correcciones separadas."""
+    return (_norm(mesa), _norm(mz), _norm(lt), _norm_fecha(fecha), _norm(tipo_reclamo))
 
 def _to_datetime(v):
     if v is None:
@@ -192,6 +207,15 @@ def _cargar_detectados(mes: str) -> pd.DataFrame:
         if c not in det.columns:
             det[c] = ""
 
+    # Aplicar remapeos de correcciones_lote.xlsx (ej. B-21 → B-14)
+    correcciones = leer_correcciones_lote()
+    if correcciones:
+        for i, row in det.iterrows():
+            key = (_norm(str(row.get("MZ", ""))), _norm(str(row.get("LT", ""))))
+            if key in correcciones:
+                det.at[i, "MZ"] = correcciones[key][0]
+                det.at[i, "LT"] = correcciones[key][1]
+
     return det[["MZ", "LT", "MESA", "COBRADOR", "FECHA_COBRO", "MONTO",
                 "MES_ANO_DETECTADO", "MES_ANO_ORIGEN",
                 "TIPO_RECLAMO", "RECLAMO", "RESOLUCION", "ESTADO", "FECHA_RESOLUCION"]].reset_index(drop=True)
@@ -241,45 +265,62 @@ def _cargar_existente(mes: str) -> pd.DataFrame:
 # ── Merge: aplicar columnas manuales del supervisor ──────────────────────────
 
 def _aplicar_manual(detectados: pd.DataFrame, existente: pd.DataFrame) -> pd.DataFrame:
+    """
+    Merge trabajo manual del supervisor desde existente hacia detectados.
+
+    Si existente tiene N filas con misma clave_base pero distinto TIPO_RECLAMO
+    (caso: supervisor copió la fila para registrar 2 correcciones en un solo predio),
+    expande detectados emitiendo N filas, una por cada TIPO_RECLAMO existente.
+    """
     if existente.empty:
         return detectados
 
-    lookup = {}
+    # Indexa existente por clave_base — colecta TODAS las filas por evento
+    by_base = {}
     for _, row in existente.iterrows():
-        k = _pres_key(row.get("MESA", ""), row.get("MZ", ""),
-                      row.get("LT", ""), row.get("FECHA_COBRO", ""))
+        bk = _pres_key(row.get("MESA", ""), row.get("MZ", ""),
+                       row.get("LT", ""), row.get("FECHA_COBRO", ""))
         estado = _clean(row.get("ESTADO", "PENDIENTE"))
         if estado not in ESTADOS_VALIDOS:
             estado = "PENDIENTE"
-        lookup[k] = {
+        by_base.setdefault(bk, []).append({
             "TIPO_RECLAMO":     _clean(row.get("TIPO_RECLAMO", "")),
             "RECLAMO":          _clean(row.get("RECLAMO", "")),
             "RESOLUCION":       _clean(row.get("RESOLUCION", "")),
             "ESTADO":           estado,
             "FECHA_RESOLUCION": _clean(row.get("FECHA_RESOLUCION", "")),
             "MES_ANO_ORIGEN":   _clean(row.get("MES_ANO_ORIGEN", "")),
-        }
+        })
 
-    def _merge_row(row):
-        k = _pres_key(row["MESA"], row["MZ"], row["LT"], row["FECHA_COBRO"])
-        if k in lookup:
-            m = lookup[k]
-            row = row.copy()
-            # TIPO_RECLAMO: solo sobreescribir si el supervisor ya clasificó (no vacío)
+    cols = list(detectados.columns)
+    salida = []
+    for _, det in detectados.iterrows():
+        bk = _pres_key(det.get("MESA", ""), det.get("MZ", ""),
+                       det.get("LT", ""), det.get("FECHA_COBRO", ""))
+        manuales = by_base.get(bk, [])
+        if not manuales:
+            salida.append(det.to_dict())
+            continue
+        # Expande: una fila por cada (TIPO_RECLAMO) en existente
+        for m in manuales:
+            fila = det.to_dict()
             if m["TIPO_RECLAMO"]:
-                row["TIPO_RECLAMO"] = m["TIPO_RECLAMO"]
-            # RECLAMO: solo sobreescribir si el supervisor editó (no vacío) —
-            # si está vacío, conservamos la auto-población desde COMENTARIO
+                fila["TIPO_RECLAMO"] = m["TIPO_RECLAMO"]
             if m["RECLAMO"]:
-                row["RECLAMO"] = m["RECLAMO"]
-            row["RESOLUCION"]       = m["RESOLUCION"]
-            row["ESTADO"]           = m["ESTADO"]
-            row["FECHA_RESOLUCION"] = m["FECHA_RESOLUCION"]
+                fila["RECLAMO"] = m["RECLAMO"]
+            fila["RESOLUCION"]       = m["RESOLUCION"]
+            fila["ESTADO"]           = m["ESTADO"]
+            fila["FECHA_RESOLUCION"] = m["FECHA_RESOLUCION"]
             if m["MES_ANO_ORIGEN"]:
-                row["MES_ANO_ORIGEN"] = m["MES_ANO_ORIGEN"]
-        return row
+                fila["MES_ANO_ORIGEN"] = m["MES_ANO_ORIGEN"]
+            salida.append(fila)
 
-    return detectados.apply(_merge_row, axis=1)
+    df = pd.DataFrame(salida)
+    # Preserva orden de columnas original
+    for c in cols:
+        if c not in df.columns:
+            df[c] = ""
+    return df[cols].reset_index(drop=True)
 
 
 def _cargar_arrastres(existente: pd.DataFrame, detectados: pd.DataFrame, mes: str) -> pd.DataFrame:
@@ -447,13 +488,14 @@ def _write_vista(df: pd.DataFrame, mes: str) -> None:
         col_idx = {c[0]: i + 1 for i, c in enumerate(_COLS_VISTA)}
 
         est_col = get_column_letter(col_idx["ESTADO"])
+        estados_csv = ",".join(ESTADOS_VALIDOS)
         dv_estado = DataValidation(
             type="list",
-            formula1='"PENDIENTE,EN_REVISION,RESUELTO,RECHAZADO"',
+            formula1=f'"{estados_csv}"',
             allow_blank=False,
             showErrorMessage=True,
             errorTitle="Estado inválido",
-            error="Use: PENDIENTE, EN_REVISION, RESUELTO o RECHAZADO",
+            error=f"Use uno de: {', '.join(ESTADOS_VALIDOS)}",
         )
         ws.add_data_validation(dv_estado)
         dv_estado.sqref = f"{est_col}3:{est_col}{len(df) + 2}"
@@ -504,8 +546,9 @@ def _build_resolucion_lookup(mes: str) -> dict:
 
     lookup = {}
     for _, row in df.iterrows():
-        k = _pres_key(row.get("MESA", ""), row.get("MZ", ""),
-                      row.get("LT", ""), row.get("FECHA_COBRO", ""))
+        k = _full_key(row.get("MESA", ""), row.get("MZ", ""),
+                      row.get("LT", ""), row.get("FECHA_COBRO", ""),
+                      row.get("TIPO_RECLAMO", ""))
         lookup[k] = {
             "CAMPO":            _clean(row.get("CAMPO", "")),
             "VALOR_ANTERIOR":   _clean(row.get("VALOR_ACTUAL", "")),
@@ -531,13 +574,17 @@ def _aplicar_resolucion(df: pd.DataFrame, resolucion_lookup: dict) -> pd.DataFra
         return df
 
     def _override(row):
-        k = _pres_key(row.get("MESA", ""), row.get("MZ", ""),
-                      row.get("LT", ""), row.get("FECHA_COBRO", ""))
+        k = _full_key(row.get("MESA", ""), row.get("MZ", ""),
+                      row.get("LT", ""), row.get("FECHA_COBRO", ""),
+                      row.get("TIPO_RECLAMO", ""))
         r = resolucion_lookup.get(k)
         if r is None:
             return row
         row = row.copy()
-        if r["ESTADO"]:
+        # ESTADO: si reclamos.xlsx ya tiene un estado CERRADO, gana
+        # (el supervisor lo decidió explícitamente ahí; no debe revertirse desde resolucion stale).
+        estado_reclamos = str(row.get("ESTADO", "")).strip().upper()
+        if estado_reclamos not in ESTADOS_CERRADOS and r["ESTADO"]:
             row["ESTADO"] = r["ESTADO"]
         if r["FECHA_RESOLUCION"]:
             row["FECHA_RESOLUCION"] = r["FECHA_RESOLUCION"]
@@ -548,9 +595,74 @@ def _aplicar_resolucion(df: pd.DataFrame, resolucion_lookup: dict) -> pd.DataFra
     return df.apply(_override, axis=1)
 
 
+def _trazabilidad_keys_existentes() -> set:
+    """
+    Retorna set de (MESA, MZ, LT, FECHA_COBRO, TIPO_RECLAMO) ya presentes en trazabilidad.
+    Usa clave_completa para que X-10 con multa + mes_actual se traten como dos
+    correcciones distintas (ambas se cierran, ninguna se duplica).
+    """
+    p = _ruta_trazab()
+    if not p.exists():
+        return set()
+    try:
+        df = pd.read_excel(p, sheet_name="Trazabilidad", header=1, dtype=str).fillna("")
+    except Exception as e:
+        log.warning(f"No se pudo leer trazabilidad para chequear duplicados: {e}")
+        return set()
+    return {
+        _full_key(r.get("MESA", ""), r.get("MZ", ""),
+                  r.get("LT", ""), r.get("FECHA_COBRO", ""),
+                  r.get("TIPO_RECLAMO", ""))
+        for _, r in df.iterrows()
+    }
+
+
+def _trazabilidad_base_keys() -> set:
+    """
+    Retorna set de (MESA, MZ, LT, FECHA_COBRO) ya presentes en trazabilidad.
+
+    Sirve para filtrar detecciones de pagos_efectivo cuyo evento de cobro ya fue
+    procesado en ciclos anteriores. Si una sub-corrección sigue pendiente, vendrá
+    por _cargar_arrastres desde reclamos.xlsx existente, no por re-detección.
+    """
+    p = _ruta_trazab()
+    if not p.exists():
+        return set()
+    try:
+        df = pd.read_excel(p, sheet_name="Trazabilidad", header=1, dtype=str).fillna("")
+    except Exception as e:
+        log.warning(f"No se pudo leer trazabilidad para chequear base_keys: {e}")
+        return set()
+    return {
+        _pres_key(r.get("MESA", ""), r.get("MZ", ""),
+                  r.get("LT", ""), r.get("FECHA_COBRO", ""))
+        for _, r in df.iterrows()
+    }
+
+
 def _append_trazabilidad(df_cerrados: pd.DataFrame, mes: str, resolucion_lookup: dict) -> None:
     if df_cerrados.empty:
         return
+
+    # Idempotencia por clave_completa: re-correr main.py no añade duplicados
+    # de RESUELTO/RECHAZADO/INFORMADO ya cerrados. Misma clave_base con distinto
+    # TIPO_RECLAMO = correcciones distintas = entradas distintas.
+    existentes = _trazabilidad_keys_existentes()
+    if existentes:
+        antes = len(df_cerrados)
+        mask = df_cerrados.apply(
+            lambda r: _full_key(r.get("MESA", ""), r.get("MZ", ""),
+                                r.get("LT", ""), r.get("FECHA_COBRO", ""),
+                                r.get("TIPO_RECLAMO", "")) not in existentes,
+            axis=1,
+        )
+        df_cerrados = df_cerrados[mask]
+        saltadas = antes - len(df_cerrados)
+        if saltadas:
+            log.info(f"Saltadas {saltadas} filas ya en trazabilidad (idempotencia)")
+        if df_cerrados.empty:
+            log.info("Todas las cerradas ya estaban en trazabilidad — nada que hacer")
+            return
 
     hoy = date.today()
     p = _ruta_trazab()
@@ -576,10 +688,13 @@ def _append_trazabilidad(df_cerrados: pd.DataFrame, mes: str, resolucion_lookup:
     for ri, (_, row) in enumerate(df_cerrados.iterrows(), start=next_row):
         estado_final = _clean(row.get("ESTADO", ""))
 
-        # Corrección: solo para RESUELTO; RECHAZADO deja las 3 columnas vacías
-        if estado_final == "RESUELTO":
-            k = _pres_key(row.get("MESA", ""), row.get("MZ", ""),
-                          row.get("LT", ""), row.get("FECHA_COBRO", ""))
+        # CAMPO + VALOR_ANTERIOR: para RESUELTO e INFORMADO (informe operario los necesita).
+        # VALOR_APLICADO: solo RESUELTO (INFORMADO no muta DATA_boletas).
+        # RECHAZADO: las 3 columnas quedan vacías.
+        if estado_final in ESTADOS_CON_CAMPO:
+            k = _full_key(row.get("MESA", ""), row.get("MZ", ""),
+                          row.get("LT", ""), row.get("FECHA_COBRO", ""),
+                          row.get("TIPO_RECLAMO", ""))
             corr = resolucion_lookup.get(k)
             if corr is None:
                 missing_corr += 1
@@ -587,7 +702,7 @@ def _append_trazabilidad(df_cerrados: pd.DataFrame, mes: str, resolucion_lookup:
             else:
                 campo          = corr["CAMPO"]
                 valor_anterior = corr["VALOR_ANTERIOR"]
-                valor_aplicado = corr["VALOR_APLICADO"]
+                valor_aplicado = corr["VALOR_APLICADO"] if estado_final == "RESUELTO" else ""
         else:
             campo = valor_anterior = valor_aplicado = ""
 
@@ -637,8 +752,47 @@ def main(mes: str) -> None:
     detectados = _cargar_detectados(mes)
     log.info(f"Detectados en pagos_efectivo: {len(detectados)}")
 
+    # Eventos ya procesados en ciclos anteriores: skip re-detección.
+    # Si alguna sub-corrección sigue activa, vendrá por _cargar_arrastres desde
+    # reclamos.xlsx existente (no por pagos_efectivo).
+    trazab_base = _trazabilidad_base_keys()
+    if trazab_base and not detectados.empty:
+        antes = len(detectados)
+        mask = detectados.apply(
+            lambda r: _pres_key(r.get("MESA", ""), r.get("MZ", ""),
+                                r.get("LT", ""), r.get("FECHA_COBRO", "")) not in trazab_base,
+            axis=1,
+        )
+        detectados = detectados[mask].reset_index(drop=True)
+        saltados = antes - len(detectados)
+        if saltados:
+            log.info(f"Saltados {saltados} eventos ya procesados en trazabilidad")
+
     # Fase 2: leer trabajo manual existente (RECLAMO, RESOLUCION, ESTADO, FECHA_RESOLUCION)
     existente = _cargar_existente(mes)
+
+    # Limpiar existente: filas ya procesadas en trazabilidad o stale
+    # (caso típico: reclamos.xlsx quedó con filas de detección pre-filtro).
+    # Regla: SKIP si (full_key en trazab) O (TIPO_RECLAMO vacío Y base_key en trazab).
+    # KEEP si TIPO_RECLAMO clasificado y full_key NO en trazab → sub-corrección pendiente legítima.
+    if trazab_base and not existente.empty:
+        trazab_full = _trazabilidad_keys_existentes()
+        antes = len(existente)
+        def _conservar(r):
+            tipo = _clean(r.get("TIPO_RECLAMO", ""))
+            bk = _pres_key(r.get("MESA", ""), r.get("MZ", ""),
+                           r.get("LT", ""), r.get("FECHA_COBRO", ""))
+            fk = _full_key(r.get("MESA", ""), r.get("MZ", ""),
+                           r.get("LT", ""), r.get("FECHA_COBRO", ""), tipo)
+            if fk in trazab_full:
+                return False  # esta corrección ya está cerrada en trazab
+            if not tipo and bk in trazab_base:
+                return False  # detección stale pre-filtro de un evento ya procesado
+            return True
+        existente = existente[existente.apply(_conservar, axis=1)].reset_index(drop=True)
+        depurados = antes - len(existente)
+        if depurados:
+            log.info(f"Limpiadas {depurados} filas stale del estado del mes (ya en trazabilidad)")
 
     # Fase 1: backup antes de sobreescribir (el archivo ya fue leído en Fase 2)
     backup = _backup_con_timestamp(mes)
@@ -660,6 +814,15 @@ def main(mes: str) -> None:
         return
 
     todas = pd.concat(fuentes, ignore_index=True)
+
+    # Aplicar correcciones de lote también a arrastres heredados de ciclos anteriores
+    correcciones = leer_correcciones_lote()
+    if correcciones:
+        for i, row in todas.iterrows():
+            key = (_norm(str(row.get("MZ", ""))), _norm(str(row.get("LT", ""))))
+            if key in correcciones:
+                todas.at[i, "MZ"] = correcciones[key][0]
+                todas.at[i, "LT"] = correcciones[key][1]
     if "RESOLUCION" not in todas.columns:
         todas["RESOLUCION"] = ""
 
@@ -674,13 +837,13 @@ def main(mes: str) -> None:
     df_activos   = todas[mask_activos].copy().reset_index(drop=True)
     df_cerrados  = todas[~mask_activos].copy().reset_index(drop=True)
 
-    log.info(f"Activos  (PENDIENTE/EN_REVISION): {len(df_activos)}")
-    log.info(f"Cerrados (RESUELTO/RECHAZADO):    {len(df_cerrados)}")
+    log.info(f"Activos  (PENDIENTE/EN_REVISION):           {len(df_activos)}")
+    log.info(f"Cerrados (RESUELTO/RECHAZADO/INFORMADO):    {len(df_cerrados)}")
 
-    if not resolucion_lookup and (df_cerrados["ESTADO"] == "RESUELTO").any():
+    if not resolucion_lookup and df_cerrados["ESTADO"].isin(ESTADOS_CON_CAMPO).any():
         log.warning(
-            f"Hay reclamos RESUELTO pero resolucion_reclamos_{mes}.xlsx no existe — "
-            "corré resolucion.py antes para registrar las correcciones."
+            f"Hay reclamos RESUELTO/INFORMADO pero resolucion_reclamos_{mes}.xlsx no existe — "
+            "corré resolucion.py antes para registrar CAMPO/VALOR_ACTUAL."
         )
 
     _append_trazabilidad(df_cerrados, mes, resolucion_lookup)

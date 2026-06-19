@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>6_corte — diagrama del módulo</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'IBM Plex Sans', sans-serif; background: #fff; color: #111; padding: 24px 14px 48px; }
+
+  .wrap { max-width: 760px; margin: 0 auto; }
+
+  h1 { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+  .sub { font-size: 12px; color: #666; margin-bottom: 18px; }
+  .ctx { font-size: 11px; color: #6E4C00; background: #FEF9E7; border-left: 3px solid #B7950B; padding: 8px 12px; border-radius: 0 6px 6px 0; margin-bottom: 22px; }
+  .ctx strong { color: #4D3500; }
+
+  /* SECCIONES VERTICALES */
+  .step { border-radius: 10px; border: 0.5px solid; margin-bottom: 6px; overflow: hidden; }
+  .step-head { display: flex; align-items: center; gap: 10px; padding: 10px 14px; }
+  .step-num  { font-size: 11px; font-weight: 700; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .step-name { font-size: 13px; font-weight: 600; flex: 1; }
+  .step-tag  { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px; }
+  .step-body { padding: 0 14px 12px; }
+
+  /* COLORES POR TIPO DE PASO */
+  .auto   { background: #EBF5FB; border-color: #AED6F1; }
+  .auto   .step-num { background: #2E86C1; color: #fff; }
+  .auto   .step-tag { background: #D6EAF8; color: #1A5276; }
+
+  .manual { background: #FEF9E7; border-color: #F9E79F; }
+  .manual .step-num { background: #B7950B; color: #fff; }
+  .manual .step-tag { background: #FCF3CF; color: #7D6608; }
+
+  .wait   { background: #F4ECF7; border-color: #D7BDE2; }
+  .wait   .step-num { background: #6C3483; color: #fff; }
+  .wait   .step-tag { background: #E8DAEF; color: #512E5F; }
+
+  /* IO */
+  .io-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 6px; }
+  .io-box { background: rgba(255,255,255,0.7); border-radius: 8px; padding: 8px 10px; }
+  .io-label { font-size: 10px; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px; }
+  .io-item  { font-size: 11px; color: #111; line-height: 1.75; font-family: 'IBM Plex Mono', monospace; }
+  .io-item::before { content: '→ '; color: #aaa; }
+
+  /* REGLAS */
+  .rules { background: rgba(255,255,255,0.7); border-radius: 8px; padding: 8px 12px; margin-top: 6px; font-size: 11px; line-height: 1.7; color: #333; }
+  .rules strong { color: #111; }
+  .rules ul { padding-left: 18px; margin: 4px 0; }
+  .rules li { margin-bottom: 2px; }
+  .rules code { font-family: 'IBM Plex Mono', monospace; background: #F3F4F6; padding: 1px 5px; border-radius: 3px; font-size: 10px; }
+
+  /* ARROW */
+  .arrow { text-align: center; font-size: 18px; color: #aaa; margin: 2px 0; line-height: 1; }
+
+  /* LEYENDA */
+  .legend { display: flex; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+  .leg { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #666; }
+  .ldot { width: 10px; height: 10px; border-radius: 50%; }
+
+  /* FOOTER */
+  .footer { margin-top: 22px; padding: 12px 14px; border: 1px dashed #BA7517; border-radius: 8px; font-size: 11px; color: #784212; }
+  .footer strong { color: #4E2A0E; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>6_corte</h1>
+  <p class="sub">Lista de corte · ventana de gracia · corte físico · arrastre al próximo mes</p>
+
+  <div class="ctx">
+    <strong>Cuándo se corre.</strong>
+    Inmediatamente después de que cierra el ciclo 1 de 5_cobranza. La ventana de gracia es de 2 días — durante ese tiempo el usuario puede pagar la penalidad de S/20 y salvarse del corte físico. Pasados los 2 días, los que no pagaron son cortados y la penalidad escala a S/40 (S/20 penalidad + S/20 reconexión).
+  </div>
+
+  <div class="legend">
+    <div class="leg"><div class="ldot" style="background:#2E86C1"></div>Script automático</div>
+    <div class="leg"><div class="ldot" style="background:#B7950B"></div>Acción manual / pipeline externo</div>
+    <div class="leg"><div class="ldot" style="background:#6C3483"></div>Espera (tiempo de negocio)</div>
+  </div>
+
+  <!-- PASO 1 -->
+  <div class="step auto">
+    <div class="step-head">
+      <div class="step-num">1</div>
+      <div class="step-name">generar_lista.py</div>
+      <div class="step-tag">DÍA 0 · auto</div>
+    </div>
+    <div class="step-body">
+      <div class="io-row">
+        <div class="io-box">
+          <div class="io-label">Input</div>
+          <div class="io-item">5_cobranza/outputs/planilla_cobrado.xlsx <em>(ciclo 1)</em></div>
+        </div>
+        <div class="io-box">
+          <div class="io-label">Output</div>
+          <div class="io-item">6_corte/outputs/lista_corte.xlsx</div>
+        </div>
+      </div>
+      <div class="rules">
+        <strong>Reglas.</strong>
+        <ul>
+          <li>Filtro: <code>SALDO &gt; 0</code> AND <code>MES_ANTERIOR ≥ 8</code></li>
+          <li><code>PENALIDAD = S/20</code> · <code>TOTAL_A_PAGAR = SALDO + 20</code></li>
+          <li>Idempotente — re-correr el mismo día reescribe el archivo con los mismos datos.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow">↓</div>
+
+  <!-- PASO 2 -->
+  <div class="step auto">
+    <div class="step-head">
+      <div class="step-num">2</div>
+      <div class="step-name">aplicar_penalidad.py</div>
+      <div class="step-tag">DÍA 0 · auto</div>
+    </div>
+    <div class="step-body">
+      <div class="io-row">
+        <div class="io-box">
+          <div class="io-label">Input</div>
+          <div class="io-item">6_corte/outputs/lista_corte.xlsx</div>
+          <div class="io-item">shared/planilla_mes/planilla_2026-06.xlsx</div>
+        </div>
+        <div class="io-box">
+          <div class="io-label">Output</div>
+          <div class="io-item">planilla actualizada <em>(+S/20 en CORTE_RECONEXION)</em></div>
+          <div class="io-item">6_corte/outputs/audit_penalidad.xlsx</div>
+        </div>
+      </div>
+      <div class="rules">
+        <strong>Reglas.</strong>
+        <ul>
+          <li>Para cada <code>(MZ, LT)</code> de lista_corte → suma <code>+20</code> a <code>CORTE_RECONEXION</code> en la planilla.</li>
+          <li>Idempotente — si la penalidad ya se aplicó (chequeo por audit log) → skip, no duplica.</li>
+          <li>Backup automático de la planilla antes de tocar nada.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow">↓</div>
+
+  <!-- ESPERA -->
+  <div class="step wait">
+    <div class="step-head">
+      <div class="step-num">⏱</div>
+      <div class="step-name">Ventana de gracia — 2 días</div>
+      <div class="step-tag">tiempo</div>
+    </div>
+    <div class="step-body">
+      <div class="rules">
+        El usuario tiene 48 horas desde la generación de lista_corte para pagar la penalidad de S/20 por Yape o efectivo. Para salvarse basta con pagar S/20 — si queda saldo mayor, sigue debiendo pero no se corta.
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow">↓</div>
+
+  <!-- MANUAL: PIPELINE -->
+  <div class="step manual">
+    <div class="step-head">
+      <div class="step-num">3</div>
+      <div class="step-name">Re-correr 4_pagos + 5_cobranza con pagos actualizados</div>
+      <div class="step-tag">DÍA 2 · manual</div>
+    </div>
+    <div class="step-body">
+      <div class="rules">
+        <strong>Pasos manuales (fuera de 6_corte).</strong>
+        <ul>
+          <li>Descargar reporte banco actualizado del día.</li>
+          <li>Correr <code>4_pagos</code> → <code>pagos_yape_tepago.xlsx</code> actualizado.</li>
+          <li>Correr <code>5_cobranza</code> → <code>planilla_cobrado.xlsx</code> ciclo 2 (ya incluye los S/20 cargados por aplicar_penalidad).</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow">↓</div>
+
+  <!-- PASO 4 -->
+  <div class="step auto">
+    <div class="step-head">
+      <div class="step-num">4</div>
+      <div class="step-name">seguimiento.py</div>
+      <div class="step-tag">DÍA 2 · auto</div>
+    </div>
+    <div class="step-body">
+      <div class="io-row">
+        <div class="io-box">
+          <div class="io-label">Input</div>
+          <div class="io-item">6_corte/outputs/lista_corte.xlsx</div>
+          <div class="io-item">5_cobranza/outputs/planilla_cobrado.xlsx <em>(ciclo 2)</em></div>
+        </div>
+        <div class="io-box">
+          <div class="io-label">Output</div>
+          <div class="io-item">pagaron_penalidad.xlsx</div>
+          <div class="io-item">corte_fisico.xlsx → operario</div>
+          <div class="io-item">arrastre_corte_2026-06.xlsx → 2_planilla próximo mes</div>
+        </div>
+      </div>
+      <div class="rules">
+        <strong>Reglas de clasificación.</strong> Por cada usuario en lista_corte, leer cuánto pagó a <code>CORTE_RECONEXION</code> en planilla_cobrado ciclo 2:
+        <ul>
+          <li><code>pagado ≥ 20</code> → <strong>SALVADO</strong> · va a <code>pagaron_penalidad.xlsx</code>.</li>
+          <li><code>pagado &lt; 20</code> → <strong>CORTADO</strong> · va a <code>corte_fisico.xlsx</code> (operario) + <code>arrastre_corte.xlsx</code>.</li>
+          <li>Para los cortados: penalidad escala a S/40 (S/20 penalidad + S/20 reconexión). <code>arrastre_corte = 40 − pagado</code>.</li>
+          <li>La deuda original sigue saliendo por <code>arrastre_deuda.xlsx</code> de 5_cobranza — no se duplica acá.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER: LO QUE NO HACE -->
+  <div class="footer">
+    <strong>Lo que NO hace 6_corte.</strong>
+    No calcula la deuda original — eso lo hace 5_cobranza. No modifica planilla_cobrado.xlsx — solo lee. La única escritura sobre archivos de otros módulos es aplicar_penalidad.py sumando <code>+20</code> a CORTE_RECONEXION en shared/planilla_mes, con backup y audit. No procesa pagos por sí mismo — depende de que 4_pagos + 5_cobranza hayan corrido entre el paso 2 y el paso 4.
+  </div>
+
+</div>
+</body>
+</html>

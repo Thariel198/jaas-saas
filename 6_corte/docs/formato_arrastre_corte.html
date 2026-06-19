@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Contrato de formato — arrastre_corte_YYYY-MM.xlsx</title>
+<style>
+  body { font-family: Arial, sans-serif; font-size: 13px; margin: 30px; color: #1f2937; }
+  h1   { font-size: 18px; color: #1e3a5f; border-bottom: 2px solid #1e3a5f; padding-bottom: 6px; }
+  h2   { font-size: 14px; color: #374151; margin-top: 28px; border-left: 4px solid #6b7280; padding-left: 8px; }
+  p    { margin: 6px 0; }
+  .meta { background:#f3f4f6; border:1px solid #d1d5db; border-radius:4px; padding:10px 14px; margin-bottom:18px; }
+  .meta span { font-weight:bold; }
+
+  .tabs { display:flex; gap:6px; margin:18px 0 0; }
+  .tab  { padding:5px 14px; border-radius:4px 4px 0 0; font-size:12px; font-weight:bold; cursor:default; border:1px solid #d1d5db; border-bottom:none; }
+  .tab.active { background:#5B21B6; color:#fff; }
+
+  table { border-collapse: collapse; margin: 0 0 20px; font-size: 11.5px; }
+  th, td { border: 1px solid #fff; padding: 3px 8px; white-space: nowrap; }
+  .sec { font-weight:bold; font-size:10px; text-align:center; }
+  .col { font-weight:bold; font-size:10px; text-align:center; }
+  .dat { font-size:10px; }
+
+  /* Identidad — azul */
+  .s-id { background:#EBF5FB; color:#1A5276; }
+  .d-id { background:#F4FAFF; color:#1A5276; }
+
+  /* Origen — gris */
+  .s-orig { background:#F3F4F6; color:#374151; }
+  .d-orig { background:#F9FAFB; color:#374151; }
+
+  /* Deuda de reconexión — morado (pendiente, otro módulo lo consume) */
+  .s-arr { background:#5B21B6; color:#fff; }
+  .d-arr { background:#EDE9FE; color:#5B21B6; font-weight:bold; }
+
+  .logica-box { background:#f0f4ff; border:1px solid #a5b4fc; border-radius:4px;
+                padding:10px 14px; margin:12px 0; font-size:12px; }
+  .logica-box b { color:#3730a3; }
+  .nota { background:#f5f3ff; border:1px solid #c4b5fd; border-radius:4px;
+          padding:8px 12px; margin:12px 0; font-size:12px; color:#5B21B6; }
+  ul { margin:4px 0 4px 18px; }
+  li { margin:3px 0; }
+  code { background:#f3f4f6; padding:1px 5px; border-radius:3px; font-size:11px; }
+</style>
+</head>
+<body>
+
+<h1>Contrato de formato — arrastre_corte_YYYY-MM.xlsx</h1>
+
+<div class="meta">
+  <span>Módulo:</span> 6_corte &nbsp;|&nbsp;
+  <span>Script:</span> seguimiento.py &nbsp;|&nbsp;
+  <span>Ruta:</span> 6_corte/outputs/arrastre_corte_YYYY-MM.xlsx &nbsp;|&nbsp;
+  <span>Destino:</span> 2_planilla del mes siguiente (agrega ARRASTRE_CORTE a la planilla nueva) &nbsp;|&nbsp;
+  <span>Hojas:</span> 1 (Arrastre)
+</div>
+
+<h2>Propósito</h2>
+
+<div class="logica-box">
+  <b>¿Qué cargo de corte arrastra al mes siguiente?</b><br>
+  Solo los usuarios cortados físicamente que aún deben parte del cargo de corte/reconexión (S/40 menos lo que pagaron).<br><br>
+  <ul>
+    <li>Este archivo solo contiene el componente de <b>corte y reconexión</b>.</li>
+    <li>La deuda de consumo (SALDO) la arrastra <code>arrastre_deuda.xlsx</code> de 5_cobranza — no se duplica aquí.</li>
+    <li><code>ARRASTRE_CORTE = max(0, 40 − PAGADO_CORTE_RECONEXION)</code>.</li>
+    <li><code>MES_ORIGEN</code> identifica en qué ciclo se generó el corte — útil si el usuario tarda varios meses en reconectarse.</li>
+    <li>2_planilla lo consume al construir la planilla del mes siguiente: carga ARRASTRE_CORTE en la columna CORTE_RECONEXION.</li>
+  </ul>
+</div>
+
+<h2>Hoja: Arrastre</h2>
+
+<div class="tabs">
+  <div class="tab active">Arrastre</div>
+</div>
+
+<table>
+  <tr>
+    <th class="sec s-id"   colspan="3">¿Quién es?</th>
+    <th class="sec s-orig" colspan="1">¿De qué mes?</th>
+    <th class="sec s-arr"  colspan="1">Deuda de reconexión</th>
+  </tr>
+  <tr>
+    <th class="col s-id">MZ</th>
+    <th class="col s-id">LT</th>
+    <th class="col s-id">NOMBRE</th>
+    <th class="col s-orig">MES_ORIGEN</th>
+    <th class="col s-arr">ARRASTRE_CORTE</th>
+  </tr>
+  <tr>
+    <td class="dat d-id">D</td>
+    <td class="dat d-id">11</td>
+    <td class="dat d-id">Juan Condori</td>
+    <td class="dat d-orig">2026-06</td>
+    <td class="dat d-arr">S/ 40.00</td>
+  </tr>
+  <tr>
+    <td class="dat d-id">F</td>
+    <td class="dat d-id">7</td>
+    <td class="dat d-id">Carlos Huanca</td>
+    <td class="dat d-orig">2026-06</td>
+    <td class="dat d-arr">S/ 30.00</td>
+  </tr>
+</table>
+
+<div class="nota">
+  <b>Separación de responsabilidades:</b><br>
+  Este archivo → solo ARRASTRE_CORTE (cargo de corte/reconexión pendiente).<br>
+  <code>5_cobranza/outputs/arrastre_deuda.xlsx</code> → solo la deuda de consumo acumulada.<br>
+  2_planilla los lee por separado y los carga en columnas distintas de la planilla del mes siguiente.
+</div>
+
+<h2>Anchos de columna</h2>
+<table>
+  <tr style="background:#f9fafb;">
+    <th style="padding:4px 10px;">Columna</th>
+    <th style="padding:4px 10px;">Ancho</th>
+    <th style="padding:4px 10px;">Formato</th>
+    <th style="padding:4px 10px;">Sección</th>
+  </tr>
+  <tr><td>MZ</td><td>6</td><td>texto</td><td>¿Quién es?</td></tr>
+  <tr><td>LT</td><td>7</td><td>texto</td><td>¿Quién es?</td></tr>
+  <tr><td>NOMBRE</td><td>28</td><td>texto</td><td>¿Quién es?</td></tr>
+  <tr><td>MES_ORIGEN</td><td>14</td><td>texto (YYYY-MM)</td><td>¿De qué mes?</td></tr>
+  <tr><td>ARRASTRE_CORTE</td><td>18</td><td>"S/ "#,##0.00</td><td>Deuda de reconexión</td></tr>
+</table>
+
+<h2>Leyenda de colores</h2>
+<table>
+  <tr style="background:#f9fafb;">
+    <th style="padding:4px 10px;">Color</th>
+    <th style="padding:4px 10px;">Sección</th>
+    <th style="padding:4px 10px;">Significado</th>
+  </tr>
+  <tr><td style="background:#EBF5FB; padding:4px 10px;">Azul</td><td>¿Quién es?</td><td>Identificador del socio cortado</td></tr>
+  <tr><td style="background:#F3F4F6; padding:4px 10px;">Gris</td><td>¿De qué mes?</td><td>Mes en que se generó el corte — trazabilidad si arrastra varios meses</td></tr>
+  <tr><td style="background:#EDE9FE; padding:4px 10px; color:#5B21B6;">Morado</td><td>Deuda de reconexión</td><td>Pendiente de cobro — lo completa 2_planilla en el mes siguiente</td></tr>
+</table>
+
+<h2>Freeze panes</h2>
+<p><code>freeze_panes = "A3"</code> — filas 1 y 2 fijas (sección + columnas).</p>
+
+<hr style="margin-top:30px; border-color:#e5e7eb;">
+<p style="font-size:11px; color:#9ca3af;">
+  Contrato visual aprobado — seguimiento.py debe replicar exactamente este formato.<br>
+  Módulo: 6_corte &nbsp;|&nbsp; Versión: 1.0 &nbsp;|&nbsp; Fecha: 15/06/2026
+</p>
+
+</body>
+</html>

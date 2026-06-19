@@ -216,8 +216,8 @@ def cargar_blancos_mes() -> pd.DataFrame:
 def v1_conteo(df_banco: pd.DataFrame, df_tepago: pd.DataFrame,
               df_blancos: pd.DataFrame) -> dict:
     """
-    len(tepago) + len(blancos) == len(banco) + particiones_extra
-    Las particiones_extra nacen cuando 1 registro del banco se parte en N filas (pago múltiple).
+    len(tepago) == len(banco) + particiones_extra
+    Los blancos ya están dentro de tepago (FUENTE=blanco), no se suman por separado.
     """
     n_banco   = len(df_banco)
     n_tepago  = len(df_tepago)
@@ -231,37 +231,35 @@ def v1_conteo(df_banco: pd.DataFrame, df_tepago: pd.DataFrame,
         if not df_m.empty:
             extra = int((df_m.groupby(["ORIGEN", "FECHA"]).size() - 1).sum())
 
-    real     = n_tepago + n_blancos
     esperado = n_banco + extra
     return {
-        "ok": real == esperado,
+        "ok": n_tepago == esperado,
         "banco": n_banco, "tepago": n_tepago, "blancos": n_blancos,
         "extra_particiones": extra,
-        "real": real, "esperado": esperado,
-        "diferencia": real - esperado,
+        "real": n_tepago, "esperado": esperado,
+        "diferencia": n_tepago - esperado,
     }
 
 
 def v2_montos(df_banco: pd.DataFrame, mapa_banco: dict,
               df_tepago: pd.DataFrame, df_blancos: pd.DataFrame) -> dict:
     """
-    sum(tepago.MONTO_PAGO) + sum(blancos.MONTO) == sum(banco.MONTO)
-    Las particiones reparten el monto original — la suma total no cambia.
+    sum(tepago.MONTO_PAGO) == sum(banco.MONTO)
+    Los blancos ya están dentro de tepago (FUENTE=blanco), no se suman por separado.
     """
     total_banco   = round(df_banco[mapa_banco["monto"]].apply(limpiar_monto).sum(), 2)
     total_tepago  = round(df_tepago["MONTO_PAGO"].apply(limpiar_monto).sum(), 2) \
                     if "MONTO_PAGO" in df_tepago.columns else 0.0
     total_blancos = round(df_blancos["MONTO"].apply(limpiar_monto).sum(), 2) \
                     if not df_blancos.empty and "MONTO" in df_blancos.columns else 0.0
-    total_real    = round(total_tepago + total_blancos, 2)
-    diferencia    = round(total_real - total_banco, 2)
+    diferencia    = round(total_tepago - total_banco, 2)
 
     return {
         "ok": abs(diferencia) <= TOLERANCIA,
         "total_banco":   total_banco,
         "total_tepago":  total_tepago,
         "total_blancos": total_blancos,
-        "total_real":    total_real,
+        "total_real":    total_tepago,
         "diferencia":    diferencia,
     }
 

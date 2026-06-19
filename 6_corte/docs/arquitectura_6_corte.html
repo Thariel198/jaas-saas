@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Arquitectura — 6_corte</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'IBM Plex Sans', sans-serif; background: #fff; padding: 24px; color: #1f2937; }
+
+  .title { font-size: 18px; font-weight: 600; color: #111; margin-bottom: 4px; }
+  .sub   { font-size: 12px; color: #888; margin-bottom: 20px; }
+
+  .meta { display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap;
+          background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 10px 14px; }
+  .meta-item { font-size: 11px; color: #6b7280; }
+  .meta-item span { font-weight: 600; color: #374151; }
+
+  h2 { font-size: 13px; font-weight: 600; color: #374151; margin: 20px 0 8px;
+       border-left: 3px solid #2E86C1; padding-left: 8px; }
+
+  .cols { display: grid; grid-template-columns: 270px 1fr; gap: 16px; margin-bottom: 20px; }
+
+  .tree-box {
+    background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 8px;
+    padding: 14px 16px;
+  }
+  .tree-box h3 { font-size: 10px; font-weight: 700; color: #6b7280;
+                  text-transform: uppercase; letter-spacing: .05em; margin-bottom: 10px; }
+  .tree { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #374151; line-height: 1.9; }
+  .tree .dir    { color: #1A5276; font-weight: 600; }
+  .tree .gen    { color: #1E5C3A; font-weight: 600; }
+  .tree .pen    { color: #7C2D12; font-weight: 600; }
+  .tree .seg    { color: #1A5276; font-weight: 600; }
+  .tree .key    { color: #0E7490; font-weight: 600; }
+  .tree .dim    { color: #aaa; font-size: 9px; }
+
+  .scripts-box { display: flex; flex-direction: column; gap: 10px; }
+  .script-card { border-radius: 8px; overflow: hidden; border: 1px solid; }
+  .script-card.gen { border-color: #A9DFBF; }
+  .script-card.pen { border-color: #FDBA74; }
+  .script-card.seg { border-color: #93C5FD; }
+  .script-header { padding: 8px 12px; font-size: 12px; font-weight: 700;
+                   font-family: 'IBM Plex Mono', monospace; }
+  .script-card.gen .script-header { background: #1E5C3A; color: #fff; }
+  .script-card.pen .script-header { background: #7C2D12; color: #fff; }
+  .script-card.seg .script-header { background: #1A5276; color: #fff; }
+  .script-body { padding: 10px 12px; font-size: 11px; }
+  .script-card.gen .script-body { background: #F4FBF7; color: #1E5C3A; }
+  .script-card.pen .script-body { background: #FFF7ED; color: #7C2D12; }
+  .script-card.seg .script-body { background: #EFF6FF; color: #1A5276; }
+  .io-row { display: flex; gap: 8px; margin: 3px 0; align-items: flex-start; }
+  .io-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
+              min-width: 36px; margin-top: 1px; opacity: .65; }
+  .io-val { font-family: 'IBM Plex Mono', monospace; font-size: 10px; line-height: 1.6; }
+  .rule-list { margin: 4px 0 0 0; padding-left: 16px; }
+  .rule-list li { font-size: 10.5px; margin: 3px 0; }
+
+  .dep-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 16px; }
+  .dep-table th { background: #F3F4F6; color: #374151; font-size: 10px; font-weight: 700;
+                  text-transform: uppercase; letter-spacing: .04em;
+                  padding: 5px 10px; text-align: left; }
+  .dep-table td { padding: 5px 10px; border-bottom: 1px solid #F3F4F6; vertical-align: top; }
+
+  .inv-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .inv-card { border-radius: 6px; padding: 10px 12px; font-size: 10.5px; line-height: 1.5; }
+  .inv-card .inv-title { font-size: 9px; font-weight: 700; text-transform: uppercase;
+                          letter-spacing: .05em; margin-bottom: 5px; display: block; }
+  .inv-card.idem  { background: #DBEAFE; border: 1px solid #93C5FD; color: #1E3A8A; }
+  .inv-card.write { background: #FEF3C7; border: 1px solid #FCD34D; color: #78350F; }
+  .inv-card.audit { background: #FEF0E0; border: 1px solid #FDBA74; color: #7C2D12; }
+  .inv-card.sep   { background: #D1FAE5; border: 1px solid #6EE7B7; color: #065F46; }
+  .inv-card.tool  { background: #EDE9FE; border: 1px solid #C4B5FD; color: #5B21B6; }
+  .inv-card.scope { background: #F3E8FF; border: 1px solid #DDD6FE; color: #5B21B6; }
+
+  code { font-family: 'IBM Plex Mono', monospace; font-size: 10px;
+         background: rgba(0,0,0,.06); padding: 1px 4px; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<p class="title">6_corte — arquitectura del módulo</p>
+<p class="sub">Lista de corte · penalidad · ventana de gracia · clasificación · arrastre</p>
+
+<div class="meta">
+  <div class="meta-item"><span>Módulo:</span> 6_corte</div>
+  <div class="meta-item"><span>Scripts:</span> generar_lista.py · aplicar_penalidad.py · seguimiento.py</div>
+  <div class="meta-item"><span>Outputs:</span> lista_corte.xlsx · audit_penalidad.xlsx · pagaron_penalidad.xlsx · corte_fisico.xlsx · arrastre_corte_YYYY-MM.xlsx</div>
+  <div class="meta-item"><span>Dependencia clave:</span> 5_cobranza/planilla_cobrado.xlsx (ciclo 1 y ciclo 2)</div>
+  <div class="meta-item"><span>Writer unico:</span> aplicar_penalidad.py sobre shared/planilla_mes (CORTE_RECONEXION)</div>
+  <div class="meta-item"><span>Version:</span> 1.0 · 15/06/2026</div>
+</div>
+
+<div class="cols">
+
+  <div class="tree-box">
+    <h3>Estructura de carpetas</h3>
+    <div class="tree">
+<span class="dir">6_corte/</span><br>
+├── <span class="gen">generar_lista.py</span><br>
+├── <span class="pen">aplicar_penalidad.py</span> ★<br>
+├── <span class="seg">seguimiento.py</span><br>
+├── <span class="dir">inputs/</span> <span class="dim">(vacio)</span><br>
+├── <span class="dir">outputs/</span><br>
+│&nbsp;&nbsp;&nbsp;├── <span class="key">lista_corte.xlsx</span><br>
+│&nbsp;&nbsp;&nbsp;├── <span class="key">audit_penalidad.xlsx</span><br>
+│&nbsp;&nbsp;&nbsp;├── <span class="key">pagaron_penalidad.xlsx</span><br>
+│&nbsp;&nbsp;&nbsp;├── <span class="key">corte_fisico.xlsx</span><br>
+│&nbsp;&nbsp;&nbsp;└── <span class="key">arrastre_corte_YYYY-MM.xlsx</span><br>
+├── <span class="dir">backup/</span> <span class="dim">(planilla_mes snapshots)</span><br>
+├── <span class="dir">tests/</span><br>
+└── <span class="dir">docs/</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── diagrama_flujo_6_corte.html<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── diagrama_6_corte.html<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── arquitectura_6_corte.html<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── formato_lista_corte.html<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── formato_pagaron_penalidad.html<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── formato_corte_fisico.html<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── formato_arrastre_corte.html
+    </div>
+  </div>
+
+  <div class="scripts-box">
+
+    <div class="script-card gen">
+      <div class="script-header">generar_lista.py &nbsp;·&nbsp; Dia 0</div>
+      <div class="script-body">
+        <div class="io-row">
+          <div class="io-label">Lee</div>
+          <div class="io-val">
+            <code>5_cobranza/outputs/planilla_cobrado.xlsx</code> (ciclo 1)
+          </div>
+        </div>
+        <div class="io-row" style="margin-top:6px;">
+          <div class="io-label">Escribe</div>
+          <div class="io-val">
+            <code>outputs/lista_corte.xlsx</code> — usuarios elegibles para corte
+          </div>
+        </div>
+        <div class="io-row" style="margin-top:6px;">
+          <div class="io-label">Hace</div>
+          <div class="io-val">
+            <ul class="rule-list">
+              <li>Filtro: <code>SALDO &gt; 0</code> AND <code>MES_ANTERIOR &gt;= 8</code></li>
+              <li>Calcula <code>PENALIDAD = S/20</code> y <code>TOTAL_A_PAGAR = SALDO + 20</code></li>
+              <li>Idempotente: re-correr el mismo dia reescribe con los mismos datos</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="script-card pen">
+      <div class="script-header">aplicar_penalidad.py ★ &nbsp;·&nbsp; Dia 0</div>
+      <div class="script-body">
+        <div class="io-row">
+          <div class="io-label">Lee</div>
+          <div class="io-val">
+            <code>outputs/lista_corte.xlsx</code><br>
+            <code>shared/planilla_mes/planilla_YYYY-MM.xlsx</code><br>
+            <code>outputs/audit_penalidad.xlsx</code> (si existe — para idempotencia)
+          </div>
+        </div>
+        <div class="io-row" style="margin-top:6px;">
+          <div class="io-label">Escribe</div>
+          <div class="io-val">
+            <code>shared/planilla_mes/planilla_YYYY-MM.xlsx</code> — suma +20 a CORTE_RECONEXION<br>
+            <code>outputs/audit_penalidad.xlsx</code> — registro por (MZ, LT) aplicado<br>
+            <code>backup/planilla_YYYY-MM_&lt;ts&gt;.xlsx</code> — snapshot antes de tocar
+          </div>
+        </div>
+        <div class="io-row" style="margin-top:6px;">
+          <div class="io-label">Hace</div>
+          <div class="io-val">
+            <ul class="rule-list">
+              <li>Por cada (MZ, LT) en lista_corte: suma +20 a CORTE_RECONEXION en planilla</li>
+              <li>Chequea audit_penalidad antes de sumar — skip si ya aplicado</li>
+              <li>Backup automatico de planilla_mes antes de cualquier escritura</li>
+              <li>Resumen en consola: aplicados / skipped / errores</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="script-card seg">
+      <div class="script-header">seguimiento.py &nbsp;·&nbsp; Dia 2</div>
+      <div class="script-body">
+        <div class="io-row">
+          <div class="io-label">Lee</div>
+          <div class="io-val">
+            <code>outputs/lista_corte.xlsx</code><br>
+            <code>5_cobranza/outputs/planilla_cobrado.xlsx</code> (ciclo 2)
+          </div>
+        </div>
+        <div class="io-row" style="margin-top:6px;">
+          <div class="io-label">Escribe</div>
+          <div class="io-val">
+            <code>outputs/pagaron_penalidad.xlsx</code> — salvados: pagado &gt;= S/20<br>
+            <code>outputs/corte_fisico.xlsx</code> — para operario: pagado &lt; S/20<br>
+            <code>outputs/arrastre_corte_YYYY-MM.xlsx</code> — para 2_planilla mes siguiente
+          </div>
+        </div>
+        <div class="io-row" style="margin-top:6px;">
+          <div class="io-label">Hace</div>
+          <div class="io-val">
+            <ul class="rule-list">
+              <li>Por cada usuario en lista_corte: leer CORTE_RECONEXION en planilla_cobrado ciclo 2</li>
+              <li><code>pagado &gt;= 20</code> → SALVADO → pagaron_penalidad.xlsx</li>
+              <li><code>pagado &lt; 20</code> → CORTADO → corte_fisico.xlsx + arrastre_corte.xlsx</li>
+              <li>Para cortados: <code>arrastre_corte = max(0, 40 - pagado)</code> (penalidad escala a S/40)</li>
+              <li>La deuda original no se toca — sale por arrastre_deuda.xlsx de 5_cobranza</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<h2>Dependencias externas</h2>
+<table class="dep-table">
+  <tr>
+    <th>Recurso</th>
+    <th>Tipo</th>
+    <th>Usado por</th>
+    <th>Por que</th>
+  </tr>
+  <tr>
+    <td><code>5_cobranza/outputs/planilla_cobrado.xlsx</code> (ciclo 1)</td>
+    <td>archivo (lectura)</td>
+    <td>generar_lista.py</td>
+    <td>Fuente de SALDO y MES_ANTERIOR para determinar elegibilidad de corte</td>
+  </tr>
+  <tr>
+    <td><code>5_cobranza/outputs/planilla_cobrado.xlsx</code> (ciclo 2)</td>
+    <td>archivo (lectura)</td>
+    <td>seguimiento.py</td>
+    <td>Fuente de CORTE_RECONEXION post-ventana para clasificar salvados vs cortados</td>
+  </tr>
+  <tr>
+    <td><code>shared/planilla_mes/planilla_YYYY-MM.xlsx</code></td>
+    <td>archivo (escritura) — unico writer de CORTE_RECONEXION</td>
+    <td>aplicar_penalidad.py</td>
+    <td>Registro oficial del mes; CORTE_RECONEXION alimenta a 5_cobranza en ciclo 2</td>
+  </tr>
+</table>
+
+<h2>Invariantes del modulo</h2>
+<div class="inv-grid">
+  <div class="inv-card idem">
+    <span class="inv-title">Idempotencia total</span>
+    Los tres scripts pueden re-correrse sin efecto duplicado. <code>generar_lista.py</code> reescribe. <code>aplicar_penalidad.py</code> chequea <code>audit_penalidad.xlsx</code> antes de sumar. <code>seguimiento.py</code> reclasifica desde cero.
+  </div>
+  <div class="inv-card write">
+    <span class="inv-title">Unico writer de CORTE_RECONEXION</span>
+    Solo <code>aplicar_penalidad.py</code> modifica la columna CORTE_RECONEXION en <code>shared/planilla_mes</code>. Ningun otro script del sistema toca esa columna.
+  </div>
+  <div class="inv-card audit">
+    <span class="inv-title">Backup + audit en cada write</span>
+    <code>aplicar_penalidad.py</code> hace backup de <code>planilla_mes</code> antes de tocar y registra cada (MZ, LT) aplicado en <code>audit_penalidad.xlsx</code>. Sin audit no hay idempotencia.
+  </div>
+  <div class="inv-card sep">
+    <span class="inv-title">Separacion de ciclos</span>
+    Dia 0: generar + aplicar. Dia 2: seguimiento. <code>seguimiento.py</code> no puede correr antes de que 4_pagos + 5_cobranza hayan procesado los pagos de la ventana de gracia.
+  </div>
+  <div class="inv-card tool">
+    <span class="inv-title">Un script = una tool de agente</span>
+    Tres responsabilidades, tres scripts con nombres explícitos. Ningun <code>main.py</code> con subcomandos. Cada script es invocable de forma autonoma por un agente sin leer el codigo.
+  </div>
+  <div class="inv-card scope">
+    <span class="inv-title">Scope: solo componente corte</span>
+    Este modulo gestiona exclusivamente la penalidad de corte (S/20 → S/40) y el arrastre de ese componente. La deuda de consumo original pertenece a <code>5_cobranza</code> y nunca se duplica aqui.
+  </div>
+</div>
+
+<hr style="margin-top:24px; border-color:#e5e7eb;">
+<p style="font-size:11px; color:#9ca3af; margin-top:8px;">
+  Modulo: 6_corte &nbsp;|&nbsp; Version: 1.0 &nbsp;|&nbsp; Fecha: 15/06/2026
+</p>
+
+</body>
+</html>

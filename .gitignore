@@ -22,3 +22,9 @@ _tmp_integracion/
 06_boletas/Outputs - copia/
 3_boletas/Outputs - copia/
 **/Outputs - copia/
+
+# Backups auto-generados por scripts
+**/backup/
+
+# Scripts temporales de exploración
+tmp_*.py

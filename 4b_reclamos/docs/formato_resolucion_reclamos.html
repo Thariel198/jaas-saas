@@ -99,7 +99,15 @@
     <li>Si el predio no se encuentra en DATA_boletas, NOMBRE / CAMPO / VALOR_ACTUAL quedan vacíos y se imprime una advertencia en el log.</li>
     <li>Este archivo es el <b>master state del cierre</b>: el supervisor decide aquí ESTADO + FECHA_RESOLUCION. <code>main.py</code> sincroniza esos valores hacia <code>reclamos_YYYY-MM.xlsx</code> al correr, así no hay que tocar dos archivos.</li>
     <li>Cuando <code>main.py</code> cierra el reclamo, toma CAMPO / VALOR_ACTUAL / VALOR_A_CORREGIR de este archivo (lookup por <code>(MESA, MZ, LT, FECHA_COBRO)</code>) y los registra en <code>trazabilidad_reclamos.xlsx</code>.</li>
+    <li><b>★ Input del aplicador:</b> <code>aplicar_correcciones.py</code> también lee este archivo — filtra las filas con <code>ESTADO=RESUELTO</code> + <code>CAMPO</code> no vacío + <code>VALOR_A_CORREGIR</code> no vacío, y llama <code>repo.apply_correction(MZ, LT, CAMPO, VALOR_A_CORREGIR, motivo=RESOLUCION)</code> por cada una.</li>
   </ul>
+</div>
+
+<div class="nota" style="background:#F3E8FF; border-color:#C4B5FD; color:#5B21B6;">
+  <b>★ Este archivo es input de dos consumidores:</b><br>
+  &nbsp;&nbsp;&nbsp;1. <code>main.py</code> (2da corrida) — para cerrar a trazabilidad<br>
+  &nbsp;&nbsp;&nbsp;2. <code>aplicar_correcciones.py</code> — para bajar VALOR_A_CORREGIR a DATA_boletas vía repo<br>
+  Por eso es crítico que el supervisor llene RESUELTO + CAMPO + VALOR_A_CORREGIR + RESOLUCION para cada fila resuelta — el motivo (RESOLUCION) se propaga al audit log del repo.
 </div>
 
 <!-- ══════════════════════════════════════════════════════ -->

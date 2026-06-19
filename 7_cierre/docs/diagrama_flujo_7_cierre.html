@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>7_cierre — Flujo de cierre</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Arial, sans-serif; background: #F0F4F8; color: #1A1A1A; }
+.page { padding: 32px 28px 60px; max-width: 1080px; margin: 0 auto; }
+
+h1 { font-size: 17px; color: #1A5276; margin-bottom: 4px; }
+.sub { font-size: 11px; color: #888; margin-bottom: 36px; }
+
+/* ── TIMELINE BAR ── */
+.timeline-bar {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  margin-bottom: 0;
+  position: relative;
+}
+
+/* ── PHASE COLUMN ── */
+.phase {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* ── PHASE HEADER PILL ── */
+.phase-label {
+  font-size: 10px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  margin-bottom: 12px;
+  white-space: nowrap;
+}
+.lbl-blue   { background: #1A5276; color: #FFF; }
+.lbl-purple { background: #5B21B6; color: #FFF; }
+.lbl-green  { background: #1E8449; color: #FFF; }
+.lbl-gray   { background: #34495E; color: #FFF; }
+
+/* ── SCRIPT BOX ── */
+.script-box {
+  width: 100%;
+  border-radius: 8px;
+  padding: 12px 14px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: bold;
+  font-family: Consolas, monospace;
+  border: 2px solid transparent;
+  position: relative;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sb-blue   { background: #D6EAF8; border-color: #1A5276; color: #1A5276; }
+.sb-purple { background: #EDE9FE; border-color: #5B21B6; color: #5B21B6; }
+.sb-green  { background: #D5F5E3; border-color: #1E8449; color: #1E5C3A; }
+.sb-gray   { background: #E8ECF0; border-color: #34495E; color: #34495E; }
+
+/* ── DOWN ARROW FROM SCRIPT ── */
+.down-arrow {
+  font-size: 22px;
+  color: #BBB;
+  line-height: 1;
+  margin: 4px 0;
+}
+
+/* ── FILE PILL ── */
+.file-pill {
+  border-radius: 5px;
+  padding: 5px 10px;
+  font-size: 10px;
+  font-family: Consolas, monospace;
+  font-weight: bold;
+  text-align: center;
+  width: 100%;
+  margin-bottom: 5px;
+  line-height: 1.4;
+}
+.fp-audit  { background: #EBF5FB; color: #1A5276; border: 1px solid #AED6F1; }
+.fp-oper   { background: #E9F7EF; color: #1E5C3A; border: 1px solid #82E0AA; }
+.fp-inter  { background: #FFF3CD; color: #7D5A00; border: 1px solid #F0C040; }
+.fp-final  { background: #D5F5E3; color: #145A32; border: 1px solid #52BE80; }
+.fp-purple { background: #F3E8FF; color: #5B21B6; border: 1px solid #C4B5FD; }
+
+/* ── HORIZONTAL ARROW BETWEEN PHASES ── */
+.h-arrow {
+  display: flex;
+  align-items: center;
+  padding: 0 4px;
+  padding-top: 64px; /* align with script boxes */
+  flex: 0 0 36px;
+  flex-direction: column;
+  gap: 4px;
+}
+.h-arrow-line {
+  width: 100%;
+  border-top: 2px dashed #AAA;
+  position: relative;
+}
+.h-arrow-head { color: #AAA; font-size: 16px; line-height: 1; margin-top: -2px; }
+
+/* ── MERGE ARROW (two inputs → one box) ── */
+.merge-zone {
+  width: 100%;
+  margin: 6px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.merge-label {
+  font-size: 9px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-bottom: 3px;
+}
+
+/* ── RULE CHIPS (small colored tags below flow) ── */
+.rules-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 40px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.rule-chip {
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-size: 11px;
+  font-weight: bold;
+  text-align: center;
+  line-height: 1.5;
+}
+.rc-green  { background: #D5F5E3; color: #145A32; border: 1px solid #52BE80; }
+.rc-red    { background: #FADBD8; color: #7B241C; border: 1px solid #F1948A; }
+.rc-purple { background: #F3E8FF; color: #4A235A; border: 1px solid #C4B5FD; }
+.rc-yellow { background: #FEF9E7; color: #7D5A00; border: 1px solid #F0C040; }
+
+.rules-title {
+  text-align: center;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #888;
+  margin-top: 36px;
+  margin-bottom: 10px;
+}
+
+/* ── LEGEND ── */
+.legend {
+  display: flex; gap: 14px; flex-wrap: wrap;
+  margin-top: 36px;
+  padding-top: 14px;
+  border-top: 1px dashed #CCC;
+  justify-content: center;
+}
+.leg { display: flex; align-items: center; gap: 5px; font-size: 10px; color: #555; }
+.leg-dot { width: 12px; height: 12px; border-radius: 2px; }
+
+/* ── VERTICAL SEPARATOR ── */
+.v-sep {
+  width: 2px;
+  background: #DDD;
+  margin: 0 4px;
+  align-self: stretch;
+  margin-top: 52px;
+}
+
+/* Connector lines for merge */
+.connector-line {
+  border-left: 2px dashed #F0C040;
+  border-bottom: 2px dashed #F0C040;
+  height: 18px;
+  width: 40%;
+  align-self: flex-start;
+  margin-left: 30%;
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <h1>7_cierre — Flujo visual del ciclo</h1>
+  <div class="sub">Vista de 5 segundos · Junio 2026 · Para detalles: diagrama_consolidador_cierre.html</div>
+
+  <!-- ══════════════════════════════════════════
+       FLOW TIMELINE
+       ══════════════════════════════════════════ -->
+  <div class="timeline-bar">
+
+    <!-- FASE 1 — 6_corte -->
+    <div class="phase">
+      <div class="phase-label lbl-blue">① 6_corte</div>
+      <div class="script-box sb-blue">generar_lista.py</div>
+      <div class="down-arrow">↓</div>
+      <div class="file-pill fp-audit">lista_corte.xlsx<br><span style="font-weight:normal;font-size:9px;">auditoría · todos + ESTADO_RECLAMO</span></div>
+      <div class="file-pill fp-oper">corte_fisico.xlsx<br><span style="font-weight:normal;font-size:9px;">operario · solo EJECUTAR = SI</span></div>
+      <div class="down-arrow">↓</div>
+      <div class="file-pill fp-inter">arrastre_corte_intermedio<br><span style="font-weight:normal;font-size:9px;">todos los cortados · SIN decisión final</span></div>
+    </div>
+
+    <!-- ARROW 1→2 -->
+    <div class="h-arrow">
+      <div class="h-arrow-line"></div>
+      <div class="h-arrow-head">›</div>
+    </div>
+
+    <!-- FASE 2 — Humanos -->
+    <div class="phase">
+      <div class="phase-label lbl-purple">② Humanos</div>
+      <div class="script-box sb-purple" style="flex-direction:column;gap:6px;">
+        <div>Operario</div>
+        <div style="font-size:10px;font-weight:normal;font-family:Arial;">visita hogares del<br>corte_fisico</div>
+      </div>
+      <div class="down-arrow">↓</div>
+      <div class="script-box sb-purple" style="flex-direction:column;gap:6px;margin-top:0;">
+        <div>Supervisor</div>
+        <div style="font-size:10px;font-weight:normal;font-family:Arial;">resuelve reclamos<br>EN_REVISION</div>
+      </div>
+      <div class="down-arrow">↓</div>
+      <div class="file-pill fp-purple">resolucion_reclamos.xlsx<br><span style="font-weight:normal;font-size:9px;">FUNDADO / INFUNDADO / EN_REVISION</span></div>
+    </div>
+
+    <!-- ARROW 2→3 -->
+    <div class="h-arrow">
+      <div class="h-arrow-line"></div>
+      <div class="h-arrow-head">›</div>
+    </div>
+
+    <!-- FASE 3 — 7_cierre -->
+    <div class="phase">
+      <div class="phase-label lbl-green">③ 7_cierre</div>
+      <div class="script-box sb-green">consolidar_cierre.py</div>
+      <div class="down-arrow">↓</div>
+      <!-- Lee las dos fuentes -->
+      <div style="width:100%;font-size:9px;color:#888;text-align:center;margin-bottom:4px;">Lee ↑ intermedio + resolución</div>
+      <div class="file-pill fp-final">arrastre_corte_final.xlsx<br><span style="font-weight:normal;font-size:9px;">penalidad final aplicada</span></div>
+      <div class="file-pill fp-final">arrastre_deuda_final.xlsx<br><span style="font-weight:normal;font-size:9px;">saldos pendientes del mes</span></div>
+    </div>
+
+    <!-- ARROW 3→4 -->
+    <div class="h-arrow">
+      <div class="h-arrow-line"></div>
+      <div class="h-arrow-head">›</div>
+    </div>
+
+    <!-- FASE 4 — 2_planilla -->
+    <div class="phase">
+      <div class="phase-label lbl-gray">④ Próximo mes</div>
+      <div class="script-box sb-gray" style="flex-direction:column;gap:4px;">
+        <div>2_planilla</div>
+        <div style="font-size:10px;font-weight:normal;font-family:Arial;">planilla_2026-07.xlsx</div>
+      </div>
+      <div class="down-arrow">↓</div>
+      <div style="font-size:10px;text-align:center;color:#555;padding:6px 4px;background:#E8ECF0;border-radius:5px;width:100%;">
+        CORTE_RECONEXION<br>y MES_ANTERIOR<br>pre-cargados
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       REGLAS DE NEGOCIO — chips visuales
+       ══════════════════════════════════════════ -->
+  <div class="rules-title">¿Qué hace 7_cierre con cada caso?</div>
+  <div class="rules-row">
+    <div class="rule-chip rc-green">
+      Sin reclamo<br>→ S/40 en arrastre
+    </div>
+    <div class="rule-chip rc-yellow">
+      Reclamo RECHAZADO<br>→ S/40 (+S/20 reconexión)
+    </div>
+    <div class="rule-chip rc-red">
+      Reclamo FUNDADO<br>→ S/0 · sin cargo
+    </div>
+    <div class="rule-chip rc-purple">
+      EN_REVISION<br>→ sin corte · arrastra deuda
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       LEYENDA
+       ══════════════════════════════════════════ -->
+  <div class="legend">
+    <div class="leg"><div class="leg-dot" style="background:#D6EAF8;border:1px solid #1A5276;"></div> Script automático</div>
+    <div class="leg"><div class="leg-dot" style="background:#EDE9FE;border:1px solid #5B21B6;"></div> Acción humana</div>
+    <div class="leg"><div class="leg-dot" style="background:#EBF5FB;border:1px solid #AED6F1;"></div> Auditoría (no se filtra)</div>
+    <div class="leg"><div class="leg-dot" style="background:#E9F7EF;border:1px solid #82E0AA;"></div> Vista operacional</div>
+    <div class="leg"><div class="leg-dot" style="background:#FFF3CD;border:1px solid #F0C040;"></div> Intermedio (pendiente decisión)</div>
+    <div class="leg"><div class="leg-dot" style="background:#D5F5E3;border:1px solid #52BE80;"></div> Final (listo para próximo mes)</div>
+    <div class="leg"><div class="leg-dot" style="background:#F3E8FF;border:1px solid #C4B5FD;"></div> Archivo de resolución humana</div>
+  </div>
+
+</div>
+</body>
+</html>

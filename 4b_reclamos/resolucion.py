@@ -27,6 +27,7 @@ from pathlib import Path
 
 # Permite importar main.py cuando se ejecuta desde cualquier CWD
 sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent.parent / "shared"))
 
 import pandas as pd
 from openpyxl import Workbook
@@ -37,18 +38,17 @@ from main import (
     BASE_DIR, OUTPUTS_DIR,
     SEC_PREDIO, SEC_COBRO, SEC_MES, SEC_TIPO, SEC_MANUAL, SEC_CIERRE,
     TIPOS_RECLAMO_VALIDOS, ESTADOS_VALIDOS,
-    _norm, _clean, _pres_key,
+    _norm, _clean, _pres_key, _full_key,
     _write_headers, _write_fila,
 )
+from utils_lote import leer_correcciones_lote
+from data_boletas_repo import get_predio_lookup
 
 log = logging.getLogger(__name__)
 
 # ── Paleta extendida ──────────────────────────────────────────────────────────
 # Sección "Dato en sistema" — cyan, auto-llenado por resolucion.py
 SEC_AUTO = ("ECFEFF", "0E7490", "F0FDFF", "0E7490")
-
-# ── Rutas externas (lectura directa, sin copia a inputs/) ─────────────────────
-DATA_BOLETAS_PATH = BASE_DIR.parent / "3_boletas" / "inputs" / "DATA_boletas.xlsx"
 
 # ── Mapeo TIPO_RECLAMO → columna exacta en DATA_boletas ──────────────────────
 # El nombre de la columna se usa también como CAMPO (display al supervisor).
@@ -128,31 +128,6 @@ def _leer_reclamos(mes: str) -> pd.DataFrame:
         return pd.DataFrame()
 
 
-def _build_boletas_lookup() -> dict:
-    """
-    Lookup por (MZ_norm, LT_norm) → dict completo de la fila en DATA_boletas.
-    (MZ, LT) es único en el padrón — 575 predios, 0 duplicados.
-    """
-    p = DATA_BOLETAS_PATH
-    if not p.exists():
-        log.warning(f"DATA_boletas.xlsx no encontrado: {p}")
-        return {}
-    try:
-        df = pd.read_excel(p, sheet_name="Data", dtype=str)
-    except Exception as e:
-        log.error(f"Error leyendo DATA_boletas.xlsx: {e}")
-        return {}
-
-    lookup = {}
-    for _, row in df.iterrows():
-        mz = _norm(row.get("MZ", ""))
-        lt = _norm(row.get("LT", ""))
-        if not mz or not lt:
-            continue
-        lookup[(mz, lt)] = row.to_dict()
-    return lookup
-
-
 def _leer_existente(mes: str) -> pd.DataFrame:
     p = _ruta_resol(mes)
     if not p.exists():
@@ -201,7 +176,10 @@ def _preservar_manual(df: pd.DataFrame, existente: pd.DataFrame) -> pd.DataFrame
     """
     Re-corridas: preserva las columnas que el supervisor escribió en resolucion.xlsx:
         VALOR_A_CORREGIR, RESOLUCION, ESTADO, FECHA_RESOLUCION
-    Clave de preservación: (MESA, MZ, LT, FECHA_COBRO).
+    Clave de preservación: (MESA, MZ, LT, FECHA_COBRO, TIPO_RECLAMO).
+
+    Usa clave_completa para soportar N correcciones por evento (ej. X-10 con
+    multa + mes_actual): cada fila preserva los valores de SU TIPO_RECLAMO.
 
     ESTADO/FECHA_RESOLUCION solo se sobrescriben si la versión existente tiene valor —
     así una re-corrida no degrada un RESUELTO a PENDIENTE cuando el supervisor todavía
@@ -212,8 +190,9 @@ def _preservar_manual(df: pd.DataFrame, existente: pd.DataFrame) -> pd.DataFrame
 
     lookup = {}
     for _, row in existente.iterrows():
-        k = _pres_key(row.get("MESA", ""), row.get("MZ", ""),
-                      row.get("LT", ""), row.get("FECHA_COBRO", ""))
+        k = _full_key(row.get("MESA", ""), row.get("MZ", ""),
+                      row.get("LT", ""), row.get("FECHA_COBRO", ""),
+                      row.get("TIPO_RECLAMO", ""))
         lookup[k] = {
             "VALOR_A_CORREGIR": _clean(row.get("VALOR_A_CORREGIR", "")),
             "RESOLUCION":       _clean(row.get("RESOLUCION", "")),
@@ -221,13 +200,18 @@ def _preservar_manual(df: pd.DataFrame, existente: pd.DataFrame) -> pd.DataFrame
             "FECHA_RESOLUCION": _clean(row.get("FECHA_RESOLUCION", "")),
         }
 
+    CERRADOS = {"RESUELTO", "RECHAZADO", "INFORMADO"}
+
     def _merge(row):
-        k = _pres_key(row["MESA"], row["MZ"], row["LT"], row["FECHA_COBRO"])
+        k = _full_key(row["MESA"], row["MZ"], row["LT"], row["FECHA_COBRO"],
+                      row.get("TIPO_RECLAMO", ""))
         if k in lookup:
             row = row.copy()
             row["VALOR_A_CORREGIR"] = lookup[k]["VALOR_A_CORREGIR"]
             row["RESOLUCION"]       = lookup[k]["RESOLUCION"]
-            if lookup[k]["ESTADO"]:
+            # Si reclamos.xlsx ya marcó CERRADO, gana — no revertir desde resolucion stale.
+            estado_reclamos = str(row.get("ESTADO", "")).strip().upper()
+            if estado_reclamos not in CERRADOS and lookup[k]["ESTADO"]:
                 row["ESTADO"] = lookup[k]["ESTADO"]
             if lookup[k]["FECHA_RESOLUCION"]:
                 row["FECHA_RESOLUCION"] = lookup[k]["FECHA_RESOLUCION"]
@@ -297,8 +281,17 @@ def main(mes: str) -> None:
         _write_resolucion(pd.DataFrame(columns=cols_orden), mes)
         return
 
-    boletas_lookup = _build_boletas_lookup()
-    log.info(f"DATA_boletas: {len(boletas_lookup)} predios disponibles")
+    # Aplicar correcciones de lote antes de buscar en DATA_boletas
+    correcciones = leer_correcciones_lote()
+    if correcciones:
+        for i, row in reclamos.iterrows():
+            key = (_norm(str(row.get("MZ", ""))), _norm(str(row.get("LT", ""))))
+            if key in correcciones:
+                reclamos.at[i, "MZ"] = correcciones[key][0]
+                reclamos.at[i, "LT"] = correcciones[key][1]
+
+    boletas_lookup = get_predio_lookup()
+    log.info(f"DATA_boletas (vía repo): {len(boletas_lookup)} predios disponibles")
 
     # Auto-fill por fila
     rows = []

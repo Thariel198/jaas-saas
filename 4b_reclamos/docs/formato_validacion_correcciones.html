@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Contrato de formato — validacion_correcciones_YYYY-MM.xlsx</title>
+<style>
+  body { font-family: Arial, sans-serif; font-size: 13px; margin: 30px; color: #1f2937; }
+  h1   { font-size: 18px; color: #0E7490; border-bottom: 2px solid #0E7490; padding-bottom: 6px; }
+  h2   { font-size: 14px; color: #374151; margin-top: 28px; border-left: 4px solid #6b7280; padding-left: 8px; }
+  p    { margin: 6px 0; }
+  .meta { background:#f3f4f6; border:1px solid #d1d5db; border-radius:4px; padding:10px 14px; margin-bottom:18px; }
+  .meta span { font-weight:bold; }
+
+  /* ── Pestañas ── */
+  .tabs { display:flex; gap:6px; margin:18px 0 0; }
+  .tab  { padding:5px 14px; border-radius:4px 4px 0 0; font-size:12px; font-weight:bold; cursor:default; border:1px solid #d1d5db; border-bottom:none; }
+  .tab.active   { background:#0E7490; color:#fff; }
+  .tab.inactive { background:#e5e7eb; color:#6b7280; }
+
+  /* ── Tabla Excel simulada ── */
+  table { border-collapse: collapse; margin: 0 0 20px; font-size: 11.5px; }
+  th, td { border: 1px solid #fff; padding: 3px 8px; white-space: nowrap; }
+
+  .sec { font-weight:bold; font-size:10px; text-align:center; }
+  .col { font-weight:bold; font-size:10px; text-align:center; }
+  .dat { font-size:10px; }
+
+  /* Sección ¿Cuál es el predio? — azul */
+  .s-predio { background:#EBF5FB; color:#1A5276; }
+  .d-predio { background:#F4FAFF; color:#1A5276; }
+
+  /* Sección ¿Qué se cerró? — ámbar */
+  .s-cierre { background:#FEF3C7; color:#92400E; }
+  .d-cierre { background:#FFFBEB; color:#92400E; }
+
+  /* Sección ¿Qué se decidió? — morado */
+  .s-decision { background:#F3E8FF; color:#5B21B6; }
+  .d-decision { background:#FAF5FF; color:#5B21B6; }
+
+  /* Sección ¿Qué hay en boletas hoy? — cyan */
+  .s-boletas { background:#ECFEFF; color:#0E7490; }
+  .d-boletas { background:#F0FDFF; color:#0E7490; font-style:italic; }
+  .d-boletas-val { background:#CFFAFE; color:#0E7490; font-weight:bold; }
+
+  /* Sección Verificación — cabecera neutra, celdas según estado */
+  .s-verif { background:#374151; color:#fff; }
+  .d-ok     { background:#D1FAE5; color:#065F46; font-weight:bold; }
+  .d-err    { background:#FEE2E2; color:#991B1B; font-weight:bold; }
+  .d-ausente{ background:#FEF3C7; color:#92400E; font-weight:bold; }
+  .d-sinmap { background:#F3F4F6; color:#6B7280; font-style:italic; }
+
+  /* Sheet 1 — Resumen */
+  .s-resumen { background:#1E3A5F; color:#fff; }
+  .d-resumen { background:#F4FAFF; color:#1f2937; }
+  .d-ok-count    { background:#D1FAE5; color:#065F46; font-weight:bold; text-align:right; }
+  .d-err-count   { background:#FEE2E2; color:#991B1B; font-weight:bold; text-align:right; }
+  .d-warn-count  { background:#FEF3C7; color:#92400E; font-weight:bold; text-align:right; }
+  .d-gray-count  { background:#F3F4F6; color:#6B7280; text-align:right; }
+  .d-total       { background:#E5E7EB; color:#111; font-weight:bold; text-align:right; }
+
+  /* Tags */
+  .tag { display:inline-block; font-size:10px; font-weight:bold; padding:1px 8px; border-radius:10px; }
+  .tag.ok      { background:#D1FAE5; color:#065F46; }
+  .tag.err     { background:#FEE2E2; color:#991B1B; }
+  .tag.ausente { background:#FEF3C7; color:#92400E; }
+  .tag.sinmap  { background:#F3F4F6; color:#6B7280; border:1px solid #D1D5DB; }
+  .tag.auto    { background:#CFFAFE; color:#0E7490; }
+
+  .nota { background:#fffbeb; border:1px solid #fcd34d; border-radius:4px;
+          padding:8px 12px; margin:12px 0; font-size:12px; }
+  .logica-box { background:#ECFEFF; border:1px solid #67E8F9; border-radius:4px;
+                padding:10px 14px; margin:12px 0; font-size:12px; }
+  .logica-box b { color:#0E7490; }
+  ul { margin:4px 0 4px 18px; }
+  li { margin:3px 0; }
+  code { background:#f3f4f6; padding:1px 5px; border-radius:3px; font-size:11px; }
+
+  .readonly-badge {
+    display:inline-block; background:#D1FAE5; color:#065F46;
+    font-size:10px; font-weight:bold; padding:2px 8px; border-radius:10px;
+    border:1px solid #6EE7B7; margin-left:8px;
+  }
+</style>
+</head>
+<body>
+
+<h1>Contrato de formato — validacion_correcciones_YYYY-MM.xlsx <span class="readonly-badge">solo lectura · no modifica nada</span></h1>
+
+<div class="meta">
+  <span>Módulo:</span> 4b_reclamos &nbsp;|&nbsp;
+  <span>Script:</span> validacion_resolucion_correcciones.py &nbsp;|&nbsp;
+  <span>Ruta:</span> outputs/validacion_correcciones_YYYY-MM.xlsx &nbsp;|&nbsp;
+  <span>Lifecycle:</span> mensual opcional — se regenera con cada corrida &nbsp;|&nbsp;
+  <span>Hojas:</span> 2 (Resumen · Detalle)
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2>Propósito</h2>
+
+<div class="logica-box">
+  <b>Script de verificación post-cierre.</b> Después de que el supervisor aplica las correcciones acordadas directamente en <code>DATA_boletas.xlsx</code>, este script confirma que los cambios se reflejan en el sistema.<br><br>
+  <ul>
+    <li>Lee las filas con <code>ESTADO_FINAL=RESUELTO</code> y <code>MES_CIERRE=mes</code> de <code>trazabilidad_reclamos.xlsx</code>.</li>
+    <li>Para cada una, busca <code>(MZ, LT)</code> en <code>DATA_boletas.xlsx</code> y recupera el valor actual de la columna correspondiente al <code>CAMPO</code>.</li>
+    <li>Compara <code>VALOR_APLICADO</code> (lo que se acordó en trazabilidad) con <code>VALOR_EN_BOLETAS</code> (lo que hay en DATA_boletas hoy).</li>
+    <li><span class="tag auto">Solo lectura</span> — no modifica <code>DATA_boletas.xlsx</code>, <code>trazabilidad_reclamos.xlsx</code>, ni ningún otro archivo.</li>
+  </ul>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2>Hoja 1: Resumen</h2>
+
+<div class="tabs">
+  <div class="tab active">Resumen</div>
+  <div class="tab inactive">Detalle</div>
+</div>
+
+<table>
+  <tr>
+    <th class="sec s-resumen" colspan="3">Verificación de correcciones — mes YYYY-MM</th>
+  </tr>
+  <tr>
+    <th class="col" style="background:#f9fafb;">Categoría</th>
+    <th class="col" style="background:#f9fafb; text-align:right;">Cantidad</th>
+    <th class="col" style="background:#f9fafb;">Descripción</th>
+  </tr>
+  <tr>
+    <td class="dat d-resumen">✔ Aplicadas correctamente</td>
+    <td class="dat d-ok-count">5</td>
+    <td class="dat d-resumen">VALOR_EN_BOLETAS coincide con VALOR_APLICADO (tolerancia ±0.01)</td>
+  </tr>
+  <tr>
+    <td class="dat d-resumen">✗ Discrepancias</td>
+    <td class="dat d-err-count">1</td>
+    <td class="dat d-resumen">VALOR_EN_BOLETAS difiere de VALOR_APLICADO — revisar si se aplicó la corrección</td>
+  </tr>
+  <tr>
+    <td class="dat d-resumen">✗ Predios ausentes</td>
+    <td class="dat d-warn-count">0</td>
+    <td class="dat d-resumen">(MZ, LT) no encontrado en DATA_boletas — revisar si el predio cambió de clave</td>
+  </tr>
+  <tr>
+    <td class="dat d-resumen">⊘ Sin mapeo</td>
+    <td class="dat d-gray-count">2</td>
+    <td class="dat d-resumen">TIPO_RECLAMO sin columna en DATA_boletas (RECHAZADO o tipo no verificable)</td>
+  </tr>
+  <tr>
+    <td class="dat" style="background:#E5E7EB; font-weight:bold;">TOTAL RESUELTOS verificados</td>
+    <td class="dat d-total">8</td>
+    <td class="dat" style="background:#E5E7EB; color:#555;">Filas con ESTADO_FINAL=RESUELTO en trazabilidad para este mes</td>
+  </tr>
+</table>
+
+<div class="nota">
+  El <b>Resumen</b> es la hoja de vistazo rápido. Si <b>Discrepancias ≥ 1</b> o <b>Predios ausentes ≥ 1</b>, abrir la hoja Detalle para identificar qué predio necesita revisión.
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2>Hoja 2: Detalle</h2>
+
+<div class="tabs">
+  <div class="tab inactive">Resumen</div>
+  <div class="tab active">Detalle</div>
+</div>
+
+<table>
+  <tr>
+    <th class="sec s-predio"   colspan="3">¿Cuál es el predio?</th>
+    <th class="sec s-cierre"   colspan="3">¿Qué se cerró?</th>
+    <th class="sec s-decision" colspan="1">¿Qué se decidió?</th>
+    <th class="sec s-boletas"  colspan="1">¿Qué hay en boletas hoy?</th>
+    <th class="sec s-verif"    colspan="2">Verificación</th>
+  </tr>
+  <tr>
+    <th class="col s-predio">MZ</th>
+    <th class="col s-predio">LT</th>
+    <th class="col s-predio">NOMBRE</th>
+    <th class="col s-cierre">TIPO_RECLAMO</th>
+    <th class="col s-cierre">CAMPO</th>
+    <th class="col s-cierre">FECHA_RESOLUCION</th>
+    <th class="col s-decision">VALOR_APLICADO</th>
+    <th class="col s-boletas">VALOR_EN_BOLETAS</th>
+    <th class="col s-verif" style="background:#4B5563;">ESTADO_VERIFICACION</th>
+    <th class="col s-verif" style="background:#4B5563;">DIFERENCIA</th>
+  </tr>
+  <!-- Fila OK — corrección aplicada correctamente -->
+  <tr>
+    <td class="dat d-predio">A</td>
+    <td class="dat d-predio">12</td>
+    <td class="dat d-predio">María García Huanca</td>
+    <td class="dat d-cierre">mes_anterior</td>
+    <td class="dat d-cierre">MES ANTERIOR</td>
+    <td class="dat d-cierre">10/06/2026</td>
+    <td class="dat d-decision" style="text-align:right;">0.00</td>
+    <td class="dat d-boletas-val" style="text-align:right;">0.00</td>
+    <td class="dat d-ok">✔ OK</td>
+    <td class="dat d-ok" style="text-align:right;">0.00</td>
+  </tr>
+  <!-- Fila ERR — corrección no se aplicó -->
+  <tr>
+    <td class="dat d-predio">C</td>
+    <td class="dat d-predio">14</td>
+    <td class="dat d-predio">Juan Pérez López</td>
+    <td class="dat d-cierre">convenio</td>
+    <td class="dat d-cierre">Convenio</td>
+    <td class="dat d-cierre">11/06/2026</td>
+    <td class="dat d-decision" style="text-align:right;">0.00</td>
+    <td class="dat d-boletas-val" style="text-align:right;">45.00</td>
+    <td class="dat d-err">✗ ERR</td>
+    <td class="dat d-err" style="text-align:right;">45.00</td>
+  </tr>
+  <!-- Fila AUSENTE — predio no encontrado -->
+  <tr>
+    <td class="dat d-predio">B</td>
+    <td class="dat d-predio">21</td>
+    <td class="dat d-predio" style="color:#D1D5DB; font-style:italic;">(no encontrado)</td>
+    <td class="dat d-cierre">mes_anterior</td>
+    <td class="dat d-cierre">MES ANTERIOR</td>
+    <td class="dat d-cierre">10/06/2026</td>
+    <td class="dat d-decision" style="text-align:right;">35.00</td>
+    <td class="dat d-boletas" style="color:#D1D5DB;">(sin dato)</td>
+    <td class="dat d-ausente">✗ AUSENTE</td>
+    <td class="dat d-ausente" style="text-align:right;"></td>
+  </tr>
+  <!-- Fila SIN_MAP — sin columna en DATA_boletas -->
+  <tr>
+    <td class="dat d-predio">G</td>
+    <td class="dat d-predio">1</td>
+    <td class="dat d-predio">Eugenia Heredia Samaritano</td>
+    <td class="dat d-cierre">convenio</td>
+    <td class="dat d-cierre">Convenio</td>
+    <td class="dat d-cierre">12/06/2026</td>
+    <td class="dat d-decision" style="text-align:right;"></td>
+    <td class="dat d-boletas" style="color:#D1D5DB;">(sin mapeo)</td>
+    <td class="dat d-sinmap">⊘ SIN_MAP</td>
+    <td class="dat d-sinmap" style="text-align:right;"></td>
+  </tr>
+</table>
+
+<div class="nota">
+  <b>DIFERENCIA</b> = <code>VALOR_EN_BOLETAS − VALOR_APLICADO</code>. Positivo significa que DATA_boletas sigue con un valor mayor al acordado. Vacío si el estado es AUSENTE o SIN_MAP.
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2>Lógica de verificación (ESTADO_VERIFICACION)</h2>
+
+<table>
+  <tr style="background:#f9fafb;">
+    <th style="padding:4px 10px;">Estado</th>
+    <th style="padding:4px 10px;">Condición</th>
+    <th style="padding:4px 10px;">Acción sugerida</th>
+  </tr>
+  <tr>
+    <td><span class="tag ok">✔ OK</span></td>
+    <td><code>|VALOR_EN_BOLETAS − VALOR_APLICADO| ≤ 0.01</code> (numérico)<br>o valores normalizados iguales (texto)</td>
+    <td>Ninguna — corrección confirmada</td>
+  </tr>
+  <tr>
+    <td><span class="tag err">✗ ERR</span></td>
+    <td><code>VALOR_EN_BOLETAS ≠ VALOR_APLICADO</code> (con tolerancia)</td>
+    <td>Revisar si la corrección se aplicó en DATA_boletas y volver a correr</td>
+  </tr>
+  <tr>
+    <td><span class="tag ausente">✗ AUSENTE</span></td>
+    <td><code>(MZ, LT)</code> no encontrado en DATA_boletas</td>
+    <td>Verificar si el predio cambió de clave MZ/LT o si hay correcciones_lote pendientes</td>
+  </tr>
+  <tr>
+    <td><span class="tag sinmap">⊘ SIN_MAP</span></td>
+    <td>CAMPO vacío (TIPO_RECLAMO sin columna en DATA_boletas)</td>
+    <td>Verificación no aplicable — la corrección puede ser de tipo no numérico</td>
+  </tr>
+</table>
+
+<div class="nota">
+  <b>Comparación numérica vs texto:</b> el script intenta convertir <code>VALOR_APLICADO</code> y <code>VALOR_EN_BOLETAS</code> a <code>float</code>. Si la conversión falla (texto como nombre), compara strings normalizados (strip + upper). La tolerancia ±0.01 aplica solo a comparaciones numéricas.
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2>Columnas — hoja Detalle</h2>
+<table>
+  <tr style="background:#f9fafb;">
+    <th style="padding:4px 10px;">Columna</th>
+    <th style="padding:4px 10px;">Fuente</th>
+    <th style="padding:4px 10px;">Descripción</th>
+  </tr>
+  <tr><td>MZ</td><td>trazabilidad_reclamos.xlsx</td><td>Manzana del predio</td></tr>
+  <tr><td>LT</td><td>trazabilidad_reclamos.xlsx</td><td>Lote del predio</td></tr>
+  <tr><td>NOMBRE</td><td>DATA_boletas.xlsx (NOMBRES)</td><td>Nombre del propietario según boletas actuales</td></tr>
+  <tr><td>TIPO_RECLAMO</td><td>trazabilidad_reclamos.xlsx</td><td>Tipo de reclamo clasificado</td></tr>
+  <tr><td>CAMPO</td><td>trazabilidad_reclamos.xlsx</td><td>Columna de DATA_boletas que fue corregida</td></tr>
+  <tr><td>FECHA_RESOLUCION</td><td>trazabilidad_reclamos.xlsx</td><td>Fecha en que se cerró el reclamo</td></tr>
+  <tr><td>VALOR_APLICADO</td><td>trazabilidad_reclamos.xlsx</td><td>Valor acordado para la corrección (lo que debería estar en DATA_boletas)</td></tr>
+  <tr><td>VALOR_EN_BOLETAS</td><td>DATA_boletas.xlsx (columna CAMPO)</td><td>Valor actual en DATA_boletas al momento de correr la validación</td></tr>
+  <tr><td>ESTADO_VERIFICACION</td><td>Calculado</td><td>OK / ERR / AUSENTE / SIN_MAP</td></tr>
+  <tr><td>DIFERENCIA</td><td>Calculado</td><td>VALOR_EN_BOLETAS − VALOR_APLICADO (numérico, vacío si no aplica)</td></tr>
+</table>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2>Leyenda de colores</h2>
+<table>
+  <tr style="background:#f9fafb;">
+    <th style="padding:4px 10px;">Color</th>
+    <th style="padding:4px 10px;">Sección</th>
+    <th style="padding:4px 10px;">Significado</th>
+  </tr>
+  <tr><td style="background:#EBF5FB; padding:4px 10px;">Azul</td><td>¿Cuál es el predio?</td><td>MZ, LT, NOMBRE del propietario (de DATA_boletas)</td></tr>
+  <tr><td style="background:#FEF3C7; padding:4px 10px;">Ámbar</td><td>¿Qué se cerró?</td><td>TIPO_RECLAMO, CAMPO corregido y fecha de cierre (de trazabilidad)</td></tr>
+  <tr><td style="background:#F3E8FF; padding:4px 10px;">Morado</td><td>¿Qué se decidió?</td><td>VALOR_APLICADO — el valor acordado en la resolución del reclamo</td></tr>
+  <tr><td style="background:#ECFEFF; padding:4px 10px;">Cyan</td><td>¿Qué hay en boletas hoy?</td><td>VALOR_EN_BOLETAS — dato vigente en DATA_boletas al momento de la verificación</td></tr>
+  <tr><td style="background:#D1FAE5; padding:4px 10px;">Verde</td><td>Verificación OK</td><td>✔ Corrección confirmada — VALOR_EN_BOLETAS coincide con VALOR_APLICADO</td></tr>
+  <tr><td style="background:#FEE2E2; padding:4px 10px;">Rojo</td><td>Verificación ERR</td><td>✗ Discrepancia — la corrección no se aplicó o se aplicó un valor distinto</td></tr>
+  <tr><td style="background:#FEF3C7; padding:4px 10px;">Ámbar (celda)</td><td>Verificación AUSENTE</td><td>✗ Predio no encontrado en DATA_boletas</td></tr>
+  <tr><td style="background:#F3F4F6; padding:4px 10px;">Gris</td><td>Verificación SIN_MAP</td><td>⊘ Sin columna en DATA_boletas para verificar (corrección no numérica o tipo desconocido)</td></tr>
+</table>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2>Señales de alerta</h2>
+<table>
+  <tr style="background:#f9fafb;">
+    <th style="padding:4px 10px;">Señal</th>
+    <th style="padding:4px 10px;">Interpretación</th>
+  </tr>
+  <tr>
+    <td>Resumen: Discrepancias ≥ 1</td>
+    <td>El supervisor acordó una corrección pero DATA_boletas no se actualizó — abrir Detalle, buscar filas ERR y aplicar los valores de VALOR_APLICADO</td>
+  </tr>
+  <tr>
+    <td>Resumen: Predios ausentes ≥ 1</td>
+    <td>(MZ, LT) no existe en DATA_boletas — verificar si correcciones_lote.xlsx tiene un remapeo pendiente</td>
+  </tr>
+  <tr>
+    <td>DIFERENCIA positiva grande (ej. 45.00)</td>
+    <td>DATA_boletas conserva el valor original — la corrección no se aplicó en ningún momento</td>
+  </tr>
+  <tr>
+    <td>Todos los RESUELTO son SIN_MAP</td>
+    <td>Los reclamos del mes son de tipo no verificable (ej. cambio de nombre) — normal si no hay reclamos de cobro</td>
+  </tr>
+</table>
+
+<hr style="margin-top:30px; border-color:#e5e7eb;">
+<p style="font-size:11px; color:#9ca3af;">
+  Contrato visual aprobado — el código en validacion_resolucion_correcciones.py debe replicar exactamente este formato.<br>
+  Módulo: 4b_reclamos &nbsp;|&nbsp; Versión: 1.0 &nbsp;|&nbsp; Fecha: 15/06/2026
+</p>
+
+</body>
+</html>

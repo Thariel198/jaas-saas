@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>shared/data_boletas_repo — diagrama del patrón</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'IBM Plex Sans', sans-serif; background: #fff; padding: 24px; color: #111; }
+
+  .title { font-size: 19px; font-weight: 700; color: #111; margin-bottom: 4px; }
+  .sub   { font-size: 12px; color: #888; margin-bottom: 22px; }
+
+  .intro {
+    background: #FAFAFA; border: 1px solid #E5E7EB;
+    border-left: 4px solid #6D28D9;
+    border-radius: 6px; padding: 12px 16px; margin-bottom: 22px;
+    font-size: 12px; color: #374151; line-height: 1.6;
+  }
+  .intro b { color: #5B21B6; }
+
+  /* ── Capas ────────────────────────────────────────────────── */
+  .layer {
+    margin-bottom: 12px;
+    border-radius: 10px; padding: 14px 16px;
+    background: #FAFAFA; border: 1px solid #E5E7EB;
+  }
+  .layer-header {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #E5E7EB;
+  }
+  .layer-num {
+    width: 26px; height: 26px;
+    background: #6D28D9; color: #fff;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700;
+  }
+  .layer-title { font-size: 13px; font-weight: 700; color: #111; }
+  .layer-sub   { font-size: 11px; color: #6B7280; margin-left: 6px; }
+
+  /* ── Cards de callers ─────────────────────────────────────── */
+  .callers-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .caller {
+    border-radius: 7px;
+    padding: 8px 10px;
+    font-size: 11px;
+  }
+  .caller.now    { background: #ECFEFF; border: 1px solid #67E8F9; color: #0E7490; }
+  .caller.new    { background: #F3E8FF; border: 1px solid #C4B5FD; color: #5B21B6; }
+  .caller.future { background: #F9FAFB; border: 1px dashed #D1D5DB; color: #6B7280; }
+  .caller .label {
+    font-size: 9px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .05em; margin-bottom: 4px; opacity: .75;
+  }
+  .caller .fname {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; font-weight: 700; margin-bottom: 4px;
+  }
+  .caller .call {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; line-height: 1.5;
+  }
+
+  /* ── Centro: el repo ──────────────────────────────────────── */
+  .repo-box {
+    background: linear-gradient(180deg, #F3E8FF 0%, #EDE9FE 100%);
+    border: 2px solid #6D28D9;
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .repo-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px; font-weight: 700; color: #5B21B6;
+    text-align: center;
+    border-bottom: 1px solid #C4B5FD;
+    padding-bottom: 8px; margin-bottom: 10px;
+  }
+  .api-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .api-card {
+    background: #fff; border-radius: 5px; padding: 8px 10px;
+    border-left: 3px solid #7C3AED;
+  }
+  .api-sig {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10.5px; font-weight: 700; color: #4C1D95; margin-bottom: 3px;
+  }
+  .api-desc { font-size: 10px; color: #5B21B6; line-height: 1.45; }
+
+  .internals {
+    margin-top: 10px;
+    background: #fff; border-radius: 5px;
+    padding: 8px 10px;
+    border-left: 3px solid #BE185D;
+  }
+  .internals .ititle {
+    font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
+    color: #BE185D; margin-bottom: 4px;
+  }
+  .internals ul { margin: 0; padding-left: 16px; }
+  .internals li {
+    font-size: 10px; color: #4C1D95; line-height: 1.55;
+    margin: 2px 0;
+  }
+
+  /* ── Persistencia ─────────────────────────────────────────── */
+  .persist-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .persist {
+    border-radius: 7px; padding: 8px 10px;
+    font-size: 11px;
+  }
+  .persist.truth { background: #FEF3C7; border: 1px solid #F9E79F; color: #92400E; }
+  .persist.audit { background: #EBF5FB; border: 1px solid #AED6F1; color: #1A5276; }
+  .persist.bkp   { background: #F3F4F6; border: 1px solid #D1D5DB; color: #374151; }
+  .persist .label {
+    font-size: 9px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .05em; margin-bottom: 4px; opacity: .85;
+  }
+  .persist .fname {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; font-weight: 700; margin-bottom: 4px;
+  }
+  .persist .detail { font-size: 10px; line-height: 1.5; }
+  .lifecycle {
+    display: inline-block; font-size: 9px; font-weight: 700;
+    padding: 1px 6px; border-radius: 10px; margin-top: 4px;
+  }
+  .lifecycle.perm    { background: #D5F5E3; color: #1E5C3A; }
+  .lifecycle.append  { background: #DBEAFE; color: #1E3A8A; }
+
+  /* ── Flechas verticales entre capas ────────────────────────── */
+  .arrow-down {
+    display: flex; justify-content: center;
+    font-size: 22px; color: #C4B5FD; font-weight: 300;
+    margin: -8px 0 -4px;
+  }
+
+  /* ── Footer: invariantes ──────────────────────────────────── */
+  .inv-row {
+    margin-top: 16px;
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;
+  }
+  .inv {
+    border-radius: 6px; padding: 10px 12px;
+    font-size: 10.5px; line-height: 1.5;
+  }
+  .inv.write { background: #FEF3C7; border: 1px solid #FCD34D; color: #78350F; }
+  .inv.audit { background: #DBEAFE; border: 1px solid #93C5FD; color: #1E3A8A; }
+  .inv.read  { background: #D1FAE5; border: 1px solid #6EE7B7; color: #065F46; }
+  .inv.scale { background: #F3E8FF; border: 1px solid #C4B5FD; color: #5B21B6; }
+  .inv .ititle {
+    font-size: 9px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .05em; margin-bottom: 4px; display: block;
+  }
+  code {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; background: rgba(0,0,0,.06);
+    padding: 1px 4px; border-radius: 3px;
+  }
+</style>
+</head>
+<body>
+
+<p class="title">shared/data_boletas_repo — patrón repository</p>
+<p class="sub">Único escritor de DATA_boletas.xlsx · audit centralizado · API estable para todos los módulos</p>
+
+<div class="intro">
+  <b>Por qué existe el repo:</b> en agentic SaaS, múltiples agentes/módulos van a leer y mutar DATA_boletas (resolución de reclamos hoy; auto-resolvers, importadores, conciliadores mañana). Si cada uno escribe directo, la disciplina (backup, log, validación) no escala y el audit trail se fragmenta. El repo encapsula la mutación: <b>una sola puerta</b>, audit obligatorio, lista para migrar a Postgres/servicio sin tocar consumidores.
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- CAPA 1 — CALLERS -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="layer">
+  <div class="layer-header">
+    <div class="layer-num">1</div>
+    <div class="layer-title">Callers</div>
+    <div class="layer-sub">quién habla con el repo</div>
+  </div>
+
+  <div class="callers-grid">
+    <div class="caller now">
+      <div class="label">activo (read)</div>
+      <div class="fname">4b_reclamos/resolucion.py</div>
+      <div class="call">repo.get_predio(mz, lt)</div>
+    </div>
+    <div class="caller now">
+      <div class="label">activo (read)</div>
+      <div class="fname">4b_reclamos/validacion_*.py</div>
+      <div class="call">repo.read_padron()</div>
+    </div>
+    <div class="caller new">
+      <div class="label">★ nuevo (write)</div>
+      <div class="fname">4b_reclamos/aplicar_correcciones.py</div>
+      <div class="call">repo.apply_correction(...)</div>
+    </div>
+    <div class="caller future">
+      <div class="label">futuro</div>
+      <div class="fname">agente auto-resolver</div>
+      <div class="call">repo.apply_correction(...)</div>
+    </div>
+    <div class="caller future">
+      <div class="label">futuro</div>
+      <div class="fname">UI / dashboard</div>
+      <div class="call">repo.read_padron()</div>
+    </div>
+    <div class="caller future">
+      <div class="label">futuro</div>
+      <div class="fname">importador masivo / conciliador</div>
+      <div class="call">repo.apply_correction(...)</div>
+    </div>
+  </div>
+</div>
+
+<div class="arrow-down">↓</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- CAPA 2 — REPO -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="layer">
+  <div class="layer-header">
+    <div class="layer-num">2</div>
+    <div class="layer-title">shared/data_boletas_repo.py</div>
+    <div class="layer-sub">API pública · internals encapsulados</div>
+  </div>
+
+  <div class="repo-box">
+    <div class="repo-title">API pública</div>
+
+    <div class="api-grid">
+      <div class="api-card">
+        <div class="api-sig">read_padron() → DataFrame</div>
+        <div class="api-desc">Retorna el padrón completo. Sin side-effects.</div>
+      </div>
+      <div class="api-card">
+        <div class="api-sig">get_predio(mz, lt) → dict | None</div>
+        <div class="api-desc">Retorna la fila del predio o None si no existe.</div>
+      </div>
+      <div class="api-card" style="grid-column: span 2;">
+        <div class="api-sig">apply_correction(mz, lt, campo, valor, *, source, audit_ref, motivo) → AppliedDelta</div>
+        <div class="api-desc">
+          Mutación atómica: lee valor previo, hace backup, escribe nuevo valor, registra audit.
+          Retorna {valor_antes, valor_despues, ts, audit_id}. Falla si predio o campo no existen.
+        </div>
+      </div>
+    </div>
+
+    <div class="internals">
+      <div class="ititle">Internals (lo que el caller no ve)</div>
+      <ul>
+        <li>Validación: el campo existe en DATA_boletas; el predio (mz, lt) existe.</li>
+        <li>Backup automático antes de cualquier write — <code>3_boletas/backup/DATA_boletas/...</code></li>
+        <li>Append al audit log — <code>shared/data_boletas_audit.xlsx</code></li>
+        <li>Lock por archivo (futuro: lock por predio + transacciones).</li>
+        <li>Idempotencia: aplicar el mismo audit_ref dos veces produce un solo write efectivo.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="arrow-down">↓</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- CAPA 3 — PERSISTENCIA -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="layer">
+  <div class="layer-header">
+    <div class="layer-num">3</div>
+    <div class="layer-title">Persistencia</div>
+    <div class="layer-sub">archivos físicos · ningún caller los abre directo</div>
+  </div>
+
+  <div class="persist-grid">
+    <div class="persist truth">
+      <div class="label">fuente de verdad</div>
+      <div class="fname">3_boletas/inputs/DATA_boletas.xlsx</div>
+      <div class="detail">
+        padrón de predios con todas las columnas de cobro.<br>
+        El repo es el único proceso que lo escribe.<br>
+        <span class="lifecycle perm">permanente</span>
+      </div>
+    </div>
+    <div class="persist audit">
+      <div class="label">audit log</div>
+      <div class="fname">shared/data_boletas_audit.xlsx</div>
+      <div class="detail">
+        Una fila por mutación:<br>
+        timestamp · mz · lt · campo<br>
+        valor_antes · valor_despues<br>
+        source · audit_ref · motivo<br>
+        <span class="lifecycle append">append-only</span>
+      </div>
+    </div>
+    <div class="persist bkp">
+      <div class="label">backup</div>
+      <div class="fname">3_boletas/backup/DATA_boletas/</div>
+      <div class="detail">
+        Snapshot completo de DATA_boletas antes de cada corrida del repo.<br>
+        Nombre: <code>DATA_boletas_YYYY-MM-DD_HHMMSS.xlsx</code><br>
+        <span class="lifecycle perm">timestamp</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- INVARIANTES -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="inv-row">
+  <div class="inv write">
+    <span class="ititle">Single writer</span>
+    DATA_boletas.xlsx solo se escribe vía <code>repo.apply_correction()</code>. Ningún módulo lo abre con <code>load_workbook</code> para escribir directo.
+  </div>
+  <div class="inv audit">
+    <span class="ititle">Audit obligatorio</span>
+    No hay forma de mutar sin pasar por el audit log. Cada cambio queda con timestamp, source, audit_ref y motivo trazables.
+  </div>
+  <div class="inv read">
+    <span class="ititle">Lecturas también vía repo</span>
+    <code>resolucion.py</code> y <code>validacion_*.py</code> ya leen vía repo. Es un acuerdo de cohesión, no de seguridad — preserva la abstracción para futuras migraciones.
+  </div>
+  <div class="inv scale">
+    <span class="ititle">Listo para escalar</span>
+    Cuando DATA_boletas migre a Postgres o microservicio, solo el repo cambia. Callers siguen llamando la misma API.
+  </div>
+</div>
+
+</body>
+</html>
