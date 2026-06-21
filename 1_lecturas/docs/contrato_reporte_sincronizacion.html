@@ -1,0 +1,180 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+#w{font-family:var(--font-sans);padding:4px 0 16px}
+.instruc{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-left:3px solid #1A5276;border-radius:0 var(--border-radius-md) var(--border-radius-md) 0;padding:9px 13px;font-size:12px;color:var(--color-text-secondary);margin-bottom:12px;line-height:1.7}
+.instruc strong{color:var(--color-text-primary)}
+.tab-excel{display:inline-flex;align-items:center;border-radius:6px 6px 0 0;padding:5px 14px;font-size:12px;font-weight:500;margin-bottom:-1px;background:#EBF5FB;border:0.5px solid #AED6F1;border-bottom:none;color:#1A5276}
+.tw{border:0.5px solid var(--color-border-tertiary);border-radius:0 var(--border-radius-md) var(--border-radius-md) var(--border-radius-md);overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:11px}
+th{padding:6px 8px;font-size:10px;font-weight:500;text-align:left;border-bottom:0.5px solid var(--color-border-tertiary);border-right:0.5px solid var(--color-border-tertiary);white-space:nowrap}
+th:last-child{border-right:none}
+td{padding:5px 8px;border-bottom:0.5px solid var(--color-border-tertiary);border-right:0.5px solid var(--color-border-tertiary);vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+td:last-child{border-right:none}
+tr:last-child td{border-bottom:none}
+.num{width:24px;background:var(--color-background-secondary);color:var(--color-text-tertiary);font-size:10px;font-family:var(--font-mono);text-align:center;border-right:0.5px solid var(--color-border-tertiary)}
+
+/* grupos de columnas */
+.th-quien{background:#F4ECF7;color:#5B21B6}
+.th-padron{background:#EBF5FB;color:#1A5276}
+.th-operario{background:#FEF3E8;color:#7C3003}
+.th-decision{background:#D5F5E3;color:#145A32}
+.th-estado{background:#FEF9C3;color:#7D6608}
+.th-sep{width:4px;background:var(--color-background-secondary);padding:0;border-right:2px solid var(--color-border-secondary)}
+
+.td-quien{background:#FAF5FF;font-family:var(--font-mono);font-size:10px;color:#5B21B6}
+.td-padron{background:#EBF5FB;font-family:var(--font-mono);font-size:10px;color:#1A5276}
+.td-operario{background:#FEF3E8;font-family:var(--font-mono);font-size:10px;color:#7C3003}
+.td-decision{background:#F0FFF8;font-family:var(--font-mono);font-size:11px;font-weight:500;color:#065F46;text-align:center}
+.td-estado{background:#FEF9EC;font-family:var(--font-mono);font-size:10px;color:#7D5A00;text-align:center}
+.td-sep{width:4px;background:var(--color-background-secondary);padding:0;border-right:2px solid var(--color-border-secondary)}
+.gh{font-size:9px;font-weight:600;text-align:center;padding:3px 0;letter-spacing:.05em;text-transform:uppercase;border-bottom:0.5px solid var(--color-border-tertiary)}
+
+/* tipo badges */
+.tipo{font-size:10px;font-weight:bold;padding:1px 7px;border-radius:10px;display:inline-block;white-space:nowrap}
+.tipo-agr{background:#D5F5E3;color:#145A32;border:1px solid #52BE80}
+.tipo-sss{background:#FEF3C7;color:#7D5A00;border:1px solid #F0C040}
+.tipo-ren{background:#D6EAF8;color:#1A5276;border:1px solid #5DADE2}
+.tipo-mov{background:#FADBD8;color:#7B241C;border:1px solid #F1948A}
+
+.note{margin-top:14px;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-left:3px solid #2E86C1;border-radius:0 var(--border-radius-md) var(--border-radius-md) 0;padding:9px 13px;font-size:11px;color:var(--color-text-secondary);line-height:1.7}
+.note strong{color:var(--color-text-primary)}
+.note code{font-family:var(--font-mono);background:#fff;padding:1px 5px;border-radius:3px;color:#1A5276;font-size:10.5px}
+.values{margin-top:14px;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:10px 14px;font-size:11px;color:var(--color-text-secondary)}
+.values strong{color:var(--color-text-primary)}
+.values code{font-family:var(--font-mono);background:#fff;padding:1px 5px;border-radius:3px;color:#065F46;font-size:10.5px}
+.values .row{margin-bottom:4px}
+.warn{margin-top:12px;background:#FEF3C7;border:0.5px solid #F0C040;border-left:3px solid #CA6F1E;border-radius:0 var(--border-radius-md) var(--border-radius-md) 0;padding:9px 13px;font-size:11px;color:#7D5A00;line-height:1.7}
+.warn strong{color:#6E4B00}
+</style>
+<div id="w">
+  <div class="instruc">
+    <strong>reporte_sincronizacion.xlsx</strong> · auditoría del diff entre <code>padron_reconciliado.xlsx</code>
+    y <code>registro_operario_acumulado.xlsx</code> · generado por <code>proponer_sincronizacion.py</code>.<br>
+    Una fila por delta detectado. Columnas <code>REVISADO</code> y <code>AUTORIZAR</code> son <strong>sticky</strong>
+    — se preservan entre ciclos si el delta aún no fue aplicado. Columna <code>APLICADO</code> garantiza idempotencia.<br>
+    Solo los deltas <code>MOVIMIENTO</code> requieren que el supervisor llene <code>REVISADO</code> y <code>AUTORIZAR</code>.
+    Los demás tipos se auto-autorizan.
+  </div>
+
+  <div class="tab-excel">reporte</div>
+  <div class="tw"><table style="min-width:1100px">
+    <thead>
+      <tr>
+        <th class="num" rowspan="2"></th>
+        <th class="th-quien gh" colspan="1">Tipo</th>
+        <th class="th-sep" rowspan="2"></th>
+        <th class="th-padron gh" colspan="3">Padrón (fuente de verdad)</th>
+        <th class="th-sep" rowspan="2"></th>
+        <th class="th-operario gh" colspan="3">Operario (estado actual)</th>
+        <th class="th-sep" rowspan="2"></th>
+        <th class="th-decision gh" colspan="3">Decisión supervisor</th>
+        <th class="th-sep" rowspan="2"></th>
+        <th class="th-estado gh" colspan="2">Estado</th>
+      </tr>
+      <tr>
+        <th class="th-quien">TIPO</th>
+        <th class="th-padron">MZ_PADRON</th><th class="th-padron">LT_PADRON</th><th class="th-padron">NOMBRE_PADRON</th>
+        <th class="th-operario">MZ_OPERARIO</th><th class="th-operario">LT_OPERARIO</th><th class="th-operario">NOMBRE_OPERARIO</th>
+        <th class="th-decision">REVISADO</th><th class="th-decision">AUTORIZAR</th><th class="th-decision">FECHA_REVISION</th>
+        <th class="th-estado">APLICADO</th><th class="th-estado">FECHA_APLICADO</th>
+      </tr>
+    </thead>
+    <tbody>
+
+      <!-- AGREGADO -->
+      <tr>
+        <td class="num">1</td>
+        <td class="td-quien"><span class="tipo tipo-agr">🟢 AGREGADO</span></td>
+        <td class="td-sep"></td>
+        <td class="td-padron">B2</td><td class="td-padron">15</td><td class="td-padron">ROSA HUAMAN DE PINTO</td>
+        <td class="td-sep"></td>
+        <td class="td-operario">—</td><td class="td-operario">—</td><td class="td-operario">—</td>
+        <td class="td-sep"></td>
+        <td class="td-decision">Si (auto)</td><td class="td-decision">Si (auto)</td><td class="td-decision">—</td>
+        <td class="td-sep"></td>
+        <td class="td-estado">Si</td><td class="td-estado">2026-06-20</td>
+      </tr>
+
+      <!-- SIN_SERVICIO -->
+      <tr>
+        <td class="num">2</td>
+        <td class="td-quien"><span class="tipo tipo-sss">🟡 SIN_SERVICIO</span></td>
+        <td class="td-sep"></td>
+        <td class="td-padron">—</td><td class="td-padron">—</td><td class="td-padron">—</td>
+        <td class="td-sep"></td>
+        <td class="td-operario">C</td><td class="td-operario">4</td><td class="td-operario">JORGE QUISPE LLANOS</td>
+        <td class="td-sep"></td>
+        <td class="td-decision">Si (auto)</td><td class="td-decision">Si (auto)</td><td class="td-decision">—</td>
+        <td class="td-sep"></td>
+        <td class="td-estado">Si</td><td class="td-estado">2026-06-20</td>
+      </tr>
+
+      <!-- RENAME -->
+      <tr>
+        <td class="num">3</td>
+        <td class="td-quien"><span class="tipo tipo-ren">🔵 RENAME</span></td>
+        <td class="td-sep"></td>
+        <td class="td-padron">A</td><td class="td-padron">8</td><td class="td-padron">LINDA PAJUELO COCHACHIN</td>
+        <td class="td-sep"></td>
+        <td class="td-operario">A</td><td class="td-operario">8</td><td class="td-operario">LINDA PAJUELO DE COCHACHIN</td>
+        <td class="td-sep"></td>
+        <td class="td-decision">Si (auto)</td><td class="td-decision">Si (auto)</td><td class="td-decision">—</td>
+        <td class="td-sep"></td>
+        <td class="td-estado">Si</td><td class="td-estado">2026-06-20</td>
+      </tr>
+
+      <!-- MOVIMIENTO pendiente -->
+      <tr>
+        <td class="num">4</td>
+        <td class="td-quien"><span class="tipo tipo-mov">🔴 MOVIMIENTO</span></td>
+        <td class="td-sep"></td>
+        <td class="td-padron">D1</td><td class="td-padron">3</td><td class="td-padron">MARIO FLORES VIDAL</td>
+        <td class="td-sep"></td>
+        <td class="td-operario">D</td><td class="td-operario">3</td><td class="td-operario">MARIO FLORES VIDAL</td>
+        <td class="td-sep"></td>
+        <td class="td-decision" style="color:#DC2626;">❌ vacío</td><td class="td-decision" style="color:#DC2626;">❌ vacío</td><td class="td-decision">—</td>
+        <td class="td-sep"></td>
+        <td class="td-estado" style="color:#DC2626;">No</td><td class="td-estado">—</td>
+      </tr>
+
+      <!-- MOVIMIENTO autorizado -->
+      <tr>
+        <td class="num">5</td>
+        <td class="td-quien"><span class="tipo tipo-mov">🔴 MOVIMIENTO</span></td>
+        <td class="td-sep"></td>
+        <td class="td-padron">E</td><td class="td-padron">11A</td><td class="td-padron">ANA TORRES ROJAS</td>
+        <td class="td-sep"></td>
+        <td class="td-operario">E</td><td class="td-operario">11</td><td class="td-operario">ANA TORRES ROJAS</td>
+        <td class="td-sep"></td>
+        <td class="td-decision">Si</td><td class="td-decision">Si</td><td class="td-decision">2026-06-20</td>
+        <td class="td-sep"></td>
+        <td class="td-estado">Si</td><td class="td-estado">2026-06-20</td>
+      </tr>
+
+    </tbody>
+  </table></div>
+
+  <div class="values">
+    <div class="row"><strong>Valores de <code>TIPO</code>:</strong></div>
+    <div class="row"><span class="tipo tipo-agr">🟢 AGREGADO</span> · (MZ, LT) nuevo en padrón, no existe en acumulado — agrega fila vacía</div>
+    <div class="row"><span class="tipo tipo-sss">🟡 SIN_SERVICIO</span> · (MZ, LT) en acumulado pero ya no en padrón — marca SIN_SERVICIO=Si, no borra</div>
+    <div class="row"><span class="tipo tipo-ren">🔵 RENAME</span> · mismo (MZ, LT), nombre diferente — el padrón manda, actualiza silencioso</div>
+    <div class="row"><span class="tipo tipo-mov">🔴 MOVIMIENTO</span> · mismo nombre, (MZ, LT) diferente — bloqueado hasta AUTORIZAR del supervisor</div>
+  </div>
+
+  <div class="note">
+    <strong>Columnas sticky (preservadas entre ciclos):</strong> <code>REVISADO</code> y <code>AUTORIZAR</code>.<br>
+    Si un MOVIMIENTO fue autorizado en un ciclo anterior pero aún no aplicado (e.g., <code>aplicar_sincronizacion.py</code>
+    no corrió aún), <code>proponer_sincronizacion.py</code> preserva esos valores al regenerar el reporte.<br><br>
+    <strong>Columna idempotente:</strong> <code>APLICADO=Si</code> garantiza que <code>aplicar_sincronizacion.py</code>
+    no procese el mismo delta dos veces. Filtro: <code>APLICADO ≠ Si</code>.<br><br>
+    <strong>Normalización:</strong> MZ, LT y NOMBRE se comparan normalizados: strip · UPPER · NFD Unicode · sin marcas de acento · espacios colapsados.
+  </div>
+
+  <div class="warn">
+    <strong>Solo MOVIMIENTO requiere acción del supervisor.</strong> AGREGADO, SIN_SERVICIO y RENAME se marcan
+    <code>REVISADO=Si (auto)</code> y <code>AUTORIZAR=Si (auto)</code> automáticamente por
+    <code>proponer_sincronizacion.py</code>. El supervisor solo abre el reporte cuando hay filas de tipo MOVIMIENTO con APLICADO=No.
+  </div>
+</div>

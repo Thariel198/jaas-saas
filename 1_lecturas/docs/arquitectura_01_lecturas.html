@@ -156,6 +156,16 @@
   }
   .ciclo-banner strong { color: #6E2C00; }
 
+  /* SYNC DELTAS */
+  .delta-agr { background: #EAFAF1; border-left: 3px solid #27AE60; }
+  .delta-sss { background: #FEF9E7; border-left: 3px solid #F1C40F; }
+  .delta-ren { background: #EBF5FB; border-left: 3px solid #2E86C1; }
+  .delta-mov { background: #FDEDEC; border-left: 3px solid #CB4335; }
+  .badge.sync  { background: #EBF5FB; color: #1A5276; }
+  .badge.sync-trace { background: #F3E8FF; color: #5B21B6; }
+  .file-block.output-sync { background: #EBF5FB; border: 0.5px solid #AED6F1; }
+  .file-block.output-sync .file-name { color: #1A5276; }
+
   /* TRAZABILIDAD TABLE */
   .trace-table td:first-child { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #6C3483; }
 
@@ -169,7 +179,7 @@
 
   <!-- HEADER -->
   <p class="title">01 Lecturas — arquitectura</p>
-  <p class="sub">Módulo 1 del pipeline · Procesamiento de lecturas mensuales del operario</p>
+  <p class="sub">Módulo 1 del pipeline · Sincronización con padrón + procesamiento de lecturas mensuales · actualizado 20/06/2026</p>
 
   <!-- PIPELINE STRIP -->
   <div class="pipeline-strip">
@@ -198,13 +208,15 @@
   <div class="section">
     <div class="sec-title">Qué hace</div>
     <div class="card">
-      <div class="card-title">Registrar, validar y depurar las lecturas de medidores del mes</div>
+      <div class="card-title">Sincronizar el padrón, registrar, validar y depurar las lecturas de medidores del mes</div>
       <div class="card-sub">
-        El operario recorre las manzanas y anota MARC_ACT (lectura actual) y M3 (metros cúbicos calculados
-        a mano) en el template mensual. Este módulo valida esas lecturas contra el historial, detecta
-        anomalías por ciclos hasta que no quede ninguna bloqueante, genera una orden de verificación en PDF
-        para el operario, registra en trazabilidad cada corrección (maquillaje) realizada, y produce el
-        archivo limpio que alimenta a 02 Planilla.
+        <strong>Paso 0 — Sync:</strong> antes de generar el template, sincroniza <code>registro_operario_acumulado.xlsx</code>
+        contra <code>padron_reconciliado.xlsx</code>. Detecta altas (AGREGADO), bajas (SIN_SERVICIO), cambios de nombre (RENAME)
+        y cambios de lote (MOVIMIENTO). Los tres primeros son automáticos; MOVIMIENTO requiere autorización del supervisor.<br><br>
+        <strong>Pasos 1-5 — Lecturas:</strong> el operario recorre las manzanas y anota MARC_ACT y M3 en el template mensual.
+        El módulo valida esas lecturas contra el historial, detecta anomalías por ciclos hasta que no quede ninguna bloqueante,
+        genera una orden de verificación en PDF para el operario, registra en trazabilidad cada corrección (maquillaje)
+        realizada, y produce el archivo limpio que alimenta a 02 Planilla.
       </div>
     </div>
     <div class="rule-box">
@@ -267,8 +279,72 @@
         El último par de columnas (resaltado en azul) es siempre el ciclo más reciente. <strong>Nunca se borra.</strong>
       </div>
       <div class="note" style="margin-top:6px;">
+        <strong>Writers:</strong> <code>aplicar_sincronizacion.py</code> muta MZ/LT/NOMBRE (único writer de identidad);
+        <code>main.py</code> agrega columnas de ciclo YYYY-MM. Ambos hacen backup antes de escribir.
+      </div>
+      <div class="note" style="margin-top:6px;">
         <strong>Contrato detallado:</strong> ver <code>docs/contrato_registro_operario_acumulado.html</code>
       </div>
+    </div>
+
+    <div class="file-block input">
+      <span class="badge auto">0_padron genera · este módulo lee</span>
+      <div class="file-name">0_padron/02_matching/outputs/padron_reconciliado.xlsx</div>
+      <div class="file-desc">Fuente de verdad de identidad catastral. Producido por <code>0_padron/padron_matching.py</code>. Este módulo solo lo lee — nunca lo escribe.</div>
+      <table>
+        <tr><th>Columna usada</th><th>Descripción</th></tr>
+        <tr><td>MZ / LT</td><td>Clave catastral COFOPRI</td></tr>
+        <tr><td>Nombres</td><td>Nombre del propietario reconciliado (manda sobre el acumulado)</td></tr>
+      </table>
+    </div>
+
+    <div class="file-block output-sync">
+      <span class="badge sync">Sync · previo si existe (sticky)</span>
+      <div class="file-name">outputs/sync/reporte_sincronizacion.xlsx</div>
+      <div class="file-desc">
+        Si existe de un ciclo anterior, se lee para preservar <code>REVISADO</code> y <code>AUTORIZAR</code>
+        de MOVIMIENTOs pendientes. Si no existe, <code>proponer_sincronizacion.py</code> parte de cero.
+      </div>
+    </div>
+  </div>
+
+  <!-- SINCRONIZACIÓN CON PADRÓN -->
+  <div class="section">
+    <div class="sec-title">Sincronización con padrón — 4 tipos de delta</div>
+
+    <div class="rule-box">
+      <div class="rule-title">Cómo funciona</div>
+      <code>proponer_sincronizacion.py</code> hace el diff entre el padrón y el acumulado, clasifica cada delta y genera el reporte.<br>
+      <code>aplicar_sincronizacion.py</code> es el <strong>único writer</strong> de MZ/LT/NOMBRE — hace backup timestamped antes de mutar y registra en trazabilidad append-only.
+    </div>
+
+    <div class="anom-block delta-agr">
+      <div class="anom-name">🟢 AGREGADO — automático</div>
+      <div class="anom-when"><strong>Condición:</strong> (MZ, LT) en padrón pero NO en acumulado.</div>
+      <div class="anom-accion"><strong>Acción:</strong> agrega fila nueva en acumulado. Columnas de lecturas vacías. No requiere autorización.</div>
+    </div>
+
+    <div class="anom-block delta-sss">
+      <div class="anom-name">🟡 SIN_SERVICIO — automático</div>
+      <div class="anom-when"><strong>Condición:</strong> (MZ, LT) en acumulado pero NO en padrón.</div>
+      <div class="anom-accion"><strong>Acción:</strong> marca <code>SIN_SERVICIO=Si</code>. La fila y su historial se conservan — nunca se elimina.</div>
+    </div>
+
+    <div class="anom-block delta-ren">
+      <div class="anom-name">🔵 RENAME — automático</div>
+      <div class="anom-when"><strong>Condición:</strong> mismo (MZ, LT) en ambos, NOMBRE difiere (normalizado).</div>
+      <div class="anom-accion"><strong>Acción:</strong> actualiza NOMBRE desde padrón. El padrón manda. Silencioso — queda en trazabilidad.</div>
+    </div>
+
+    <div class="anom-block delta-mov">
+      <div class="anom-name">🔴 MOVIMIENTO ★ — requiere autorización manual</div>
+      <div class="anom-when"><strong>Condición:</strong> mismo NOMBRE con distinto (MZ, LT) — el usuario cambió de lote.</div>
+      <div class="anom-accion"><strong>Acción:</strong> bloqueado hasta que supervisor marque <code>REVISADO=Si</code> + <code>AUTORIZAR=Si/No</code> en el reporte. Sticky entre ciclos.</div>
+    </div>
+
+    <div class="note">
+      <strong>Idempotencia:</strong> columna <code>APLICADO=Si</code> garantiza que un delta no se aplique dos veces.
+      Correr <code>aplicar_sincronizacion.py</code> varias veces produce el mismo resultado.
     </div>
   </div>
 
@@ -672,8 +748,23 @@
 
     <div class="life-row">
       <div class="life-file">inputs/registro_operario_acumulado.xlsx</div>
-      <div class="life-action">PERMANECE · se actualiza (input/output)</div>
-      <div class="life-why">historial puro del operario — nunca borrar</div>
+      <div class="life-action">PERMANECE · mutado por sync + enriquecido por main.py</div>
+      <div class="life-why">historial puro — nunca borrar</div>
+    </div>
+    <div class="life-row">
+      <div class="life-file">inputs/backups/*.xlsx</div>
+      <div class="life-action">PERMANECE · uno por ejecución de sync</div>
+      <div class="life-why">backup pre-mutación de aplicar_sincronizacion</div>
+    </div>
+    <div class="life-row">
+      <div class="life-file">outputs/sync/reporte_sincronizacion.xlsx</div>
+      <div class="life-action">MENSUAL — se regenera · REVISADO/AUTORIZAR sticky</div>
+      <div class="life-why">auditoría de deltas detectados</div>
+    </div>
+    <div class="life-row">
+      <div class="life-file">outputs/sync/trazabilidad_sincronizacion.xlsx</div>
+      <div class="life-action">PERMANECE · append-only</div>
+      <div class="life-why">historial de todas las mutaciones del acumulado</div>
     </div>
     <div class="life-row">
       <div class="life-file">inputs/registro_operario_mes.xlsx</div>
@@ -712,6 +803,23 @@
     <div class="sec-title">Flujo mensual</div>
 
     <div class="flow">
+      <div class="flow-step">
+        <div class="step-num" style="background:#1E8449;">0</div>
+        <div class="step-body">
+          <div class="step-title">Sincronizar padrón <span style="font-size:10px;color:#1E8449;font-weight:normal;">(antes de generar template)</span></div>
+          <div class="step-desc">Al inicio del mes, correr el sync primero:</div>
+          <div class="step-code">python proponer_sincronizacion.py</div>
+          <div class="step-desc" style="margin-top:4px;">
+            Si hay MOVIMIENTOs: abrir <code>outputs/sync/reporte_sincronizacion.xlsx</code>,
+            marcar <code>AUTORIZAR=Si/No</code> por fila, guardar.
+          </div>
+          <div class="step-code">python aplicar_sincronizacion.py</div>
+          <div class="step-desc" style="margin-top:4px;">
+            Muta el acumulado, genera backup timestamped y registra en trazabilidad_sincronizacion.xlsx.
+            Si no hay deltas, el acumulado no se toca.
+          </div>
+        </div>
+      </div>
       <div class="flow-step">
         <div class="step-num">1</div>
         <div class="step-body">
@@ -786,24 +894,37 @@
     <div class="sec-title">Estructura de carpetas</div>
     <div class="card">
       <pre style="font-family:'IBM Plex Mono',monospace; font-size:11px; line-height:1.8; color:#333;">1_lecturas/
+├── proponer_sincronizacion.py            ← ★ diff padrón vs acumulado → reporte
+├── aplicar_sincronizacion.py             ← ★ único writer MZ/LT/NOMBRE · backup + trazabilidad
+├── crear_template.py                     ← genera registro_operario_mes desde acumulado
+├── main.py                               ← valida lecturas · ciclos · emite lecturas_planilla
+├── pdf_orden.py                          ← genera PDF para el operario
+├── formato_excel.py / config.py
 ├── inputs/
 │   ├── registro_operario_mes.xlsx        ← operario llena MARC_ACT, M3, obs_operario
-│   └── registro_operario_acumulado.xlsx  ← historial puro (NUNCA borrar) — input/output
+│   ├── registro_operario_acumulado.xlsx  ← historial puro (NUNCA borrar)
+│   └── backups/                          ← backup timestamped pre-mutación (NUNCA borrar)
 ├── outputs/
-│   ├── trazabilidad_YYYY-MM.xlsx         ← auditoría permanente (NUNCA borrar)
+│   ├── sync/
+│   │   ├── reporte_sincronizacion.xlsx   ← deltas detectados · REVISADO/AUTORIZAR sticky
+│   │   └── trazabilidad_sincronizacion.xlsx ← append-only · historial de mutaciones
+│   ├── trazabilidad_YYYY-MM.xlsx         ← auditoría de maquillajes (NUNCA borrar)
 │   ├── lecturas_planilla_YYYY-MM.xlsx    ← fuente para 2_planilla (NUNCA borrar)
 │   ├── orden_verificacion_YYYY-MM.pdf    ← para el operario (se regenera)
 │   ├── correcciones_YYYY-MM.xlsx         ← trabajo temporal (se elimina)
 │   └── run.log
 ├── docs/
-│   ├── arquitectura_1_lecturas.html              ← este archivo
-│   ├── contrato_registro_operario_mes.html        ← contrato del template
-│   ├── contrato_registro_operario_acumulado.html  ← contrato del historial
+│   ├── arquitectura_01_lecturas.html          ← este archivo
+│   ├── diagrama_flujo_sincronizacion.html     ← flujo rápido del sync
+│   ├── diagrama_sincronizacion.html           ← diseño detallado del sync
+│   ├── contrato_reporte_sincronizacion.html
+│   ├── contrato_trazabilidad_sincronizacion.html
+│   ├── contrato_registro_operario_mes.html
+│   ├── contrato_registro_operario_acumulado.html
+│   ├── contrato_lecturas_planilla.html
 │   ├── flujo_modulo_1_lecturas.svg
 │   └── manual_uso.md
-├── tests/
-├── main.py
-└── crear_template.py</pre>
+└── tests/</pre>
     </div>
     <div class="note">
       <strong>Separación de responsabilidades:</strong>

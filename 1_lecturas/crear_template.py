@@ -7,7 +7,8 @@ que el operario pueda legitimar situaciones de campo con códigos M/F/P.
 Pone una leyenda de códigos M/F/P en las primeras filas (encima de la tabla) para
 que el operario la tenga visible.
 
-Correr una sola vez al inicio del ciclo: python crear_template.py
+Correr una sola vez al inicio del ciclo: python crear_template.py [YYYY-MM]
+Si no se pasa el mes, usa la fecha del sistema.
 """
 from datetime import date
 from pathlib import Path
@@ -48,11 +49,13 @@ def _side():
 def _cargar_usuarios_base() -> list[dict]:
     """Lee MZ, LT, NOMBRE y la MARCACION del último ciclo del acumulado.
 
-    El acumulado tiene doble header:
-        Fila 1: MZ | LT | NOMBRE | YYYY-MM (merge)        | ...
-        Fila 2:                  | MARCACION | M3         | ...
+    Saltea filas con SIN_SERVICIO=Si (usuarios marcados como baja por el sync).
 
-    Para cada usuario se busca la última columna MARCACION del último ciclo presente.
+    Schema esperado del acumulado:
+        Fila 1: MZ | LT | NOMBRE | SIN_SERVICIO | YYYY-MM (merge)        | ...
+        Fila 2:                                  | MARCACION | M3        | ...
+
+    Schema legacy (sin SIN_SERVICIO en col 4): se detecta y procesa también.
     """
     if not config.REGISTRO_ACUMULADO_PATH.exists():
         return []
@@ -60,19 +63,21 @@ def _cargar_usuarios_base() -> list[dict]:
     wb = load_workbook(config.REGISTRO_ACUMULADO_PATH, data_only=True)
     ws = wb.active
 
-    # Identificar columnas fijas (MZ/LT/NOMBRE) y pares por mes leyendo fila 1 y 2
+    # Detectar schema: col 4 = SIN_SERVICIO (nuevo) o YYYY-MM (legacy)
+    cab_col4 = str(ws.cell(1, 4).value or "").strip().upper()
+    tiene_sin_servicio = cab_col4 == "SIN_SERVICIO"
+    col_inicio_meses = 5 if tiene_sin_servicio else 4
+
     n_cols = ws.max_column
-    # Fila 1: leer valores reales — celdas mergeadas devuelven el valor solo en la celda top-left
     fila1 = [ws.cell(1, c).value for c in range(1, n_cols + 1)]
     fila2 = [ws.cell(2, c).value for c in range(1, n_cols + 1)]
 
-    # Mapear meses al índice de su sub-columna MARCACION
-    meses_marc = {}  # YYYY-MM -> 1-indexed column del MARCACION
+    # Mapear meses al índice de su sub-columna MARCACION (a partir de col_inicio_meses)
+    meses_marc = {}
     mes_actual = None
-    for ci in range(1, n_cols + 1):
+    for ci in range(col_inicio_meses, n_cols + 1):
         v1 = fila1[ci - 1]
         v2 = fila2[ci - 1]
-        # Inicio de un par de columnas de mes: v1 es YYYY-MM, v2 es MARCACION
         if v1 and isinstance(v1, str) and len(v1) == 7 and v1[4] == "-":
             mes_actual = v1
         if mes_actual and v2 == "MARCACION":
@@ -85,11 +90,17 @@ def _cargar_usuarios_base() -> list[dict]:
     col_marc = meses_marc[ultimo_mes]
 
     usuarios = []
+    saltados_sin_servicio = 0
     for ri in range(3, ws.max_row + 1):
         mz   = str(ws.cell(ri, 1).value or "").strip().upper()
         lt   = str(ws.cell(ri, 2).value or "").strip()
         if not mz or not lt or mz in ("NONE",) or lt.lower() in ("none", "nan"):
             continue
+        if tiene_sin_servicio:
+            sin_serv = str(ws.cell(ri, 4).value or "").strip().lower()
+            if sin_serv.startswith("si"):
+                saltados_sin_servicio += 1
+                continue
         nom  = str(ws.cell(ri, 3).value or "").strip()
         marc = ws.cell(ri, col_marc).value
         marc_str = str(marc).strip() if marc is not None else ""
@@ -97,6 +108,8 @@ def _cargar_usuarios_base() -> list[dict]:
             marc_str = ""
         usuarios.append({"mz": mz, "lt": lt, "nombre": nom, "marc_ant": marc_str})
 
+    if saltados_sin_servicio:
+        print(f"  ({saltados_sin_servicio} usuarios con SIN_SERVICIO=Si omitidos del template)")
     return usuarios
 
 
@@ -141,7 +154,7 @@ def _escribir_leyenda(ws, fila_inicio: int = 1) -> int:
 def main():
     config.INPUTS_DIR.mkdir(parents=True, exist_ok=True)
 
-    mes_ano = date.today().strftime("%Y-%m")
+    mes_ano = sys.argv[1] if len(sys.argv) > 1 else date.today().strftime("%Y-%m")
     usuarios = _cargar_usuarios_base()
 
     wb = Workbook()

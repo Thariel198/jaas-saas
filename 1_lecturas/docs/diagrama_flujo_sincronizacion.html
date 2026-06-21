@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>1_lecturas — Sincronización con Padrón</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Arial, sans-serif; background: #F0F4F8; font-size: 13px; }
+.page { padding: 28px 24px 60px; max-width: 1080px; margin: 0 auto; }
+h1   { font-size: 17px; color: #1A5276; margin-bottom: 4px; }
+.sub { font-size: 11px; color: #888; margin-bottom: 36px; }
+
+/* ═══ FILA PRINCIPAL ═══ */
+.flow { display: flex; align-items: flex-start; gap: 0; }
+
+.step { display: flex; flex-direction: column; align-items: center; flex: 1; }
+
+.harr {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; flex: 0 0 32px; padding-top: 34px;
+}
+.harr-line { border-top: 2px dashed #BBB; width: 100%; }
+.harr-tip  { color: #AAA; font-size: 14px; line-height: 1; margin-top: -2px; }
+
+.varr { color: #AAA; font-size: 20px; margin: 5px 0; line-height: 1; }
+
+/* ═══ SCRIPTS ═══ */
+.script {
+  width: 100%; border-radius: 8px; padding: 10px 12px;
+  text-align: center; border: 2px solid transparent;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+}
+.sc-name { font-family: Consolas, monospace; font-size: 11px; font-weight: bold; }
+.sc-note { font-size: 10px; opacity: 0.85; }
+
+.sc-blue   { background: #D6EAF8; border-color: #1A5276; color: #1A5276; }
+.sc-purple { background: #EDE9FE; border-color: #5B21B6; color: #5B21B6; }
+.sc-green  { background: #D5F5E3; border-color: #1E8449; color: #1E5C3A; }
+
+/* ═══ ARCHIVOS ═══ */
+.file-wrap { width: 100%; display: flex; flex-direction: column; gap: 4px; margin-top: 2px; }
+
+.file {
+  border-radius: 5px; padding: 5px 8px; font-size: 10px;
+  font-family: Consolas, monospace; font-weight: bold;
+  text-align: left; width: 100%; line-height: 1.5;
+  border-left: 3px solid transparent;
+}
+.file small { font-weight: normal; font-family: Arial, sans-serif; display: block; color: inherit; opacity: 0.8; }
+
+.fa { background: #EBF5FB; color: #1A5276; border-left-color: #1A5276; }   /* auditoría/reporte */
+.ff { background: #D5F5E3; color: #145A32; border-left-color: #1E8449; }   /* output final */
+.fn { background: #FEF3C7; color: #7D5A00; border-left-color: #CA6F1E; }   /* input externo */
+.ft { background: #F3E8FF; color: #5B21B6; border-left-color: #5B21B6; }   /* trazabilidad */
+.fp { background: #FADBD8; color: #7B241C; border-left-color: #E74C3C; }   /* acción humana requerida */
+
+/* etiqueta GENERA / LEE */
+.tag {
+  font-size: 9px; font-weight: bold; text-transform: uppercase;
+  letter-spacing: 0.4px; margin-bottom: 3px; color: #888;
+}
+.tag-green { color: #1E8449; }
+.tag-blue  { color: #1A5276; }
+
+/* badges de tipo de cambio */
+.badges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; width: 100%; }
+.badge {
+  border-radius: 12px; padding: 2px 8px; font-size: 9px; font-weight: bold;
+  font-family: Arial, sans-serif; white-space: nowrap;
+}
+.bg { background: #D5F5E3; color: #145A32; border: 1px solid #52BE80; }   /* AGREGADO */
+.by { background: #FEF3C7; color: #7D5A00; border: 1px solid #F0C040; }   /* SIN_SERVICIO */
+.bb { background: #D6EAF8; color: #1A5276; border: 1px solid #5DADE2; }   /* RENAME */
+.br { background: #FADBD8; color: #7B241C; border: 1px solid #F1948A; }   /* MOVIMIENTO */
+
+/* writer único badge */
+.writer-badge {
+  background: #1E8449; color: #fff; border-radius: 4px;
+  font-size: 9px; font-weight: bold; padding: 2px 6px;
+  font-family: Arial, sans-serif; letter-spacing: 0.3px;
+}
+
+/* ═══ BIFURCACIÓN ═══ */
+.split {
+  width: 100%; background: #FFF8E1; border: 2px dashed #F0C040;
+  border-radius: 8px; padding: 8px 10px; text-align: center;
+  font-size: 11px; color: #7D5A00; font-weight: bold; margin: 4px 0;
+}
+.br-si {
+  background: #D5F5E3; color: #145A32; border: 1px solid #82E0AA;
+  border-radius: 4px; padding: 4px 8px; font-size: 10px;
+  font-weight: bold; text-align: center; margin: 2px 0; width: 100%;
+}
+.br-no {
+  background: #FADBD8; color: #7B241C; border: 1px solid #F1948A;
+  border-radius: 4px; padding: 4px 8px; font-size: 10px;
+  font-weight: bold; text-align: center; margin: 2px 0; width: 100%;
+}
+
+/* ═══ CHIPS ═══ */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 36px; }
+.chip  { border-radius: 20px; padding: 6px 16px; font-size: 11px; font-weight: bold; line-height: 1.5; }
+.ch-g { background: #D5F5E3; color: #145A32; border: 1px solid #52BE80; }
+.ch-y { background: #FEF3C7; color: #7D5A00; border: 1px solid #F0C040; }
+.ch-b { background: #D6EAF8; color: #1A5276; border: 1px solid #5DADE2; }
+.ch-r { background: #FADBD8; color: #7B241C; border: 1px solid #F1948A; }
+
+/* ═══ LEYENDA ═══ */
+.legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 28px;
+          padding-top: 14px; border-top: 1px dashed #CCC; justify-content: center; }
+.leg { display: flex; align-items: center; gap: 5px; font-size: 10px; color: #555; }
+.leg-dot { width: 12px; height: 12px; border-radius: 2px; flex-shrink: 0; }
+
+/* conector final */
+.connector {
+  text-align: center; font-size: 10px; background: #E8ECF0;
+  border-radius: 4px; padding: 5px 8px; width: 100%; color: #444; font-weight: bold;
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <h1>1_lecturas — Flujo de sincronización con Padrón (Enfoque C)</h1>
+  <div class="sub">proponer → supervisor (solo MOVIMIENTOS) → aplicar · 20/06/2026</div>
+
+  <div class="flow">
+
+    <!-- ══ PASO 1: proponer_sincronizacion ══ -->
+    <div class="step">
+
+      <div class="tag tag-blue">Lee</div>
+      <div class="file-wrap">
+        <div class="file fn">padron_reconciliado.xlsx<small>de 0_padron/02_matching/outputs/ — fuente de verdad</small></div>
+        <div class="file fn">registro_operario_acumulado.xlsx<small>de 1_lecturas/inputs/ — estado actual</small></div>
+        <div class="file fa">reporte_sincronizacion.xlsx<small>previo si existe · sticky REVISADO/AUTORIZAR</small></div>
+      </div>
+      <div class="varr">↓</div>
+
+      <div class="script sc-blue">
+        <div class="sc-name">① proponer_sincronizacion.py</div>
+        <div class="sc-note">diff padron vs operario<br>clasifica cada delta por tipo<br>preserva sticky de ciclos anteriores</div>
+      </div>
+      <div class="varr">↓</div>
+
+      <div class="tag tag-green">Genera — 1 archivo</div>
+      <div class="file-wrap">
+        <div class="file fa">
+          reporte_sincronizacion.xlsx — AUDITORÍA<br>
+          <small>Todos los deltas · columnas: TIPO · MZ · LT · NOMBRE_OLD · NOMBRE_NEW · REVISADO · AUTORIZAR · APLICADO</small>
+        </div>
+      </div>
+      <div class="varr">↓</div>
+
+      <div class="badges">
+        <span class="badge bg">🟢 AGREGADO</span>
+        <span class="badge by">🟡 SIN_SERVICIO</span>
+        <span class="badge bb">🔵 RENAME</span>
+        <span class="badge br">🔴 MOVIMIENTO ★</span>
+      </div>
+
+    </div>
+
+    <div class="harr"><div class="harr-line"></div><div class="harr-tip">›</div></div>
+
+    <!-- ══ PASO 2: SUPERVISOR (solo MOVIMIENTOS) ══ -->
+    <div class="step">
+
+      <div class="tag tag-blue">Lee</div>
+      <div class="file-wrap">
+        <div class="file fa">reporte_sincronizacion.xlsx<small>filtra TIPO = MOVIMIENTO</small></div>
+      </div>
+      <div class="varr">↓</div>
+
+      <div class="script sc-purple">
+        <div class="sc-name">② SUPERVISOR REVISA</div>
+        <div class="sc-note">acción manual · abre el reporte<br>solo actúa sobre MOVIMIENTO ★<br>marca REVISADO=Si · AUTORIZAR=Si/No</div>
+      </div>
+      <div class="varr">↓</div>
+
+      <div class="split">Columna AUTORIZAR</div>
+      <div class="br-si">Si → MOVIMIENTO aprobado → aplicar_sincronizacion lo ejecuta</div>
+      <div class="br-no">No → MOVIMIENTO rechazado → queda en reporte como pendiente</div>
+
+      <div class="varr" style="margin-top:8px;">↓</div>
+
+      <div style="font-size:10px;color:#5B21B6;text-align:center;
+                  background:#F3E8FF;border:1px solid #C4B5FD;border-radius:4px;
+                  padding:5px 8px;width:100%;">
+        AGREGADO · SIN_SERVICIO · RENAME<br>
+        <strong>no requieren revisión</strong> — auto-autorizados
+      </div>
+
+    </div>
+
+    <div class="harr"><div class="harr-line"></div><div class="harr-tip">›</div></div>
+
+    <!-- ══ PASO 3: aplicar_sincronizacion ══ -->
+    <div class="step">
+
+      <div class="tag tag-blue">Lee</div>
+      <div class="file-wrap">
+        <div class="file fa">reporte_sincronizacion.xlsx<small>filtra APLICADO ≠ Si</small></div>
+        <div class="file fn">registro_operario_acumulado.xlsx<small>de 1_lecturas/inputs/ — a mutar</small></div>
+      </div>
+      <div class="varr">↓</div>
+
+      <div class="script sc-blue">
+        <div class="sc-name">③ aplicar_sincronizacion.py</div>
+        <div class="sc-note">ÚNICO WRITER del registro<br>backup timestamped antes de mutar<br>marca APLICADO=Si en reporte</div>
+        <div style="margin-top:6px;"><span class="writer-badge">ÚNICO WRITER</span></div>
+      </div>
+      <div class="varr">↓</div>
+
+      <div class="tag tag-green">Genera — 2 archivos</div>
+      <div class="file-wrap">
+        <div class="file ff">
+          registro_operario_acumulado.xlsx<br>
+          <small>Mutado en-place + backup_YYYYMMDD_HHMMSS.xlsx</small>
+        </div>
+        <div class="file ft">
+          trazabilidad_sincronizacion.xlsx<br>
+          <small>Append-only · nunca borra filas · historial permanente de cambios</small>
+        </div>
+      </div>
+      <div class="varr">↓</div>
+
+      <div class="connector">→ main.py (1_lecturas, ya existe)<br><span style="font-weight:normal;">genera lecturas_planilla_YYYY-MM.xlsx</span></div>
+
+    </div>
+
+  </div><!-- end flow -->
+
+  <!-- CHIPS -->
+  <div style="text-align:center;font-size:10px;text-transform:uppercase;
+              letter-spacing:0.5px;color:#888;margin-top:40px;margin-bottom:10px;">
+    ¿Qué pasa con cada tipo de cambio?
+  </div>
+  <div class="chips">
+    <div class="chip ch-g">🟢 AGREGADO — nuevo lote en padrón → fila nueva en operario (auto)</div>
+    <div class="chip ch-y">🟡 SIN_SERVICIO — lote desaparece del padrón → columna SIN_SERVICIO en operario (auto)</div>
+    <div class="chip ch-b">🔵 RENAME — mismo MZ+LT, nombre distinto → nombre actualizado silencioso (auto)</div>
+    <div class="chip ch-r">🔴 MOVIMIENTO ★ — MZ+LT cambió para un usuario → bloqueado hasta AUTORIZAR=Si (manual)</div>
+  </div>
+
+  <!-- LEYENDA -->
+  <div class="legend">
+    <div class="leg"><div class="leg-dot" style="background:#D6EAF8;border:1px solid #1A5276;"></div>Script automático</div>
+    <div class="leg"><div class="leg-dot" style="background:#EDE9FE;border:1px solid #5B21B6;"></div>Acción humana</div>
+    <div class="leg"><div class="leg-dot" style="background:#EBF5FB;border:1px solid #AED6F1;"></div>Auditoría / reporte</div>
+    <div class="leg"><div class="leg-dot" style="background:#D5F5E3;border:1px solid #52BE80;"></div>Output final / operario</div>
+    <div class="leg"><div class="leg-dot" style="background:#FEF3C7;border:1px solid #F0C040;"></div>Input de otro módulo</div>
+    <div class="leg"><div class="leg-dot" style="background:#F3E8FF;border:1px solid #C4B5FD;"></div>Trazabilidad append-only</div>
+    <div class="leg"><div class="leg-dot" style="background:#FADBD8;border:1px solid #F1948A;"></div>Requiere autorización manual</div>
+  </div>
+
+</div>
+</body>
+</html>

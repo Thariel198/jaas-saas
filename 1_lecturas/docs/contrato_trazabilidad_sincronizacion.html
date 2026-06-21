@@ -1,0 +1,143 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+#w{font-family:var(--font-sans);padding:4px 0 16px}
+.instruc{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-left:3px solid #5B21B6;border-radius:0 var(--border-radius-md) var(--border-radius-md) 0;padding:9px 13px;font-size:12px;color:var(--color-text-secondary);margin-bottom:12px;line-height:1.7}
+.instruc strong{color:var(--color-text-primary)}
+.tab-excel{display:inline-flex;align-items:center;border-radius:6px 6px 0 0;padding:5px 14px;font-size:12px;font-weight:500;margin-bottom:-1px;background:#F3E8FF;border:0.5px solid #C4B5FD;border-bottom:none;color:#5B21B6}
+.tw{border:0.5px solid var(--color-border-tertiary);border-radius:0 var(--border-radius-md) var(--border-radius-md) var(--border-radius-md);overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:11px}
+th{padding:6px 8px;font-size:10px;font-weight:500;text-align:left;border-bottom:0.5px solid var(--color-border-tertiary);border-right:0.5px solid var(--color-border-tertiary);white-space:nowrap}
+th:last-child{border-right:none}
+td{padding:5px 8px;border-bottom:0.5px solid var(--color-border-tertiary);border-right:0.5px solid var(--color-border-tertiary);vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+td:last-child{border-right:none}
+tr:last-child td{border-bottom:none}
+.num{width:24px;background:var(--color-background-secondary);color:var(--color-text-tertiary);font-size:10px;font-family:var(--font-mono);text-align:center;border-right:0.5px solid var(--color-border-tertiary)}
+
+.th-meta{background:#F3E8FF;color:#5B21B6}
+.th-old{background:#FEF3E8;color:#7C3003}
+.th-new{background:#E1F5EE;color:#085041}
+.th-audit{background:#FEF9C3;color:#7D6608}
+.th-sep{width:4px;background:var(--color-background-secondary);padding:0;border-right:2px solid var(--color-border-secondary)}
+
+.td-meta{background:#FAF5FF;font-family:var(--font-mono);font-size:10px;color:#5B21B6}
+.td-old{background:#FEF3E8;font-family:var(--font-mono);font-size:10px;color:#7C3003}
+.td-new{background:#F0FFF8;font-family:var(--font-mono);font-size:10px;color:#065F46}
+.td-audit{background:#FEF9EC;font-family:var(--font-mono);font-size:10px;color:#7D5A00}
+.td-sep{width:4px;background:var(--color-background-secondary);padding:0;border-right:2px solid var(--color-border-secondary)}
+.gh{font-size:9px;font-weight:600;text-align:center;padding:3px 0;letter-spacing:.05em;text-transform:uppercase;border-bottom:0.5px solid var(--color-border-tertiary)}
+
+.tipo{font-size:10px;font-weight:bold;padding:1px 7px;border-radius:10px;display:inline-block;white-space:nowrap}
+.tipo-agr{background:#D5F5E3;color:#145A32;border:1px solid #52BE80}
+.tipo-sss{background:#FEF3C7;color:#7D5A00;border:1px solid #F0C040}
+.tipo-ren{background:#D6EAF8;color:#1A5276;border:1px solid #5DADE2}
+.tipo-mov{background:#FADBD8;color:#7B241C;border:1px solid #F1948A}
+
+.note{margin-top:14px;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-left:3px solid #5B21B6;border-radius:0 var(--border-radius-md) var(--border-radius-md) 0;padding:9px 13px;font-size:11px;color:var(--color-text-secondary);line-height:1.7}
+.note strong{color:var(--color-text-primary)}
+.note code{font-family:var(--font-mono);background:#fff;padding:1px 5px;border-radius:3px;color:#5B21B6;font-size:10.5px}
+</style>
+<div id="w">
+  <div class="instruc">
+    <strong>trazabilidad_sincronizacion.xlsx</strong> · registro permanente append-only de todas las mutaciones
+    aplicadas a <code>registro_operario_acumulado.xlsx</code> · generado por <code>aplicar_sincronizacion.py</code>.<br>
+    Una fila por cambio aplicado. <strong>Nunca se borra ni se modifica</strong> — cada ejecución de
+    <code>aplicar_sincronizacion.py</code> agrega filas al final. Permite auditar cualquier mutación de identidad
+    (MZ, LT, NOMBRE) con fecha, tipo y valores antes/después.
+  </div>
+
+  <div class="tab-excel">trazabilidad</div>
+  <div class="tw"><table style="min-width:1080px">
+    <thead>
+      <tr>
+        <th class="num" rowspan="2"></th>
+        <th class="th-audit gh" colspan="2">¿Cuándo / qué?</th>
+        <th class="th-sep" rowspan="2"></th>
+        <th class="th-old gh" colspan="3">Antes (estado previo)</th>
+        <th class="th-sep" rowspan="2"></th>
+        <th class="th-new gh" colspan="3">Después (estado nuevo)</th>
+        <th class="th-sep" rowspan="2"></th>
+        <th class="th-meta gh" colspan="2">Trazabilidad</th>
+      </tr>
+      <tr>
+        <th class="th-audit">FECHA_APLICADO</th><th class="th-audit">TIPO</th>
+        <th class="th-old">MZ_OLD</th><th class="th-old">LT_OLD</th><th class="th-old">NOMBRE_OLD</th>
+        <th class="th-new">MZ_NEW</th><th class="th-new">LT_NEW</th><th class="th-new">NOMBRE_NEW</th>
+        <th class="th-meta">CICLO</th><th class="th-meta">FUENTE</th>
+      </tr>
+    </thead>
+    <tbody>
+
+      <!-- AGREGADO -->
+      <tr>
+        <td class="num">1</td>
+        <td class="td-audit">2026-06-20 09:14</td><td class="td-audit"><span class="tipo tipo-agr">🟢 AGREGADO</span></td>
+        <td class="td-sep"></td>
+        <td class="td-old">—</td><td class="td-old">—</td><td class="td-old">—</td>
+        <td class="td-sep"></td>
+        <td class="td-new">B2</td><td class="td-new">15</td><td class="td-new">ROSA HUAMAN DE PINTO</td>
+        <td class="td-sep"></td>
+        <td class="td-meta">2026-06</td><td class="td-meta">padron_reconciliado</td>
+      </tr>
+
+      <!-- SIN_SERVICIO -->
+      <tr>
+        <td class="num">2</td>
+        <td class="td-audit">2026-06-20 09:14</td><td class="td-audit"><span class="tipo tipo-sss">🟡 SIN_SERVICIO</span></td>
+        <td class="td-sep"></td>
+        <td class="td-old">C</td><td class="td-old">4</td><td class="td-old">JORGE QUISPE LLANOS</td>
+        <td class="td-sep"></td>
+        <td class="td-new">C</td><td class="td-new">4</td><td class="td-new">JORGE QUISPE LLANOS</td>
+        <td class="td-sep"></td>
+        <td class="td-meta">2026-06</td><td class="td-meta">padron_reconciliado</td>
+      </tr>
+
+      <!-- RENAME -->
+      <tr>
+        <td class="num">3</td>
+        <td class="td-audit">2026-06-20 09:14</td><td class="td-audit"><span class="tipo tipo-ren">🔵 RENAME</span></td>
+        <td class="td-sep"></td>
+        <td class="td-old">A</td><td class="td-old">8</td><td class="td-old">LINDA PAJUELO DE COCHACHIN</td>
+        <td class="td-sep"></td>
+        <td class="td-new">A</td><td class="td-new">8</td><td class="td-new">LINDA PAJUELO COCHACHIN</td>
+        <td class="td-sep"></td>
+        <td class="td-meta">2026-06</td><td class="td-meta">padron_reconciliado</td>
+      </tr>
+
+      <!-- MOVIMIENTO autorizado -->
+      <tr>
+        <td class="num">4</td>
+        <td class="td-audit">2026-06-20 09:14</td><td class="td-audit"><span class="tipo tipo-mov">🔴 MOVIMIENTO</span></td>
+        <td class="td-sep"></td>
+        <td class="td-old">E</td><td class="td-old">11</td><td class="td-old">ANA TORRES ROJAS</td>
+        <td class="td-sep"></td>
+        <td class="td-new">E</td><td class="td-new">11A</td><td class="td-new">ANA TORRES ROJAS</td>
+        <td class="td-sep"></td>
+        <td class="td-meta">2026-06</td><td class="td-meta">padron_reconciliado</td>
+      </tr>
+
+      <!-- Mes siguiente — append -->
+      <tr>
+        <td class="num">5</td>
+        <td class="td-audit">2026-07-18 10:02</td><td class="td-audit"><span class="tipo tipo-agr">🟢 AGREGADO</span></td>
+        <td class="td-sep"></td>
+        <td class="td-old">—</td><td class="td-old">—</td><td class="td-old">—</td>
+        <td class="td-sep"></td>
+        <td class="td-new">F1</td><td class="td-new">2</td><td class="td-new">PEDRO SALAS MEZA</td>
+        <td class="td-sep"></td>
+        <td class="td-meta">2026-07</td><td class="td-meta">padron_reconciliado</td>
+      </tr>
+
+    </tbody>
+  </table></div>
+
+  <div class="note">
+    <strong>Append-only:</strong> este archivo solo crece — nunca se modifica ni se borra una fila existente.<br>
+    Cada ejecución de <code>aplicar_sincronizacion.py</code> agrega filas al final con el timestamp exacto.<br><br>
+    <strong>Nota fila 2 (SIN_SERVICIO):</strong> MZ/LT/NOMBRE no cambian en el acumulado — lo que cambia es
+    la marca <code>SIN_SERVICIO=Si</code>. La trazabilidad registra el evento igual, con OLD=NEW para que quede
+    constancia de cuándo se marcó la baja.<br><br>
+    <strong>Columna <code>CICLO</code>:</strong> el mes en que se detectó y aplicó el delta (YYYY-MM).<br>
+    <strong>Columna <code>FUENTE</code>:</strong> siempre <code>padron_reconciliado</code> por ahora — reservada para cuando haya otras fuentes.
+  </div>
+</div>

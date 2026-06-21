@@ -28,10 +28,17 @@ ROOT = Path(__file__).parent
 
 INPUTS_DIR  = ROOT / "inputs"
 OUTPUTS_DIR = ROOT / "outputs"
+BACKUPS_DIR = INPUTS_DIR / "backups"
+SYNC_DIR    = OUTPUTS_DIR / "sync"
 
-# Inputs (uno lo llena el operario, el otro lo lee/actualiza main.py)
+# Inputs (uno lo llena el operario, el otro lo lee/actualiza main.py + sync)
 REGISTRO_MES_PATH        = INPUTS_DIR / "registro_operario_mes.xlsx"
 REGISTRO_ACUMULADO_PATH  = INPUTS_DIR / "registro_operario_acumulado.xlsx"
+
+# Sync — input externo (0_padron) y outputs propios
+PADRON_RECONCILIADO_PATH = ROOT.parent / "0_padron" / "02_matching" / "outputs" / "padron_reconciliado.xlsx"
+REPORTE_SYNC_PATH        = SYNC_DIR / "reporte_sincronizacion.xlsx"
+TRAZABILIDAD_SYNC_PATH   = SYNC_DIR / "trazabilidad_sincronizacion.xlsx"
 
 # Outputs por ciclo (YYYY-MM se reemplaza en runtime)
 def correcciones_path(mes_ano: str) -> Path:
@@ -47,3 +54,10 @@ def orden_verificacion_path(mes_ano: str) -> Path:
     return OUTPUTS_DIR / f"orden_verificacion_{mes_ano}.pdf"
 
 LOG_PATH = OUTPUTS_DIR / "run.log"
+
+# ── Schema del acumulado ──────────────────────────────────────────────────────
+# Columnas fijas a la izquierda del bloque mensual.
+# La 4ta columna SIN_SERVICIO se introdujo el 2026-06-20 (decisión 9).
+# Al leer, si fila1[col4] es YYYY-MM se asume schema legacy (sin SIN_SERVICIO).
+COLS_FIJAS = ("MZ", "LT", "NOMBRE", "SIN_SERVICIO")
+N_COLS_FIJAS = len(COLS_FIJAS)

@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>1_lecturas — Diseño detallado: Sincronización con Padrón</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Arial, sans-serif; background: #F0F4F8; font-size: 13px; }
+.page { padding: 28px 24px 60px; max-width: 1100px; margin: 0 auto; }
+h1   { font-size: 17px; color: #1A5276; margin-bottom: 4px; }
+.sub { font-size: 11px; color: #888; margin-bottom: 32px; }
+
+/* ═══ SECCIÓN ═══ */
+.section { margin-bottom: 36px; }
+.sec-title {
+  font-size: 13px; font-weight: bold; color: #fff;
+  border-radius: 6px 6px 0 0; padding: 8px 14px;
+  display: flex; align-items: center; gap: 8px;
+}
+.sec-body {
+  background: #fff; border: 1px solid #DDE; border-radius: 0 0 6px 6px;
+  padding: 16px;
+}
+
+/* colores de sección */
+.sec-blue   { background: #1A5276; }
+.sec-purple { background: #5B21B6; }
+.sec-orange { background: #CA6F1E; }
+.sec-green  { background: #1E8449; }
+.sec-gray   { background: #555; }
+
+/* ═══ TABLA ═══ */
+table { border-collapse: collapse; width: 100%; font-size: 11px; }
+th {
+  background: #F0F4F8; color: #444; font-weight: bold;
+  padding: 6px 10px; text-align: left; border-bottom: 2px solid #CDD;
+}
+td { padding: 5px 10px; border-bottom: 1px solid #EEE; vertical-align: top; }
+tr:last-child td { border-bottom: none; }
+
+/* ═══ TIPO-BADGE ═══ */
+.tb {
+  display: inline-block; border-radius: 10px; padding: 2px 9px;
+  font-size: 10px; font-weight: bold; white-space: nowrap;
+}
+.tb-g { background: #D5F5E3; color: #145A32; border: 1px solid #52BE80; }
+.tb-y { background: #FEF3C7; color: #7D5A00; border: 1px solid #F0C040; }
+.tb-b { background: #D6EAF8; color: #1A5276; border: 1px solid #5DADE2; }
+.tb-r { background: #FADBD8; color: #7B241C; border: 1px solid #F1948A; }
+
+/* ═══ COLUMNAS ═══ */
+.col-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px;
+}
+.col-item {
+  background: #F8F9FA; border: 1px solid #DDE; border-radius: 4px;
+  padding: 6px 10px; font-size: 10px;
+}
+.col-name { font-family: Consolas, monospace; font-weight: bold; color: #1A5276; }
+.col-desc { color: #666; margin-top: 2px; }
+.col-key  { color: #E74C3C; font-weight: bold; font-size: 9px; margin-top: 2px; }
+
+/* ═══ PERSISTENCIA ═══ */
+.persist-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+}
+.persist-item {
+  border-left: 4px solid #1A5276; background: #F8F9FA;
+  border-radius: 0 4px 4px 0; padding: 8px 12px;
+}
+.persist-title { font-weight: bold; color: #1A5276; font-size: 11px; margin-bottom: 4px; }
+.persist-body  { font-size: 10px; color: #555; line-height: 1.5; }
+
+/* ═══ REGLA ═══ */
+.rule {
+  background: #F8F9FA; border-left: 3px solid #CCC; border-radius: 0 4px 4px 0;
+  padding: 6px 12px; margin-bottom: 8px; font-size: 11px;
+}
+.rule-label { font-weight: bold; color: #333; margin-bottom: 2px; }
+.rule-body  { color: #555; line-height: 1.5; }
+code { font-family: Consolas, monospace; background: #EEE; padding: 0 3px; border-radius: 2px; font-size: 10px; }
+
+/* BORDER COLOR por tipo */
+.rule-g { border-left-color: #52BE80; }
+.rule-y { border-left-color: #F0C040; }
+.rule-b { border-left-color: #5DADE2; }
+.rule-r { border-left-color: #E74C3C; }
+
+/* ═══ WRITER-BADGE ═══ */
+.writer-chip {
+  display: inline-block; background: #1E8449; color: #fff;
+  border-radius: 4px; font-size: 9px; font-weight: bold;
+  padding: 2px 8px; letter-spacing: 0.3px;
+}
+
+/* ═══ INPUT/OUTPUT CARD ═══ */
+.io-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.io-card {
+  border-radius: 6px; padding: 10px 14px; font-size: 11px;
+}
+.io-in   { background: #FEF9EC; border: 1px solid #F0C040; }
+.io-out  { background: #EBF5FB; border: 1px solid #5DADE2; }
+.io-title { font-weight: bold; font-size: 10px; text-transform: uppercase;
+            letter-spacing: 0.4px; margin-bottom: 6px; color: #888; }
+.io-file { font-family: Consolas, monospace; font-weight: bold; color: #333;
+           margin-bottom: 2px; }
+.io-note { font-size: 10px; color: #666; margin-bottom: 6px; }
+
+/* ═══ DIVIDER ═══ */
+.divider { border: none; border-top: 1px dashed #CCC; margin: 20px 0; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <h1>1_lecturas — Diseño detallado: Sincronización con Padrón (Enfoque C)</h1>
+  <div class="sub">Reglas de clasificación · columnas · persistencia · flujo de datos · 20/06/2026</div>
+
+  <!-- ══ SECCIÓN 1: INPUTS ══ -->
+  <div class="section">
+    <div class="sec-title sec-gray">① Inputs del sistema</div>
+    <div class="sec-body">
+      <div class="io-grid">
+        <div class="io-card io-in">
+          <div class="io-title">Fuente de verdad</div>
+          <div class="io-file">padron_reconciliado.xlsx</div>
+          <div class="io-note">0_padron/02_matching/outputs/ · hoja <code>cobranza</code></div>
+          <div class="io-note">Columnas usadas: <code>Nombres</code> · <code>MZ</code> · <code>LT</code></div>
+          <div class="io-note">575 registros · actualizado por 0_padron/padron_matching.py</div>
+        </div>
+        <div class="io-card io-in">
+          <div class="io-title">Estado actual del operario</div>
+          <div class="io-file">registro_operario_acumulado.xlsx</div>
+          <div class="io-note">1_lecturas/inputs/ · hoja <code>Acumulada</code></div>
+          <div class="io-note">Columnas: <code>MZ</code> · <code>LT</code> · <code>Nombres</code> · <code>2026-05</code> · <code>2026-06</code> · ...</div>
+          <div class="io-note">Historial de lecturas mensuales · no se pierden columnas pasadas</div>
+        </div>
+        <div class="io-card io-in">
+          <div class="io-title">Reporte previo (si existe)</div>
+          <div class="io-file">reporte_sincronizacion.xlsx</div>
+          <div class="io-note">1_lecturas/outputs/ · generado en ciclo anterior</div>
+          <div class="io-note">Se reutiliza para preservar <code>REVISADO</code> y <code>AUTORIZAR</code> de MOVIMIENTOs previos</div>
+          <div class="io-note">Si no existe → proponer_sincronizacion parte de cero</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SECCIÓN 2: REGLAS DE CLASIFICACIÓN ══ -->
+  <div class="section">
+    <div class="sec-title sec-blue">② Reglas de clasificación de deltas (proponer_sincronizacion.py)</div>
+    <div class="sec-body">
+
+      <div class="rule rule-g">
+        <div class="rule-label"><span class="tb tb-g">🟢 AGREGADO</span></div>
+        <div class="rule-body">
+          Condición: <code>(MZ, LT)</code> existe en <strong>padrón</strong> pero <strong>NO</strong> en operario.<br>
+          Acción: agregar fila nueva en registro_operario_acumulado.xlsx con columnas de lecturas vacías.<br>
+          Autorización: <strong>automática</strong> — no requiere revisión humana.
+        </div>
+      </div>
+
+      <div class="rule rule-y">
+        <div class="rule-label"><span class="tb tb-y">🟡 SIN_SERVICIO</span></div>
+        <div class="rule-body">
+          Condición: <code>(MZ, LT)</code> existe en <strong>operario</strong> pero <strong>NO</strong> en padrón.<br>
+          Acción: marcar la fila como <code>SIN_SERVICIO</code> en operario — la fila se conserva, no se elimina.<br>
+          Lecturas históricas se preservan. Columna nueva <code>SIN_SERVICIO</code> = "Si".<br>
+          Autorización: <strong>automática</strong>.
+        </div>
+      </div>
+
+      <div class="rule rule-b">
+        <div class="rule-label"><span class="tb tb-b">🔵 RENAME</span></div>
+        <div class="rule-body">
+          Condición: mismo <code>(MZ, LT)</code> en ambos, pero <code>Nombres</code> difiere (normalizado sin tildes/espacios).<br>
+          Acción: actualizar el nombre en operario al valor del padrón reconciliado (padrón manda).<br>
+          Silencioso — queda registrado en trazabilidad pero no bloquea el flujo.<br>
+          Autorización: <strong>automática</strong>.
+        </div>
+      </div>
+
+      <div class="rule rule-r">
+        <div class="rule-label"><span class="tb tb-r">🔴 MOVIMIENTO ★</span></div>
+        <div class="rule-body">
+          Condición: un nombre que existe en operario aparece en padrón con distinto <code>(MZ, LT)</code>.<br>
+          Indicio: el usuario cambió de lote (venta, error catastral, reasignación).<br>
+          Acción: <strong>bloqueado</strong> — aparece en reporte con <code>AUTORIZAR</code> vacío.<br>
+          Solo avanza cuando supervisor marca <code>REVISADO=Si</code> · <code>AUTORIZAR=Si</code> (o No para rechazar).<br>
+          Autorización: <strong>manual obligatoria</strong>.
+        </div>
+      </div>
+
+      <hr class="divider">
+      <div style="font-size:10px;color:#888;">
+        Normalización aplicada a nombres y claves: strip · UPPER · NFD Unicode · sin marcas de acento · espacios múltiples colapsados.
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══ SECCIÓN 3: COLUMNAS del reporte ══ -->
+  <div class="section">
+    <div class="sec-title sec-orange">③ Columnas de reporte_sincronizacion.xlsx (auditoría)</div>
+    <div class="sec-body">
+      <div class="col-grid">
+        <div class="col-item">
+          <div class="col-name">TIPO</div>
+          <div class="col-desc">AGREGADO · SIN_SERVICIO · RENAME · MOVIMIENTO</div>
+        </div>
+        <div class="col-item">
+          <div class="col-name">MZ_PADRON</div>
+          <div class="col-desc">Manzana según padrón reconciliado</div>
+        </div>
+        <div class="col-item">
+          <div class="col-name">LT_PADRON</div>
+          <div class="col-desc">Lote según padrón reconciliado</div>
+        </div>
+        <div class="col-item">
+          <div class="col-name">MZ_OPERARIO</div>
+          <div class="col-desc">Manzana según registro operario</div>
+        </div>
+        <div class="col-item">
+          <div class="col-name">LT_OPERARIO</div>
+          <div class="col-desc">Lote según registro operario</div>
+        </div>
+        <div class="col-item">
+          <div class="col-name">NOMBRE_PADRON</div>
+          <div class="col-desc">Nombre en padrón (fuente de verdad)</div>
+        </div>
+        <div class="col-item">
+          <div class="col-name">NOMBRE_OPERARIO</div>
+          <div class="col-desc">Nombre actual en registro operario</div>
+        </div>
+        <div class="col-item">
+          <div class="col-name">REVISADO</div>
+          <div class="col-desc">Supervisor marca Si (solo MOVIMIENTO)</div>
+          <div class="col-key">★ STICKY — se preserva entre ciclos</div>
+        </div>
+        <div class="col-item">
+          <div class="col-name">AUTORIZAR</div>
+          <div class="col-desc">Si / No · supervisor decide (solo MOVIMIENTO)</div>
+          <div class="col-key">★ STICKY — se preserva entre ciclos</div>
+        </div>
+        <div class="col-item">
+          <div class="col-name">APLICADO</div>
+          <div class="col-desc">Si → aplicar_sincronizacion ya ejecutó este delta</div>
+          <div class="col-key">Idempotencia — no se aplica dos veces</div>
+        </div>
+        <div class="col-item">
+          <div class="col-name">FECHA_PROPUESTA</div>
+          <div class="col-desc">Timestamp de proponer_sincronizacion</div>
+        </div>
+        <div class="col-item">
+          <div class="col-name">FECHA_APLICADO</div>
+          <div class="col-desc">Timestamp de aplicar_sincronizacion</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SECCIÓN 4: PERSISTENCIA ══ -->
+  <div class="section">
+    <div class="sec-title sec-purple">④ Mecanismos de persistencia — correcciones no se pierden</div>
+    <div class="sec-body">
+      <div class="persist-grid">
+
+        <div class="persist-item">
+          <div class="persist-title">1. Trazabilidad append-only</div>
+          <div class="persist-body">
+            <code>trazabilidad_sincronizacion.xlsx</code> — nunca se borran filas.<br>
+            Cada cambio aplicado genera una fila nueva con timestamp, tipo, valores old/new.<br>
+            Historial permanente de todos los ciclos.
+          </div>
+        </div>
+
+        <div class="persist-item">
+          <div class="persist-title">2. Sticky REVISADO / AUTORIZAR</div>
+          <div class="persist-body">
+            Si el supervisor aprobó un MOVIMIENTO en ciclo anterior y aún no se aplicó,<br>
+            proponer_sincronizacion preserva esos valores al regenerar el reporte.<br>
+            La decisión no se pierde si el script se vuelve a correr.
+          </div>
+        </div>
+
+        <div class="persist-item">
+          <div class="persist-title">3. APLICADO=Si · idempotencia</div>
+          <div class="persist-body">
+            aplicar_sincronizacion filtra filas donde <code>APLICADO ≠ Si</code>.<br>
+            Si se corre dos veces, solo procesa deltas nuevos o pendientes.<br>
+            Nunca aplica el mismo cambio dos veces.
+          </div>
+        </div>
+
+        <div class="persist-item">
+          <div class="persist-title">4. Backup timestamped</div>
+          <div class="persist-body">
+            Antes de mutar registro_operario_acumulado.xlsx,<br>
+            aplicar_sincronizacion crea:<br>
+            <code>registro_operario_acumulado_backup_YYYYMMDD_HHMMSS.xlsx</code><br>
+            en 1_lecturas/inputs/backups/.
+          </div>
+        </div>
+
+        <div class="persist-item" style="border-left-color:#52BE80;">
+          <div class="persist-title" style="color:#1E8449;">5. Filas conservadas · nunca DELETE</div>
+          <div class="persist-body">
+            SIN_SERVICIO no elimina filas — las marca con <code>SIN_SERVICIO=Si</code>.<br>
+            Lecturas históricas quedan intactas en las columnas de meses anteriores.<br>
+            Si el lote vuelve al padrón, se limpia la marca.
+          </div>
+        </div>
+
+        <div class="persist-item" style="border-left-color:#E74C3C;">
+          <div class="persist-title" style="color:#C0392B;">6. ÚNICO WRITER</div>
+          <div class="persist-body">
+            Solo <code>aplicar_sincronizacion.py</code> escribe en registro_operario_acumulado.xlsx.<br>
+            <span class="writer-chip">ÚNICO WRITER</span> — igual que data_boletas_repo en 3_boletas.<br>
+            Garantiza que backup + audit + idempotencia siempre se ejecutan juntos.
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SECCIÓN 5: OUTPUTS ══ -->
+  <div class="section">
+    <div class="sec-title sec-green">⑤ Outputs de aplicar_sincronizacion.py</div>
+    <div class="sec-body">
+      <div class="io-grid">
+        <div class="io-card io-out">
+          <div class="io-title">Mutado en-place</div>
+          <div class="io-file">registro_operario_acumulado.xlsx</div>
+          <div class="io-note">1_lecturas/inputs/ · hoja Acumulada</div>
+          <div class="io-note">Filas nuevas (AGREGADO) · marcas SIN_SERVICIO · nombres actualizados (RENAME) · MZ/LT corregidos (MOVIMIENTO autorizado)</div>
+          <div class="io-note">Columnas de lecturas mensuales anteriores intactas</div>
+        </div>
+        <div class="io-card io-out">
+          <div class="io-title">Historial permanente</div>
+          <div class="io-file">trazabilidad_sincronizacion.xlsx</div>
+          <div class="io-note">1_lecturas/outputs/ · append-only</div>
+          <div class="io-note">Columnas: FECHA · TIPO · MZ_OLD · LT_OLD · NOMBRE_OLD · MZ_NEW · LT_NEW · NOMBRE_NEW · CICLO</div>
+        </div>
+        <div class="io-card io-out">
+          <div class="io-title">Backup de seguridad</div>
+          <div class="io-file">registro_operario_acumulado_backup_YYYYMMDD_HHMMSS.xlsx</div>
+          <div class="io-note">1_lecturas/inputs/backups/</div>
+          <div class="io-note">Copia del estado PRE-mutación · generado antes de cada escritura</div>
+        </div>
+        <div class="io-card" style="background:#F0F4F8;border:1px dashed #CCC;">
+          <div class="io-title">Siguiente paso (ya existe)</div>
+          <div class="io-file">main.py → lecturas_planilla_YYYY-MM.xlsx</div>
+          <div class="io-note">1_lecturas/ · flujo existente sin cambios</div>
+          <div class="io-note">Consume registro_operario_acumulado.xlsx ya sincronizado</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

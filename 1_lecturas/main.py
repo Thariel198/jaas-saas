@@ -29,8 +29,11 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
 sys.path.insert(0, str(Path(__file__).parent))
+import sys as _sys
+_sys.path.insert(0, str(Path(__file__).parent.parent))  # para shared/
 import config
 from pdf_orden import generar_pdf
+from shared.utils_sort_mz_lt import clave_orden
 import formato_excel as fe
 
 log = logging.getLogger(__name__)
@@ -197,15 +200,20 @@ def _cargar_acumulado() -> tuple[dict, list[str]]:
     wb = load_workbook(config.REGISTRO_ACUMULADO_PATH, data_only=True)
     ws = wb.active
 
+    # Detectar schema v2 (col 4 = SIN_SERVICIO) vs legacy
+    cab_col4 = str(ws.cell(1, 4).value or "").strip().upper()
+    tiene_sin_servicio = cab_col4 == "SIN_SERVICIO"
+    col_inicio_meses = 5 if tiene_sin_servicio else 4
+
     n_cols = ws.max_column
     fila1 = [ws.cell(1, c).value for c in range(1, n_cols + 1)]
     fila2 = [ws.cell(2, c).value for c in range(1, n_cols + 1)]
 
-    # Mapear meses al par de columnas (MARCACION, M3)
+    # Mapear meses al par de columnas (MARCACION, M3) — a partir de col_inicio_meses
     mes_cols: dict[str, tuple[int, int]] = {}
     mes_actual = None
     marc_col = None
-    for ci in range(1, n_cols + 1):
+    for ci in range(col_inicio_meses, n_cols + 1):
         v1 = fila1[ci - 1]
         v2 = fila2[ci - 1]
         if isinstance(v1, str) and len(v1) == 7 and v1[4] == "-":
@@ -227,15 +235,20 @@ def _cargar_acumulado() -> tuple[dict, list[str]]:
         if not mz or not lt:
             continue
         nombre = _str_clean(ws.cell(ri, 3).value)
+        sin_serv = ""
+        if tiene_sin_servicio:
+            sin_serv_raw = str(ws.cell(ri, 4).value or "").strip().lower()
+            sin_serv = "Si" if sin_serv_raw.startswith("si") else ""
         ciclos = {}
         for mes, (col_marc, col_m3) in mes_cols.items():
             marc = _try_float(_str_clean(ws.cell(ri, col_marc).value))
             m3 = _try_float(_str_clean(ws.cell(ri, col_m3).value))
             if marc is not None:
                 ciclos[mes] = {"marc": marc, "m3": m3}
-        historial[(mz, lt)] = {"nombre": nombre, "ciclos": ciclos}
+        historial[(mz, lt)] = {"nombre": nombre, "sin_servicio": sin_serv, "ciclos": ciclos}
 
-    log.info(f"Acumulado: {len(historial)} usuarios · {len(meses_orden)} ciclos previos")
+    log.info(f"Acumulado: {len(historial)} usuarios · {len(meses_orden)} ciclos previos · "
+             f"schema {'v2 (SIN_SERVICIO)' if tiene_sin_servicio else 'v1 (legacy)'}")
     return historial, meses_orden
 
 
@@ -742,9 +755,9 @@ def _actualizar_acumulado(confirmados: list[dict], historial: dict, meses_orden:
     ws.title = "Acumulada"
     borde = _borde()
 
-    # Cabecera fila 1: MZ, LT, NOMBRE + un YYYY-MM por cada mes (merge horizontal)
+    # Cabecera fila 1: MZ, LT, NOMBRE, SIN_SERVICIO + YYYY-MM por cada mes (merge horizontal)
     # Cabecera fila 2: MARCACION + M3 por cada mes
-    headers_fijos = ["MZ", "LT", "NOMBRE"]
+    headers_fijos = list(config.COLS_FIJAS)  # MZ, LT, NOMBRE, SIN_SERVICIO
     for ci, h in enumerate(headers_fijos, 1):
         c1 = ws.cell(row=1, column=ci, value=h)
         c2 = ws.cell(row=2, column=ci, value="")
@@ -759,6 +772,7 @@ def _actualizar_acumulado(confirmados: list[dict], historial: dict, meses_orden:
     ws.column_dimensions["A"].width = 8
     ws.column_dimensions["B"].width = 6
     ws.column_dimensions["C"].width = 32
+    ws.column_dimensions["D"].width = 14  # SIN_SERVICIO
 
     # Pares de columnas por mes
     col_mes = {}  # mes -> (col_marc, col_m3)
@@ -797,15 +811,28 @@ def _actualizar_acumulado(confirmados: list[dict], historial: dict, meses_orden:
         if nom:
             nombre_por_key[key] = nom
 
-    for ri, key in enumerate(sorted(todas_keys), 3):
+    # Preservar SIN_SERVICIO del historial (lo gobierna aplicar_sincronizacion.py)
+    sin_servicio_por_key = {
+        k: v.get("sin_servicio", "") for k, v in historial.items()
+    }
+
+    # Orden canónico del pipeline (mismo que padron_reconciliado.xlsx)
+    keys_ordenadas = sorted(todas_keys, key=lambda k: clave_orden(k[0], k[1]))
+    for ri, key in enumerate(keys_ordenadas, 3):
         mz, lt = key
         nom = nombre_por_key.get(key, "")
-        # Cols fijas
-        for ci, val in enumerate([mz, lt, nom], 1):
-            c = ws.cell(row=ri, column=ci, value=val)
-            c.font = Font(name="Arial", size=9)
+        sin_serv = sin_servicio_por_key.get(key, "")
+        # Cols fijas: MZ, LT, NOMBRE, SIN_SERVICIO
+        for ci, val in enumerate([mz, lt, nom, sin_serv], 1):
+            c = ws.cell(row=ri, column=ci, value=val if val else None)
+            es_sin_serv_marcado = (ci == 4 and val == "Si")
+            c.font = Font(name="Arial", size=9,
+                          bold=es_sin_serv_marcado,
+                          color="7B241C" if es_sin_serv_marcado else "333333")
             c.alignment = Alignment(horizontal="left" if ci == 3 else "center", vertical="center")
             c.border = borde
+            if es_sin_serv_marcado:
+                c.fill = PatternFill("solid", start_color="FADBD8")
         # Por mes
         ciclos_hist = historial.get(key, {}).get("ciclos", {})
         for mes in meses_final:
@@ -828,7 +855,7 @@ def _actualizar_acumulado(confirmados: list[dict], historial: dict, meses_orden:
                 c.border = borde
         ws.row_dimensions[ri].height = 15
 
-    ws.freeze_panes = "D3"
+    ws.freeze_panes = "E3"  # 4 cols fijas (MZ, LT, NOMBRE, SIN_SERVICIO)
     wb.save(config.REGISTRO_ACUMULADO_PATH)
     log.info(f"registro_operario_acumulado.xlsx actualizado · "
              f"{len(todas_keys)} usuarios · {len(meses_final)} ciclos")

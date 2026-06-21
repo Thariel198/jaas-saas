@@ -160,9 +160,45 @@ El operario que recibía "RETROCESO" no sabía a priori qué buscar; las causas 
 
 ---
 
+## Decisión 9 — Sincronización con padrón: Enfoque C (Proponer + Autorizar + Aplicar)
+
+**Problema:** el padrón reconciliado (`0_padron`) puede cambiar entre ciclos (nuevos lotes, bajas, cambios de nombre, cambios de lote). El `registro_operario_acumulado.xlsx` se desactualizaba silenciosamente.
+
+**Criterios:**
+- Trazabilidad completa de qué cambió y cuándo
+- Solo MOVIMIENTO de lote requiere ojo humano (alto riesgo de error)
+- Las demás mutaciones (altas, bajas, renombres) son seguras y automáticas
+- Idempotente: correr dos veces produce el mismo resultado
+- Las correcciones pasadas no se pierden en ciclos futuros
+
+**Enfoques evaluados:**
+
+| Dimensión | A: sync silencioso | B: revisión total | C: Proponer+Autorizar+Aplicar |
+|---|---|---|---|
+| Altas/bajas/renombres | auto | manual | auto |
+| Cambio de lote | auto | manual | manual (REVISADO+AUTORIZAR) |
+| Trazabilidad | ninguna | manual | append-only |
+| Idempotencia | ninguna | manual | APLICADO=Si |
+| SaaS-ready | No | No | Sí |
+
+**Enfoque elegido: C**
+- `proponer_sincronizacion.py`: diff, clasifica en AGREGADO / SIN_SERVICIO / RENAME / MOVIMIENTO, genera reporte
+- `aplicar_sincronizacion.py`: único writer de MZ/LT/NOMBRE, backup timestamped, trazabilidad append-only
+- MOVIMIENTO: columnas sticky REVISADO/AUTORIZAR que se preservan entre ciclos
+- Columna APLICADO garantiza idempotencia
+
+**Alternativas descartadas:**
+- *Enfoque A (silencioso)* — sin trazabilidad, riesgo de perderse en cambios de lote, no agentic-ready. Descartado.
+- *Enfoque B (revisión total)* — supervisor revisa AGREGADO/RENAME que son inofensivos. Overhead innecesario. Descartado.
+
+**Estructura plana (sin submódulo 00_sync/):** los 2 scripts viven directamente en `1_lecturas/`. Para agentic SaaS lo que importa es la interfaz de la tool, no la ubicación del archivo. Subcarpetas `outputs/sync/` e `inputs/backups/` son suficientes para aislar los artefactos.
+
+---
+
 ## Historial de cambios
 
 | Fecha | Cambio |
 |---|---|
 | 2026-06-04 | Versión inicial — registro de las 6 decisiones de diseño del módulo 01 |
 | 2026-06-05 | Decisiones 7 y 8 — separación de RETROCESO + test de integración |
+| 2026-06-20 | Decisión 9 — sincronización con padrón · Enfoque C · estructura plana |
