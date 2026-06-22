@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>sin_servicio — arquitectura</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'IBM Plex Sans', sans-serif; background: #fff; color: #111; }
+  .wrap { padding: .5rem 0 3rem; max-width: 720px; margin: 0 auto; }
+
+  /* HEADER */
+  .title { font-size: 20px; font-weight: 600; color: #111; margin: 0 0 2px; }
+  .sub   { font-size: 12px; color: #666; margin: 0 0 20px; }
+
+  /* PIPELINE STRIP */
+  .pipeline-strip {
+    display: flex; align-items: center; gap: 4px;
+    background: #f5f5f5; border-radius: 8px;
+    padding: 8px 12px; margin-bottom: 20px; overflow-x: auto;
+  }
+  .pip-mod {
+    font-size: 10px; font-weight: 600; padding: 3px 8px;
+    border-radius: 4px; white-space: nowrap; background: #e5e7eb; color: #6b7280;
+  }
+  .pip-mod.active   { background: #2E86C1; color: #fff; }
+  .pip-mod.submod   { background: #0B4F6C; color: #fff; }
+  .pip-arrow { font-size: 12px; color: #aaa; flex-shrink: 0; }
+  .pip-arrow.sub { color: #0B4F6C; }
+
+  /* SECTION */
+  .section { margin-bottom: 24px; }
+  .sec-title {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .08em; color: #2E86C1; border-bottom: 1.5px solid #AED6F1;
+    padding-bottom: 4px; margin-bottom: 10px;
+  }
+
+  /* CARD */
+  .card { border: 0.5px solid #ddd; border-radius: 8px; padding: 10px 14px; margin-bottom: 8px; }
+  .card-title { font-size: 12px; font-weight: 600; color: #111; margin-bottom: 4px; }
+  .card-sub { font-size: 11px; color: #666; line-height: 1.6; }
+
+  /* FILE BLOCK */
+  .file-block { border-radius: 8px; padding: 10px 14px; margin-bottom: 10px; }
+  .file-block.input        { background: #EBF5FB; border: 0.5px solid #AED6F1; }
+  .file-block.output-cycle { background: #FEF5E7; border: 0.5px solid #FAD7A0; }
+  .file-block.output-trace { background: #FDF2FB; border: 0.5px solid #D7BDE2; }
+  .file-block.tool-read    { background: #EAFAF1; border: 0.5px solid #A9DFBF; }
+  .file-block.tool-write   { background: #FEF9E7; border: 0.5px solid #F9E79F; }
+  .file-block.tool-oneshot { background: #F4ECF7; border: 0.5px solid #D7BDE2; }
+  .file-block.tool-future  { background: #F4F6F7; border: 0.5px dashed #CCD1D1; }
+
+  .file-name {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px; font-weight: 600; margin-bottom: 2px;
+  }
+  .file-block.input        .file-name { color: #1A5276; }
+  .file-block.output-cycle .file-name { color: #784212; }
+  .file-block.output-trace .file-name { color: #6C3483; }
+  .file-block.tool-read    .file-name { color: #1E6B3C; }
+  .file-block.tool-write   .file-name { color: #7D6608; }
+  .file-block.tool-oneshot .file-name { color: #6C3483; }
+  .file-block.tool-future  .file-name { color: #888; }
+
+  .file-desc { font-size: 11px; color: #444; margin-bottom: 6px; line-height: 1.5; }
+
+  /* BADGE */
+  .badge {
+    display: inline-block; font-size: 9px; font-weight: 700;
+    padding: 1px 6px; border-radius: 3px;
+    text-transform: uppercase; letter-spacing: .04em; margin-bottom: 6px;
+  }
+  .badge.read    { background: #D5F5E3; color: #1E8449; }
+  .badge.write   { background: #FEF9C3; color: #7D6608; }
+  .badge.oneshot { background: #F5EEF8; color: #6C3483; }
+  .badge.future  { background: #E8EBED; color: #717D7E; }
+  .badge.manual  { background: #D6EAF8; color: #1A5276; }
+  .badge.auto    { background: #E8DAEF; color: #512E5F; }
+
+  /* TIPO BADGES */
+  .tipo {
+    display: inline-block; font-size: 9px; font-weight: 700;
+    padding: 2px 8px; border-radius: 20px;
+    text-transform: uppercase; letter-spacing: .05em;
+  }
+  .tipo.sin-medidor  { background: #FDEDEC; color: #922B21; border: 1px solid #F1948A; }
+  .tipo.sin-agua     { background: #FEF9C3; color: #7D6608; border: 1px solid #F7DC6F; }
+  .tipo.en-invest    { background: #F5EEF8; color: #6C3483; border: 1px solid #D7BDE2; }
+
+  /* DECISION BADGES */
+  .dec {
+    display: inline-block; font-size: 9px; font-weight: 700;
+    padding: 2px 8px; border-radius: 3px;
+    text-transform: uppercase; letter-spacing: .04em;
+  }
+  .dec.sin-serv  { background: #FDEDEC; color: #922B21; }
+  .dec.error-cap { background: #FEF9C3; color: #7D6608; }
+  .dec.invest    { background: #F5EEF8; color: #6C3483; }
+  .dec.ignorar   { background: #E8EBED; color: #717D7E; }
+  .dec.bloq      { background: #FDEDEC; color: #922B21; border: 1px dashed #CB4335; }
+
+  /* TABLE */
+  table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 6px; }
+  th { background: #1E3A5F; color: #fff; font-weight: 600; padding: 5px 8px; text-align: left; }
+  td { padding: 5px 8px; border-bottom: 0.5px solid #e5e7eb; color: #333; vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  tr:nth-child(even) td { background: #f9f9f9; }
+  td code { font-family: 'IBM Plex Mono', monospace; font-size: 10px; }
+
+  /* FLOW STEPS */
+  .flow { display: flex; flex-direction: column; gap: 0; }
+  .flow-step { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 0.5px solid #f0f0f0; }
+  .flow-step:last-child { border-bottom: none; }
+  .step-num {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: #2E86C1; color: #fff;
+    font-size: 11px; font-weight: 700; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .step-num.new { background: #0B4F6C; }
+  .step-body { flex: 1; }
+  .step-title { font-size: 12px; font-weight: 600; color: #111; }
+  .step-desc  { font-size: 11px; color: #555; margin-top: 2px; line-height: 1.5; }
+  .step-code  {
+    font-family: 'IBM Plex Mono', monospace; font-size: 10px;
+    background: #f5f5f5; border-radius: 4px; padding: 3px 7px;
+    display: inline-block; margin-top: 4px; color: #333;
+  }
+
+  /* FOLDER TREE */
+  .tree {
+    font-family: 'IBM Plex Mono', monospace; font-size: 11px;
+    background: #1E3A5F; color: #AED6F1;
+    border-radius: 8px; padding: 14px 16px; line-height: 1.8;
+  }
+  .tree .hl    { color: #F9E79F; font-weight: 600; }
+  .tree .dim   { color: #5D8AA8; }
+  .tree .green { color: #82E0AA; }
+  .tree .red   { color: #F1948A; }
+  .tree .gray  { color: #99A3A4; }
+
+  /* RULE BOX */
+  .rule-box {
+    background: #F4F6F7; border: 0.5px solid #CCD1D1; border-radius: 6px;
+    padding: 8px 12px; font-size: 11px; margin-bottom: 8px; line-height: 1.6;
+  }
+  .rule-box .rule-title { font-weight: 600; color: #1A5276; margin-bottom: 4px; font-size: 12px; }
+
+  /* NOTE */
+  .note {
+    font-size: 11px; color: #555; background: #f5f5f5;
+    border-left: 3px solid #aaa; border-radius: 0 6px 6px 0;
+    padding: 7px 12px; margin-top: 6px; line-height: 1.5;
+  }
+  .note strong { color: #333; }
+  .note.warn   { background: #FEF9E7; border-left-color: #F39C12; color: #7D6608; }
+  .note.ok     { background: #EAFAF1; border-left-color: #27AE60; color: #1E6B3C; }
+
+  /* STATE MACHINE */
+  .state-row {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 10px 0; border-bottom: 0.5px solid #f0f0f0;
+  }
+  .state-row:last-child { border-bottom: none; }
+  .state-icon { flex-shrink: 0; padding-top: 2px; }
+  .state-body { flex: 1; }
+  .state-name { font-size: 12px; font-weight: 600; margin-bottom: 4px; }
+  .state-rules { font-size: 11px; color: #555; line-height: 1.6; }
+  .state-rules .arrow { color: #2E86C1; font-weight: 600; margin: 0 3px; }
+
+  /* PILL */
+  .pill {
+    display: inline-block; font-size: 9px; font-weight: 700;
+    padding: 1px 7px; border-radius: 20px; margin-left: 6px;
+    text-transform: uppercase; letter-spacing: .04em; vertical-align: middle;
+  }
+  .pill.bloq { background: #FADBD8; color: #922B21; }
+  .pill.gate { background: #D6EAF8; color: #1A5276; }
+
+  /* GRID 2 */
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  @media (max-width: 520px) { .grid2 { grid-template-columns: 1fr; } }
+
+  code { font-family: 'IBM Plex Mono', monospace; font-size: 10px; }
+
+  /* FLOW DIAGRAM */
+  .fdiag { display: flex; flex-direction: column; align-items: center; gap: 0; }
+  .fdiag-row { display: flex; align-items: flex-start; justify-content: center; gap: 8px; width: 100%; }
+  .fbox {
+    border-radius: 6px; padding: 7px 12px; font-size: 11px; font-weight: 600;
+    text-align: center; min-width: 120px; max-width: 200px;
+  }
+  .fbox.source  { background: #EBF5FB; border: 1.5px solid #2E86C1; color: #1A5276; }
+  .fbox.check   { background: #FEF9E7; border: 1.5px solid #F39C12; color: #784212; }
+  .fbox.bloq    { background: #FDEDEC; border: 1.5px solid #CB4335; color: #922B21; }
+  .fbox.info    { background: #EAFAF1; border: 1.5px solid #27AE60; color: #1E6B3C; }
+  .fbox.action  { background: #F4ECF7; border: 1.5px solid #8E44AD; color: #6C3483; font-weight: 400; font-size: 10px; }
+  .fbox.existing{ border-style: dashed; opacity: .7; }
+  .farrow { font-size: 16px; color: #aaa; line-height: 1; padding: 2px 0; text-align: center; }
+  .farrow-h { font-size: 14px; color: #aaa; align-self: center; }
+  .flabel { font-size: 9px; font-weight: 700; color: #888; text-align: center;
+            text-transform: uppercase; letter-spacing: .05em; margin: 0 4px; align-self: center; }
+  .fdiag-cols { display: flex; gap: 16px; justify-content: center; align-items: flex-start; width: 100%; }
+  .fdiag-col  { display: flex; flex-direction: column; align-items: center; gap: 0; flex: 1; }
+  .fcol-title { font-size: 10px; font-weight: 700; text-transform: uppercase;
+                letter-spacing: .06em; color: #2E86C1; margin-bottom: 8px; text-align: center; }
+  .fbadge-new { display: inline-block; font-size: 8px; font-weight: 700;
+                background: #0B4F6C; color: #fff; border-radius: 3px;
+                padding: 1px 5px; margin-left: 4px; vertical-align: middle; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- HEADER -->
+  <p class="title">01 Lecturas · sin_servicio — arquitectura</p>
+  <p class="sub">Submódulo de 1_lecturas · Validación de ausencias y catálogo de usuarios sin servicio · 21/06/2026</p>
+
+  <!-- PIPELINE STRIP -->
+  <div class="pipeline-strip">
+    <span class="pip-mod active">01 Lecturas</span>
+    <span class="pip-arrow sub">↳</span>
+    <span class="pip-mod submod">sin_servicio</span>
+    <span class="pip-arrow">→</span>
+    <span class="pip-mod">02 Planilla</span>
+    <span class="pip-arrow">→</span>
+    <span class="pip-mod">03 Boletas</span>
+    <span class="pip-arrow">→</span>
+    <span class="pip-mod">04 Pagos</span>
+    <span class="pip-arrow">→</span>
+    <span class="pip-mod">05 Cobranza</span>
+    <span class="pip-arrow">→</span>
+    <span class="pip-mod">06 Corte</span>
+  </div>
+
+  <!-- QUÉ HACE -->
+  <div class="section">
+    <div class="sec-title">Qué hace</div>
+    <div class="card">
+      <div class="card-title">Justificar por qué un usuario no tiene lectura este mes y mantener el catálogo de usuarios sin servicio</div>
+      <div class="card-sub">
+        El operario llena <code>MARC_ACT</code> para cada usuario que recorre. Algunos usuarios están en el template
+        como filas pero con <code>MARC_ACT</code> <strong>vacío</strong> — no porque el usuario esté ausente del archivo,
+        sino porque no tienen medidor instalado o el operario lo pasó por alto.
+        Este submódulo cruza esos casos contra <code>lista_sin_servicio.xlsx</code> para distinguir
+        <strong>sin medidor confirmado</strong> (informativa, no bloquea) de
+        <strong>posible error de captura</strong> (bloqueante, supervisor decide).
+        También cubre el caso menos frecuente de usuarios completamente ausentes del template
+        (padrón creció y la fila nunca se agregó).
+        El catálogo evoluciona con el tiempo: <span class="tipo sin-medidor">SIN_MEDIDOR</span> ·
+        <span class="tipo sin-agua">SIN_AGUA</span> · <span class="tipo en-invest">EN_INVEST.</span>
+      </div>
+    </div>
+    <div class="rule-box">
+      <div class="rule-title">Principio fundamental</div>
+      El sistema detecta y propone — nunca muta el catálogo por su cuenta.
+      La mutación de <code>lista_sin_servicio.xlsx</code> es siempre un paso explícito ejecutado por el supervisor
+      (<code>actualizar_lista.py</code>). <code>main.py</code> solo lee la lista, nunca la escribe.
+    </div>
+  </div>
+
+  <!-- DIAGRAMA DE FLUJO -->
+  <div class="section">
+    <div class="sec-title">Diagrama de flujo — los dos escenarios</div>
+
+    <div class="fdiag-cols" style="margin-bottom:12px;">
+      <div style="flex:1; text-align:center; font-size:10px; font-weight:700; text-transform:uppercase;
+                  letter-spacing:.06em; color:#1A5276; background:#EBF5FB; border-radius:6px; padding:6px;">
+        Escenario A · principal
+      </div>
+      <div style="flex:1; text-align:center; font-size:10px; font-weight:700; text-transform:uppercase;
+                  letter-spacing:.06em; color:#6C3483; background:#F4ECF7; border-radius:6px; padding:6px;">
+        Escenario B · secundario
+      </div>
+    </div>
+
+    <div class="fdiag-cols" style="align-items:stretch; gap:20px;">
+
+      <!-- ESCENARIO A -->
+      <div class="fdiag-col">
+        <div class="fbox source" style="width:100%; max-width:100%;">Usuario en template · MARC_ACT vacío</div>
+        <div class="farrow">↓</div>
+        <div class="fbox check" style="width:100%; max-width:100%;">¿obs_operario?</div>
+
+        <!-- branch P -->
+        <div style="display:flex; gap:8px; width:100%; margin:4px 0;">
+          <div style="flex:1; display:flex; flex-direction:column; align-items:center;">
+            <div class="flabel">obs = P</div>
+            <div class="fbox info existing" style="width:100%; font-size:10px;">INFORMATIVA<br>predio cerrado</div>
+            <div style="font-size:9px; color:#888; margin-top:3px;">ya existe</div>
+          </div>
+          <div style="flex:1; display:flex; flex-direction:column; align-items:center;">
+            <div class="flabel">obs vacío</div>
+            <div class="fbox check" style="width:100%; font-size:10px;">¿en lista<br>SIN_MEDIDOR?</div>
+          </div>
+        </div>
+
+        <!-- branch lista -->
+        <div style="display:flex; gap:8px; width:100%; margin:4px 0; padding-left:50%;">
+          <div style="flex:1; display:flex; flex-direction:column; align-items:center;">
+            <div class="flabel">SÍ</div>
+            <div class="fbox info" style="width:100%; font-size:10px;">INFORMATIVA<br>sin medidor ✓ <span class="fbadge-new">nuevo</span></div>
+          </div>
+          <div style="flex:1; display:flex; flex-direction:column; align-items:center;">
+            <div class="flabel">NO</div>
+            <div class="fbox bloq" style="width:100%; font-size:10px;">BLOQUEANTE<br>SIN_LECTURA</div>
+          </div>
+        </div>
+
+        <div style="display:flex; gap:8px; width:100%; padding-left:50%; margin-top:2px;">
+          <div style="flex:1;"></div>
+          <div style="flex:1; display:flex; flex-direction:column; align-items:center;">
+            <div class="farrow" style="font-size:12px;">↓</div>
+            <div class="fbox action" style="width:100%;">
+              sin_servicio → lista<br>
+              error_captura → template<br>
+              investigar → EN_INVEST.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SEPARADOR VERTICAL -->
+      <div style="width:1px; background:#e5e7eb; flex-shrink:0;"></div>
+
+      <!-- ESCENARIO B -->
+      <div class="fdiag-col">
+        <div class="fbox source" style="width:100%; max-width:100%; border-color:#8E44AD; background:#F4ECF7; color:#6C3483;">
+          Usuario en acumulado · NO aparece en template como fila
+        </div>
+        <div class="farrow">↓</div>
+        <div class="fbox check" style="width:100%; max-width:100%;">¿en lista_sin_servicio?</div>
+        <div style="display:flex; gap:8px; width:100%; margin:4px 0;">
+          <div style="flex:1; display:flex; flex-direction:column; align-items:center;">
+            <div class="flabel">SÍ</div>
+            <div class="fbox info" style="width:100%; font-size:10px;">INFORMATIVA<br>fila ausente justificada <span class="fbadge-new">nuevo</span></div>
+          </div>
+          <div style="flex:1; display:flex; flex-direction:column; align-items:center;">
+            <div class="flabel">NO</div>
+            <div class="fbox bloq" style="width:100%; font-size:10px;">BLOQUEANTE<br>USUARIO_FANTASMA</div>
+          </div>
+        </div>
+        <div class="note" style="margin-top:8px; font-size:10px;">
+          Ocurre cuando el padrón creció (nuevos usuarios en 0_padron) y el template no fue regenerado
+          para incluirlos. Menos frecuente que el escenario A.
+        </div>
+      </div>
+
+    </div><!-- /fdiag-cols -->
+
+    <div class="note" style="margin-top:12px;">
+      <strong>Dónde vive en el código:</strong> ambos chequeos están dentro de
+      <code>_detectar_anomalias()</code> en <code>main.py</code> — no es un paso separado.
+      El escenario A se evalúa al detectar <code>SIN_LECTURA</code>; el escenario B al detectar
+      <code>USUARIO_FANTASMA</code>. En ambos: si el usuario está en la lista → informativa. Si no → bloqueante → reporte.
+    </div>
+  </div>
+
+  <!-- ESTRUCTURA -->
+  <div class="section">
+    <div class="sec-title">Estructura de carpetas</div>
+    <div class="tree">
+<span class="dim">1_lecturas/</span>
+<span class="dim">├── main.py                          ← orquesta · llama al submódulo en paso 6</span>
+<span class="dim">├── inputs/ ...</span>
+<span class="dim">└── </span><span class="hl">sin_servicio/</span><span class="dim">                    ← este submódulo</span>
+    <span class="green">├── README.md</span>
+    <span class="green">├── config.py</span>
+    <span class="dim">├── inputs/</span>
+    <span class="hl">│   └── lista_sin_servicio.xlsx      ← catálogo mutable (writer único)</span>
+    <span class="dim">├── outputs/</span>
+    <span class="dim">│   └── validacion_ausencias_YYYY-MM.xlsx</span>
+    <span class="dim">├── docs/</span>
+    <span class="dim">│   ├── arquitectura_sin_servicio.html  ← este archivo</span>
+    <span class="dim">│   ├── formato_lista_sin_servicio.html</span>
+    <span class="dim">│   └── formato_validacion_ausencias.html</span>
+    <span class="dim">├── tests/</span>
+    <span class="green">├── validar_ausencias.py             ← tool 1: read-only</span>
+    <span class="green">├── actualizar_lista.py              ← tool 2: writer único</span>
+    <span class="green">├── migrar_lista.py                  ← tool 3: one-shot</span>
+    <span class="gray">└── clasificar_tipo.py               ← tool 4: futuro (fase 2)</span>
+    </div>
+  </div>
+
+  <!-- TOOLS -->
+  <div class="section">
+    <div class="sec-title">Las 3 tools — Fase 1</div>
+
+    <div class="file-block tool-read">
+      <span class="badge read">read-only</span>
+      <div class="file-name">validar_ausencias.py</div>
+      <div class="file-desc">
+        Compara <code>registro_operario_acumulado.xlsx</code> vs <code>registro_operario_mes.xlsx</code>
+        e identifica usuarios con historial que no aparecen en el mes actual.
+        Cruza cada ausente contra <code>lista_sin_servicio.xlsx</code> y clasifica.<br><br>
+        <strong>No muta nada.</strong> Devuelve dos listas al orquestador y genera el reporte.
+        Si existe un <code>validacion_ausencias_YYYY-MM.xlsx</code> previo, preserva las decisiones ya llenas
+        por el supervisor — nunca las sobreescribe.
+      </div>
+      <table>
+        <tr><th>Entrada</th><th>Descripción</th></tr>
+        <tr><td><code>registro_operario_acumulado.xlsx</code></td><td>Quiénes DEBERÍAN tener lectura (historial)</td></tr>
+        <tr><td><code>registro_operario_mes.xlsx</code></td><td>Quiénes SÍ tienen lectura este ciclo</td></tr>
+        <tr><td><code>lista_sin_servicio.xlsx</code></td><td>Catálogo de ausencias legítimas</td></tr>
+      </table>
+      <table style="margin-top:6px;">
+        <tr><th>Salida</th><th>Descripción</th></tr>
+        <tr><td><code>justificadas[]</code></td><td>Ausentes confirmados en la lista → solo informativas</td></tr>
+        <tr><td><code>revisar[]</code></td><td>Ausentes sin justificación → <span class="pill bloq">bloqueante</span></td></tr>
+        <tr><td><code>validacion_ausencias_YYYY-MM.xlsx</code></td><td>Reporte para que el supervisor decida</td></tr>
+      </table>
+    </div>
+
+    <div class="file-block tool-write">
+      <span class="badge write">writer único</span>
+      <div class="file-name">actualizar_lista.py</div>
+      <div class="file-desc">
+        Lee <code>validacion_ausencias_YYYY-MM.xlsx</code> con las decisiones del supervisor ya completas
+        y aplica los cambios a <code>lista_sin_servicio.xlsx</code>.<br><br>
+        <strong>Es el único script que puede escribir la lista.</strong>
+        Hace backup antes de cada escritura y registra cada cambio en un log de auditoría (append-only).
+        Solo se corre cuando TODAS las filas tienen DECISIÓN.
+        <code>main.py</code> avisa al cierre del ciclo: <em>"Hay N decisiones listas para aplicar →
+        python sin_servicio/actualizar_lista.py"</em>
+      </div>
+      <table>
+        <tr><th>DECISIÓN</th><th>Acción</th></tr>
+        <tr><td><span class="dec sin-serv">sin_servicio</span></td><td>Agrega a lista con <span class="tipo sin-medidor">SIN_MEDIDOR</span> y fecha de hoy</td></tr>
+        <tr><td><span class="dec invest">investigar</span></td><td>Agrega a lista con <span class="tipo en-invest">EN_INVEST.</span> y fecha de hoy</td></tr>
+        <tr><td><span class="dec error-cap">error_captura</span></td><td>No modifica la lista · supervisor agrega lectura al template y re-corre</td></tr>
+        <tr><td><span class="dec ignorar">ignorar</span></td><td>No modifica la lista · solo registra en log de auditoría</td></tr>
+      </table>
+    </div>
+
+    <div class="file-block tool-oneshot">
+      <span class="badge oneshot">one-shot</span>
+      <div class="file-name">migrar_lista.py</div>
+      <div class="file-desc">
+        Convierte el archivo plano <code>Lista de usuarios sin servicio.xlsx</code> (schema viejo: MZ, LT, NOMBRE)
+        al schema nuevo con columnas TIPO, FECHA_INICIO, ÚLTIMA_REVISIÓN, MESES_SIN_LECTURA, NOTAS.
+        Todas las 74 filas migran con <span class="tipo sin-medidor">SIN_MEDIDOR</span> como tipo inicial.
+        La reclasificación a otros TIPO ocurrirá con datos reales de ciclos futuros.<br><br>
+        <strong>Se corre una sola vez.</strong> Después de migrar, el archivo viejo queda como backup.
+      </div>
+    </div>
+
+    <div class="file-block tool-future">
+      <span class="badge future">fase 2 — futuro</span>
+      <div class="file-name">clasificar_tipo.py</div>
+      <div class="file-desc">
+        Analiza <code>registro_operario_acumulado.xlsx</code> para detectar patrones de consumo
+        y proponer reclasificaciones de TIPO en la lista. No se implementa ahora por falta
+        de datos suficientes (mínimo 6 ciclos). Las reglas de reclasificación se definen
+        en la sección Estado y transiciones más abajo.
+      </div>
+    </div>
+  </div>
+
+  <!-- INTEGRACIÓN CON MAIN.PY -->
+  <div class="section">
+    <div class="sec-title">Integración con main.py — orden del ciclo</div>
+    <div class="flow">
+      <div class="flow-step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title">Validar inputs</div>
+          <div class="step-desc">Verifica que <code>registro_operario_mes.xlsx</code> existe.</div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title">Cargar registro_mes y acumulado</div>
+          <div class="step-desc">Lee las 575 filas del mes y el historial completo.</div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-title">Detectar ciclo</div>
+          <div class="step-desc">Determina si es ciclo 1, 2 o más según existencia de correcciones previas.</div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <div class="step-title">Aplicar correcciones del ciclo previo</div>
+          <div class="step-desc">Solo si ciclo ≥ 2 y existe <code>correcciones_YYYY-MM.xlsx</code>.</div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num">5</div>
+        <div class="step-body">
+          <div class="step-title">Detectar anomalías de lecturas</div>
+          <div class="step-desc">Las 11 reglas existentes: MEDIDOR_INVERTIDO, EXCESIVO, DIFERENCIA_M3, etc.</div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num new">6</div>
+        <div class="step-body">
+          <div class="step-title">
+            Validar ausencias <span class="pill gate">nuevo · este submódulo</span>
+          </div>
+          <div class="step-desc">
+            Llama a <code>sin_servicio.validar_ausencias()</code>. Identifica usuarios
+            en el acumulado que no aparecen en el mes. Cruza contra la lista y clasifica
+            cada ausencia. Las ausencias sin DECISIÓN del supervisor suman a bloqueantes.
+          </div>
+          <span class="step-code">revisar[] → suman a bloqueantes · justificadas[] → solo informativas</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num">7</div>
+        <div class="step-body">
+          <div class="step-title">Exportar correcciones, trazabilidad y validacion_ausencias</div>
+          <div class="step-desc">
+            Genera <code>correcciones_YYYY-MM.xlsx</code> (si hay bloqueantes de lecturas) y
+            <code>validacion_ausencias_YYYY-MM.xlsx</code> (si hay ausencias revisar).
+            Preserva decisiones previas del supervisor al regenerar.
+          </div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num">8</div>
+        <div class="step-body">
+          <div class="step-title">Cierre del ciclo — solo si bloqueantes == 0</div>
+          <div class="step-desc">
+            Exporta <code>lecturas_planilla_YYYY-MM.xlsx</code> y actualiza el acumulado
+            con la columna del mes. Si quedan bloqueantes (de lecturas O de ausencias),
+            el ciclo no cierra. Al cerrar, avisa si hay decisiones listas para aplicar:
+          </div>
+          <span class="step-code">→ python sin_servicio/actualizar_lista.py</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCHEMA LISTA -->
+  <div class="section">
+    <div class="sec-title">Schema — lista_sin_servicio.xlsx (el catálogo)</div>
+    <div class="file-block input">
+      <span class="badge auto">writer único: actualizar_lista.py</span>
+      <div class="file-name">sin_servicio/inputs/lista_sin_servicio.xlsx</div>
+      <div class="file-desc">
+        Catálogo permanente de usuarios sin servicio activo. Se actualiza solo vía
+        <code>actualizar_lista.py</code>. Nunca se edita manualmente.
+        Migrado desde <code>1_lecturas/inputs/Lista de usuarios sin servicio.xlsx</code> con <code>migrar_lista.py</code>.
+      </div>
+      <table>
+        <tr><th>Columna</th><th>Tipo</th><th>Descripción</th></tr>
+        <tr><td><code>MZ</code></td><td>texto</td><td>Manzana del usuario</td></tr>
+        <tr><td><code>LT</code></td><td>texto</td><td>Lote del usuario</td></tr>
+        <tr><td><code>NOMBRE</code></td><td>texto</td><td>Nombre completo</td></tr>
+        <tr>
+          <td><code>TIPO</code></td><td>dropdown</td>
+          <td>
+            <span class="tipo sin-medidor">SIN_MEDIDOR</span> caso cerrado, no se re-evalúa ·
+            <span class="tipo sin-agua">SIN_AGUA</span> se re-evalúa cada ciclo ·
+            <span class="tipo en-invest">EN_INVEST.</span> aparece en reporte hasta resolver
+          </td>
+        </tr>
+        <tr><td><code>FECHA_INICIO</code></td><td>YYYY-MM-DD</td><td>Fecha en que se agregó a la lista</td></tr>
+        <tr><td><code>ÚLTIMA_REVISIÓN</code></td><td>YYYY-MM-DD</td><td>Última vez que el supervisor confirmó o reclasificó</td></tr>
+        <tr><td><code>MESES_SIN_LECTURA</code></td><td>entero</td><td>Calculado del acumulado · se actualiza al leer la lista</td></tr>
+        <tr><td><code>NOTAS</code></td><td>texto libre</td><td>Observaciones del supervisor · ej: "predio abandonado", "en convenio"</td></tr>
+      </table>
+      <div class="note">
+        <strong>Migración inicial:</strong> las 74 filas del archivo plano arrancan con
+        <span class="tipo sin-medidor">SIN_MEDIDOR</span>. No se re-evalúan en el reporte de validación
+        hasta que <code>clasificar_tipo.py</code> (fase 2) proponga reclasificación.
+      </div>
+    </div>
+  </div>
+
+  <!-- SCHEMA VALIDACION AUSENCIAS -->
+  <div class="section">
+    <div class="sec-title">Schema — validacion_ausencias_YYYY-MM.xlsx (el reporte)</div>
+    <div class="file-block output-cycle">
+      <span class="badge auto">Sistema genera · supervisor decide</span>
+      <div class="file-name">sin_servicio/outputs/validacion_ausencias_YYYY-MM.xlsx</div>
+      <div class="file-desc">
+        Generado en cada ejecución de <code>main.py</code> cuando hay ausencias sin justificar.
+        Solo aparecen usuarios que <strong>no están en la lista</strong> con TIPO
+        <span class="tipo sin-medidor">SIN_MEDIDOR</span>.
+        El supervisor llena la columna DECISIÓN para cada fila.
+        Las filas con DECISIÓN ya llena se preservan entre re-ejecuciones.
+        <strong>Filas con DECISIÓN vacía bloquean el cierre del ciclo.</strong>
+      </div>
+      <table>
+        <tr><th>Columna</th><th>Quién llena</th><th>Descripción</th></tr>
+        <tr><td><code>MZ</code></td><td>Sistema</td><td>Manzana</td></tr>
+        <tr><td><code>LT</code></td><td>Sistema</td><td>Lote</td></tr>
+        <tr><td><code>NOMBRE</code></td><td>Sistema</td><td>Nombre completo</td></tr>
+        <tr><td><code>ÚLTIMO_MES_CON_LECTURA</code></td><td>Sistema</td><td>Último ciclo YYYY-MM con MARC_ACT registrado</td></tr>
+        <tr><td><code>MARCACION_ÚLTIMA</code></td><td>Sistema</td><td>Valor de la última marcación conocida (o vacío si nunca tuvo)</td></tr>
+        <tr><td><code>MESES_SIN_LECTURA</code></td><td>Sistema</td><td>Ciclos consecutivos sin lectura hasta el mes actual</td></tr>
+        <tr><td><code>ESTADO_LISTA</code></td><td>Sistema</td><td><code>NO_ESTÁ</code> o <code>EN_INVEST.</code></td></tr>
+        <tr>
+          <td><code>DECISIÓN</code></td><td><strong>Supervisor</strong></td>
+          <td>
+            <span class="dec sin-serv">sin_servicio</span>
+            <span class="dec error-cap">error_captura</span>
+            <span class="dec invest">investigar</span>
+            <span class="dec ignorar">ignorar</span>
+            · vacío = <span class="pill bloq">bloqueante</span>
+          </td>
+        </tr>
+        <tr><td><code>NOTAS</code></td><td>Supervisor (opcional)</td><td>Observación libre sobre el caso</td></tr>
+        <tr><td><code>CICLO</code></td><td>Sistema</td><td>Número de ciclo en que se detectó la ausencia</td></tr>
+        <tr><td><code>FECHA_DETECCIÓN</code></td><td>Sistema</td><td>Timestamp de la ejecución</td></tr>
+      </table>
+      <div class="note warn">
+        <strong>Idempotencia:</strong> si el archivo ya existe de una ejecución anterior, las filas
+        con DECISIÓN llena se conservan. Solo se agregan nuevas ausencias o se eliminan las que
+        ya no son ausentes (porque el operario agregó su lectura al template).
+      </div>
+    </div>
+  </div>
+
+  <!-- TIPO: ESTADO Y TRANSICIONES -->
+  <div class="section">
+    <div class="sec-title">TIPO — estados y transiciones</div>
+
+    <div class="card">
+      <div class="state-row">
+        <div class="state-icon"><span class="tipo sin-medidor">SIN_MEDIDOR</span></div>
+        <div class="state-body">
+          <div class="state-name" style="color:#922B21;">Caso cerrado · no se re-evalúa cada ciclo</div>
+          <div class="state-rules">
+            Usuario sin medidor instalado. Una vez clasificado aquí, <strong>no aparece en el reporte de validación</strong>
+            en ciclos futuros — el sistema lo da por resuelto.<br>
+            <span class="arrow">→</span> <span class="tipo sin-agua">SIN_AGUA</span>: si <code>clasificar_tipo.py</code> (fase 2)
+            detecta lectura > 0 en algún ciclo del acumulado, propone reclasificación.
+          </div>
+        </div>
+      </div>
+      <div class="state-row">
+        <div class="state-icon"><span class="tipo sin-agua">SIN_AGUA</span></div>
+        <div class="state-body">
+          <div class="state-name" style="color:#7D6608;">Temporal · se re-evalúa cada ciclo</div>
+          <div class="state-rules">
+            Usuario con medidor instalado pero sin consumo este mes. Aparece en el reporte de validación
+            si falta en el template, pero la DECISIÓN default es <span class="dec sin-serv">sin_servicio</span>
+            (ausencia ya conocida). Se mantiene en la lista mientras no consuma.<br>
+            <span class="arrow">→</span> Sale de la lista: si <code>clasificar_tipo.py</code> detecta consumo > 0
+            consistente en los últimos ciclos del acumulado.
+          </div>
+        </div>
+      </div>
+      <div class="state-row">
+        <div class="state-icon"><span class="tipo en-invest">EN_INVEST.</span></div>
+        <div class="state-body">
+          <div class="state-name" style="color:#6C3483;">Bajo investigación · aparece en reporte cada ciclo</div>
+          <div class="state-rules">
+            Caso sin clasificar. Aparece en el reporte de validación en cada ciclo hasta que el supervisor tome una decisión.<br>
+            <span class="arrow">→</span> <span class="tipo sin-medidor">SIN_MEDIDOR</span>: auto-promoción si lleva
+            <strong>3 ciclos consecutivos sin lectura</strong> sin decisión del supervisor.
+            Se registra en NOTAS: <em>"auto: 3 ciclos sin lectura · YYYY-MM-DD"</em>.<br>
+            <span class="arrow">→</span> Sale de la lista: si aparece lectura > 0 en el acumulado.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="rule-box">
+      <div class="rule-title">Migración inicial — todos arrancan como SIN_MEDIDOR</div>
+      Las 74 filas del archivo plano se migran todas con TIPO = <span class="tipo sin-medidor">SIN_MEDIDOR</span>.
+      No aparecerán en el reporte de validación en ciclos futuros. Cuando <code>clasificar_tipo.py</code>
+      esté disponible (fase 2), analizará el acumulado y propondrá reclasificaciones basadas en evidencia histórica.
+    </div>
+  </div>
+
+  <!-- REGLAS DE OPERACIÓN -->
+  <div class="section">
+    <div class="sec-title">Reglas de operación — decisiones de diseño</div>
+
+    <table>
+      <tr><th>#</th><th>Regla</th><th>Razón</th></tr>
+      <tr>
+        <td>1</td>
+        <td>El submódulo vive dentro de <code>1_lecturas/</code></td>
+        <td>El output solo lo consume <code>1_lecturas</code>. Si en el futuro lo usan 2+ módulos, se extrae.</td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td>Migración inicial: 74 filas → todas <span class="tipo sin-medidor">SIN_MEDIDOR</span></td>
+        <td>Arrancar con TIPO conocido. Reclasificación posterior con datos reales.</td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td>Gate de validación en paso 6 de <code>main.py</code>, después de detectar anomalías</td>
+        <td>Necesita el estado post-correcciones para no duplicar trabajo ni generar falsos positivos.</td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td>Archivo separado <code>validacion_ausencias_YYYY-MM.xlsx</code></td>
+        <td>Correcciones = valores anómalos · ausencias = usuarios faltantes. Mezclarlos confunde al supervisor.</td>
+      </tr>
+      <tr>
+        <td>5</td>
+        <td>TIPO con 3 estados: <span class="tipo sin-medidor">SIN_MEDIDOR</span> · <span class="tipo sin-agua">SIN_AGUA</span> · <span class="tipo en-invest">EN_INVEST.</span></td>
+        <td>Cada estado define una conducta distinta del sistema en ciclos futuros.</td>
+      </tr>
+      <tr>
+        <td>6</td>
+        <td>DECISIÓN vacía en el reporte bloquea el cierre del ciclo</td>
+        <td>Sin disposición explícita, las ausencias se acumulan sin resolverse. El estado "pendiente" no es válido para cierre contable.</td>
+      </tr>
+      <tr>
+        <td>7</td>
+        <td><span class="tipo en-invest">EN_INVEST.</span> se auto-promueve a <span class="tipo sin-medidor">SIN_MEDIDOR</span> tras 3 ciclos sin lectura</td>
+        <td>Sin escape, la categoría se vuelve cementerio. La promoción se registra en NOTAS, no es silenciosa.</td>
+      </tr>
+      <tr>
+        <td>8</td>
+        <td><code>clasificar_tipo.py</code> queda para fase 2</td>
+        <td>Solo hay 2 meses de acumulado. Con poca data, la clasificación automática es ruidosa. Mínimo 6 ciclos para codificar.</td>
+      </tr>
+      <tr>
+        <td>9</td>
+        <td>Decisiones llenas se preservan en re-ejecuciones del ciclo</td>
+        <td>El supervisor puede correr <code>main.py</code> varias veces. Nunca perder trabajo ya hecho.</td>
+      </tr>
+      <tr>
+        <td>10</td>
+        <td><code>actualizar_lista.py</code> es paso manual explícito — no lo corre <code>main.py</code></td>
+        <td>Las mutaciones de estado son siempre explícitas. <code>main.py</code> es read-only respecto a la lista.</td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- FASE 2 -->
+  <div class="section">
+    <div class="sec-title">Fase 2 — clasificar_tipo.py (futuro)</div>
+    <div class="card">
+      <div class="card-title">Detección automática de patrones desde el acumulado</div>
+      <div class="card-sub">
+        Disponible cuando el acumulado tenga ≥ 6 ciclos de historial.
+        Analiza los datos de consumo mes a mes y propone reclasificaciones:
+        <br><br>
+        <strong>SIN_MEDIDOR → SIN_AGUA:</strong> si se detecta lectura > 0 en algún ciclo del acumulado.<br>
+        <strong>SIN_AGUA → (sale de lista):</strong> si hay consumo > 0 consistente en los últimos 3 ciclos.<br>
+        <strong>EN_INVEST. → SIN_MEDIDOR:</strong> auto-promoción tras 3 ciclos sin lectura (también disponible en fase 1).<br>
+        <br>
+        El tool propone — nunca aplica. Las sugerencias van al reporte de validación como columna adicional
+        <code>RECLASIFICACIÓN_SUGERIDA</code>. El supervisor acepta o rechaza cada una.
+      </div>
+    </div>
+    <div class="note">
+      <strong>Condición para implementar:</strong> cuando el supervisor haya procesado al menos 3 ciclos
+      de validación_ausencias y se tenga evidencia real de qué patrones son confiables.
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>formato — audit_lista.xlsx</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'IBM Plex Sans',sans-serif;background:#fff;color:#111;padding:16px 0 40px}
+#w{max-width:1100px;margin:0 auto}
+.instruc{background:#f5f5f5;border:0.5px solid #ddd;border-left:3px solid #0B4F6C;
+  border-radius:0 6px 6px 0;padding:9px 13px;font-size:12px;color:#555;margin-bottom:12px;line-height:1.7}
+.instruc strong{color:#111}
+.instruc code{font-family:'IBM Plex Mono',monospace;background:#fff;padding:1px 5px;
+  border-radius:3px;color:#065F46;font-size:10.5px}
+.tab-excel{display:inline-flex;align-items:center;border-radius:6px 6px 0 0;
+  padding:5px 14px;font-size:12px;font-weight:500;margin-bottom:-1px;
+  background:#E8F4FD;border:0.5px solid #7FB3D3;border-bottom:none;color:#0B4F6C}
+.tw{border:0.5px solid #ddd;border-radius:0 6px 6px 6px;overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:11px}
+th{padding:6px 8px;font-size:10px;font-weight:500;text-align:left;
+   border-bottom:0.5px solid #e5e7eb;border-right:0.5px solid #e5e7eb;white-space:nowrap}
+th:last-child{border-right:none}
+td{padding:5px 8px;border-bottom:0.5px solid #e5e7eb;border-right:0.5px solid #e5e7eb;
+   vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+td:last-child{border-right:none}
+tr:last-child td{border-bottom:none}
+
+/* Número de fila */
+.num{width:24px;background:#f8f9fa;color:#9ca3af;font-size:10px;
+  font-family:'IBM Plex Mono',monospace;text-align:center;border-right:0.5px solid #e5e7eb}
+
+/* Separadores */
+.th-sep{width:4px;background:#f8f9fa;padding:0;border-right:2px solid #d1d5db}
+.td-sep{width:4px;background:#f8f9fa;padding:0;border-right:2px solid #d1d5db}
+
+/* Grupos de cabecera — paleta helper formato_excel.PALETA */
+.th-cuando{background:#FEF3E8;color:#7C3003}
+.th-quien{background:#F4ECF7;color:#5B21B6}
+.th-fix{background:#E1F5EE;color:#065F46}
+.th-operario{background:#E6F1FB;color:#0C447C}
+
+/* Group header text */
+.gh{font-size:9px;font-weight:600;text-align:center;padding:3px 0;
+    letter-spacing:.05em;text-transform:uppercase;border-bottom:0.5px solid #e5e7eb}
+
+/* Celdas de datos */
+.td-cuando{background:#FEF8F0;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#7C3003;text-align:center}
+.td-quien{background:#FAF5FF;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#5B21B6}
+.td-nombre{background:#FAF5FF;font-size:11px;color:#111}
+.td-fix{background:#F0FFF8;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#065F46;text-align:center}
+.td-operario{background:#F0F8FF;font-size:10px;color:#185FA5}
+.td-operario-e{background:#F0F8FF;color:#9ca3af;font-style:italic;font-size:10px}
+
+/* ACCION pills */
+.acc{display:inline-block;font-size:9px;font-weight:700;padding:2px 8px;
+  border-radius:4px;font-family:'IBM Plex Mono',monospace;letter-spacing:.02em}
+.acc-ins{background:#DCFCE7;color:#15803D}
+.acc-upd{background:#DBEAFE;color:#1E40AF}
+.acc-skip{background:#F1F5F9;color:#475569}
+.acc-noop{background:#FEF3C7;color:#92400E}
+
+/* TIPO pills */
+.tipo{display:inline-block;font-size:9px;font-weight:700;padding:2px 7px;
+  border-radius:20px;text-transform:uppercase;letter-spacing:.04em;
+  font-family:'IBM Plex Mono',monospace}
+.tipo-sm{background:#FDEDEC;color:#922B21;border:1px solid #F1948A}
+.tipo-sa{background:#FEF9C3;color:#7D6608;border:1px solid #F7DC6F}
+.tipo-ei{background:#F5EEF8;color:#6C3483;border:1px solid #D7BDE2}
+.tipo-e{color:#9ca3af;font-style:italic}
+
+/* DECISION pills */
+.dec{display:inline-block;font-size:9px;font-weight:700;padding:2px 8px;
+  border-radius:4px;font-family:'IBM Plex Mono',monospace;letter-spacing:.02em}
+.dec-ss{background:#FEE2E2;color:#991B1B}
+.dec-ec{background:#FEF3C7;color:#92400E}
+.dec-inv{background:#EDE9FE;color:#5B21B6}
+.dec-ign{background:#F1F5F9;color:#475569}
+
+/* ORIGEN pills */
+.ori{display:inline-block;font-size:9px;font-weight:700;padding:2px 7px;
+  border-radius:3px;font-family:'IBM Plex Mono',monospace;letter-spacing:.02em}
+.ori-sup{background:#E0E7FF;color:#3730A3}
+.ori-auto{background:#FCE7F3;color:#9D174D}
+.ori-def{background:#FEF3C7;color:#92400E}
+
+/* Leyenda */
+.legend{display:flex;gap:14px;margin-top:12px;flex-wrap:wrap;align-items:center}
+.leg{display:flex;align-items:center;gap:5px;font-size:11px;color:#6b7280}
+.ld{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+
+/* Valores */
+.values{margin-top:14px;background:#f5f5f5;border:0.5px solid #ddd;
+  border-radius:6px;padding:10px 14px;font-size:11px;color:#6b7280}
+.values strong{color:#111}
+.values code{font-family:'IBM Plex Mono',monospace;background:#fff;padding:1px 5px;
+  border-radius:3px;font-size:10.5px}
+.values .row{margin-bottom:6px;line-height:1.6}
+.values .acc,.values .dec,.values .tipo,.values .ori{vertical-align:middle}
+</style>
+</head>
+<body>
+<div id="w">
+
+  <div class="instruc">
+    <strong>audit_lista.xlsx</strong> · log append-only de cada cambio aplicado a <code>lista_sin_servicio.xlsx</code> · 1 hoja única.<br>
+    <strong>Writer único:</strong> <code>actualizar_lista.py</code> — cada corrida agrega 1 fila por cada decisión del reporte (incluyendo NO_OP y SKIP_DUPLICATE para auditoría completa).<br>
+    <strong>Nunca se edita manualmente.</strong> El archivo migra automáticamente del formato plano legacy al formato con grupos en cualquier corrida posterior.<br>
+    <strong>Uso forense:</strong> reconstruir cuándo se promovió un usuario, qué supervisor lo decidió, en qué ciclo, con qué origen (auto / default_sin_agua / supervisor).
+  </div>
+
+  <div class="tab-excel">Auditoría</div>
+  <div class="tw"><table style="min-width:1080px">
+    <thead>
+      <tr>
+        <th class="num" rowspan="2"></th>
+        <th class="th-quien gh" colspan="3">¿Quién es?</th>
+        <th class="th-sep" rowspan="2"></th>
+        <th class="th-fix gh" colspan="2">¿Qué se hizo?</th>
+        <th class="th-sep" rowspan="2"></th>
+        <th class="th-operario gh" colspan="3">Origen de la decisión</th>
+        <th class="th-sep" rowspan="2"></th>
+        <th class="th-cuando gh" colspan="2">¿Cuándo?</th>
+      </tr>
+      <tr>
+        <th class="th-quien">MZ</th>
+        <th class="th-quien">LT</th>
+        <th class="th-quien">NOMBRE</th>
+        <th class="th-fix">ACCION</th>
+        <th class="th-fix">TIPO_NUEVO</th>
+        <th class="th-operario">DECISION_ORIGEN</th>
+        <th class="th-operario">ORIGEN_PROPUESTA</th>
+        <th class="th-operario">NOTAS</th>
+        <th class="th-cuando">FECHA</th>
+        <th class="th-cuando">CICLO_ORIGEN</th>
+      </tr>
+    </thead>
+    <tbody>
+
+      <!-- INSERT: usuario nuevo agregado como SIN_MEDIDOR -->
+      <tr>
+        <td class="num">1</td>
+        <td class="td-quien">J</td>
+        <td class="td-quien">6</td>
+        <td class="td-nombre">CAPILLA DEL PUEBLO</td>
+        <td class="td-sep"></td>
+        <td class="td-fix"><span class="acc acc-ins">INSERT</span></td>
+        <td class="td-fix"><span class="tipo tipo-sm">SIN_MEDIDOR</span></td>
+        <td class="td-sep"></td>
+        <td class="td-operario"><span class="dec dec-ss">sin_servicio</span></td>
+        <td class="td-operario"><span class="ori ori-sup">supervisor</span></td>
+        <td class="td-operario td-operario-e">—</td>
+        <td class="td-sep"></td>
+        <td class="td-cuando">2026-07-01 08:42:13</td>
+        <td class="td-cuando">2026-07 · ciclo 2</td>
+      </tr>
+
+      <!-- UPDATE: auto-promoción de EN_INVESTIGACIÓN → SIN_MEDIDOR tras 3 ciclos -->
+      <tr>
+        <td class="num">2</td>
+        <td class="td-quien">M</td>
+        <td class="td-quien">12</td>
+        <td class="td-nombre">IGLESIA EVANGELICA BAUTISTA</td>
+        <td class="td-sep"></td>
+        <td class="td-fix"><span class="acc acc-upd">UPDATE</span></td>
+        <td class="td-fix"><span class="tipo tipo-sm">SIN_MEDIDOR</span></td>
+        <td class="td-sep"></td>
+        <td class="td-operario"><span class="dec dec-ss">sin_servicio</span></td>
+        <td class="td-operario"><span class="ori ori-auto">auto</span></td>
+        <td class="td-operario">auto: 3 ciclos sin lectura · 2026-07-01</td>
+        <td class="td-sep"></td>
+        <td class="td-cuando">2026-07-01 08:42:13</td>
+        <td class="td-cuando">2026-07 · ciclo 2</td>
+      </tr>
+
+      <!-- UPDATE: SIN_AGUA → SIN_MEDIDOR con default sugerido por sistema -->
+      <tr>
+        <td class="num">3</td>
+        <td class="td-quien">P</td>
+        <td class="td-quien">11</td>
+        <td class="td-nombre">LUCIA HUAMAN VEGA</td>
+        <td class="td-sep"></td>
+        <td class="td-fix"><span class="acc acc-upd">UPDATE</span></td>
+        <td class="td-fix"><span class="tipo tipo-sm">SIN_MEDIDOR</span></td>
+        <td class="td-sep"></td>
+        <td class="td-operario"><span class="dec dec-ss">sin_servicio</span></td>
+        <td class="td-operario"><span class="ori ori-def">default_sin_agua</span></td>
+        <td class="td-operario">default: SIN_AGUA → sin_servicio · 2026-07-01</td>
+        <td class="td-sep"></td>
+        <td class="td-cuando">2026-07-01 08:42:13</td>
+        <td class="td-cuando">2026-07 · ciclo 2</td>
+      </tr>
+
+      <!-- INSERT: EN_INVESTIGACIÓN -->
+      <tr>
+        <td class="num">4</td>
+        <td class="td-quien">K</td>
+        <td class="td-quien">2</td>
+        <td class="td-nombre">JOSE SILVA MENDOZA</td>
+        <td class="td-sep"></td>
+        <td class="td-fix"><span class="acc acc-ins">INSERT</span></td>
+        <td class="td-fix"><span class="tipo tipo-ei">EN_INVEST.</span></td>
+        <td class="td-sep"></td>
+        <td class="td-operario"><span class="dec dec-inv">investigar</span></td>
+        <td class="td-operario"><span class="ori ori-sup">supervisor</span></td>
+        <td class="td-operario">agregado al padrón abril · sin verificar</td>
+        <td class="td-sep"></td>
+        <td class="td-cuando">2026-07-01 08:42:13</td>
+        <td class="td-cuando">2026-07 · ciclo 2</td>
+      </tr>
+
+      <!-- NO_OP_ERROR_CAPTURA: solo audit, no toca lista -->
+      <tr>
+        <td class="num">5</td>
+        <td class="td-quien">F</td>
+        <td class="td-quien">7</td>
+        <td class="td-nombre">MARIA CASTRO LUNA</td>
+        <td class="td-sep"></td>
+        <td class="td-fix"><span class="acc acc-noop">NO_OP_ERROR_CAPTURA</span></td>
+        <td class="td-fix td-operario-e">—</td>
+        <td class="td-sep"></td>
+        <td class="td-operario"><span class="dec dec-ec">error_captura</span></td>
+        <td class="td-operario"><span class="ori ori-sup">supervisor</span></td>
+        <td class="td-operario">operario la saltó · agregar lectura</td>
+        <td class="td-sep"></td>
+        <td class="td-cuando">2026-07-01 08:42:13</td>
+        <td class="td-cuando">2026-07 · ciclo 2</td>
+      </tr>
+
+      <!-- SKIP_DUPLICATE: ya estaba en lista, idempotencia -->
+      <tr>
+        <td class="num">6</td>
+        <td class="td-quien">A</td>
+        <td class="td-quien">6A</td>
+        <td class="td-nombre">GABY REYES JUAREZ</td>
+        <td class="td-sep"></td>
+        <td class="td-fix"><span class="acc acc-skip">SKIP_DUPLICATE</span></td>
+        <td class="td-fix"><span class="tipo tipo-sm">SIN_MEDIDOR</span></td>
+        <td class="td-sep"></td>
+        <td class="td-operario"><span class="dec dec-ss">sin_servicio</span></td>
+        <td class="td-operario"><span class="ori ori-sup">supervisor</span></td>
+        <td class="td-operario td-operario-e">—</td>
+        <td class="td-sep"></td>
+        <td class="td-cuando">2026-07-01 08:42:13</td>
+        <td class="td-cuando">2026-07 · ciclo 2</td>
+      </tr>
+
+    </tbody>
+  </table></div>
+
+  <div class="legend">
+    <div class="leg"><span class="ld" style="background:#FAF5FF"></span> ¿Quién es?</div>
+    <div class="leg"><span class="ld" style="background:#F0FFF8"></span> ¿Qué se hizo?</div>
+    <div class="leg"><span class="ld" style="background:#F0F8FF"></span> Origen de la decisión</div>
+    <div class="leg"><span class="ld" style="background:#FEF8F0"></span> ¿Cuándo?</div>
+  </div>
+
+  <div class="values">
+    <div class="row"><strong>Columna <code>ACCION</code> — qué hizo el script con la fila del reporte:</strong></div>
+    <div class="row">
+      <span class="acc acc-ins">INSERT</span> — agregó el usuario a <code>lista_sin_servicio.xlsx</code>
+    </div>
+    <div class="row">
+      <span class="acc acc-upd">UPDATE</span> — promovió el <code>TIPO</code> existente (típicamente SIN_AGUA o EN_INVESTIGACIÓN → SIN_MEDIDOR)
+    </div>
+    <div class="row">
+      <span class="acc acc-skip">SKIP_DUPLICATE</span> — la decisión coincide con el estado actual · idempotente, no se duplica
+    </div>
+    <div class="row">
+      <span class="acc acc-noop">NO_OP_ERROR_CAPTURA</span> — no toca la lista · el supervisor agrega la lectura al template y re-corre <code>main.py</code>
+    </div>
+    <div class="row">
+      <span class="acc acc-noop">NO_OP_IGNORAR</span> — no toca la lista · queda solo el rastro forense en este audit
+    </div>
+
+    <div class="row" style="margin-top:10px"><strong>Columna <code>ORIGEN_PROPUESTA</code> — quién pre-llenó la decisión:</strong></div>
+    <div class="row">
+      <span class="ori ori-sup">supervisor</span> — DECISIÓN llenada manualmente por el supervisor en el reporte (caso normal)
+    </div>
+    <div class="row">
+      <span class="ori ori-auto">auto</span> — auto-promoción del sistema: 3 ciclos consecutivos sin lectura · prefijo <code>auto: 3 ciclos sin lectura</code> en NOTAS
+    </div>
+    <div class="row">
+      <span class="ori ori-def">default_sin_agua</span> — pre-llenado automático cuando el usuario estaba como <code>SIN_AGUA</code> en la lista · prefijo <code>default: SIN_AGUA → sin_servicio</code> en NOTAS
+    </div>
+
+    <div class="row" style="margin-top:10px"><strong>Columna <code>CICLO_ORIGEN</code>:</strong></div>
+    <div class="row">
+      Formato <code>YYYY-MM · ciclo N</code> — el mes y ciclo del reporte <code>validacion_ausencias_YYYY-MM.xlsx</code> donde nació la decisión.
+    </div>
+
+    <div class="row" style="margin-top:10px"><strong>Idempotencia y append-only:</strong></div>
+    <div class="row">
+      Cada corrida de <code>actualizar_lista.py</code> agrega filas pero nunca elimina ni edita previas.
+      El re-write con grupos se hace leyendo todas las filas existentes y reescribiendo el archivo completo —
+      el resultado es indistinguible de un append puro, con la ventaja de migrar v1 → v2 sin pasos manuales.
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>formato — validacion_ausencias_YYYY-MM.xlsx</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'IBM Plex Sans',sans-serif;background:#fff;color:#111;padding:16px 0 40px}
+#w{max-width:1100px;margin:0 auto}
+.instruc{background:#f5f5f5;border:0.5px solid #ddd;border-left:3px solid #0B4F6C;
+  border-radius:0 6px 6px 0;padding:9px 13px;font-size:12px;color:#555;margin-bottom:12px;line-height:1.7}
+.instruc strong{color:#111}
+.instruc code{font-family:'IBM Plex Mono',monospace;background:#fff;padding:1px 5px;
+  border-radius:3px;color:#065F46;font-size:10.5px}
+.tab-excel{display:inline-flex;align-items:center;border-radius:6px 6px 0 0;
+  padding:5px 14px;font-size:12px;font-weight:500;margin-bottom:-1px;
+  background:#E8F4FD;border:0.5px solid #7FB3D3;border-bottom:none;color:#0B4F6C}
+.tw{border:0.5px solid #ddd;border-radius:0 6px 6px 6px;overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:11px}
+th{padding:6px 8px;font-size:10px;font-weight:500;text-align:left;
+   border-bottom:0.5px solid #e5e7eb;border-right:0.5px solid #e5e7eb;white-space:nowrap}
+th:last-child{border-right:none}
+td{padding:5px 8px;border-bottom:0.5px solid #e5e7eb;border-right:0.5px solid #e5e7eb;
+   vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+td:last-child{border-right:none}
+tr:last-child td{border-bottom:none}
+
+/* Número de fila */
+.num{width:24px;background:#f8f9fa;color:#9ca3af;font-size:10px;
+  font-family:'IBM Plex Mono',monospace;text-align:center;border-right:0.5px solid #e5e7eb}
+
+/* Separadores */
+.th-sep{width:4px;background:#f8f9fa;padding:0;border-right:2px solid #d1d5db}
+.td-sep{width:4px;background:#f8f9fa;padding:0;border-right:2px solid #d1d5db}
+
+/* Grupos de cabecera — paleta helper formato_excel.PALETA */
+.th-quien{background:#F4ECF7;color:#5B21B6}
+.th-evid{background:#E6F1FB;color:#0C447C}
+.th-dec{background:#E1F5EE;color:#065F46}
+.th-traz{background:#FEF3E8;color:#7C3003}
+
+/* Group header text */
+.gh{font-size:9px;font-weight:600;text-align:center;padding:3px 0;
+    letter-spacing:.05em;text-transform:uppercase;border-bottom:0.5px solid #e5e7eb}
+
+/* Celdas de datos — ¿Quién es? */
+.td-quien{background:#FAF5FF;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#5B21B6}
+.td-nombre{background:#FAF5FF;font-size:11px;color:#111}
+
+/* Celdas de datos — Evidencia (sistema) */
+.td-evid{background:#F0F8FF;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#185FA5;text-align:center}
+.td-evid-e{background:#F0F8FF;color:#9ca3af;font-style:italic;font-size:10px;text-align:center}
+
+/* Celdas de datos — Decisión (supervisor) */
+.td-dec{background:#F0FFF8;font-size:10px;color:#374151}
+.td-dec-e{background:#F0FFF8;color:#9ca3af;font-style:italic;font-size:10px}
+.td-dec-block{background:#FEF2F2;font-size:10px}
+
+/* Celdas de datos — Trazabilidad */
+.td-traz{background:#FEF8F0;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#7C3003;text-align:center}
+
+/* Fila bloqueante */
+.row-block td{border-bottom:0.5px solid #FCA5A5}
+
+/* ESCENARIO pills */
+.esc{display:inline-block;font-size:9px;font-weight:700;padding:2px 7px;
+  border-radius:20px;text-transform:uppercase;letter-spacing:.04em;
+  font-family:'IBM Plex Mono',monospace}
+.esc-sl{background:#EFF6FF;color:#1E40AF;border:1px solid #93C5FD}
+.esc-uf{background:#FFF7ED;color:#92400E;border:1px solid #FCD34D}
+
+/* TIPO pills (para ESTADO_LISTA) */
+.tipo{display:inline-block;font-size:9px;font-weight:700;padding:2px 7px;
+  border-radius:20px;text-transform:uppercase;letter-spacing:.04em;
+  font-family:'IBM Plex Mono',monospace}
+.tipo-noesta{background:#F1F5F9;color:#475569;border:1px solid #CBD5E1}
+.tipo-sa{background:#FEF9C3;color:#7D6608;border:1px solid #F7DC6F}
+.tipo-einv{background:#F5EEF8;color:#6C3483;border:1px solid #D7BDE2}
+
+/* DECISIÓN badges */
+.dec{display:inline-block;font-size:9px;font-weight:700;padding:2px 8px;
+  border-radius:4px;font-family:'IBM Plex Mono',monospace;letter-spacing:.02em}
+.dec-ss{background:#FEE2E2;color:#991B1B}
+.dec-ec{background:#FEF3C7;color:#92400E}
+.dec-inv{background:#EDE9FE;color:#5B21B6}
+.dec-ign{background:#F1F5F9;color:#475569}
+.dec-vacio{background:#FEF2F2;color:#DC2626;border:1px dashed #FCA5A5;font-style:italic}
+
+/* Leyenda */
+.legend{display:flex;gap:14px;margin-top:12px;flex-wrap:wrap;align-items:center}
+.leg{display:flex;align-items:center;gap:5px;font-size:11px;color:#6b7280}
+.ld{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+
+/* Valores */
+.values{margin-top:14px;background:#f5f5f5;border:0.5px solid #ddd;
+  border-radius:6px;padding:10px 14px;font-size:11px;color:#6b7280}
+.values strong{color:#111}
+.values code{font-family:'IBM Plex Mono',monospace;background:#fff;padding:1px 5px;
+  border-radius:3px;font-size:10.5px}
+.values .row{margin-bottom:6px;line-height:1.6}
+.values .dec{vertical-align:middle}
+.values .esc{vertical-align:middle}
+.values .tipo{vertical-align:middle}
+
+/* Bloqueante callout */
+.block-callout{background:#FEF2F2;border:0.5px solid #FCA5A5;border-left:3px solid #DC2626;
+  border-radius:0 6px 6px 0;padding:7px 12px;font-size:11px;color:#7F1D1D;margin-top:8px;line-height:1.6}
+.block-callout strong{color:#991B1B}
+</style>
+</head>
+<body>
+<div id="w">
+
+  <div class="instruc">
+    <strong>validacion_ausencias_YYYY-MM.xlsx</strong> · reporte mensual de usuarios sin lectura pendientes de resolución · 1 hoja por ciclo.<br>
+    <strong>Writer único:</strong> <code>validar_ausencias.py</code> — escribe las columnas que rellena el sistema y preserva las columnas que rellena el supervisor.<br>
+    <strong>Supervisor llena:</strong> <code>DECISIÓN</code> (obligatorio) y <code>NOTAS</code> (opcional) antes de volver a correr <code>main.py</code>.<br>
+    <strong>Bloqueante:</strong> cualquier fila con <code>DECISIÓN</code> vacía impide el cierre del ciclo · el sistema lo avisa en el log de ejecución.
+  </div>
+
+  <div class="tab-excel">Ausencias_2026-07</div>
+  <div class="tw"><table style="min-width:1080px">
+    <thead>
+      <tr>
+        <th class="num" rowspan="2"></th>
+        <th class="th-quien gh" colspan="3">¿Quién es?</th>
+        <th class="th-sep" rowspan="2"></th>
+        <th class="th-evid gh" colspan="5">Evidencia <span style="font-weight:400;text-transform:none;letter-spacing:0">— sistema llena</span></th>
+        <th class="th-sep" rowspan="2"></th>
+        <th class="th-dec gh" colspan="2">Decisión <span style="font-weight:400;text-transform:none;letter-spacing:0">— supervisor llena</span></th>
+        <th class="th-sep" rowspan="2"></th>
+        <th class="th-traz gh" colspan="2">Trazabilidad</th>
+      </tr>
+      <tr>
+        <th class="th-quien">MZ</th>
+        <th class="th-quien">LT</th>
+        <th class="th-quien">NOMBRE</th>
+        <th class="th-evid">ESCENARIO</th>
+        <th class="th-evid">ÚLTIMO_MES_CON_LECTURA</th>
+        <th class="th-evid">MARCACION_ÚLTIMA</th>
+        <th class="th-evid">MESES_SIN_LECTURA</th>
+        <th class="th-evid">ESTADO_LISTA</th>
+        <th class="th-dec">DECISIÓN</th>
+        <th class="th-dec">NOTAS</th>
+        <th class="th-traz">CICLO</th>
+        <th class="th-traz">FECHA_DETECCIÓN</th>
+      </tr>
+    </thead>
+    <tbody>
+
+      <!-- sin_servicio — usuario sin medidor confirmado por supervisor -->
+      <tr>
+        <td class="num">1</td>
+        <td class="td-quien">B</td>
+        <td class="td-quien">3</td>
+        <td class="td-nombre">PEDRO GARCIA QUISPE</td>
+        <td class="td-sep"></td>
+        <td class="td-evid"><span class="esc esc-sl">SIN_LECTURA</span></td>
+        <td class="td-evid">2026-05</td>
+        <td class="td-evid">48</td>
+        <td class="td-evid">2</td>
+        <td class="td-evid"><span class="tipo tipo-noesta">NO_ESTÁ</span></td>
+        <td class="td-sep"></td>
+        <td class="td-dec"><span class="dec dec-ss">sin_servicio</span></td>
+        <td class="td-dec">tubería cortada hace 2 meses · sin medidor</td>
+        <td class="td-sep"></td>
+        <td class="td-traz">6</td>
+        <td class="td-traz">2026-07-01 08:42</td>
+      </tr>
+
+      <!-- error_captura — el operario se saltó la fila -->
+      <tr>
+        <td class="num">2</td>
+        <td class="td-quien">F</td>
+        <td class="td-quien">7</td>
+        <td class="td-nombre">MARIA CASTRO LUNA</td>
+        <td class="td-sep"></td>
+        <td class="td-evid"><span class="esc esc-sl">SIN_LECTURA</span></td>
+        <td class="td-evid">2026-06</td>
+        <td class="td-evid">112</td>
+        <td class="td-evid">1</td>
+        <td class="td-evid"><span class="tipo tipo-noesta">NO_ESTÁ</span></td>
+        <td class="td-sep"></td>
+        <td class="td-dec"><span class="dec dec-ec">error_captura</span></td>
+        <td class="td-dec">operario la saltó · tiene agua · agregar lectura</td>
+        <td class="td-sep"></td>
+        <td class="td-traz">6</td>
+        <td class="td-traz">2026-07-01 08:42</td>
+      </tr>
+
+      <!-- investigar — fantasma en el padrón, sin instalación verificada -->
+      <tr>
+        <td class="num">3</td>
+        <td class="td-quien">K</td>
+        <td class="td-quien">2</td>
+        <td class="td-nombre">JOSE SILVA MENDOZA</td>
+        <td class="td-sep"></td>
+        <td class="td-evid"><span class="esc esc-uf">USUARIO_FANTASMA</span></td>
+        <td class="td-evid">2026-04</td>
+        <td class="td-evid-e">—</td>
+        <td class="td-evid">3</td>
+        <td class="td-evid"><span class="tipo tipo-noesta">NO_ESTÁ</span></td>
+        <td class="td-sep"></td>
+        <td class="td-dec"><span class="dec dec-inv">investigar</span></td>
+        <td class="td-dec">agregado al padrón en abril · instalación sin verificar</td>
+        <td class="td-sep"></td>
+        <td class="td-traz">6</td>
+        <td class="td-traz">2026-07-01 08:42</td>
+      </tr>
+
+      <!-- ignorar — ya está en investigación, caso conocido -->
+      <tr>
+        <td class="num">4</td>
+        <td class="td-quien">M</td>
+        <td class="td-quien">8</td>
+        <td class="td-nombre">ASOCIACION VECINAL LOS PINOS</td>
+        <td class="td-sep"></td>
+        <td class="td-evid"><span class="esc esc-sl">SIN_LECTURA</span></td>
+        <td class="td-evid">2026-04</td>
+        <td class="td-evid">15</td>
+        <td class="td-evid">3</td>
+        <td class="td-evid"><span class="tipo tipo-einv">EN_INVEST.</span></td>
+        <td class="td-sep"></td>
+        <td class="td-dec"><span class="dec dec-ign">ignorar</span></td>
+        <td class="td-dec">caso legal pendiente · revisión en julio</td>
+        <td class="td-sep"></td>
+        <td class="td-traz">6</td>
+        <td class="td-traz">2026-07-01 08:42</td>
+      </tr>
+
+      <!-- SIN_AGUA pre-llenada — default automático sugerido por el sistema -->
+      <tr>
+        <td class="num">5</td>
+        <td class="td-quien">P</td>
+        <td class="td-quien">11</td>
+        <td class="td-nombre">LUCIA HUAMAN VEGA</td>
+        <td class="td-sep"></td>
+        <td class="td-evid"><span class="esc esc-sl">SIN_LECTURA</span></td>
+        <td class="td-evid">2026-03</td>
+        <td class="td-evid">89</td>
+        <td class="td-evid">3</td>
+        <td class="td-evid"><span class="tipo tipo-sa">SIN_AGUA</span></td>
+        <td class="td-sep"></td>
+        <td class="td-dec"><span class="dec dec-ss">sin_servicio</span></td>
+        <td class="td-dec">default: SIN_AGUA → sin_servicio · 2026-07-01</td>
+        <td class="td-sep"></td>
+        <td class="td-traz">6</td>
+        <td class="td-traz">2026-07-01 08:42</td>
+      </tr>
+
+      <!-- BLOQUEANTE — sin decisión, impide cierre del ciclo -->
+      <tr class="row-block">
+        <td class="num" style="background:#FEF2F2">6</td>
+        <td class="td-quien" style="background:#FFF5F5">R</td>
+        <td class="td-quien" style="background:#FFF5F5">4A</td>
+        <td class="td-nombre" style="background:#FFF5F5;color:#7F1D1D;font-weight:500">RODRIGO QUISPE TORRES</td>
+        <td class="td-sep" style="background:#FFF5F5"></td>
+        <td class="td-evid" style="background:#FEF2F2"><span class="esc esc-sl">SIN_LECTURA</span></td>
+        <td class="td-evid" style="background:#FEF2F2">2026-05</td>
+        <td class="td-evid" style="background:#FEF2F2">23</td>
+        <td class="td-evid" style="background:#FEF2F2">2</td>
+        <td class="td-evid" style="background:#FEF2F2"><span class="tipo tipo-noesta">NO_ESTÁ</span></td>
+        <td class="td-sep" style="background:#FFF5F5"></td>
+        <td class="td-dec-block"><span class="dec dec-vacio">sin llenar</span></td>
+        <td class="td-dec-block" style="color:#9ca3af;font-style:italic">—</td>
+        <td class="td-sep" style="background:#FFF5F5"></td>
+        <td class="td-traz" style="background:#FEF2F2">6</td>
+        <td class="td-traz" style="background:#FEF2F2">2026-07-01 08:42</td>
+      </tr>
+
+    </tbody>
+  </table></div>
+
+  <div class="legend">
+    <div class="leg"><span class="ld" style="background:#FAF5FF"></span> ¿Quién es?</div>
+    <div class="leg"><span class="ld" style="background:#F0F8FF"></span> Evidencia (sistema)</div>
+    <div class="leg"><span class="ld" style="background:#F0FFF8"></span> Decisión (supervisor)</div>
+    <div class="leg"><span class="ld" style="background:#FEF8F0"></span> Trazabilidad</div>
+    <div class="leg"><span class="ld" style="background:#FEF2F2;border:0.5px solid #FCA5A5"></span> Fila bloqueante — DECISIÓN vacía</div>
+  </div>
+
+  <div class="values">
+    <div class="row"><strong>Columna <code>ESCENARIO</code> — los dos orígenes posibles:</strong></div>
+    <div class="row">
+      <span class="esc esc-sl">SIN_LECTURA</span> — usuario <strong>presente en el template</strong>
+      (<code>registro_operario_mes.xlsx</code>) pero con <code>MARC_ACT</code> vacío y sin obs que lo justifique ·
+      es el caso principal y el más frecuente
+    </div>
+    <div class="row">
+      <span class="esc esc-uf">USUARIO_FANTASMA</span> — usuario <strong>completamente ausente del template</strong>
+      pero con historial en el acumulado · ocurre cuando el padrón creció y la plantilla del operario quedó desactualizada
+    </div>
+
+    <div class="row" style="margin-top:10px"><strong>Columna <code>ESTADO_LISTA</code> — qué dice la lista sobre este usuario:</strong></div>
+    <div class="row">
+      <span class="tipo tipo-noesta">NO_ESTÁ</span> — no aparece en <code>lista_sin_servicio.xlsx</code> ·
+      puede ser error del operario o un caso nuevo sin registrar
+    </div>
+    <div class="row">
+      <span class="tipo tipo-sa">SIN_AGUA</span> — en la lista con <code>TIPO = SIN_AGUA</code> ·
+      tiene medidor pero sin consumo este ciclo · el sistema pre-llena
+      <code>DECISIÓN = sin_servicio</code> y NOTAS con prefijo
+      <code>default: SIN_AGUA → sin_servicio</code> · el supervisor puede sobrescribir si decide mantenerlo como SIN_AGUA
+    </div>
+    <div class="row">
+      <span class="tipo tipo-einv">EN_INVEST.</span> — ya está en la lista con <code>TIPO = EN_INVESTIGACIÓN</code> ·
+      el supervisor ya lo conoce pero aún no lo ha clasificado definitivamente ·
+      el sistema lo sigue incluyendo en el reporte hasta que se resuelva ·
+      tras 3 ciclos consecutivos sin lectura el sistema pre-llena
+      <code>DECISIÓN = sin_servicio</code> con prefijo <code>auto: 3 ciclos sin lectura</code>
+    </div>
+    <div class="row" style="color:#9ca3af;font-style:italic;font-size:10px">
+      Nota: los <code>SIN_MEDIDOR</code> nunca llegan a este reporte — el sistema los acepta directamente como informativas
+    </div>
+
+    <div class="row" style="margin-top:10px"><strong>Columna <code>DECISIÓN</code> — opciones y su efecto en <code>actualizar_lista.py</code>:</strong></div>
+    <div class="row">
+      <span class="dec dec-ss">sin_servicio</span> — agrega el usuario a <code>lista_sin_servicio.xlsx</code>
+      con <code>TIPO = SIN_MEDIDOR</code> y <code>FECHA_INICIO = hoy</code> ·
+      no volverá a aparecer en reportes futuros
+    </div>
+    <div class="row">
+      <span class="dec dec-ec">error_captura</span> — no modifica la lista ·
+      el supervisor agrega la lectura faltante al template y vuelve a correr <code>main.py</code> ·
+      si el usuario ahora tiene <code>MARC_ACT</code> la fila desaparece del reporte
+    </div>
+    <div class="row">
+      <span class="dec dec-inv">investigar</span> — agrega el usuario a la lista con
+      <code>TIPO = EN_INVESTIGACIÓN</code> y <code>FECHA_INICIO = hoy</code> ·
+      seguirá apareciendo en reportes futuros hasta que se reclasifique ·
+      auto-promoción a <code>SIN_MEDIDOR</code> tras 3 ciclos consecutivos sin lectura
+    </div>
+    <div class="row">
+      <span class="dec dec-ign">ignorar</span> — no modifica la lista ·
+      queda registrado en <code>outputs/audit_lista.xlsx</code> con motivo <code>ignorado</code> ·
+      si el caso vuelve a aparecer el próximo ciclo el supervisor deberá decidir nuevamente
+    </div>
+
+    <div class="block-callout">
+      <strong>Bloqueante:</strong> cualquier fila con <code>DECISIÓN</code> vacía impide el cierre del ciclo ·
+      el sistema reporta: <code>N ausencias sin resolver → validacion_ausencias_YYYY-MM.xlsx</code> ·
+      las decisiones ya llenas se preservan entre ejecuciones — solo hay que llenar las que faltan
+    </div>
+
+    <div class="row" style="margin-top:10px"><strong>Columna <code>MESES_SIN_LECTURA</code>:</strong></div>
+    <div class="row">
+      Ciclos consecutivos sin <code>MARC_ACT</code> en <code>registro_operario_acumulado.xlsx</code>
+      hasta el mes actual · se recalcula en cada ejecución de <code>validar_ausencias.py</code>
+    </div>
+    <div class="row" style="margin-top:6px"><strong>Columna <code>ÚLTIMO_MES_CON_LECTURA</code>:</strong></div>
+    <div class="row">
+      Último ciclo <code>YYYY-MM</code> donde el usuario tenía <code>MARC_ACT</code> registrado ·
+      vacío si nunca tuvo lectura en el acumulado actual
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

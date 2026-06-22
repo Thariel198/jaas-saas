@@ -35,6 +35,11 @@ import config
 from pdf_orden import generar_pdf
 from shared.utils_sort_mz_lt import clave_orden
 import formato_excel as fe
+from sin_servicio.validar_ausencias import (
+    cargar_lista as _cargar_lista_sin_servicio,
+    justifica_ausencia,
+    validar_ausencias,
+)
 
 log = logging.getLogger(__name__)
 
@@ -363,6 +368,7 @@ def _detectar_anomalias(
     historial: dict,
     meses_orden: list[str],
     resoluciones: dict | None = None,
+    lista_sin_servicio: dict | None = None,
 ) -> tuple[list[dict], list[dict], list[dict]]:
     """Devuelve (confirmados, bloqueantes, informativas).
 
@@ -370,8 +376,11 @@ def _detectar_anomalias(
     `resoluciones` mapea (mz, lt) → resuelto_por para filas que ya pasaron por
     correcciones; los valores 'acepta_original' bypasan la detección y van directo
     a confirmados (con origen='corregido') aunque sigan disparando reglas.
+    `lista_sin_servicio` (resultado de sin_servicio.cargar_lista) permite filtrar
+    SIN_LECTURA y USUARIO_FANTASMA cuando el usuario está catalogado SIN_MEDIDOR.
     """
     resoluciones = resoluciones or {}
+    lista_sin_servicio = lista_sin_servicio or {}
     confirmados, bloqueantes, informativas = [], [], []
 
     # Regla DUPLICADO: detectar (MZ, LT) que aparecen 2+ veces
@@ -382,16 +391,22 @@ def _detectar_anomalias(
     keys_en_mes = {(f["mz"], f["lt"]) for f in filas}
     for key, datos in historial.items():
         if key not in keys_en_mes:
-            informativas_o_bloqueantes = bloqueantes  # USUARIO_FANTASMA es bloqueante
-            informativas_o_bloqueantes.append({
+            base = {
                 "mz": key[0], "lt": key[1],
                 "nombre": datos.get("nombre", ""),
                 "mes_ano": filas[0]["mes_ano"] if filas else "",
                 "marc_ant": "", "marc_act": "", "m3": "", "obs_operario": "",
                 "tipo": "USUARIO_FANTASMA",
-                "motivo": _msg_anomalia("USUARIO_FANTASMA"),
                 "calc_m3": None,
-            })
+            }
+            if justifica_ausencia(key, lista_sin_servicio):
+                informativas.append({
+                    **base, "categoria": "informativa",
+                    "motivo": "ausente del template · catalogado SIN_MEDIDOR en lista_sin_servicio",
+                    "resuelto_por": "sin_medidor_lista",
+                })
+            else:
+                bloqueantes.append({**base, "motivo": _msg_anomalia("USUARIO_FANTASMA")})
 
     # Procesar cada fila del mes
     for f in filas:
@@ -444,7 +459,7 @@ def _detectar_anomalias(
         m3_op        = _try_float(f["m3"])
         obs          = f["obs_operario"]
 
-        # SIN_LECTURA (con excepción obs=P → informativo)
+        # SIN_LECTURA (excepciones: obs=P o catalogado SIN_MEDIDOR → informativo)
         if marc_act_val is None:
             if obs == "P":
                 informativas.append({
@@ -452,6 +467,14 @@ def _detectar_anomalias(
                     "tipo": "SIN_LECTURA", "categoria": "informativa",
                     "motivo": "MARC_ACT vacío · obs=P legitima (predio cerrado o inaccesible)",
                     "resuelto_por": "obs_operario_legitima",
+                    "calc_m3": None,
+                })
+            elif justifica_ausencia(key, lista_sin_servicio):
+                informativas.append({
+                    **f, "marc_ant_hist": marc_ant_hist,
+                    "tipo": "SIN_LECTURA", "categoria": "informativa",
+                    "motivo": "MARC_ACT vacío · catalogado SIN_MEDIDOR en lista_sin_servicio",
+                    "resuelto_por": "sin_medidor_lista",
                     "calc_m3": None,
                 })
             else:
@@ -869,7 +892,7 @@ def main():
     _init_logging()
 
     # 1. Validar inputs
-    print("\n[1/6] Validando inputs...")
+    print("\n[1/7] Validando inputs...")
     if not config.REGISTRO_MES_PATH.exists():
         raise FileNotFoundError(
             f"Falta: {config.REGISTRO_MES_PATH}\n"
@@ -877,29 +900,60 @@ def main():
         )
 
     # 2. Cargar
-    print("[2/6] Cargando registro_operario_mes y acumulado...")
+    print("[2/7] Cargando registro_operario_mes, acumulado y lista_sin_servicio...")
     filas = _cargar_registro_mes()
     historial, meses_orden = _cargar_acumulado()
+    lista_ss = _cargar_lista_sin_servicio()
 
     mes_ano = filas[0]["mes_ano"] if filas else datetime.now().strftime("%Y-%m")
     ciclo = _detectar_ciclo(mes_ano)
-    print(f"       Mes: {mes_ano} · Ciclo: {ciclo}")
+    print(f"       Mes: {mes_ano} · Ciclo: {ciclo} · lista_sin_servicio: {len(lista_ss)} usuarios")
 
     # 3. Aplicar correcciones del ciclo previo (si las hay)
-    print("[3/6] Aplicando correcciones del ciclo previo (si las hay)...")
+    print("[3/7] Aplicando correcciones del ciclo previo (si las hay)...")
     filas, cerradas, resoluciones = _aplicar_correcciones(filas, mes_ano)
 
     # 4. Detectar anomalías
-    print("[4/6] Detectando anomalías (11 reglas)...")
+    print("[4/7] Detectando anomalías (11 reglas)...")
     confirmados, bloqueantes, informativas = _detectar_anomalias(
-        filas, historial, meses_orden, resoluciones
+        filas, historial, meses_orden, resoluciones, lista_ss
     )
+
+    # 5. Validar ausencias contra lista_sin_servicio
+    print("[5/7] Validando ausencias contra lista_sin_servicio...")
+    casos_pendientes = [
+        {"mz": b["mz"], "lt": b["lt"], "nombre": b["nombre"], "escenario": b["tipo"]}
+        for b in bloqueantes
+        if b["tipo"] in ("SIN_LECTURA", "USUARIO_FANTASMA")
+    ]
+    justificadas, revisar = validar_ausencias(
+        mes_ano, ciclo, casos_pendientes, lista_ss, historial, meses_orden
+    )
+    # Reconciliar: bloqueantes con DECISIÓN ya llena pasan a informativas.
+    justif_idx = {
+        (j["mz"], j["lt"], j["escenario"]): j for j in justificadas
+    }
+    nuevos_bloq = []
+    for b in bloqueantes:
+        k = (b["mz"], b["lt"], b["tipo"])
+        if b["tipo"] in ("SIN_LECTURA", "USUARIO_FANTASMA") and k in justif_idx:
+            j = justif_idx[k]
+            informativas.append({
+                **b, "categoria": "informativa",
+                "motivo": f"validacion_ausencias · DECISIÓN={j['decision']} ({j['estado_lista']})",
+                "resuelto_por": "validacion_ausencias",
+            })
+        else:
+            nuevos_bloq.append(b)
+    bloqueantes = nuevos_bloq
+    print(f"       {len(casos_pendientes)} ausencias detectadas · "
+          f"{len(justificadas)} con decisión · {len(revisar)} pendientes de revisión")
 
     by_tipo_bloq = Counter(b["tipo"] for b in bloqueantes)
     by_tipo_inf  = Counter(i["tipo"] for i in informativas)
 
-    # 5. Exportar
-    print("[5/6] Exportando outputs...")
+    # 6. Exportar
+    print("[6/7] Exportando outputs...")
     _exportar_correcciones(bloqueantes, ciclo, mes_ano, cerradas)
     _exportar_trazabilidad(informativas, cerradas, ciclo, mes_ano)
     if bloqueantes:
@@ -910,8 +964,8 @@ def main():
         _exportar_lecturas_planilla(confirmados, ciclo, mes_ano)
         _actualizar_acumulado(confirmados, historial, meses_orden, mes_ano)
 
-    # 6. Reporte
-    print("[6/6] Reporte final\n")
+    # 7. Reporte
+    print("[7/7] Reporte final\n")
     print("═" * 65)
     print(f"  Mes: {mes_ano} · Ciclo: {ciclo}")
     print(f"  Confirmados: {len(confirmados)}")
@@ -928,9 +982,19 @@ def main():
         print(f"  CICLO CERRADO ✓")
         print(f"  → outputs/lecturas_planilla_{mes_ano}.xlsx")
         print(f"  → registro_operario_acumulado.xlsx actualizado (col {mes_ano})")
-        print(f"  Siguiente: python ../2_planilla/main.py")
     else:
         print(f"  ⚠ Corregir bloqueantes en outputs/correcciones_{mes_ano}.xlsx")
+        if revisar:
+            print(f"  ⚠ Llenar DECISIÓN en sin_servicio/outputs/validacion_ausencias_{mes_ano}.xlsx "
+                  f"({len(revisar)} filas pendientes)")
+    # Recordatorio independiente del cierre — las decisiones se aplican a la lista
+    # apenas estén disponibles, no esperan al final del ciclo.
+    if justificadas:
+        print(f"  → {len(justificadas)} decisiones de ausencias listas para aplicar a lista_sin_servicio.xlsx")
+        print(f"     Ejecutar: python sin_servicio/actualizar_lista.py --mes {mes_ano}")
+    if cerrado:
+        print(f"  Siguiente: python ../2_planilla/main.py")
+    else:
         print(f"  Volver a correr python main.py después de aplicar correcciones")
     print("═" * 65 + "\n")
 

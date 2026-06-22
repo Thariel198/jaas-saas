@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>jass_system — arquitectura v2</title>
+<title>jass_system — arquitectura v3</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
 
@@ -65,8 +65,10 @@
   .futuro  { background:#FDEBD0; color:#784212; }
   .ia      { background:#E8DAEF; color:#512E5F; }
   .nuevo   { background:#FDEDEC; color:#922B21; }
+  .setup   { background:#E0E7FF; color:#3730A3; }
 
   /* MODULE COLORS (paleta heredada) */
+  .m0   { background:#EEF2FF; border-color:#A5B4FC; } .m0   .mod-num { background:#4338CA; color:#fff; }
   .m1   { background:#EBF5FB; border-color:#AED6F1; } .m1   .mod-num { background:#2E86C1; color:#fff; }
   .m2   { background:#E9F7EF; border-color:#A9DFBF; } .m2   .mod-num { background:#1E8449; color:#fff; }
   .m3   { background:#FEF5E7; border-color:#FAD7A0; } .m3   .mod-num { background:#CA6F1E; color:#fff; }
@@ -94,13 +96,12 @@
 <body>
 <div class="wrap">
   <p class="title">jass_system</p>
-  <p class="sub">Sistema de gestión de agua potable — arquitectura v2 · 7 módulos · clic en cada módulo para detalle</p>
+  <p class="sub">Sistema de gestión de agua potable — arquitectura v3 · 8 módulos · clic en cada módulo para detalle</p>
 
   <div class="version-note">
-    <strong>v2 — reordenamiento del ciclo.</strong>
-    boletas pasa a la posición 3 (es el aviso de cobro que el usuario recibe antes de pagar)<br>
-    enriquecimiento se vuelve sub-paso interno de boletas (3.1) · render queda como 3.2<br>
-    pagos baja a posición 4 · 07 nueva_planilla se elimina · 7 cierre verifica que el ciclo cerró bien
+    <strong>v3 — pipeline completo con padrón.</strong>
+    se incorpora <strong>0_padron</strong> (antes proyecto independiente 00_padron) como fase 0 de setup:<br>
+    reconcilia COFOPRI vs Planilla → produce plantilla_base.xlsx → inicializa DATA_boletas · no corre mensualmente · v2: reordenamiento del ciclo (boletas→3, enriquecimiento→3.1, 07 eliminado)
   </div>
 
   <div class="legend">
@@ -109,9 +110,58 @@
     <div class="leg"><div class="ldot" style="background:#CA6F1E"></div>futuro</div>
     <div class="leg"><div class="ldot" style="background:#512E5F"></div>usa IA</div>
     <div class="leg"><div class="ldot" style="background:#DC2626"></div>nuevo módulo</div>
+    <div class="leg"><div class="ldot" style="background:#4338CA"></div>setup / no mensual</div>
   </div>
 
   <div class="pipeline">
+
+    <!-- 0 PADRON -->
+    <div class="mod m0" onclick="toggle(this)">
+      <div class="mod-header">
+        <div class="mod-num">0</div>
+        <div class="mod-name">padrón</div>
+        <div class="mod-desc">COFOPRI + Planilla → padron_reconciliado</div>
+        <div class="mod-tags">
+          <span class="tag hecho">hecho</span>
+          <span class="tag setup">setup · no mensual</span>
+        </div>
+      </div>
+      <div class="mod-body">
+        <div class="substep-row">
+          <div class="substep">
+            <div class="substep-title">
+              <span class="substep-num">0.1</span> limpieza
+            </div>
+            <div class="substep-flow">
+              <strong>Inputs:</strong> padron_principal.xlsx (COFOPRI crudo) · padron_secundario.xlsx (Planilla cruda)<br>
+              <strong>Output:</strong> padron_principal_limpio.xlsx · padron_secundario_limpio.xlsx · reporte_limpieza.xlsx (supervisor marca CONSERVAR)
+            </div>
+          </div>
+          <div class="substep">
+            <div class="substep-title">
+              <span class="substep-num">0.2</span> matching
+            </div>
+            <div class="substep-flow">
+              <strong>Input:</strong> ambos padrones limpios<br>
+              <strong>Output:</strong> padron_reconciliado.xlsx · reporte_conflictos.xlsx (supervisor marca AUTORIZAR) · trazabilidad.xlsx<br>
+              <strong>Algoritmo:</strong> asignación iterativa + Levenshtein (tolerancia 2) + detección parentesco
+            </div>
+          </div>
+          <div class="substep">
+            <div class="substep-title">
+              <span class="substep-num">0.3</span> llenado &nbsp;<span style="font-size:9px;background:#922B21;color:#fff;padding:1px 5px;border-radius:3px;">a eliminar</span>
+            </div>
+            <div class="substep-flow">
+              Seguimiento de deudas auxiliares (convenios, multas, acuerdos de asamblea) para cargar saldos en 2_planilla.<br>
+              <strong>Pendiente de migrar a 2_planilla</strong> — esta función pasará al módulo 2 y 03_llenado desaparecerá.
+            </div>
+          </div>
+        </div>
+        <div class="flow-note"><strong>Ciclo: setup o incorporación periódica</strong> — no corre mensualmente. Ejecutar al inicio o cuando haya cambios de usuarios. <strong>Salida clave:</strong> padron_reconciliado.xlsx (de 0.2) → alimenta 1_lecturas. COFOPRI tiene prioridad en conflictos de identidad.</div>
+      </div>
+    </div>
+
+    <div class="arrow">↓ &nbsp;<span style="font-size:11px;color:#aaa;">padron_reconciliado.xlsx → actualiza registro_operario_acumulado.xlsx</span></div>
 
     <!-- 1 LECTURAS -->
     <div class="mod m1" onclick="toggle(this)">
@@ -166,7 +216,7 @@
             <div class="io-item">21 columnas · TOTAL_A_PAGAR fórmula</div>
           </div>
         </div>
-        <div class="flow-note">Calcula MES_ACTUAL=max(M3,5) · MANTENIMIENTO=3 · BLANCO/DEVOLUCION quedan en 0 (los llena 5_cobranza) · TOTAL_A_PAGAR como fórmula Excel para que recalcule cuando 5_cobranza aplique descuentos</div>
+        <div class="flow-note">Calcula MES_ACTUAL=max(M3,5) · MANTENIMIENTO=3 · BLANCO/DEVOLUCION quedan en 0 (los llena 5_cobranza) · TOTAL_A_PAGAR como fórmula Excel para que recalcule cuando 5_cobranza aplique descuentos · <strong>Jun 2026 — workaround:</strong> cangrejo_jun2026.py regeneró la planilla en sentido inverso desde DATA_boletas (los recibos ya habían sido impresos y distribuidos antes de que módulos 1 y 2 estuvieran listos; recomputar hubiera producido diferencias con el papel ya en mano del usuario)</div>
       </div>
     </div>
 
@@ -187,11 +237,11 @@
         <div class="substep-row">
           <div class="substep">
             <div class="substep-title">
-              <span class="substep-num">3.1</span> enriquecimiento
+              <span class="substep-num">3.1</span> enriquecimiento &nbsp;<span style="font-size:9px;background:#B7950B;color:#fff;padding:1px 5px;border-radius:3px;">pendiente</span>
             </div>
             <div class="substep-flow">
-              <strong>Inputs:</strong> planilla_YYYY-MM.xlsx (de 2) · plantilla_boletas.docx · mensajes del mes · imágenes (logo, QR, caritas)<br>
-              <strong>Output:</strong> data_boletas_YYYY-MM.xlsx — la "foto" auditable de lo que se imprime
+              <strong>Input:</strong> planilla_YYYY-MM.xlsx (de 2) — base de deudas y montos del mes<br>
+              <strong>Output:</strong> DATA_boletas.xlsx actualizado — agrega campos de render (mensajes, logo, QR, caritas) · es la "foto" auditable de lo que se imprime
             </div>
           </div>
           <div class="substep">

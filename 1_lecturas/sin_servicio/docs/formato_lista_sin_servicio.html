@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>formato — lista_sin_servicio.xlsx</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'IBM Plex Sans',sans-serif;background:#fff;color:#111;padding:16px 0 40px}
+#w{max-width:820px;margin:0 auto}
+.instruc{background:#f5f5f5;border:0.5px solid #ddd;border-left:3px solid #0B4F6C;
+  border-radius:0 6px 6px 0;padding:9px 13px;font-size:12px;color:#555;margin-bottom:12px;line-height:1.7}
+.instruc strong{color:#111}
+.instruc code{font-family:'IBM Plex Mono',monospace;background:#fff;padding:1px 5px;
+  border-radius:3px;color:#065F46;font-size:10.5px}
+.tab-excel{display:inline-flex;align-items:center;border-radius:6px 6px 0 0;
+  padding:5px 14px;font-size:12px;font-weight:500;margin-bottom:-1px;
+  background:#E8F4FD;border:0.5px solid #7FB3D3;border-bottom:none;color:#0B4F6C}
+.tw{border:0.5px solid #ddd;border-radius:0 6px 6px 6px;overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:11px}
+th{padding:6px 8px;font-size:10px;font-weight:500;text-align:left;
+   border-bottom:0.5px solid #e5e7eb;border-right:0.5px solid #e5e7eb;white-space:nowrap}
+th:last-child{border-right:none}
+td{padding:5px 8px;border-bottom:0.5px solid #e5e7eb;border-right:0.5px solid #e5e7eb;
+   vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+td:last-child{border-right:none}
+tr:last-child td{border-bottom:none}
+
+/* Número de fila */
+.num{width:24px;background:#f8f9fa;color:#9ca3af;font-size:10px;
+  font-family:'IBM Plex Mono',monospace;text-align:center;border-right:0.5px solid #e5e7eb}
+
+/* Grupos de cabecera — paleta helper formato_excel.PALETA */
+.th-quien{background:#F4ECF7;color:#5B21B6}
+.th-estado{background:#E6F1FB;color:#0C447C}
+.th-hist{background:#FEF3E8;color:#7C3003}
+.th-nota{background:#E1F5EE;color:#065F46}
+.th-sep{width:4px;background:#f8f9fa;padding:0;border-right:2px solid #d1d5db}
+
+/* Celdas de datos — paleta helper data_bg */
+.td-sep{width:4px;background:#f8f9fa;padding:0;border-right:2px solid #d1d5db}
+.td-quien{background:#FAF5FF;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#5B21B6}
+.td-nombre{background:#FAF5FF;font-size:11px;color:#111}
+.td-est{background:#F0F8FF;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#185FA5;text-align:center}
+.td-est-e{background:#F0F8FF;color:#9ca3af;font-style:italic;font-size:10px;text-align:center}
+.td-hist{background:#FEF8F0;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#7C3003;text-align:center}
+.td-nota{background:#F0FFF8;font-size:10px;color:#374151}
+.td-nota-e{background:#F0FFF8;color:#9ca3af;font-style:italic;font-size:10px}
+
+/* Group header text */
+.gh{font-size:9px;font-weight:600;text-align:center;padding:3px 0;
+    letter-spacing:.05em;text-transform:uppercase;border-bottom:0.5px solid #e5e7eb}
+
+/* TIPO pills */
+.tipo{display:inline-block;font-size:9px;font-weight:700;padding:2px 7px;
+  border-radius:20px;text-transform:uppercase;letter-spacing:.04em;
+  font-family:'IBM Plex Mono',monospace}
+.tipo-sm{background:#FDEDEC;color:#922B21;border:1px solid #F1948A}
+.tipo-sa{background:#FEF9C3;color:#7D6608;border:1px solid #F7DC6F}
+.tipo-ei{background:#F5EEF8;color:#6C3483;border:1px solid #D7BDE2}
+
+/* Leyenda */
+.legend{display:flex;gap:14px;margin-top:12px;flex-wrap:wrap;align-items:center}
+.leg{display:flex;align-items:center;gap:5px;font-size:11px;color:#6b7280}
+.ld{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+
+/* Valores */
+.values{margin-top:14px;background:#f5f5f5;border:0.5px solid #ddd;
+  border-radius:6px;padding:10px 14px;font-size:11px;color:#6b7280}
+.values strong{color:#111}
+.values code{font-family:'IBM Plex Mono',monospace;background:#fff;padding:1px 5px;
+  border-radius:3px;font-size:10.5px}
+.values .row{margin-bottom:5px;line-height:1.6}
+.values .tipo{vertical-align:middle}
+</style>
+</head>
+<body>
+<div id="w">
+
+  <div class="instruc">
+    <strong>lista_sin_servicio.xlsx</strong> · catálogo permanente de usuarios sin servicio activo · 1 sola hoja.<br>
+    <strong>Writer único:</strong> <code>actualizar_lista.py</code> — nunca editar manualmente. Backup automático antes de cada escritura.<br>
+    El supervisor solo edita <strong>TIPO</strong> y <strong>NOTAS</strong> al revisar casos existentes. Todo lo demás lo gestiona el sistema.<br>
+    <strong>Migración inicial:</strong> las 74 filas del archivo plano original se cargan con <code>migrar_lista.py</code> con TIPO = <span class="tipo tipo-sm">SIN_MEDIDOR</span>.
+  </div>
+
+  <div class="tab-excel">CatálogoSinServicio</div>
+  <div class="tw"><table style="min-width:900px">
+    <thead>
+      <tr>
+        <th class="num" rowspan="2"></th>
+        <th class="th-quien gh" colspan="3">¿Quién es?</th>
+        <th class="th-sep" rowspan="2"></th>
+        <th class="th-estado gh" colspan="3">Estado en el catálogo <span style="font-weight:400;text-transform:none;letter-spacing:0">— sistema gestiona</span></th>
+        <th class="th-sep" rowspan="2"></th>
+        <th class="th-hist gh" colspan="1">Historial</th>
+        <th class="th-sep" rowspan="2"></th>
+        <th class="th-nota gh" colspan="1">Notas</th>
+      </tr>
+      <tr>
+        <th class="th-quien">MZ</th>
+        <th class="th-quien">LT</th>
+        <th class="th-quien">NOMBRE</th>
+        <th class="th-estado">TIPO</th>
+        <th class="th-estado">FECHA_INICIO</th>
+        <th class="th-estado">ÚLTIMA_REVISIÓN</th>
+        <th class="th-hist">MESES_SIN_LECTURA</th>
+        <th class="th-nota">NOTAS</th>
+      </tr>
+    </thead>
+    <tbody>
+
+      <!-- SIN_MEDIDOR — caso cerrado desde migración -->
+      <tr>
+        <td class="num">1</td>
+        <td class="td-quien">A</td>
+        <td class="td-quien">6A</td>
+        <td class="td-nombre">GABY REYES JUAREZ</td>
+        <td class="td-sep"></td>
+        <td class="td-est"><span class="tipo tipo-sm">SIN_MEDIDOR</span></td>
+        <td class="td-est">2026-06-21</td>
+        <td class="td-est">2026-06-21</td>
+        <td class="td-sep"></td>
+        <td class="td-hist">99</td>
+        <td class="td-sep"></td>
+        <td class="td-nota-e">—</td>
+      </tr>
+
+      <!-- SIN_AGUA — tiene tubería, a veces consume -->
+      <tr>
+        <td class="num">2</td>
+        <td class="td-quien">C</td>
+        <td class="td-quien">3</td>
+        <td class="td-nombre">EDWIN AGÜERO TRUJILLO</td>
+        <td class="td-sep"></td>
+        <td class="td-est"><span class="tipo tipo-sa">SIN_AGUA</span></td>
+        <td class="td-est">2026-04-01</td>
+        <td class="td-est">2026-06-21</td>
+        <td class="td-sep"></td>
+        <td class="td-hist">3</td>
+        <td class="td-sep"></td>
+        <td class="td-nota">tubería instalada, sin consumo por obras</td>
+      </tr>
+
+      <!-- EN_INVESTIGACIÓN — caso nuevo, sin clasificar -->
+      <tr>
+        <td class="num">3</td>
+        <td class="td-quien">K</td>
+        <td class="td-quien">5</td>
+        <td class="td-nombre">SOSIMO ROJAS TRUJILLO</td>
+        <td class="td-sep"></td>
+        <td class="td-est"><span class="tipo tipo-ei">EN_INVEST.</span></td>
+        <td class="td-est">2026-06-21</td>
+        <td class="td-est-e">—</td>
+        <td class="td-sep"></td>
+        <td class="td-hist">1</td>
+        <td class="td-sep"></td>
+        <td class="td-nota">vecinos dicen que sí tiene agua · verificar</td>
+      </tr>
+
+      <!-- SIN_MEDIDOR — auto-promovido desde EN_INVESTIGACIÓN -->
+      <tr>
+        <td class="num">4</td>
+        <td class="td-quien">M</td>
+        <td class="td-quien">12</td>
+        <td class="td-nombre">IGLESIA EVANGELICA BAUTISTA</td>
+        <td class="td-sep"></td>
+        <td class="td-est"><span class="tipo tipo-sm">SIN_MEDIDOR</span></td>
+        <td class="td-est">2026-03-15</td>
+        <td class="td-est">2026-06-21</td>
+        <td class="td-sep"></td>
+        <td class="td-hist">99</td>
+        <td class="td-sep"></td>
+        <td class="td-nota">auto: 3 ciclos sin lectura · 2026-06-21</td>
+      </tr>
+
+    </tbody>
+  </table></div>
+
+  <div class="legend">
+    <div class="leg"><span class="ld" style="background:#FAF5FF"></span> ¿Quién es?</div>
+    <div class="leg"><span class="ld" style="background:#F0F8FF"></span> Estado en el catálogo</div>
+    <div class="leg"><span class="ld" style="background:#FEF8F0"></span> Historial (calculado)</div>
+    <div class="leg"><span class="ld" style="background:#F0FFF8"></span> Notas (libre)</div>
+  </div>
+
+  <div class="values">
+    <div class="row"><strong>Valores válidos de <code>TIPO</code>:</strong></div>
+    <div class="row">
+      <span class="tipo tipo-sm">SIN_MEDIDOR</span> — sin medidor instalado · caso cerrado ·
+      <strong>no aparece en el reporte de validación</strong> en ciclos futuros ·
+      el sistema lo acepta automáticamente como informativa si falta la lectura
+    </div>
+    <div class="row">
+      <span class="tipo tipo-sa">SIN_AGUA</span> — tiene medidor pero sin consumo consistente · temporal ·
+      <strong>aparece en el reporte</strong> si falta lectura (con DECISIÓN default <code>sin_servicio</code>) ·
+      se re-evalúa cada ciclo · sale de la lista si empieza a consumir regularmente
+    </div>
+    <div class="row">
+      <span class="tipo tipo-ei">EN_INVEST.</span> — caso sin clasificar · bajo revisión activa ·
+      <strong>siempre aparece en el reporte</strong> hasta que supervisor tome decisión ·
+      auto-promoción a <span class="tipo tipo-sm">SIN_MEDIDOR</span> tras 3 ciclos consecutivos sin lectura
+      (registrado en NOTAS)
+    </div>
+    <div class="row" style="margin-top:8px"><strong>Sobre la columna <code>MESES_SIN_LECTURA</code>:</strong></div>
+    <div class="row">
+      Valor registrado al INSERT o última UPDATE en la lista — <strong>no se recalcula</strong>
+      en cada corrida (<code>cargar_lista</code> es un lector puro del archivo).
+      <code>99</code> = "nunca tuvo lectura" al momento de registrarse.
+    </div>
+    <div class="row">
+      El conteo <em>live</em> de ciclos consecutivos sin <code>MARC_ACT</code> lo calcula
+      <code>validar_ausencias.py</code> contra <code>registro_operario_acumulado.xlsx</code>
+      en cada ejecución y se muestra en <code>validacion_ausencias_YYYY-MM.xlsx</code> ·
+      esa es la fuente de verdad para auto-promoción.
+    </div>
+    <div class="row" style="margin-top:8px"><strong>NOTAS — formato para auto-promoción:</strong></div>
+    <div class="row">
+      <code>auto: 3 ciclos sin lectura · YYYY-MM-DD</code> —
+      prefijo que escribe el sistema cuando aplica la auto-promoción de
+      <span class="tipo tipo-ei">EN_INVEST.</span> a <span class="tipo tipo-sm">SIN_MEDIDOR</span> ·
+      si el supervisor agrega nota propia, se concatena después del prefijo
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
