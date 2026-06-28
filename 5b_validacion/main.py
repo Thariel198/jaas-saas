@@ -8,13 +8,16 @@ from openpyxl.utils import get_column_letter
 # ── CONFIG ────────────────────────────────────────────────────────────────────
 ROOT      = Path(__file__).parent
 OUT_DIR   = ROOT / "outputs"
-MOD04     = ROOT.parent / "5_cobranza"
-SHARED    = ROOT.parent / "shared"
+MOD04      = ROOT.parent / "5_cobranza"
+MOD04_EFEC = ROOT.parent / "4_pagos" / "efectivo" / "outputs"
+MOD04_YAPE = ROOT.parent / "4_pagos" / "yape" / "motor_matching" / "outputs"
+SHARED     = ROOT.parent / "shared"
 
 CRUDO_DIR  = SHARED / "reporte_mes_crudo"
-YAPE_PATH  = MOD04 / "inputs" / "pagos_yape"    / "pagos_yape_tepago.xlsx"
-EFEC_PATH  = MOD04 / "inputs" / "pagos_efectivo" / "pagos_efectivo.xlsx"
-COB_PATH   = MOD04 / "outputs" / "cobranza_final.xlsx"
+YAPE_PATH   = MOD04_YAPE / "pagos_yape_tepago.xlsx"
+YAPE_RET_PATH = MOD04_YAPE / "pagos_yape_retorno.xlsx"
+EFEC_PATH  = MOD04_EFEC / "pagos_efectivo.xlsx"
+COB_PATH   = MOD04 / "outputs" / "planilla_cobrado.xlsx"
 
 TOLERANCIA = 0.005  # diferencia máxima considerada OK
 
@@ -88,7 +91,10 @@ def _w(ws, col, width):
 # ── UTILIDADES ────────────────────────────────────────────────────────────────
 def _float(val) -> float:
     try:
-        return float(str(val).replace(",", ".").strip())
+        s = str(val).replace(",", ".").strip()
+        if s.lower() in ("nan", "none", ""):
+            return 0.0
+        return float(s)
     except (ValueError, TypeError):
         return 0.0
 
@@ -122,7 +128,9 @@ def _validar_inputs():
 
 # ── CARGA: PAGOS YAPE TEPAGO ──────────────────────────────────────────────────
 def _cargar_yape_tepago() -> tuple[dict, float, tuple]:
-    """Retorna ({mz: monto}, total, (fecha_min, fecha_max)) para TE PAGÓ identificados."""
+    """Retorna ({mz: monto_neto}, total, (fecha_min, fecha_max)).
+    Suma TE PAGÓ y resta retornos por MZ para que el reporte refleje
+    lo mismo que planilla_cobrado (que también descuenta retornos)."""
     df = pd.read_excel(YAPE_PATH, header=1, dtype=str)
     df.columns = _norm_cols(df)
 
@@ -139,7 +147,7 @@ def _cargar_yape_tepago() -> tuple[dict, float, tuple]:
             continue
         if conc and conc not in ("NAN", "NONE", ""):
             continue
-        totales[mz] = totales.get(mz, 0.0) + _float(f.get("MONTO_ASIGNA", 0))
+        totales[mz] = totales.get(mz, 0.0) + _float(f.get("MONTO_PAGO", 0))
         fecha_raw = str(f.get("FECHA", "")).strip()
         if fecha_raw and fecha_raw not in ("NAN", ""):
             try:
@@ -147,8 +155,23 @@ def _cargar_yape_tepago() -> tuple[dict, float, tuple]:
             except Exception:
                 pass
 
-    periodo  = (min(fechas), max(fechas)) if fechas else (None, None)
-    total    = round(sum(totales.values()), 2)
+    # Restar retornos Yape por MZ
+    if YAPE_RET_PATH.exists():
+        ret = pd.read_excel(YAPE_RET_PATH, header=1, dtype=str)
+        ret.columns = _norm_cols(ret)
+        total_ret = 0.0
+        for _, f in ret.iterrows():
+            mz = _norm_mz(f.get("MZ", ""))
+            if not mz or mz == "NAN":
+                continue
+            monto = _float(f.get("MONTO", 0))
+            totales[mz] = totales.get(mz, 0.0) - monto
+            total_ret += monto
+        if total_ret:
+            log.info(f"Yape retornos descontados: S/ {total_ret:.2f}")
+
+    periodo = (min(fechas), max(fechas)) if fechas else (None, None)
+    total   = round(sum(totales.values()), 2)
     log.info(f"Yape tepago: {len(totales)} MZ · S/ {total:.2f} "
              f"· periodo {periodo[0]} → {periodo[1]}")
     return totales, total, periodo
@@ -198,18 +221,56 @@ def _cargar_crudo(periodo: tuple) -> float:
     return total
 
 # ── CARGA: PAGOS EFECTIVO ─────────────────────────────────────────────────────
+CORR_PATH = MOD04 / "inputs" / "correcciones_lote.xlsx"
+
 def _cargar_efectivo() -> tuple[dict, float]:
-    """Retorna ({mz: monto}, total) desde pagos_efectivo.xlsx."""
+    """Retorna ({mz: monto}, total) desde pagos_efectivo.xlsx.
+    Excluye MZ=BLANCO y aplica correcciones de lote cross-MZ para que
+    el reporte refleje el mismo lote destino que usa planilla_cobrado."""
     df = pd.read_excel(EFEC_PATH, header=1, dtype=str)
     df.columns = _norm_cols(df)
-    totales = {}
+
+    # totales por (mz, lt) para poder aplicar correcciones por lote
+    por_lote = {}
+    blancos  = 0.0
     for _, f in df.iterrows():
         mz = _norm_mz(f.get("MZ", ""))
+        lt = str(f.get("LT", "")).strip().upper()
         if not mz or mz == "NAN":
             continue
-        totales[mz] = totales.get(mz, 0.0) + _float(f.get("MONTO", 0))
+        if mz == "BLANCO":
+            blancos += _float(f.get("MONTO", 0))
+            continue
+        key = (mz, lt)
+        por_lote[key] = por_lote.get(key, 0.0) + _float(f.get("MONTO", 0))
+
+    # Aplicar correcciones cross-MZ desde correcciones_lote.xlsx
+    if CORR_PATH.exists():
+        corr = pd.read_excel(CORR_PATH, dtype=str)
+        for _, c in corr.iterrows():
+            mz_o = _norm_mz(c.get("MZ_ORIGEN",  ""))
+            lt_o = str(c.get("LT_ORIGEN",  "")).strip().upper()
+            mz_d = _norm_mz(c.get("MZ_DESTINO", ""))
+            lt_d = str(c.get("LT_DESTINO", "")).strip().upper()
+            if mz_o == mz_d:
+                continue  # misma MZ — no afecta totales por MZ
+            key_o = (mz_o, lt_o)
+            if key_o not in por_lote:
+                continue
+            monto = por_lote.pop(key_o)
+            key_d = (mz_d, lt_d)
+            por_lote[key_d] = por_lote.get(key_d, 0.0) + monto
+            log.info(f"Corrección aplicada en reporte: {mz_o}-{lt_o} → {mz_d}-{lt_d} S/ {monto:.2f}")
+
+    # Agregar por MZ
+    totales = {}
+    for (mz, _), monto in por_lote.items():
+        totales[mz] = totales.get(mz, 0.0) + monto
+
     total = round(sum(totales.values()), 2)
     log.info(f"Efectivo: {len(totales)} MZ · S/ {total:.2f}")
+    if blancos:
+        log.info(f"Efectivo BLANCO excluido (sin dueño): S/ {blancos:.2f}")
     return totales, total
 
 # ── CARGA: COBRANZA FINAL ─────────────────────────────────────────────────────
@@ -222,8 +283,8 @@ def _cargar_cobranza() -> tuple[dict, dict, float, float]:
         mz = _norm_mz(f.get("MZ", ""))
         if not mz or mz == "NAN":
             continue
-        yape_mz[mz] = yape_mz.get(mz, 0.0) + _float(f.get("YAPE",     0))
-        efec_mz[mz] = efec_mz.get(mz, 0.0) + _float(f.get("EFECTIVO", 0))
+        yape_mz[mz] = yape_mz.get(mz, 0.0) + _float(f.get("MONTO_YAPE",     0))
+        efec_mz[mz] = efec_mz.get(mz, 0.0) + _float(f.get("MONTO_EFECTIVO", 0))
     t_yape = round(sum(yape_mz.values()), 2)
     t_efec = round(sum(efec_mz.values()), 2)
     log.info(f"Cobranza → YAPE: S/ {t_yape:.2f} · EFECTIVO: S/ {t_efec:.2f}")
