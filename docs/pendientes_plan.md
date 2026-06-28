@@ -120,7 +120,7 @@ B3 resuelto, S1 corrida (efectivo OK, yape por-MZ OK), S4 re-corrida OK (CANCELA
 3. **[DE3]** Definir si la regla de reclamos EN_REVISION de junio 2026 se normaliza en julio o continúa
 4. **[DE4]** Decidir si `3_boletas` se refactoriza o permanece como herramienta manual independiente
 5. **[DE5]** Especificar el diseño del arrastre consolidado (Opción B): schema exacto, orden de prioridad, qué reemplaza
-6. **[DE6]** Diseñar diferenciación devolucion/retorno en `pendientes.xlsx`: CONCEPTO="devolucion"\|"retorno" cuando hay MZ+LOTE → split en motor_matching → 5_cobranza lee retorno.xlsx separado → RETORNO como monto monetario en planilla
+6. ~~**[DE6]** Diseño~~ ✅ (2026-06-28) — **[DE6-CODE]** Implementar split en `motor_matching/main.py` + loader DEVUELTO en `5_cobranza/main.py`
 
 ---
 
@@ -175,7 +175,7 @@ B3 resuelto, S1 corrida (efectivo OK, yape por-MZ OK), S4 re-corrida OK (CANCELA
 
 ```
 5_cobranza     → B4 (TOTAL_A_PAGAR=NaN si se re-genera planilla — fix pendiente para 2026-07)
-5b_validacion  → crudo gap Yape -S/706 (TE PAGÓ sin identificar en banco) · DE6 (diseño devolucion/retorno)
+5b_validacion  → crudo gap Yape -S/706 (TE PAGÓ sin identificar en banco) · DE6-CODE (implementación código pendiente)
 6b_corte_multas (Día 0+2) → DE2 (decisión de negocio)
 7_cierre       → M1 (código no existe) + DE3 (regla EN_REVISION)
 ciclo 2026-07  → D1 (arrastres vacíos) + D3 (15 bloqueantes de campo) + B4 (fix antes de correr 2_planilla)
@@ -185,6 +185,6 @@ ciclo 2026-07  → D1 (arrastres vacíos) + D3 (15 bloqueantes de campo) + B4 (f
 ---
 
 ## SIGUIENTE_ACCION
-modelo: Opus
-sesion: Sesión B — decisiones de negocio + diseño DE6
-razon: Sesión A completada (2026-06-28). 5b_validacion operativo: efectivo OK, yape por-MZ OK, 5_cobranza corrió CANCELADO=291 EXCESO=17. Sesión B debe resolver: B2 (causa raíz duplicados trazabilidad), DE2 (penalidad 6b ciclo jun), DE3 (regla EN_REVISION jul), DE4 (refactor 3_boletas), DE5 (arrastre consolidado), DE6 (diseño devolucion/retorno en pendientes.xlsx). Commits pendientes sin hacer: 5b_validacion/main.py, 5_cobranza/main.py, 6_corte/*.py, 4_pagos/motor_matching/main.py, docs/pendientes_plan.md.
+modelo: Sonnet
+sesion: Sesión DE6-CODE — implementación código devolucion/retorno
+razon: DE6 diseño completado (2026-06-28): RETORNO y DEVUELTO son badges puntero (yape/efectivo/mixto), CONCEPTO=devolucion|retorno en pendientes.xlsx splittea en motor_matching, ambos reducen MONTO_YAPE, col 18 DEVOLUCION queda dormante. Trazabilidad v2.0 aplicada (REFERENCIA, FECHA con hora, COMENTARIO). HTMLs actualizados: planilla_cobrado_diseno, trazabilidad_cobranza, pagos_yape_devolucion_diseno, pendientes_xlsx, diagrama_5_cobranza, pagos_yape_retorno_diseno (nuevo). CÓDIGO PENDIENTE: (1) motor_matching/main.py — split exportar_devolucion_xlsx por CONCEPTO en dos archivos. (2) 5_cobranza/main.py — loader _cargar_devueltos_yape() + columna DEVUELTO en planilla_cobrado y trazabilidad. Commits pendientes acumulados: 5b_validacion/main.py, 5_cobranza/main.py, 6_corte/*.py, 4_pagos/motor_matching/main.py + todos los HTMLs de esta sesión.

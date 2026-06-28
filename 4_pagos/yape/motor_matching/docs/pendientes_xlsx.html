@@ -54,8 +54,8 @@ tr:last-child td{border-bottom:none}
     <strong>Sin_identificar</strong> — sin mensaje ni maestro · TE PAGÓ y PAGASTE · tú pones MZ+LOTE o CONCEPTO o BLANCO.<br>
     <strong>Ambiguos</strong> — maestro encontró 2+ candidatos · sistema sugiere el mejor · tú confirmas o corriges · MZ+LOTE o CONCEPTO · marca OK.<br>
     <strong>Maestro_inexacto</strong> — maestro encontró 1 candidato pero diff ≠ 0 · tú confirmas o corriges · MZ+LOTE o CONCEPTO · marca OK.<br>
-    <strong>Pagaste</strong> — pagos PAGASTE que el banco registró · si fue devolución a un lote escribe MZ+LOTE → irá a <code>pagos_yape_devolucion.xlsx</code> · si fue gasto JASS escribe CONCEPTO → quedará solo en <code>pagos_yape_pagaste.xlsx</code> · marca OK.<br>
-    <strong>Regla:</strong> CONCEPTO lleno → se ignora MZ+LOTE · MZ+LOTE llenos → se usa como lote · nunca los dos juntos.<br>
+    <strong>Pagaste</strong> — pagos PAGASTE que el banco registró · si fue devolución a un lote: escribe MZ+LOTE y <strong>CONCEPTO=devolucion</strong> (pago adelantado devuelto completo) → <code>pagos_yape_devolucion.xlsx</code> · o <strong>CONCEPTO=retorno</strong> (exceso devuelto) → <code>pagos_yape_retorno.xlsx</code> · si fue gasto JASS escribe CONCEPTO → quedará solo en <code>pagos_yape_pagaste.xlsx</code> · marca OK.<br>
+    <strong>Regla:</strong> CONCEPTO=devolucion o retorno + MZ+LOTE → split en archivo correspondiente · CONCEPTO otro valor → se ignora MZ+LOTE (gasto JASS) · nunca CONCEPTO vacío con MZ+LOTE (warning en log).<br>
     <strong>Preservación:</strong> si llenas MZ+LOTE o CONCEPTO pero <em>no</em> marcas OK, el sistema conserva tu trabajo en la siguiente corrida. Solo las filas con OK=SI se consolidan al historial permanente (<code>trazabilidad/correcciones_acumuladas.xlsx</code>).<br>
     <strong>Backup automático:</strong> antes de cada regeneración el motor guarda el archivo anterior en <code>correcciones/backup/pendientes_AAAAMMDD_HHMMSS.xlsx</code>.
   </div>

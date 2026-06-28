@@ -169,6 +169,18 @@
       <div class="cols">MZ · LT · MONTO<br>CICLO_CORRECCION</div>
     </div>
 
+    <div class="input-box from-pagos">
+      <div class="src">4_pagos / yape · motor_matching <span class="opt-badge">OPCIONAL</span></div>
+      <div class="fname">pagos_yape_devolucion.xlsx</div>
+      <div class="cols">MZ · LOTE · MONTO · CONCEPTO=devolucion<br>pago adelantado devuelto completo → DEVUELTO</div>
+    </div>
+
+    <div class="input-box from-pagos">
+      <div class="src">4_pagos / yape · motor_matching <span class="opt-badge">OPCIONAL</span></div>
+      <div class="fname">pagos_yape_retorno.xlsx</div>
+      <div class="cols">MZ · LOTE · MONTO · CONCEPTO=retorno<br>exceso devuelto → RETORNO</div>
+    </div>
+
     <div class="input-box shared">
       <div class="src">shared <span class="opt-badge">OPCIONAL</span></div>
       <div class="fname">blancos_acumulados.xlsx</div>
@@ -225,7 +237,7 @@
       <div class="output-header green">planilla_cobrado.xlsx</div>
       <div class="output-body green">
         <div class="out-label">21 cols planilla + CICLO_COBRANZA</div>
-        <div class="out-desc">Rellena MONTO_YAPE · MONTO_EFECTIVO<br>ESTADO · FECHA_PAGO · CICLO_COBRANZA</div>
+        <div class="out-desc">Rellena MONTO_YAPE · MONTO_EFECTIVO · SALDO<br>RETORNO · DEVUELTO · ESTADO · FECHA_PAGO · CICLO_COBRANZA</div>
         <div class="feeds-badge purple-bd">→ 3_boletas · 7_cierre</div>
       </div>
     </div>

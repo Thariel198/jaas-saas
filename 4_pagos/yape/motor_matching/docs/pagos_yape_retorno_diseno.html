@@ -2,9 +2,9 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 #w{font-family:var(--font-sans);padding:4px 0 16px}
-.instruc{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-left:3px solid #7C3AED;border-radius:0 var(--border-radius-md) var(--border-radius-md) 0;padding:9px 13px;font-size:12px;color:var(--color-text-secondary);margin-bottom:12px;line-height:1.7}
+.instruc{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-left:3px solid #B45309;border-radius:0 var(--border-radius-md) var(--border-radius-md) 0;padding:9px 13px;font-size:12px;color:var(--color-text-secondary);margin-bottom:12px;line-height:1.7}
 .instruc strong{color:var(--color-text-primary)}
-.tab-excel{display:inline-flex;align-items:center;gap:5px;background:#F5F3FF;border:0.5px solid #C4B5FD;border-bottom:none;border-radius:6px 6px 0 0;padding:5px 14px;font-size:12px;font-weight:500;color:#5B21B6;margin-bottom:-1px}
+.tab-excel{display:inline-flex;align-items:center;gap:5px;background:#FEF3C7;border:0.5px solid #FCD34D;border-bottom:none;border-radius:6px 6px 0 0;padding:5px 14px;font-size:12px;font-weight:500;color:#92400E;margin-bottom:-1px}
 .tw{border:0.5px solid var(--color-border-tertiary);border-radius:0 var(--border-radius-md) var(--border-radius-md) var(--border-radius-md);overflow-x:auto}
 table{width:100%;border-collapse:collapse;font-size:11px;min-width:900px}
 th{padding:6px 8px;font-size:10px;font-weight:500;text-align:left;border-bottom:0.5px solid var(--color-border-tertiary);border-right:0.5px solid var(--color-border-tertiary);white-space:nowrap}
@@ -15,7 +15,7 @@ tr:last-child td{border-bottom:none}
 .num{width:24px;background:var(--color-background-secondary);color:var(--color-text-tertiary);font-size:10px;font-family:var(--font-mono);text-align:center;border-right:0.5px solid var(--color-border-tertiary)}
 
 .th-banco {background:#E6F1FB;color:#0C447C}
-.th-donde {background:#E1F5EE;color:#085041}
+.th-donde {background:#FEF3C7;color:#92400E}
 .th-por   {background:#FEF9E7;color:#7D6608}
 .th-ciclo {background:#F5F3FF;color:#5B21B6}
 .th-sep   {width:4px;background:var(--color-background-secondary);padding:0;border-right:2px solid var(--color-border-secondary)}
@@ -23,13 +23,13 @@ tr:last-child td{border-bottom:none}
 .td-banco {background:#F0F8FF;color:#185FA5;font-family:var(--font-mono);font-size:10px}
 .td-monto {background:#F0F8FF;color:#065F46;font-family:var(--font-mono);font-size:11px;font-weight:500}
 .td-msg   {background:#F0F8FF;color:var(--color-text-secondary);font-size:10px;font-style:italic}
-.td-donde {background:#F0FFF8;font-family:var(--font-mono);font-size:11px;font-weight:500;color:#065F46;text-align:center}
+.td-donde {background:#FFFBEB;font-family:var(--font-mono);font-size:11px;font-weight:500;color:#92400E;text-align:center}
 .td-por   {background:#FFFDF5;font-size:10px;color:#7D6608;font-style:italic}
 .td-ciclo {background:#F5F3FF;font-family:var(--font-mono);font-size:11px;color:#5B21B6;text-align:center}
 .td-empty {color:var(--color-text-tertiary);font-style:italic;font-size:10px;text-align:center}
 .td-sep   {width:4px;background:var(--color-background-secondary);padding:0;border-right:2px solid var(--color-border-secondary)}
 
-.tipo-pa{background:#F5F3FF;color:#5B21B6;font-size:10px;font-weight:500;padding:1px 5px;border-radius:3px;font-family:var(--font-mono)}
+.tipo-pa{background:#FEF3C7;color:#92400E;font-size:10px;font-weight:500;padding:1px 5px;border-radius:3px;font-family:var(--font-mono)}
 .gh{font-size:9px;font-weight:600;text-align:center;padding:2px 0;letter-spacing:.05em;text-transform:uppercase;border-bottom:0.5px solid var(--color-border-tertiary)}
 .caso{font-size:9px;color:var(--color-text-tertiary);font-style:italic;padding:3px 8px;background:var(--color-background-secondary);border-bottom:0.5px solid var(--color-border-tertiary)}
 
@@ -41,14 +41,13 @@ tr:last-child td{border-bottom:none}
 <div id="w">
   <div class="instruc">
     Archivo de solo lectura — generado automáticamente por <strong>main.py</strong>.<br>
-    Contiene únicamente los PAGASTE donde el usuario llenó <strong>MZ + LOTE</strong> y <strong>CONCEPTO=devolucion</strong> (pago adelantado devuelto completo) en la hoja Pagaste de pendientes.xlsx.<br>
-    PAGASTE con MZ+LOTE y <strong>CONCEPTO=retorno</strong> (exceso devuelto) van a <strong>pagos_yape_retorno.xlsx</strong>.<br>
-    Devoluciones sin MZ+LOTE (gastos JASS con CONCEPTO) no aparecen aquí — van solo a <strong>pagos_yape_pagaste.xlsx</strong>.<br>
-    <strong>Temporal durante el mes:</strong> vive en <strong>motor_matching/outputs/pagos_yape_devolucion.xlsx</strong> · lo consume <strong>5_cobranza</strong> junto a pagos_yape_tepago.xlsx.<br>
-    <strong>Historial permanente:</strong> acumulado en <strong>devoluciones/devoluciones_acumulados.xlsx</strong>.
+    Contiene únicamente los PAGASTE donde el usuario llenó <strong>MZ + LOTE</strong> y <strong>CONCEPTO=retorno</strong> (exceso devuelto) en la hoja Pagaste de pendientes.xlsx.<br>
+    PAGASTE con MZ+LOTE y <strong>CONCEPTO=devolucion</strong> (pago adelantado devuelto completo) van a <strong>pagos_yape_devolucion.xlsx</strong>.<br>
+    Ambos archivos reducen <strong>MONTO_YAPE</strong> en 5_cobranza · aparecen como badge <strong>RETORNO</strong> en planilla_cobrado para auditoría.<br>
+    <strong>Temporal durante el mes:</strong> vive en <strong>motor_matching/outputs/pagos_yape_retorno.xlsx</strong> · lo consume <strong>5_cobranza</strong>.
   </div>
 
-  <div class="tab-excel">pagos_yape_devolucion</div>
+  <div class="tab-excel">pagos_yape_retorno</div>
   <div class="tw">
     <table>
       <thead>
@@ -56,7 +55,7 @@ tr:last-child td{border-bottom:none}
           <th class="num" rowspan="2"></th>
           <th class="th-banco gh" colspan="6">¿Qué hizo el banco?</th>
           <th class="th-sep" rowspan="2"></th>
-          <th class="th-donde gh" colspan="2">¿A quién se devolvió?</th>
+          <th class="th-donde gh" colspan="2">¿A quién se retornó?</th>
           <th class="th-sep" rowspan="2"></th>
           <th class="th-por gh" colspan="1">¿Por qué?</th>
           <th class="th-sep" rowspan="2"></th>
@@ -76,39 +75,22 @@ tr:last-child td{border-bottom:none}
         </tr>
       </thead>
       <tbody>
-        <tr><td colspan="14" class="caso">devolución simple — MZ+LOTE identificados → 5_cobranza descuenta del saldo del lote</td></tr>
+        <tr><td colspan="14" class="caso">retorno — usuario yapeó de más · JASS devuelve el exceso · MONTO_YAPE neto ya descuenta este monto</td></tr>
         <tr>
           <td class="num">1</td>
           <td><span class="tipo-pa">PAGASTE</span></td>
           <td class="td-banco">Janet Vil*</td>
           <td class="td-banco">Rosalina Cir*</td>
-          <td class="td-monto">S/46.00</td>
-          <td class="td-msg">devolución por pago adelantado</td>
-          <td class="td-banco">02/06/2026 12:44</td>
+          <td class="td-monto">S/20.00</td>
+          <td class="td-msg">retorno exceso pago junio</td>
+          <td class="td-banco">05/06/2026 10:15</td>
           <td class="td-sep"></td>
-          <td class="td-donde">B</td>
-          <td class="td-donde">8</td>
-          <td class="td-sep"></td>
-          <td class="td-por">devolución pago adelantado</td>
-          <td class="td-sep"></td>
-          <td class="td-ciclo">1</td>
-        </tr>
-        <tr><td colspan="14" class="caso">devolución a lote sin mensaje — el usuario llenó MZ+LOTE manualmente en pendientes.xlsx</td></tr>
-        <tr>
-          <td class="num">2</td>
-          <td><span class="tipo-pa">PAGASTE</span></td>
-          <td class="td-banco">Janet Vil*</td>
-          <td class="td-banco">Ana Paz*</td>
-          <td class="td-monto">S/15.00</td>
-          <td class="td-msg td-empty">—</td>
-          <td class="td-banco">08/05/2026 15:30</td>
-          <td class="td-sep"></td>
-          <td class="td-donde">B</td>
+          <td class="td-donde">C</td>
           <td class="td-donde">5</td>
           <td class="td-sep"></td>
-          <td class="td-por">devolución confirmada llamada</td>
+          <td class="td-por">retorno</td>
           <td class="td-sep"></td>
-          <td class="td-ciclo">2</td>
+          <td class="td-ciclo">1</td>
         </tr>
       </tbody>
     </table>
@@ -116,8 +98,8 @@ tr:last-child td{border-bottom:none}
 
   <div class="legend">
     <div class="leg"><div class="ld" style="background:#F0F8FF;border:0.5px solid #AED6F1"></div>banco — no editar</div>
-    <div class="leg"><div class="ld" style="background:#F0FFF8;border:0.5px solid #9FE1CB"></div>¿A quién se devolvió? — MZ+LOTE del lote receptor</div>
-    <div class="leg"><div class="ld" style="background:#FFFDF5;border:0.5px solid #F9E79F"></div>¿Por qué? — motivo de la devolución</div>
+    <div class="leg"><div class="ld" style="background:#FFFBEB;border:0.5px solid #FCD34D"></div>¿A quién se retornó? — MZ+LOTE del lote receptor</div>
+    <div class="leg"><div class="ld" style="background:#FFFDF5;border:0.5px solid #F9E79F"></div>¿Por qué? — CONCEPTO=retorno (llenado en pendientes.xlsx)</div>
     <div class="leg"><div class="ld" style="background:#F5F3FF;border:0.5px solid #C4B5FD"></div>ciclo en que se confirmó</div>
   </div>
 </div>

@@ -29,9 +29,17 @@ INPUTS_DIR    = ROOT / "inputs"
 OUTPUTS_DIR   = ROOT / "outputs"
 SHARED_DIR    = ROOT.parent / "shared"
 
-PLAN_DIR      = INPUTS_DIR / "planilla"
-YAPE_DIR      = INPUTS_DIR / "pagos_yape"
-EFEC_DIR      = INPUTS_DIR / "pagos_efectivo"
+# Single source of truth: la planilla del mes vive en shared/planilla_mes/.
+# 2_planilla la publica ahí, 6_corte/aplicar_penalidad le suma CORTE_RECONEXION,
+# y 4_pagos también la lee desde ahí. Leemos el master para que las penalidades
+# (y cualquier cargo posterior) se reflejen sin copiar la planilla a mano.
+PLAN_DIR      = SHARED_DIR / "planilla_mes"
+# Single source of truth: los pagos se leen en vivo desde los outputs de 4_pagos,
+# no desde copias en inputs/ (que quedaban stale y perdían pagos agregados después
+# de copiar — ej. el 2º pago Yape de un predio). 5_cobranza retroescribe
+# CICLO_COBRANZA en estos archivos (per contrato, le corresponde llenarla).
+YAPE_DIR      = ROOT.parent / "4_pagos" / "yape" / "motor_matching" / "outputs"
+EFEC_DIR      = ROOT.parent / "4_pagos" / "efectivo" / "outputs"
 BLANCOS_PATH  = SHARED_DIR / "blancos_acumulados.xlsx"
 
 YAPE_FILE     = "pagos_yape_tepago.xlsx"
@@ -80,6 +88,12 @@ RETORNO_TXT = {"yape": "085041", "efectivo": "1D4ED8", "mixto": "854F0B"}
 # Paleta trazabilidad — ¿Quién es? (morado/lila)
 GH_TZ_QUIEN  = ("F4ECF7", "5B21B6")
 TD_TZ_QUIEN  = "FAF5FF"
+
+# Paleta trazabilidad — ¿Cómo verificarlo? (ámbar) · ¿De qué ciclo? (azul)
+GH_TZ_VERIF  = ("FFF3CD", "7C2D12")   # REFERENCIA · FECHA · COMENTARIO
+TD_TZ_VERIF  = "FFFBEC"
+GH_TZ_CICLO  = ("EFF6FF", "1E40AF")   # CICLO_CORRECCION_ORIGEN · CICLO_COBRANZA · FECHA_CARGA
+TD_TZ_CICLO  = "EFF6FF"
 
 # Paleta arrastre_deuda (coincide con arrastre_deuda_diseno.html)
 GH_AD_QUIEN  = ("E8F8F5", "0E6655")
@@ -195,6 +209,20 @@ def _float(val) -> float:
     except (ValueError, TypeError):
         return 0.0
 
+def _txt(val) -> str:
+    """Texto limpio: '' para None/nan/nat/none (evita 'nan' literal en celdas)."""
+    if val is None:
+        return ""
+    s = str(val).strip()
+    return "" if s.lower() in ("nan", "nat", "none") else s
+
+def _ref_efectivo(mesa, cobrador) -> str:
+    """REFERENCIA de pago en efectivo: 'MESA / COBRADOR' (omite el lado vacío)."""
+    m, c = _txt(mesa), _txt(cobrador)
+    if m and c:
+        return f"{m} / {c}"
+    return m or c
+
 def _norm_cols(df) -> list[str]:
     cols = []
     for i, c in enumerate(df.columns):
@@ -238,6 +266,27 @@ def _fecha_str(val) -> str:
     except Exception:
         return str(val)[:10]
 
+def _fecha_hora_str(val) -> str:
+    """Como _fecha_str pero preserva la hora si existe: DD/MM/YYYY HH:MM.
+    Yape trae '21/06/2026 12:08:29' → '21/06/2026 12:08'. Efectivo sin hora → DD/MM/YYYY."""
+    if val is None:
+        return ""
+    s = str(val).strip()
+    if not s or s.upper() in ("NAN", "NAT", "NONE"):
+        return ""
+    try:
+        if pd.isna(val):
+            return ""
+    except (TypeError, ValueError):
+        pass
+    dt = pd.to_datetime(s, dayfirst=True, errors="coerce")
+    if pd.isna(dt):
+        return _fecha_str(val)
+    # sin componente horario → solo fecha
+    if dt.hour == 0 and dt.minute == 0 and dt.second == 0:
+        return dt.strftime("%d/%m/%Y")
+    return dt.strftime("%d/%m/%Y %H:%M")
+
 def _fecha_max(fechas: list[str]) -> str:
     """Devuelve la fecha más reciente en formato DD/MM/YYYY."""
     fechas = [f for f in fechas if f]
@@ -260,7 +309,7 @@ def _localizar_planilla() -> Path:
     if not candidatos:
         raise FileNotFoundError(
             f"Falta planilla_YYYY-MM.xlsx en {PLAN_DIR}\n"
-            f"  → Copiar desde 2_planilla/outputs/"
+            f"  → Correr 2_planilla (publica la planilla en shared/planilla_mes/)"
         )
     if len(candidatos) > 1:
         log.warning(f"Múltiples planillas en {PLAN_DIR} → usando {candidatos[-1].name}")
@@ -363,6 +412,11 @@ def _cargar_pagos_yape() -> list[dict]:
             # ORIGEN: nombre que el banco asigna al remitente (ej: "Wilder Tru*").
             # Sirve para rastrear pagos huérfanos en discrepancias_cobranza.xlsx.
             "origen": str(f.get("ORIGEN", "")).strip(),
+            # Trazabilidad para auditoría (trazabilidad_cobranza.xlsx):
+            # REFERENCIA = ORIGEN del banco · COMENTARIO = MENSAJE del pagador.
+            "referencia": str(f.get("ORIGEN", "")).strip(),
+            "comentario": str(f.get("MENSAJE", "")).strip(),
+            "fecha_hora": _fecha_hora_str(f.get("FECHA")),
         })
     log.info(f"Pagos Yape → {len(pagos)} filas · {sin_id} sin identificar")
     return pagos
@@ -397,6 +451,11 @@ def _cargar_pagos_efectivo() -> list[dict]:
             # MESA dice en cuál mesa_N.xlsx buscar, COBRADOR quién lo registró.
             "mesa":     str(f.get("MESA", "")).strip(),
             "cobrador": str(f.get("COBRADOR", "")).strip(),
+            # Trazabilidad para auditoría (trazabilidad_cobranza.xlsx):
+            # REFERENCIA = "MESA / COBRADOR" · COMENTARIO = nota del cobrador.
+            "referencia": _ref_efectivo(f.get("MESA"), f.get("COBRADOR")),
+            "comentario": _txt(f.get("COMENTARIO")),
+            "fecha_hora": _fecha_hora_str(f.get("FECHA")),
         })
     log.info(f"Pagos Efectivo → {len(pagos)} filas")
     return pagos
@@ -977,19 +1036,26 @@ def _exportar_planilla_cobrado(resultado: list[dict]):
 # ─────────────────────────────────────────────────────────────────────────────
 #  OUTPUT 2 — trazabilidad_cobranza.xlsx (acumulada)
 # ─────────────────────────────────────────────────────────────────────────────
-# Layout (matching trazabilidad_cobranza.html):
-#   1-3  ¿Quién es?              MZ LT NOMBRE
-#   4    sep
-#   5-6  ¿Qué se cargó?          MONTO FUENTE
-#   7    sep
-#   8-10 ¿Cuándo y de dónde?     CICLO_CORRECCION_ORIGEN CICLO_COBRANZA FECHA_CARGA
-# (Agregamos también FECHA del pago, útil para matching futuro)
+# Layout (matching trazabilidad_cobranza.html v2.0):
+#   1-3   ¿Quién es?          MZ LT NOMBRE
+#   4     sep
+#   5-7   ¿Qué pagó?          MONTO FUENTE RETORNO
+#   8     sep
+#   9-11  ¿Cómo verificarlo?  REFERENCIA FECHA COMENTARIO
+#   12    sep
+#   13-15 ¿De qué ciclo?      CICLO_CORRECCION_ORIGEN CICLO_COBRANZA FECHA_CARGA
+#   16    sep
+#   17-18 Lote corregido      MZ_ORIGEN LT_ORIGEN
+# REFERENCIA: ORIGEN del banco (Yape) ó "MESA / COBRADOR" (efectivo).
+# FECHA: con hora para Yape (DD/MM/YYYY HH:MM), solo fecha para efectivo.
+# COMENTARIO: MENSAJE del pagador (Yape) ó nota del cobrador (efectivo).
 
 _TZ_GRUPOS = [
     (1,  3,  "¿Quién es?",          *GH_TZ_QUIEN),
-    (5,  7,  "¿Qué se cargó?",      *GH_COB),
-    (9,  12, "¿Cuándo y de dónde?", *GH_TRAZ),
-    (14, 15, "Lote corregido",       *GH_DC_CORR),
+    (5,  7,  "¿Qué pagó?",          *GH_COB),
+    (9,  11, "¿Cómo verificarlo?",  *GH_TZ_VERIF),
+    (13, 15, "¿De qué ciclo?",      *GH_TZ_CICLO),
+    (17, 18, "Lote corregido",      *GH_DC_CORR),
 ]
 _TZ_COLS = [
     (1,  "MZ",                       *GH_TZ_QUIEN,   6),
@@ -998,14 +1064,16 @@ _TZ_COLS = [
     (5,  "MONTO",                    *GH_COB,      11),
     (6,  "FUENTE",                   *GH_COB,      10),
     (7,  "RETORNO",                  *GH_COB,      10),
-    (9,  "CICLO_CORRECCION_ORIGEN",  *GH_TRAZ,     22),
-    (10, "CICLO_COBRANZA",           *GH_TRAZ,     16),
-    (11, "FECHA",                    *GH_TRAZ,     11),
-    (12, "FECHA_CARGA",              *GH_TRAZ,     18),
-    (14, "MZ_ORIGEN",                *GH_DC_CORR,   9),
-    (15, "LT_ORIGEN",                *GH_DC_CORR,   9),
+    (9,  "REFERENCIA",               *GH_TZ_VERIF, 24),
+    (10, "FECHA",                    *GH_TZ_VERIF, 18),
+    (11, "COMENTARIO",               *GH_TZ_VERIF, 30),
+    (13, "CICLO_CORRECCION_ORIGEN",  *GH_TZ_CICLO, 22),
+    (14, "CICLO_COBRANZA",           *GH_TZ_CICLO, 16),
+    (15, "FECHA_CARGA",              *GH_TZ_CICLO, 18),
+    (17, "MZ_ORIGEN",                *GH_DC_CORR,   9),
+    (18, "LT_ORIGEN",                *GH_DC_CORR,   9),
 ]
-_TZ_SEP_COLS = [4, 8, 13]
+_TZ_SEP_COLS = [4, 8, 12, 16]
 
 FUENTE_BG  = {"yape": "E1F5EE", "efectivo": "EFF6FF"}
 FUENTE_TXT = {"yape": "085041", "efectivo": "1D4ED8"}
@@ -1042,13 +1110,38 @@ def _exportar_trazabilidad_cobranza(
                 "nombre": str(f.get("NOMBRE", "")).strip(),
                 "monto":  round(_float(f.get("MONTO")), 2),
                 "fuente": str(f.get("FUENTE", "")).strip().lower(),
+                "referencia": _txt(f.get("REFERENCIA")) if "REFERENCIA" in df.columns else "",
+                "fecha_hora":  _txt(f.get("FECHA")) if "FECHA" in df.columns else "",
+                "comentario":  _txt(f.get("COMENTARIO")) if "COMENTARIO" in df.columns else "",
                 "ciclo_correccion_origen": int(_float(f.get("CICLO_CORRECCION_ORIGEN")) or 0),
                 "ciclo_cobranza":          int(_float(f.get("CICLO_COBRANZA")) or 0),
-                "fecha":                   _fecha_str(f.get("FECHA")) if "FECHA" in df.columns else "",
                 "fecha_carga":             str(f.get("FECHA_CARGA", "")).strip(),
                 "mz_origen":               _norm_mz(f.get("MZ_ORIGEN")) if "MZ_ORIGEN" in df.columns else "",
                 "lt_origen":               _norm_lt(f.get("LT_ORIGEN")) if "LT_ORIGEN" in df.columns else "",
             })
+
+    # Backfill in-place: las filas de ciclos antiguos no tenían REFERENCIA/COMENTARIO.
+    # Se rellenan cruzando contra los pagos fuente por (mz, lt, monto, fuente) sin
+    # tocar su ciclo ni fecha_carga. Idempotente: re-correr rellena igual.
+    enriq = {}
+    for p in (pagos_yape + pagos_efectivo):
+        enriq[(p["mz"], p["lt"], round(p["monto"], 2), p["fuente"])] = {
+            "referencia": p.get("referencia", ""),
+            "comentario": p.get("comentario", ""),
+            "fecha_hora": p.get("fecha_hora", "") or p.get("fecha", ""),
+        }
+    for t in previas:
+        if t.get("referencia") and t.get("comentario"):
+            continue
+        src = enriq.get((t["mz"], t["lt"], round(t["monto"], 2), t["fuente"]))
+        if not src:
+            continue
+        if not t.get("referencia"):
+            t["referencia"] = src["referencia"]
+        if not t.get("comentario"):
+            t["comentario"] = src["comentario"]
+        if not t.get("fecha_hora") or len(t["fecha_hora"]) <= 10:
+            t["fecha_hora"] = src["fecha_hora"] or t.get("fecha_hora", "")
 
     # Filas nuevas (solo pagos imputados — huérfanos van a discrepancias, no aquí)
     ahora = datetime.now().strftime("%d/%m/%Y %H:%M")
@@ -1064,9 +1157,11 @@ def _exportar_trazabilidad_cobranza(
             "nombre": nombre_de.get(p["key"], p["nombre"]),
             "monto":  p["monto"],
             "fuente": p["fuente"],
+            "referencia": p.get("referencia", ""),
+            "fecha_hora": p.get("fecha_hora", "") or p.get("fecha", ""),
+            "comentario": p.get("comentario", ""),
             "ciclo_correccion_origen": p["ciclo_correccion"],
             "ciclo_cobranza":          ciclo_nuevo,
-            "fecha":                   p["fecha"],
             "fecha_carga":             ahora,
             "mz_origen":               p.get("mz_origen", ""),
             "lt_origen":               p.get("lt_origen", ""),
@@ -1121,20 +1216,26 @@ def _exportar_trazabilidad_cobranza(
         else:
             _c(ws, ri, 7, None, TD_COB, "065F46", mono=True, align="center")
 
-        _c(ws, ri,  9, t["ciclo_correccion_origen"], TD_TRAZ, "7D6608",
+        # ¿Cómo verificarlo? — REFERENCIA · FECHA (con hora si Yape) · COMENTARIO
+        _c(ws, ri,  9, t.get("referencia") or None, TD_TZ_VERIF, "92400E",
+           mono=True, align="left")
+        _c(ws, ri, 10, t.get("fecha_hora") or None, TD_TZ_VERIF, "7C2D12",
            mono=True, align="center")
-        _c(ws, ri, 10, t["ciclo_cobranza"],          TD_TRAZ, "7D6608",
+        _c(ws, ri, 11, t.get("comentario") or None, TD_TZ_VERIF, "78350F",
+           align="left")
+        # ¿De qué ciclo? — corrección origen · cobranza · timestamp de carga
+        _c(ws, ri, 13, t["ciclo_correccion_origen"], TD_TZ_CICLO, "1E40AF",
+           mono=True, align="center")
+        _c(ws, ri, 14, t["ciclo_cobranza"],          TD_TZ_CICLO, "1E40AF",
            mono=True, align="center", bold=True)
-        _c(ws, ri, 11, t["fecha"],                   TD_TRAZ, "7D6608",
-           mono=True, align="center")
-        _c(ws, ri, 12, t["fecha_carga"],             TD_TRAZ, "7D6608",
+        _c(ws, ri, 15, t["fecha_carga"],             TD_TZ_CICLO, "1E40AF",
            mono=True, align="center")
         # Lote corregido — solo para pagos con remapeo de correcciones_lote
         mz_orig = t.get("mz_origen") or ""
         lt_orig = t.get("lt_origen") or ""
         bg_orig = TD_DC_CORR if mz_orig else TD_DC_CORR_V
-        _c(ws, ri, 14, mz_orig or None, bg_orig, GH_DC_CORR[1], mono=True, align="center")
-        _c(ws, ri, 15, lt_orig or None, bg_orig, GH_DC_CORR[1], mono=True, align="center")
+        _c(ws, ri, 17, mz_orig or None, bg_orig, GH_DC_CORR[1], mono=True, align="center")
+        _c(ws, ri, 18, lt_orig or None, bg_orig, GH_DC_CORR[1], mono=True, align="center")
         ws.row_dimensions[ri].height = 17
 
     wb.save(trazabilidad_path)
