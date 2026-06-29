@@ -1,0 +1,151 @@
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+#w{font-family:var(--font-sans);padding:4px 0 16px;font-size:12px}
+.title{font-size:13px;font-weight:600;color:var(--color-text-primary);margin-bottom:10px}
+.flow{display:flex;flex-direction:column;gap:0}
+.capa{display:flex;align-items:stretch;gap:0;min-height:48px}
+.capa-label{width:90px;flex-shrink:0;display:flex;align-items:center;justify-content:flex-end;padding-right:10px;font-size:10px;font-weight:600;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.05em}
+.capa-body{flex:1;display:flex;align-items:center;gap:8px;padding:7px 0}
+.box{border-radius:5px;padding:5px 10px;font-size:11px;font-weight:500;border:0.5px solid;white-space:nowrap}
+.box-trigger{background:#F0F8FF;border-color:#93C5FD;color:#1D4ED8}
+.box-check{background:#F9FAFB;border-color:#D1D5DB;color:#374151}
+.box-ok{background:#E1F5EE;border-color:#6EE7B7;color:#065F46}
+.box-pend{background:#FEF2F2;border-color:#FCA5A5;color:#991B1B}
+.box-multi{background:#FFFBF0;border-color:#FCD34D;color:#92400E}
+.box-comun{background:#FFF7ED;border-color:#FDBA74;color:#9A3412}
+.box-blanco{background:#F5F3FF;border-color:#C4B5FD;color:#5B21B6}
+.arrow{color:var(--color-text-tertiary);font-size:13px;flex-shrink:0}
+.arrow-down{display:flex;justify-content:flex-start;padding-left:90px;color:var(--color-text-tertiary);font-size:13px;margin:-2px 0}
+.badge{font-size:9px;font-weight:600;padding:1px 5px;border-radius:3px;margin-left:4px;vertical-align:middle}
+.badge-auto{background:#DCFCE7;color:#166534}
+.badge-manual{background:#FEF9C3;color:#854D0E}
+.badge-new{background:#FFF7ED;color:#9A3412;border:0.5px solid #FDBA74}
+.divider{height:0.5px;background:var(--color-border-tertiary);margin:6px 0 6px 90px}
+.note{font-size:10px;color:var(--color-text-tertiary);font-style:italic;margin-left:8px}
+.connector{width:90px;flex-shrink:0;display:flex;justify-content:flex-end;padding-right:14px;color:var(--color-text-tertiary);font-size:18px;line-height:1}
+.skip{display:flex;align-items:center;gap:8px;padding:3px 0 3px 0;margin-left:90px;font-size:10px;color:var(--color-text-tertiary);font-style:italic}
+.section-sep{height:1px;background:var(--color-border-secondary);margin:8px 0}
+</style>
+<div id="w">
+  <div class="title">Motor Matching — Flujo de clasificación por capa</div>
+
+  <!-- ENTRADA -->
+  <div class="capa">
+    <div class="capa-label">entrada</div>
+    <div class="capa-body">
+      <div class="box box-trigger">Fila TE PAGÓ del banco (ciclo actual)</div>
+      <span class="arrow">→</span>
+      <div class="box box-check">¿Ancla de corte superada?</div>
+      <span class="arrow">→ no</span>
+      <div class="box box-pend">excluida (ciclo anterior)</div>
+    </div>
+  </div>
+  <div class="arrow-down">↓ sí</div>
+
+  <div class="divider"></div>
+
+  <!-- CAPA 0 -->
+  <div class="capa">
+    <div class="capa-label">capa 0</div>
+    <div class="capa-body">
+      <div class="box box-check">¿Corrección previa OK=SI?<br><span style="font-size:10px;font-weight:400">(acumuladas · pendientes · trazabilidad)</span></div>
+      <span class="arrow">→ sí</span>
+      <div class="box box-ok">identificado — aplica corrección<span class="badge badge-auto">preservado</span></div>
+    </div>
+  </div>
+  <div class="arrow-down">↓ no</div>
+
+  <div class="divider"></div>
+
+  <!-- CAPA 1 -->
+  <div class="capa">
+    <div class="capa-label">capa 1</div>
+    <div class="capa-body">
+      <div class="box box-check">¿MENSAJE contiene 2+ patrones<br><span style="font-size:10px;font-weight:400">"MzX LtY · MzA LtB · …"?</span></div>
+      <span class="arrow">→ sí</span>
+      <div class="box box-multi">multiple_auto<span class="badge badge-auto">auto</span></div>
+      <span class="arrow">→</span>
+      <div class="box box-ok">identificado (split por deudas)</div>
+    </div>
+  </div>
+  <div class="arrow-down">↓ no</div>
+
+  <div class="divider"></div>
+
+  <!-- CAPA 2 -->
+  <div class="capa">
+    <div class="capa-label">capa 2</div>
+    <div class="capa-body">
+      <div class="box box-check">¿MENSAJE contiene 1 patrón<br><span style="font-size:10px;font-weight:400">"MzX LtY"?</span></div>
+      <span class="arrow">→ sí</span>
+      <div class="box box-ok">identificado — asignado por mensaje<span class="badge badge-auto">auto</span></div>
+    </div>
+  </div>
+  <div class="arrow-down">↓ no</div>
+
+  <div class="divider"></div>
+
+  <!-- CAPA 3 -->
+  <div class="capa">
+    <div class="capa-label">capa 3</div>
+    <div class="capa-body">
+      <div class="box box-check">¿ORIGEN aparece en<br><span style="font-size:10px;font-weight:400">2+ lotes del padrón?</span></div>
+      <span class="arrow">→ sí</span>
+      <div class="box box-pend">ambiguo_auto → <strong>pendiente</strong><span class="badge badge-manual">manual</span></div>
+    </div>
+  </div>
+
+  <!-- Sub-rama Ambiguos -->
+  <div class="capa" style="margin-left:90px;margin-top:4px">
+    <div style="width:40px;flex-shrink:0;border-left:1.5px solid #D1D5DB;border-bottom:1.5px solid #D1D5DB;height:28px;margin-top:-14px"></div>
+    <div class="capa-body" style="gap:6px">
+      <div class="box box-check" style="font-size:10px">operador resuelve en hoja <em>Ambiguos</em></div>
+      <span class="arrow" style="font-size:11px">→ MZ+LOTE</span>
+      <div class="box box-ok" style="font-size:10px">identificado — lote asignado</div>
+      <span class="arrow" style="font-size:11px;color:#9A3412">→ CONCEPTO=MULTIPLE</span>
+      <div class="box box-comun" style="font-size:10px">→ <strong>Pagos_comunitarios</strong><span class="badge badge-new">nuevo</span></div>
+    </div>
+  </div>
+  <div style="margin-left:130px;margin-top:3px;margin-bottom:3px">
+    <div style="display:flex;align-items:center;gap:6px">
+      <div style="width:40px;flex-shrink:0;border-left:1.5px solid #FDBA74;border-bottom:1.5px solid #FDBA74;height:22px;margin-top:-11px"></div>
+      <div class="box box-comun" style="font-size:10px">operador copia filas · llena MZ+LOTE+MONTO_PARCIAL por lote · verifica suma = MONTO_TOTAL · OK=SI</div>
+      <span class="arrow" style="font-size:11px">→</span>
+      <div class="box box-ok" style="font-size:10px">multiple_corregido (desglose comunitario)</div>
+    </div>
+  </div>
+
+  <div class="arrow-down" style="padding-left:90px">↓ no (sin candidatos en padrón)</div>
+
+  <div class="divider"></div>
+
+  <!-- CAPA 4 -->
+  <div class="capa">
+    <div class="capa-label">capa 4</div>
+    <div class="capa-body">
+      <div class="box box-pend">sin_identificar → <strong>pendiente</strong><span class="badge badge-manual">manual</span></div>
+      <span class="note">sin mensaje ni maestro · operador llena MZ+LOTE o CONCEPTO</span>
+    </div>
+  </div>
+
+  <div class="section-sep" style="margin-top:14px"></div>
+
+  <!-- LEYENDA -->
+  <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;align-items:center">
+    <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--color-text-secondary)">
+      <div style="width:9px;height:9px;border-radius:2px;background:#E1F5EE;border:0.5px solid #6EE7B7"></div>identificado (no va a pendientes)
+    </div>
+    <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--color-text-secondary)">
+      <div style="width:9px;height:9px;border-radius:2px;background:#FEF2F2;border:0.5px solid #FCA5A5"></div>pendiente (requiere intervención)
+    </div>
+    <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--color-text-secondary)">
+      <div style="width:9px;height:9px;border-radius:2px;background:#FFF7ED;border:0.5px solid #FDBA74"></div>Pagos_comunitarios — nuevo
+    </div>
+    <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--color-text-secondary)">
+      <span class="badge badge-auto" style="margin:0">auto</span>sin intervención del operador
+    </div>
+    <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--color-text-secondary)">
+      <span class="badge badge-manual" style="margin:0">manual</span>requiere operador
+    </div>
+  </div>
+</div>

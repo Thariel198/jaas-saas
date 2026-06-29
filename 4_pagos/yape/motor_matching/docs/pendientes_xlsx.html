@@ -10,6 +10,7 @@
 .tab.active.t2{background:#FAEEDA;border-color:#EF9F27;color:#854F0B}
 .tab.active.t3{background:#EFF6FF;border-color:#93C5FD;color:#1D4ED8}
 .tab.active.t4{background:#F5F3FF;border-color:#C4B5FD;color:#5B21B6}
+.tab.active.t5{background:#FFF7ED;border-color:#FDBA74;color:#9A3412}
 .sheet{display:none}.sheet.active{display:block}
 .tw{border:0.5px solid var(--color-border-tertiary);border-radius:0 var(--border-radius-md) var(--border-radius-md) var(--border-radius-md);overflow-x:auto}
 table{width:100%;border-collapse:collapse;font-size:11px}
@@ -52,10 +53,11 @@ tr:last-child td{border-bottom:none}
 <div id="w">
   <div class="instruc">
     <strong>Sin_identificar</strong> — sin mensaje ni maestro · TE PAGÓ y PAGASTE · tú pones MZ+LOTE o CONCEPTO o BLANCO.<br>
-    <strong>Ambiguos</strong> — maestro encontró 2+ candidatos · sistema sugiere el mejor · tú confirmas o corriges · MZ+LOTE o CONCEPTO · marca OK.<br>
+    <strong>Ambiguos</strong> — maestro encontró 2+ candidatos · sistema sugiere el mejor · tú confirmas o corriges · MZ+LOTE o CONCEPTO · marca OK · si es pago de directivo con varios lotes: escribe <strong>CONCEPTO=MULTIPLE</strong> + OK=SI → aparecerá en Pagos_comunitarios para desglosar.<br>
     <strong>Maestro_inexacto</strong> — maestro encontró 1 candidato pero diff ≠ 0 · tú confirmas o corriges · MZ+LOTE o CONCEPTO · marca OK.<br>
     <strong>Pagaste</strong> — pagos PAGASTE que el banco registró · si fue devolución a un lote: escribe MZ+LOTE y <strong>CONCEPTO=devolucion</strong> (pago adelantado devuelto completo) → <code>pagos_yape_devolucion.xlsx</code> · o <strong>CONCEPTO=retorno</strong> (exceso devuelto) → <code>pagos_yape_retorno.xlsx</code> · si fue gasto JASS escribe CONCEPTO → quedará solo en <code>pagos_yape_pagaste.xlsx</code> · marca OK.<br>
-    <strong>Regla:</strong> CONCEPTO=devolucion o retorno + MZ+LOTE → split en archivo correspondiente · CONCEPTO otro valor → se ignora MZ+LOTE (gasto JASS) · nunca CONCEPTO vacío con MZ+LOTE (warning en log).<br>
+    <strong>Pagos_comunitarios</strong> — directivo depositó cobros de varios lotes sin detalle · generado automáticamente cuando marcas CONCEPTO=MULTIPLE en Ambiguos · copia tantas filas como lotes cubre el depósito · llena MZ+LOTE+MONTO_PARCIAL en cada una · la suma de MONTO_PARCIAL debe igualar MONTO_TOTAL · ORIGEN+FECHA (con hora:min:seg) identifica el depósito · marca OK cuando el desglose esté completo.<br>
+    <strong>Regla:</strong> CONCEPTO=devolucion o retorno + MZ+LOTE → split en archivo correspondiente · CONCEPTO=MULTIPLE → bandeja comunitaria · CONCEPTO otro valor → se ignora MZ+LOTE (gasto JASS) · nunca CONCEPTO vacío con MZ+LOTE (warning en log).<br>
     <strong>Preservación:</strong> si llenas MZ+LOTE o CONCEPTO pero <em>no</em> marcas OK, el sistema conserva tu trabajo en la siguiente corrida. Solo las filas con OK=SI se consolidan al historial permanente (<code>trazabilidad/correcciones_acumuladas.xlsx</code>).<br>
     <strong>Backup automático:</strong> antes de cada regeneración el motor guarda el archivo anterior en <code>correcciones/backup/pendientes_AAAAMMDD_HHMMSS.xlsx</code>.
   </div>
@@ -65,6 +67,7 @@ tr:last-child td{border-bottom:none}
     <div class="tab t2" onclick="show('amb',1)">Ambiguos</div>
     <div class="tab t3" onclick="show('mix',2)">Maestro_inexacto</div>
     <div class="tab t4" onclick="show('pag',3)">Pagaste</div>
+    <div class="tab t5" onclick="show('com',4)">Pagos_comunitarios</div>
   </div>
 
   <!-- HOJA 1: Sin_identificar -->
@@ -384,6 +387,66 @@ tr:last-child td{border-bottom:none}
     </table></div>
   </div>
 
+  <!-- HOJA 5: Pagos_comunitarios -->
+  <div id="com" class="sheet">
+    <div class="tw"><table style="min-width:1050px">
+      <thead>
+        <tr>
+          <th class="num" rowspan="2"></th>
+          <th class="th-banco gh" colspan="3">← banco — no editar</th>
+          <th class="th-sep" rowspan="2"></th>
+          <th class="th-man gh" colspan="4">← tú completas (una fila por lote)</th>
+          <th class="th-sep" rowspan="2"></th>
+          <th class="th-val gh" rowspan="2">OK</th>
+        </tr>
+        <tr>
+          <th class="th-banco">ORIGEN</th>
+          <th class="th-banco">FECHA</th>
+          <th class="th-banco">MONTO_TOTAL</th>
+          <th class="th-man">MZ</th><th class="th-man">LOTE</th>
+          <th class="th-man">MONTO_PARCIAL</th><th class="th-man">MOTIVO</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td colspan="11" class="caso">directivo depositó S/152 · cubre 3 lotes · operador copia la fila 3 veces y llena cada una · suma parciales = MONTO_TOTAL</td></tr>
+        <tr>
+          <td class="num">1</td>
+          <td class="td-banco">Raquel Avil*</td>
+          <td class="td-banco" style="font-size:10px">07/06/2026 10:39:56</td>
+          <td class="td-monto">S/152.00</td>
+          <td class="td-sep"></td>
+          <td class="td-man">G</td><td class="td-man">3</td>
+          <td class="td-man">50.00</td><td class="td-mot">cobro junio Yerald</td>
+          <td class="td-sep"></td>
+          <td class="td-val"><span class="ok-si">SI</span></td>
+        </tr>
+        <tr>
+          <td class="num">2</td>
+          <td class="td-banco">Raquel Avil*</td>
+          <td class="td-banco" style="font-size:10px">07/06/2026 10:39:56</td>
+          <td class="td-monto">S/152.00</td>
+          <td class="td-sep"></td>
+          <td class="td-man">G</td><td class="td-man">21A</td>
+          <td class="td-man">50.00</td><td class="td-mot">cobro junio Yerald</td>
+          <td class="td-sep"></td>
+          <td class="td-val"><span class="ok-si">SI</span></td>
+        </tr>
+        <tr>
+          <td class="num">3</td>
+          <td class="td-banco">Raquel Avil*</td>
+          <td class="td-banco" style="font-size:10px">07/06/2026 10:39:56</td>
+          <td class="td-monto">S/152.00</td>
+          <td class="td-sep"></td>
+          <td class="td-man">G</td><td class="td-man">7</td>
+          <td class="td-man">52.00</td><td class="td-mot">cobro junio Yerald · último absorbe diferencia</td>
+          <td class="td-sep"></td>
+          <td class="td-val"><span class="ok-si">SI</span></td>
+        </tr>
+        <tr><td colspan="11" class="caso">antes de marcar OK · verifica que 50+50+52 = 152 · si no cuadra el motor lo rechazará con warning en log</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+
   <div class="legend">
     <div class="leg"><div class="ld" style="background:#FAF5FF;border:0.5px solid #C4B5FD"></div>¿Quién pagó?</div>
     <div class="leg"><div class="ld" style="background:#F0F8FF;border:0.5px solid #AED6F1"></div>banco — no editar</div>
@@ -396,7 +459,10 @@ tr:last-child td{border-bottom:none}
 <script>
 function show(id,i){
   document.querySelectorAll('.sheet').forEach(s=>s.classList.remove('active'));
-  document.querySelectorAll('.tab').forEach((t,j)=>t.classList.toggle('active',j===i));
+  document.querySelectorAll('.tab').forEach((t,j)=>{
+    t.classList.remove('active');
+    if(j===i) t.classList.add('active');
+  });
   document.getElementById(id).classList.add('active');
 }
 </script>

@@ -43,7 +43,8 @@ OUTPUT_FILE       = "pagos_yape_tepago.xlsx"
 PAGASTE_FILE      = "pagos_yape_pagaste.xlsx"
 DEVOLUCION_FILE   = "pagos_yape_devolucion.xlsx"
 RETORNO_FILE      = "pagos_yape_retorno.xlsx"
-PENDIENTES_FILE   = "pendientes.xlsx"
+PENDIENTES_FILE       = "pendientes.xlsx"
+CONCEPTO_COMUNITARIO  = "comunitario"
 BLANCOS_FILE      = SHARED_DIR / "blancos_acumulados.xlsx"
 TIPO_PAGO         = "TE PAGÓ"
 
@@ -880,6 +881,69 @@ def _leer_hoja_pendientes_ok(wb, nombre_hoja: str) -> dict:
     return resultado
 
 
+def _leer_hoja_comunitarios(wb) -> dict:
+    """
+    Lee hoja Pagos_comunitarios de pendientes (OK=SI).
+    Agrupa filas por ORIGEN_UPPER|FECHA → list[{mz, lote, monto_parcial, motivo}].
+    Valida que la suma de MONTO_PARCIAL == MONTO_TOTAL por depósito.
+    """
+    nombre = "Pagos_comunitarios"
+    if nombre not in wb.sheetnames:
+        return {}
+    filas = list(wb[nombre].values)
+    if len(filas) < 3:
+        return {}
+    headers = [str(h).strip().upper() if h else "" for h in filas[1]]
+
+    def idx(n):
+        try: return headers.index(n)
+        except: return None
+
+    i_origen  = idx("ORIGEN")
+    i_fecha   = idx("FECHA")
+    i_total   = idx("MONTO_TOTAL")
+    i_mz      = idx("MZ")
+    i_lote    = idx("LOTE")
+    i_parcial = idx("MONTO_PARCIAL")
+    i_motivo  = idx("MOTIVO")
+    i_ok      = idx("OK")
+
+    if i_origen is None or i_fecha is None:
+        return {}
+
+    grupos: dict[str, list] = {}
+    totales: dict[str, float] = {}
+
+    for fila in filas[2:]:
+        if not fila or not any(v is not None and str(v).strip() not in ("", "None", "nan") for v in fila):
+            continue
+        ok_val = str(fila[i_ok]).strip().upper() if i_ok is not None and i_ok < len(fila) and fila[i_ok] else ""
+        if ok_val != "SI":
+            continue
+        origen = str(fila[i_origen]).strip().upper() if i_origen < len(fila) and fila[i_origen] else ""
+        fecha  = str(fila[i_fecha]).strip()           if i_fecha  is not None and i_fecha  < len(fila) and fila[i_fecha]  else ""
+        if not origen or origen in ("NAN", "NONE", ""):
+            continue
+        clave = f"{origen}|{fecha}"
+        monto_total   = limpiar_monto(fila[i_total])   if i_total   is not None and i_total   < len(fila) and fila[i_total]   else 0.0
+        monto_parcial = limpiar_monto(fila[i_parcial]) if i_parcial is not None and i_parcial < len(fila) and fila[i_parcial] else 0.0
+        mz    = str(fila[i_mz]).strip().upper() if i_mz    is not None and i_mz    < len(fila) and fila[i_mz]    else ""
+        lote  = str(fila[i_lote]).strip()        if i_lote  is not None and i_lote  < len(fila) and fila[i_lote]  else ""
+        motivo= str(fila[i_motivo]).strip()      if i_motivo is not None and i_motivo < len(fila) and fila[i_motivo] else ""
+        if not mz or not lote or monto_parcial <= 0:
+            continue
+        grupos.setdefault(clave, []).append({"mz": mz, "lote": lote, "monto_parcial": round(monto_parcial, 2), "motivo": motivo})
+        totales[clave] = monto_total
+
+    # Validar suma parciales == total
+    for clave, lotes in grupos.items():
+        suma = round(sum(l["monto_parcial"] for l in lotes), 2)
+        total = round(totales.get(clave, 0.0), 2)
+        if total > 0 and abs(suma - total) > 0.05:
+            print(f"  ⚠ Pagos_comunitarios {clave[:40]}: suma parciales {suma} ≠ total {total}")
+    return grupos
+
+
 def _leer_hoja_pagaste_ok(wb) -> dict:
     """
     Lee hoja Pagaste de pendientes (OK=SI).
@@ -1127,6 +1191,8 @@ def leer_correcciones(planilla: dict = None) -> tuple[dict, dict, dict, list, li
     corr_simples               = {}
     corr_ambiguos              = {}
     corr_multiples             = {}
+    corr_comunitarios          = {}   # ORIGEN|FECHA → {origen, fecha, monto} — flagged, aún sin desglose
+    comunitarios_resueltos     = {}   # ORIGEN|FECHA → list[{mz, lote, monto_parcial}] — OK=SI en Pagos_comunitarios
     validados_ambiguos         = []
     validados_maestro_inexacto = []
     corr_pagaste               = {}
@@ -1205,6 +1271,13 @@ def leer_correcciones(planilla: dict = None) -> tuple[dict, dict, dict, list, li
                 lote    = v.get("lote","")
                 concepto = v.get("concepto","")
                 if concepto and concepto.upper() not in ("NAN","NONE",""):
+                    if concepto.lower() == CONCEPTO_COMUNITARIO:
+                        corr_comunitarios[k] = {
+                            "origen": k.split("|")[0],
+                            "fecha":  k.split("|", 1)[1] if "|" in k else "",
+                            "monto":  v.get("monto", 0.0),
+                        }
+                        continue  # no va a corr_simples — espera desglose en Pagos_comunitarios
                     if k not in corr_simples:
                         n_nuevas += 1
                     v["_fuente"] = "ambiguo"
@@ -1264,6 +1337,11 @@ def leer_correcciones(planilla: dict = None) -> tuple[dict, dict, dict, list, li
                 if clave not in corr_pagaste:
                     corr_pagaste[clave] = v
 
+            # Hoja Pagos_comunitarios — desgloses OK=SI
+            comunitarios_resueltos = _leer_hoja_comunitarios(wb_pend)
+            if comunitarios_resueltos:
+                print(f"  Comunitarios resueltos: {len(comunitarios_resueltos)} depósito(s)")
+
             wb_pend.close()
         except Exception as e:
             print(f"  ⚠ No se pudo leer pendientes: {e}")
@@ -1274,8 +1352,9 @@ def leer_correcciones(planilla: dict = None) -> tuple[dict, dict, dict, list, li
     n_amb  = len(corr_ambiguos)
     n_mult = len(corr_multiples)
     n_pag  = len(corr_pagaste)
-    print(f"  Acumuladas: {n_si} sin_id + {n_amb} ambiguos + {n_mult} multiples + {n_pag} pagaste ({n_nuevas} nuevas)")
-    return corr_simples, corr_ambiguos, corr_multiples, validados_ambiguos, validados_maestro_inexacto, corr_pagaste
+    n_com = len(corr_comunitarios)
+    print(f"  Acumuladas: {n_si} sin_id + {n_amb} ambiguos + {n_mult} multiples + {n_pag} pagaste + {n_com} comunitarios ({n_nuevas} nuevas)")
+    return corr_simples, corr_ambiguos, corr_multiples, validados_ambiguos, validados_maestro_inexacto, corr_pagaste, corr_comunitarios, comunitarios_resueltos
 
 
 def _guardar_acumuladas(corr_simples: dict, corr_ambiguos: dict, corr_multiples: dict):
@@ -1354,12 +1433,16 @@ def ejecutar_matching(df: pd.DataFrame, mapa: dict,
                       corr_multiples: dict = None,
                       mzs_validas: set = None,
                       ciclo: int = 1,
-                      indice_ambiguo: dict = None) -> list:
-    if corr_simples   is None: corr_simples   = {}
-    if corr_ambiguos  is None: corr_ambiguos  = {}
-    if corr_multiples is None: corr_multiples = {}
-    if indice_ambiguo is None: indice_ambiguo = {}
-    if mzs_validas    is None: mzs_validas    = set(k[0] for k in planilla.keys()) if planilla else set()
+                      indice_ambiguo: dict = None,
+                      corr_comunitarios: dict = None,
+                      comunitarios_resueltos: dict = None) -> list:
+    if corr_simples           is None: corr_simples           = {}
+    if corr_ambiguos          is None: corr_ambiguos          = {}
+    if corr_multiples         is None: corr_multiples         = {}
+    if indice_ambiguo         is None: indice_ambiguo         = {}
+    if corr_comunitarios      is None: corr_comunitarios      = {}
+    if comunitarios_resueltos is None: comunitarios_resueltos = {}
+    if mzs_validas            is None: mzs_validas            = set(k[0] for k in planilla.keys()) if planilla else set()
     todos = []
 
     for _, fila in df.iterrows():
@@ -1375,6 +1458,41 @@ def ejecutar_matching(df: pd.DataFrame, mapa: dict,
         match_key  = origen.upper()   # maestro no tiene fecha
 
         base = {"origen": origen, "monto_pago": monto_pago, "mensaje": mensaje, "fecha": fecha}
+
+        # ── Comunitarios resueltos: emitir una fila por lote ────────────
+        if corr_key in comunitarios_resueltos:
+            for item in comunitarios_resueltos[corr_key]:
+                mz_c  = item["mz"];  lote_c = item["lote"]
+                mp    = item["monto_parcial"]
+                datos_c = planilla.get((mz_c, lote_c), {})
+                deuda_c = datos_c.get("deuda_total", 0.0)
+                dif_c   = round(mp - deuda_c, 2) if deuda_c else 0.0
+                ep_c    = "exacto" if dif_c == 0 else ("exceso" if dif_c > 0 else "parcial")
+                uid_c, nom_c = buscar_uid(mz_c, lote_c)
+                todos.append({**base,
+                    "monto_pago": mp,
+                    "monto_total": base["monto_pago"],
+                    "monto_parcial": mp,
+                    "user_id": uid_c, "nombre": nom_c or datos_c.get("nombre", ""),
+                    "mz": mz_c, "lote": lote_c,
+                    "nivel_confianza": "comunitario",
+                    "deuda_total": deuda_c, "mes_anterior": datos_c.get("mes_anterior", 0),
+                    "diferencia": dif_c, "estado_pago": ep_c,
+                    "fuente": "comunitario", "motivo": item.get("motivo", ""),
+                    "estado": "identificado",
+                })
+            continue
+
+        # ── Comunitarios pendientes: flagged pero sin desglose aún ──────
+        if corr_key in corr_comunitarios:
+            todos.append({**base,
+                "user_id": "", "nombre": "", "mz": "", "lote": "",
+                "nivel_confianza": "", "deuda_total": "", "mes_anterior": "",
+                "diferencia": "", "estado_pago": "comunitario",
+                "fuente": "comunitario", "motivo": "pendiente desglose",
+                "estado": "pendiente_comunitario",
+            })
+            continue
 
         # Unir todas las correcciones para este origen
         corr_simple  = corr_simples.get(corr_key) or corr_ambiguos.get(corr_key)
@@ -1772,16 +1890,23 @@ def exportar_pendientes(todos: list, pagaste_pendientes: list = None):
         and r.get("estado") == "pendiente"
     ]
 
-    total = len(sin_identificar) + len(ambiguos) + len(maestro_inexacto) + len(pagaste_pendientes)
+    comunitarios_pendientes = [
+        {"origen": r["origen"], "mensaje": r.get("mensaje", ""), "fecha": r["fecha"], "monto_total": r["monto_pago"]}
+        for r in todos
+        if r.get("fuente") == "comunitario" and r.get("estado") == "pendiente_comunitario"
+    ]
+
+    total = len(sin_identificar) + len(ambiguos) + len(maestro_inexacto) + len(pagaste_pendientes) + len(comunitarios_pendientes)
     if total == 0:
         print("  ✔ Sin pendientes")
         if ruta.exists():
             ruta.unlink()
         return
 
-    wb = exportar_pendientes_diseño(sin_identificar, ambiguos, maestro_inexacto, pagaste_pendientes, preservados=preservados)
+    wb = exportar_pendientes_diseño(sin_identificar, ambiguos, maestro_inexacto, pagaste_pendientes,
+                                    preservados=preservados, pagos_comunitarios=comunitarios_pendientes)
     wb.save(ruta)
-    print(f"  ⚠ Pendientes: {len(sin_identificar)} sin_id · {len(ambiguos)} ambiguos · {len(maestro_inexacto)} maestro_inexacto · {len(pagaste_pendientes)} pagaste")
+    print(f"  ⚠ Pendientes: {len(sin_identificar)} sin_id · {len(ambiguos)} ambiguos · {len(maestro_inexacto)} maestro_inexacto · {len(pagaste_pendientes)} pagaste · {len(comunitarios_pendientes)} comunitarios")
 
 def exportar_pagaste_xlsx(pagaste_conf: list, ciclo: int):
     """Escribe pagos_yape_pagaste.xlsx con todos los PAGASTE confirmados (acumulativo)."""
@@ -1989,12 +2114,13 @@ def main():
     df = validar_reporte(df, mapa)
 
     print("\n[7] Leyendo correcciones manuales...")
-    corr_simples, corr_ambiguos, corr_multiples, validados_ambiguos, validados_maestro_inexacto, corr_pagaste = leer_correcciones(planilla)
+    corr_simples, corr_ambiguos, corr_multiples, validados_ambiguos, validados_maestro_inexacto, corr_pagaste, corr_comunitarios, comunitarios_resueltos = leer_correcciones(planilla)
 
     print("\n[8] Ejecutando matching (TE PAGÓ)...")
     todos = ejecutar_matching(df, mapa, indice, planilla,
                               corr_simples, corr_ambiguos, corr_multiples,
-                              mzs_validas, ciclo, indice_ambiguo)
+                              mzs_validas, ciclo, indice_ambiguo,
+                              corr_comunitarios, comunitarios_resueltos)
 
     for reg in todos:
         if not reg.get("user_id") and reg.get("mz") and reg.get("lote"):
@@ -2073,8 +2199,9 @@ def main():
                 item["user_id"] = uid
                 if not item.get("nombre"):
                     item["nombre"] = nom
-    exportar_trazabilidad(ruta_traz, corr_simples, validados_ambiguos, corr_multiples, ciclo, fecha_hoy, validados_maestro_inexacto)
-    print(f"  ✔ {len(corr_simples)} sin_id · {len(validados_ambiguos)} ambiguos · {len(corr_multiples)} multiples · {len(validados_maestro_inexacto)} maestro_inexacto")
+    com_resueltos_list = [r for r in todos if r.get("fuente") == "comunitario" and r.get("estado") == "identificado"]
+    exportar_trazabilidad(ruta_traz, corr_simples, validados_ambiguos, corr_multiples, ciclo, fecha_hoy, validados_maestro_inexacto, com_resueltos_list)
+    print(f"  ✔ {len(corr_simples)} sin_id · {len(validados_ambiguos)} ambiguos · {len(corr_multiples)} multiples · {len(validados_maestro_inexacto)} maestro_inexacto · {len(com_resueltos_list)} comunitarios")
 
     print("\n[12] Actualizando blancos acumulados...")
     mes_str_bd = datetime.today().strftime("%Y-%m")

@@ -55,6 +55,7 @@ consultarlo ahí, no asumir un orden fijo de memoria.
 | Archivos Excel sin periodo | `lower_snake_case.xlsx` | `convenios.xlsx`, `multas.xlsx` |
 | Variables Python | `lower_snake_case` | `df_lecturas`, `total_mes` |
 | Constantes Python (`config.py`) | `UPPER_SNAKE_CASE` | `TARIFA_M3`, `INPUTS_DIR` |
+| Hojas Excel (sheets) | `Title_Case` | `Sin_identificar`, `Pagos_multiples`, `Pagos_comunitarios` |
 | Columnas Excel (todas) | `UPPER_SNAKE_CASE` | `MZ`, `LT`, `MES_ACTUAL`, `TOTAL_A_PAGAR` |
 
 Todas las columnas Excel — sin importar si las llenó un humano o el sistema — van en `UPPER_SNAKE_CASE`. La distinción se comunica con color, no con capitalización.

@@ -224,7 +224,8 @@ def exportar_pagos_tepago(todos: list, ciclo: int):
 def exportar_pendientes_diseño(sin_resolver: list, ambiguos: list = None,
                                maestro_inexacto: list = None,
                                pagaste: list = None,
-                               preservados: dict = None) -> Workbook:
+                               preservados: dict = None,
+                               pagos_comunitarios: list = None) -> Workbook:
     """
     Exporta pendientes.xlsx con 3 hojas siguiendo pendientes_xlsx.html:
     - Sin_identificar: sin maestro ni mensaje válido
@@ -235,9 +236,10 @@ def exportar_pendientes_diseño(sin_resolver: list, ambiguos: list = None,
                  Inyecta MZ/LOTE/CONCEPTO/MOTIVO/OK que el usuario llenó en el run
                  anterior pero no marcó como confirmados (OK=SI).
     """
-    if ambiguos         is None: ambiguos         = []
-    if maestro_inexacto is None: maestro_inexacto = []
-    if pagaste          is None: pagaste          = []
+    if ambiguos             is None: ambiguos             = []
+    if maestro_inexacto     is None: maestro_inexacto     = []
+    if pagaste              is None: pagaste              = []
+    if pagos_comunitarios   is None: pagos_comunitarios   = []
 
     def _aplicar_preservado(valores: dict, reg: dict, hoja: str):
         if not preservados:
@@ -513,6 +515,64 @@ def exportar_pendientes_diseño(sin_resolver: list, ambiguos: list = None,
                 ci += 1
             ws4.row_dimensions[ri].height = 18
         _aplicar_anchos(ws4, cols_pag, anchos_pag)
+
+    # ── Hoja 5: Pagos_comunitarios ────────────────────────────
+    if pagos_comunitarios:
+        ws5 = wb.create_sheet("Pagos_comunitarios")
+        ws5.freeze_panes = "A3"
+
+        C_MAN_H = "E1F5EE"; C_MAN_C = "F0FFF8"; C_MAN_T = "065F46"
+        C_VAL_H = "F4ECF7"; C_VAL_C = "FAF5FF"; C_VAL_T = "5B21B6"
+
+        # Fila 1: grupos
+        grupos_com = [
+            (2, 5, "← banco — no editar",        C_BAN_H, C_BAN_T),
+            (7,10, "← tú completas (una fila por lote)", C_MAN_H, C_MAN_T),
+            (12,12,"✓",                           C_VAL_H, C_VAL_T),
+        ]
+        for cs, ce, texto, bg, txt in grupos_com:
+            ws5.merge_cells(start_row=1, start_column=cs, end_row=1, end_column=ce)
+            c = ws5.cell(row=1, column=cs, value=texto)
+            _cel(c, bg, txt, bold=True, align="center", size=8)
+        ws5.column_dimensions[get_column_letter(6)].width  = 1
+        ws5.column_dimensions[get_column_letter(11)].width = 1
+        ws5.row_dimensions[1].height = 16
+
+        # Fila 2: columnas
+        cols_com = [
+            (2,  "ORIGEN",        C_BAN_H, C_BAN_T, 28),
+            (3,  "MENSAJE",       C_BAN_H, C_BAN_T, 32),
+            (4,  "FECHA",         C_BAN_H, C_BAN_T, 22),
+            (5,  "MONTO_TOTAL",   C_BAN_H, C_BAN_T, 13),
+            (7,  "MZ",            C_MAN_H, C_MAN_T,  7),
+            (8,  "LOTE",          C_MAN_H, C_MAN_T,  7),
+            (9,  "MONTO_PARCIAL", C_MAN_H, C_MAN_T, 14),
+            (10, "MOTIVO",        C_MAN_H, C_MAN_T, 28),
+            (12, "OK",            C_VAL_H, C_VAL_T,  7),
+        ]
+        for col, nombre, bg, txt, ancho in cols_com:
+            c = ws5.cell(row=2, column=col, value=nombre)
+            _cel(c, bg, txt, bold=True, align="center")
+            ws5.column_dimensions[get_column_letter(col)].width = ancho
+        ws5.row_dimensions[2].height = 18
+
+        # Datos — una fila por depósito (lotes vacíos para que operador llene)
+        for ri, dep in enumerate(pagos_comunitarios, 3):
+            vals = {
+                "ORIGEN":       dep.get("origen",   ""),
+                "MENSAJE":      dep.get("mensaje",  ""),
+                "FECHA":        dep.get("fecha",    ""),
+                "MONTO_TOTAL":  dep.get("monto_total", ""),
+                "MZ": "", "LOTE": "", "MONTO_PARCIAL": "", "MOTIVO": "", "OK": "",
+            }
+            for col, nombre, bg, txt, _ in cols_com:
+                es_banco = nombre in ("ORIGEN", "FECHA", "MONTO_TOTAL")
+                c = ws5.cell(row=ri, column=col, value=vals[nombre])
+                _cel(c, C_BAN_C if es_banco else C_MAN_C,
+                     C_BAN_T if es_banco else C_MAN_T,
+                     mono=nombre in ("ORIGEN", "FECHA", "MONTO_TOTAL", "MZ", "LOTE", "MONTO_PARCIAL"),
+                     align="right" if nombre in ("MONTO_TOTAL", "MONTO_PARCIAL") else "left")
+            ws5.row_dimensions[ri].height = 17
 
     return wb
 
@@ -1101,12 +1161,15 @@ C_CUA_H = "FEF3E8"; C_CUA_C = "FEF3E8"; C_CUA_T = "7C3003"
 
 def exportar_trazabilidad(ruta, corr_simples: dict, validados_ambiguos: list,
                            corr_multiples: dict, ciclo: int, fecha_hoy: str,
-                           validados_maestro_inexacto: list = None):
+                           validados_maestro_inexacto: list = None,
+                           comunitarios_resueltos_list: list = None):
     """
     Genera trazabilidad_YYYY_MM.xlsx con 4 hojas siguiendo trazabilidad.html
     """
     if validados_maestro_inexacto is None:
         validados_maestro_inexacto = []
+    if comunitarios_resueltos_list is None:
+        comunitarios_resueltos_list = []
     from pathlib import Path
     wb = Workbook()
 
@@ -1429,6 +1492,76 @@ def exportar_trazabilidad(ruta, corr_simples: dict, validados_ambiguos: list,
         ri += 1
 
     _aplicar_anchos(ws4, cols_mix_traz, anchos_mix_traz)
+
+    # ── Hoja 5: Pagos_comunitarios ────────────────────────────
+    if comunitarios_resueltos_list:
+        C_COM_H = "FFF7ED"; C_COM_T = "9A3412"
+        ws5 = wb.create_sheet("Pagos_comunitarios")
+        ws5.freeze_panes = "A3"
+
+        cols_com_traz = [
+            ("USER_ID",        C_ID_C,  C_ID_T,  True,  "left"),
+            ("NOMBRE",         C_ID_C,  C_ID_T,  False, "left"),
+            "__SEP__",
+            ("ORIGEN",         C_BAN_C, C_BAN_T, True,  "left"),
+            ("FECHA",          C_BAN_C, C_BAN_T, True,  "left"),
+            ("MONTO_TOTAL",    C_BAN_C, MONTO_T, True,  "right"),
+            "__SEP__",
+            ("MZ",             C_UBI_C, C_UBI_T, True,  "center"),
+            ("LOTE",           C_UBI_C, C_UBI_T, True,  "center"),
+            ("MONTO_PARCIAL",  C_UBI_C, MONTO_T, True,  "right"),
+            ("MOTIVO",         C_UBI_C, C_UBI_T, False, "left"),
+            "__SEP__",
+            ("CICLO",            C_CUA_C, C_CUA_T, True, "center"),
+            ("FECHA_CORRECCION", C_CUA_C, C_CUA_T, True, "left"),
+        ]
+        grupos_com_traz = [
+            ("¿QUIÉN ES?",          2, C_ID_H,  C_ID_T),
+            None,
+            ("¿QUÉ HIZO EL BANCO?", 3, C_BAN_H, C_BAN_T),
+            None,
+            ("DESGLOSE COMUNITARIO",4, C_COM_H, C_COM_T),
+            None,
+            ("¿CUÁNDO?",            2, C_CUA_H, C_CUA_T),
+        ]
+        _escribir_cabecera_doble(ws5, cols_com_traz, grupos_com_traz)
+
+        anchos_com_traz = {
+            "USER_ID":10, "NOMBRE":26,
+            "ORIGEN":28, "FECHA":20, "MONTO_TOTAL":13,
+            "MZ":6, "LOTE":7, "MONTO_PARCIAL":14, "MOTIVO":28,
+            "CICLO":7, "FECHA_CORRECCION":16,
+        }
+
+        ri = 3
+        for reg in comunitarios_resueltos_list:
+            valores = {
+                "USER_ID":           reg.get("user_id", ""),
+                "NOMBRE":            reg.get("nombre", ""),
+                "ORIGEN":            reg.get("origen", ""),
+                "FECHA":             reg.get("fecha", ""),
+                "MONTO_TOTAL":       reg.get("monto_total", ""),
+                "MZ":                reg.get("mz", ""),
+                "LOTE":              reg.get("lote", ""),
+                "MONTO_PARCIAL":     reg.get("monto_parcial", ""),
+                "MOTIVO":            reg.get("motivo", ""),
+                "CICLO":             ciclo,
+                "FECHA_CORRECCION":  fecha_hoy,
+            }
+            ci = 1
+            for col in cols_com_traz:
+                if col == "__SEP__":
+                    _sep_col(ws5, ri, ci)
+                    ci += 1
+                    continue
+                nombre, bg, txt, mono, align = col
+                c = ws5.cell(row=ri, column=ci, value=valores.get(nombre, ""))
+                _cel(c, bg, txt, mono=mono, align=align)
+                ci += 1
+            ws5.row_dimensions[ri].height = 18
+            ri += 1
+
+        _aplicar_anchos(ws5, cols_com_traz, anchos_com_traz)
 
     wb.save(ruta)
     print(f"  ✔ trazabilidad guardada: {Path(ruta).name}")
