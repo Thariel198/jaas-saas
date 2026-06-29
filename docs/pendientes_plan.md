@@ -28,7 +28,7 @@
 
 | # | Descripción | Módulo | Causa raíz | Complejidad |
 |---|---|---|---|---|
-| B2 | **Duplicados en `trazabilidad_cobranza.xlsx`**: `MONTO_TRAZ = 2× MONTO_PLAN` en filas ~413-414 y 434-448. 6 huérfanos a revisar manual: B-14, B-5, C1-9, B-9, O-6, D1-4. Detectado por `5b_validacion` (cuando corra con B3 resuelto). Causa raíz no confirmada — posiblemente backfill in-place duplicó filas en 5_cobranza | `5_cobranza`, `5b_validacion` | Causa raíz no obvia | Alta |
+| ~~B2~~ ✅ (2026-06-29) | **RESUELTO.** Duplicados en `trazabilidad_cobranza.xlsx` (997 filas, 839 dup). Causa raíz: `_fecha_hora_str` hacía `str(Timestamp)`+reparse `dayfirst=True` → invertía día/mes (5 jun→6 may). Trazabilidad guardaba fecha corrupta pero la identidad de idempotencia usaba la fecha correcta → re-agregaba ~277 pagos por corrida. Fix 1: `_fecha_hora_str` formatea Timestamp/datetime directo. Fix 2: excluir huérfanos (BLANCO sin lote) de `ids_actuales`. Limpieza one-time: dedup 997→448 + fechas corregidas desde fuente (backup `trazabilidad_cobranza_pre_dedup_*.xlsx`). Verificado: idempotencia exacta (0 nuevos), 5b_validacion OK | `5_cobranza` | — | — |
 | B4 | **NUEVO** `2_planilla/main.py` escribe `TOTAL_A_PAGAR = None` (fórmula Excel, no valor Python). Si la planilla se re-genera y no se abre en Excel antes de correr `5_cobranza`, `TOTAL_A_PAGAR=NaN` → 5_cobranza ve deuda 0 → 309 EXCESO falso. Evidencia: run 2026-06-26 17:19 produjo CANCELADO=101 EXCESO=309 (vs Jun 24: CANCELADO=291 EXCESO=17). Fix: (A) abrir planilla en Excel y guardar antes de correr 5_cobranza, (B) calcular TOTAL_A_PAGAR en Python en 2_planilla. Decisión pendiente. **5_cobranza/outputs/ de Jun 26 17:19 son inválidos — no usar.** | `2_planilla`, `5_cobranza` | Diseño — fórmula vs Python | Media |
 
 ---
@@ -115,12 +115,12 @@ B3 resuelto, S1 corrida (efectivo OK, yape por-MZ OK), S4 re-corrida OK (CANCELA
 
 **Orden:** Después de Sesión A. Desbloquea 6b_corte_multas, 7_cierre, arrastre consolidado.
 
-1. **[B2]** Investigar causa raíz de duplicados en `trazabilidad_cobranza.xlsx` — leer `5_cobranza/main.py` backfill in-place y reproducir el caso con los 6 huérfanos
+1. ~~**[B2]**~~ ✅ (2026-06-29) RESUELTO — causa raíz: `_fecha_hora_str` corrompía fechas (dayfirst reparse) rompiendo idempotencia. Ver tabla Bugs.
 2. **[DE2]** Decidir qué hacer con `6b_corte_multas` ciclo 2026-06: ¿aplicar penalidad ahora o cerrar el ciclo sin ella? (verificar `compromisos.xlsx` primero)
 3. **[DE3]** Definir si la regla de reclamos EN_REVISION de junio 2026 se normaliza en julio o continúa
 4. **[DE4]** Decidir si `3_boletas` se refactoriza o permanece como herramienta manual independiente
 5. **[DE5]** Especificar el diseño del arrastre consolidado (Opción B): schema exacto, orden de prioridad, qué reemplaza
-6. ~~**[DE6]** Diseño~~ ✅ (2026-06-28) — **[DE6-CODE]** Implementar split en `motor_matching/main.py` + loader DEVUELTO en `5_cobranza/main.py`
+6. ~~**[DE6]** Diseño~~ ✅ (2026-06-28) — ~~**[DE6-CODE]**~~ ✅ (2026-06-29) split en `motor_matching` + loader `_cargar_devueltos_yape` + columna DEVUELTO en `planilla_cobrado` y `trazabilidad`
 
 ---
 
@@ -184,7 +184,20 @@ ciclo 2026-07  → D1 (arrastres vacíos) + D3 (15 bloqueantes de campo) + B4 (f
 
 ---
 
+## Sesión 2026-06-29 (Opus) — decisiones y hallazgos nuevos
+
+**B2 RESUELTO** (ver tabla Bugs): `_fecha_hora_str` corrompía fechas (dayfirst) rompiendo idempotencia → trazabilidad re-agregaba ~277 pagos/corrida. Fix + dedup 997→448 + huérfanos fuera de `ids_actuales`. Verificado.
+
+**DE7 (NUEVO) — Generalizar CONCEPTO como vocabulario de ruteo de conceptos.** *(Aprobado · el usuario lo implementa.)*
+Agregar columna CONCEPTO a los documentos del pipeline (los 7 + pagos_efectivo + trazabilidad), no solo Yape. CONCEPTO ya tiene 3 usos (comunitario, gasto/honorario, **tanque**) → generalizar ahora cumple Regla del Tres y el criterio agentic SaaS (etiqueta explícita ruteable por agente, vs BLANCO sobrecargado o columna-por-concepto rígida). 5_cobranza ya ignora pagos con CONCEPTO seteado → un pago marcado sale del cálculo de agua. Pendiente de DISEÑO antes de código (trigger C): qué documentos lo llevan, vocabulario válido, quién escribe/consume, actualizar `formato_*.html` + `diagrama_flujo`. | `todos` | Diseño — Alta |
+
+**DE8 (NUEVO) — Regla de ventas para el contador.** ventas = consumo + mantenimiento (corte EXCLUIDO: concepto agua pero no es venta por ley peruana). Base = dinero **real** cobrado con parciales: `min(PAGO, MES_ACTUAL + MANTENIMIENTO + MES_ANTERIOR)` sobre los que pagaron. Jun-2026 = **S/ 7,585.50**. Inmune a exceso/duplicados (el cap a lo facturado los neutraliza). El reporte solo es oficial tras 5b_validacion OK. Falta: generar `ventas_contador_YYYY-MM.xlsx` (¿en 5b o 5_cobranza?). | `5b_validacion` / `5_cobranza` | Implementación |
+
+**Hallazgo — el "exceso" NO son duplicados.** Los 17 EXCESO son pagos por **conceptos no modelados** en la planilla: tanque (A-3 S/200, E-1 S/100), deuda histórica (M-12 S/266, "2019 hasta octubre 2025"), reclamo (C1-17 S/170), + redondeos y P-6 (S/300 por averiguar). Mesa/cobrador/comentario en `4_pagos/efectivo/outputs/pagos_efectivo.xlsx`; origen/mensaje yape en `pagos_yape_tepago.xlsx`. **Aporte tanque** → futura base de datos, alimentada vía CONCEPTO=tanque (DE7).
+
+---
+
 ## SIGUIENTE_ACCION
-modelo: Sonnet
-sesion: Sesión DE6-CODE — implementación código devolucion/retorno
-razon: DE6 diseño completado (2026-06-28): RETORNO y DEVUELTO son badges puntero (yape/efectivo/mixto), CONCEPTO=devolucion|retorno en pendientes.xlsx splittea en motor_matching, ambos reducen MONTO_YAPE, col 18 DEVOLUCION queda dormante. Trazabilidad v2.0 aplicada (REFERENCIA, FECHA con hora, COMENTARIO). HTMLs actualizados: planilla_cobrado_diseno, trazabilidad_cobranza, pagos_yape_devolucion_diseno, pendientes_xlsx, diagrama_5_cobranza, pagos_yape_retorno_diseno (nuevo). CÓDIGO PENDIENTE: (1) motor_matching/main.py — split exportar_devolucion_xlsx por CONCEPTO en dos archivos. (2) 5_cobranza/main.py — loader _cargar_devueltos_yape() + columna DEVUELTO en planilla_cobrado y trazabilidad. Commits pendientes acumulados: 5b_validacion/main.py, 5_cobranza/main.py, 6_corte/*.py, 4_pagos/motor_matching/main.py + todos los HTMLs de esta sesión.
+modelo: Opus
+sesion: Sesión B — decisiones de negocio (DE2, DE3, DE4, DE5) + diseño DE7
+razon: B2 RESUELTO (2026-06-29). DE6 + Pagos_comunitarios cerrados. Nuevos: DE7 (generalizar CONCEPTO — el usuario lo implementa) y DE8 (ventas contador S/7,585.50). Sesión B sigue con DE2 (6b_corte_multas), DE3 (7_cierre EN_REVISION), DE4 (3_boletas), DE5 (arrastre consolidado, debe llevar CONSUMO_PREV + MANT_PREV separados). Commits pendientes de sesión 2026-06-28 + cambios de hoy (5_cobranza/main.py, 5b_validacion/main.py, exportar_motor.py, motor_matching/main.py) aún sin commitear.

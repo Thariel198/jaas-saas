@@ -272,17 +272,22 @@ def _fecha_hora_str(val) -> str:
     Yape trae '21/06/2026 12:08:29' → '21/06/2026 12:08'. Efectivo sin hora → DD/MM/YYYY."""
     if val is None:
         return ""
-    s = str(val).strip()
-    if not s or s.upper() in ("NAN", "NAT", "NONE"):
-        return ""
     try:
         if pd.isna(val):
             return ""
     except (TypeError, ValueError):
         pass
-    dt = pd.to_datetime(s, dayfirst=True, errors="coerce")
-    if pd.isna(dt):
-        return _fecha_str(val)
+    # Timestamp/datetime ya parseado: formatear directo. NO hacer str()+dayfirst,
+    # eso reinterpreta '2026-06-05' (5 jun) como 6 may y rompe la idempotencia.
+    if isinstance(val, (pd.Timestamp, datetime)):
+        dt = val
+    else:
+        s = str(val).strip()
+        if not s or s.upper() in ("NAN", "NAT", "NONE"):
+            return ""
+        dt = pd.to_datetime(s, dayfirst=True, errors="coerce")
+        if pd.isna(dt):
+            return _fecha_str(val)
     # sin componente horario → solo fecha
     if dt.hour == 0 and dt.minute == 0 and dt.second == 0:
         return dt.strftime("%d/%m/%Y")
@@ -1742,15 +1747,19 @@ def main():
     pagos_efectivo = _aplicar_correcciones_lote(pagos_efectivo, correcciones)
 
     print("\n[3/6] Detectando ciclo de cobranza...")
-    ids_actuales = {_identidad_pago(p) for p in (pagos_yape + pagos_efectivo)}
-    pagos_nuevos = ids_actuales - ids_previas
-
-    # Discrepancias: pagos cuyo MZ+LT no existe en planilla.
-    # Se computan siempre — el archivo actúa como señal de trabajo pendiente
-    # independientemente de si el ciclo es idempotente o no.
+    # Huérfanos: pagos cuyo MZ+LT no existe en planilla. Nunca se escriben en
+    # trazabilidad (ver _exportar_trazabilidad_cobranza) → se excluyen de la
+    # identidad de idempotencia para que pagos_nuevos quede vacío sin cambios.
     _keys_validos = {u["key"] for u in usuarios}
     _huerfanos    = ({p["key"] for p in pagos_yape} |
                     {p["key"] for p in pagos_efectivo}) - _keys_validos
+
+    ids_actuales = {_identidad_pago(p) for p in (pagos_yape + pagos_efectivo)
+                    if p["key"] not in _huerfanos}
+    pagos_nuevos = ids_actuales - ids_previas
+
+    # Discrepancias: se exportan siempre — el archivo actúa como señal de trabajo
+    # pendiente independientemente de si el ciclo es idempotente o no.
     disc_yape = [p for p in pagos_yape     if p["key"] in _huerfanos]
     disc_efec = [p for p in pagos_efectivo if p["key"] in _huerfanos]
     _exportar_discrepancias_cobranza(disc_yape, disc_efec)
