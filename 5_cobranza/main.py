@@ -42,10 +42,11 @@ YAPE_DIR      = ROOT.parent / "4_pagos" / "yape" / "motor_matching" / "outputs"
 EFEC_DIR      = ROOT.parent / "4_pagos" / "efectivo" / "outputs"
 BLANCOS_PATH  = SHARED_DIR / "blancos_acumulados.xlsx"
 
-YAPE_FILE     = "pagos_yape_tepago.xlsx"
-EFEC_FILE     = "pagos_efectivo.xlsx"
-YAPE_DEV_FILE = "pagos_yape_devolucion.xlsx"
-EFEC_DEV_FILE = "pagos_efectivo_devolucion.xlsx"
+YAPE_FILE         = "pagos_yape_tepago.xlsx"
+EFEC_FILE         = "pagos_efectivo.xlsx"
+YAPE_DEV_FILE     = "pagos_yape_devolucion.xlsx"
+YAPE_RETORNO_FILE = "pagos_yape_retorno.xlsx"
+EFEC_DEV_FILE     = "pagos_efectivo_devolucion.xlsx"
 
 CORR_LOTE_PATH = INPUTS_DIR / "correcciones_lote.xlsx"
 
@@ -490,10 +491,10 @@ def _cargar_blancos() -> dict:
 # Ambos archivos son opcionales — si no existen, no hay retornos este ciclo.
 
 def _cargar_retornos_yape() -> dict:
-    """Retorna {key MZ-LT: monto_total}. Archivo opcional."""
-    path = YAPE_DIR / YAPE_DEV_FILE
+    """Retorna {key MZ-LT: monto_total}. Lee pagos_yape_retorno.xlsx. Archivo opcional."""
+    path = YAPE_DIR / YAPE_RETORNO_FILE
     if not path.exists():
-        log.info(f"{YAPE_DEV_FILE} no encontrado → sin retornos Yape")
+        log.info(f"{YAPE_RETORNO_FILE} no encontrado → sin retornos Yape")
         return {}
     df = pd.read_excel(path, header=1)
     df.columns = _norm_cols(df)
@@ -510,6 +511,30 @@ def _cargar_retornos_yape() -> dict:
         devs[k] = devs.get(k, 0.0) + round(monto, 2)
     if devs:
         log.info(f"Retornos Yape → {len(devs)} lotes · S/ {sum(devs.values()):.2f}")
+    return devs
+
+
+def _cargar_devueltos_yape() -> dict:
+    """Retorna {key MZ-LT: monto_total}. Lee pagos_yape_devolucion.xlsx. Archivo opcional."""
+    path = YAPE_DIR / YAPE_DEV_FILE
+    if not path.exists():
+        log.info(f"{YAPE_DEV_FILE} no encontrado → sin devoluciones Yape")
+        return {}
+    df = pd.read_excel(path, header=1)
+    df.columns = _norm_cols(df)
+    devs = {}
+    for _, f in df.iterrows():
+        mz = _norm_mz(f.get("MZ"))
+        lt = _norm_lt(f.get("LOTE"))
+        if not mz or not lt:
+            continue
+        monto = _float(f.get("MONTO"))
+        if monto <= TOL:
+            continue
+        k = f"{mz}-{lt}"
+        devs[k] = devs.get(k, 0.0) + round(monto, 2)
+    if devs:
+        log.info(f"Devoluciones Yape → {len(devs)} lotes · S/ {sum(devs.values()):.2f}")
     return devs
 
 
@@ -559,6 +584,11 @@ def _retornos_por_lote(dev_yape: dict, dev_efec: dict) -> dict:
         if badge:
             out[k] = badge
     return out
+
+
+def _devueltos_por_lote(dev_devuelto: dict) -> dict:
+    """Devuelve {key: 'yape'} para lotes con devolución Yape. Solo incluye lotes con devuelto."""
+    return {k: "yape" for k, v in dev_devuelto.items() if v > TOL}
 
 
 def _retornos_planilla_previa() -> dict:
@@ -756,6 +786,7 @@ def _calcular(usuarios: list[dict],
               blancos: dict,
               dev_yape: dict,
               dev_efec: dict,
+              dev_devuelto: dict,
               ciclo_nuevo: int,
               pagos_nuevos: set) -> tuple[list[dict], set]:
     yape_por_key: dict[str, list[dict]] = {}
@@ -784,16 +815,19 @@ def _calcular(usuarios: list[dict],
         yape_sum = round(sum(p["monto"] for p in ys), 2)
         efec_sum = round(sum(p["monto"] for p in es), 2)
 
-        # Retornos del lote (cualquier medio reduce MONTO_YAPE).
-        # El badge RETORNO indica el medio para auditoria — no afecta el calculo.
-        yape_dev_lote = round(dev_yape.get(k, 0.0), 2)
-        efec_dev_lote = round(dev_efec.get(k, 0.0), 2)
-        total_dev     = round(yape_dev_lote + efec_dev_lote, 2)
-        yape_neto     = round(yape_sum - total_dev, 2)
+        # Retornos y devoluciones — ambos reducen MONTO_YAPE.
+        # RETORNO badge: desde pagos_yape_retorno.xlsx + pagos_efectivo_devolucion.xlsx
+        # DEVUELTO badge: desde pagos_yape_devolucion.xlsx
+        yape_dev_lote     = round(dev_yape.get(k, 0.0), 2)
+        efec_dev_lote     = round(dev_efec.get(k, 0.0), 2)
+        devuelto_lote     = round(dev_devuelto.get(k, 0.0), 2)
+        total_dev         = round(yape_dev_lote + efec_dev_lote + devuelto_lote, 2)
+        yape_neto         = round(yape_sum - total_dev, 2)
         if yape_neto < -TOL:
-            log.warning(f"Lote {k}: retorno (S/ {total_dev:.2f}) excede pago Yape "
+            log.warning(f"Lote {k}: retorno+devuelto (S/ {total_dev:.2f}) excede pago Yape "
                         f"(S/ {yape_sum:.2f}) → MONTO_YAPE quedará negativo")
         retorno_badge = _retorno_badge(yape_dev_lote, efec_dev_lote)
+        devuelto_badge = "yape" if devuelto_lote > TOL else None
 
         pagado = round(yape_neto + efec_sum, 2)
 
@@ -835,6 +869,7 @@ def _calcular(usuarios: list[dict],
             "fecha_pago":     _fecha_max(fechas),
             "ciclo_cobranza": ciclo_user,
             "retorno":        retorno_badge,
+            "devuelto":       devuelto_badge,
             "pagos_yape":     ys,
             "pagos_efectivo": es,
         })
@@ -842,9 +877,12 @@ def _calcular(usuarios: list[dict],
            for e in ("CANCELADO", "EXCESO", "PARCIAL", "PENDIENTE")}
     log.info(f"Estados → CANCELADO={cnt['CANCELADO']} EXCESO={cnt['EXCESO']} "
              f"PARCIAL={cnt['PARCIAL']} PENDIENTE={cnt['PENDIENTE']}")
-    n_retornos = sum(1 for r in resultado if r["retorno"])
+    n_retornos  = sum(1 for r in resultado if r["retorno"])
+    n_devueltos = sum(1 for r in resultado if r["devuelto"])
     if n_retornos:
         log.info(f"Lotes con retorno → {n_retornos}")
+    if n_devueltos:
+        log.info(f"Lotes con devuelto → {n_devueltos}")
     return resultado, blancos_usados
 
 
@@ -875,8 +913,8 @@ _PC_GRUPOS = [
     (10, 16, "Cobro — cargos",       *GH_COB),
     (17, 18, "Descuentos",           *GH_DESC),
     (19, 19, "Total",                *GH_TOTAL),
-    (21, 26, "Pago → 5_cobranza",    *GH_PAGO),
-    (28, 28, "¿Cuándo?",             *GH_TRAZ),
+    (21, 27, "Pago → 5_cobranza",    *GH_PAGO),
+    (29, 29, "¿Cuándo?",             *GH_TRAZ),
 ]
 _PC_COLS = [
     (1,  "MZ",                *GH_QUIEN,   6),
@@ -900,11 +938,12 @@ _PC_COLS = [
     (22, "MONTO_EFECTIVO",    *GH_PAGO,   14),
     (23, "SALDO",             *GH_PAGO,   12),
     (24, "RETORNO",           *GH_PAGO,   10),
-    (25, "ESTADO",            *GH_PAGO,   11),
-    (26, "FECHA_PAGO",        *GH_PAGO,   11),
-    (28, "CICLO_COBRANZA",    *GH_TRAZ,   14),
+    (25, "DEVUELTO",          *GH_PAGO,   10),
+    (26, "ESTADO",            *GH_PAGO,   11),
+    (27, "FECHA_PAGO",        *GH_PAGO,   11),
+    (29, "CICLO_COBRANZA",    *GH_TRAZ,   14),
 ]
-_PC_SEP_COLS = [5, 9, 20, 27]
+_PC_SEP_COLS = [5, 9, 20, 28]
 
 
 def _exportar_planilla_cobrado(resultado: list[dict]):
@@ -1011,20 +1050,32 @@ def _exportar_planilla_cobrado(resultado: list[dict]):
         else:
             _c(ws, ri, 24, None, TD_PAGO, "5B21B6", mono=True, align="center")
 
+        # DEVUELTO badge — PAGASTE devolucion aplicado a este lote
+        if r.get("devuelto"):
+            dev_bg  = RETORNO_BG.get(r["devuelto"], "FFFFFF")
+            dev_txt = RETORNO_TXT.get(r["devuelto"], "333333")
+            c_dev = ws.cell(row=ri, column=25, value=r["devuelto"])
+            c_dev.font      = Font(name="Arial", size=9, bold=True, color=dev_txt)
+            c_dev.fill      = PatternFill("solid", start_color=dev_bg)
+            c_dev.alignment = Alignment(horizontal="center", vertical="center")
+            c_dev.border    = _borde()
+        else:
+            _c(ws, ri, 25, None, TD_PAGO, "5B21B6", mono=True, align="center")
+
         # ESTADO badge
         est_bg  = ESTADO_BG.get(r["estado"], "FFFFFF")
         est_txt = ESTADO_TXT.get(r["estado"], "333333")
-        c_est = ws.cell(row=ri, column=25, value=r["estado"])
+        c_est = ws.cell(row=ri, column=26, value=r["estado"])
         c_est.font      = Font(name="Arial", size=9, bold=True, color=est_txt)
         c_est.fill      = PatternFill("solid", start_color=est_bg)
         c_est.alignment = Alignment(horizontal="center", vertical="center")
         c_est.border    = _borde()
 
-        _c(ws, ri, 26, r["fecha_pago"] or None, TD_PAGO, "7C3AED",
+        _c(ws, ri, 27, r["fecha_pago"] or None, TD_PAGO, "7C3AED",
            mono=True, align="center")
 
         # CICLO_COBRANZA
-        _c(ws, ri, 28, r["ciclo_cobranza"], TD_TRAZ, "7D6608",
+        _c(ws, ri, 29, r["ciclo_cobranza"], TD_TRAZ, "7D6608",
            mono=True, align="center", bold=True)
 
         ws.row_dimensions[ri].height = 17
@@ -1052,10 +1103,10 @@ def _exportar_planilla_cobrado(resultado: list[dict]):
 
 _TZ_GRUPOS = [
     (1,  3,  "¿Quién es?",          *GH_TZ_QUIEN),
-    (5,  7,  "¿Qué pagó?",          *GH_COB),
-    (9,  11, "¿Cómo verificarlo?",  *GH_TZ_VERIF),
-    (13, 15, "¿De qué ciclo?",      *GH_TZ_CICLO),
-    (17, 18, "Lote corregido",      *GH_DC_CORR),
+    (5,  8,  "¿Qué pagó?",          *GH_COB),
+    (10, 12, "¿Cómo verificarlo?",  *GH_TZ_VERIF),
+    (14, 16, "¿De qué ciclo?",      *GH_TZ_CICLO),
+    (18, 19, "Lote corregido",      *GH_DC_CORR),
 ]
 _TZ_COLS = [
     (1,  "MZ",                       *GH_TZ_QUIEN,   6),
@@ -1064,16 +1115,17 @@ _TZ_COLS = [
     (5,  "MONTO",                    *GH_COB,      11),
     (6,  "FUENTE",                   *GH_COB,      10),
     (7,  "RETORNO",                  *GH_COB,      10),
-    (9,  "REFERENCIA",               *GH_TZ_VERIF, 24),
-    (10, "FECHA",                    *GH_TZ_VERIF, 18),
-    (11, "COMENTARIO",               *GH_TZ_VERIF, 30),
-    (13, "CICLO_CORRECCION_ORIGEN",  *GH_TZ_CICLO, 22),
-    (14, "CICLO_COBRANZA",           *GH_TZ_CICLO, 16),
-    (15, "FECHA_CARGA",              *GH_TZ_CICLO, 18),
-    (17, "MZ_ORIGEN",                *GH_DC_CORR,   9),
-    (18, "LT_ORIGEN",                *GH_DC_CORR,   9),
+    (8,  "DEVUELTO",                 *GH_COB,      10),
+    (10, "REFERENCIA",               *GH_TZ_VERIF, 24),
+    (11, "FECHA",                    *GH_TZ_VERIF, 18),
+    (12, "COMENTARIO",               *GH_TZ_VERIF, 30),
+    (14, "CICLO_CORRECCION_ORIGEN",  *GH_TZ_CICLO, 22),
+    (15, "CICLO_COBRANZA",           *GH_TZ_CICLO, 16),
+    (16, "FECHA_CARGA",              *GH_TZ_CICLO, 18),
+    (18, "MZ_ORIGEN",                *GH_DC_CORR,   9),
+    (19, "LT_ORIGEN",                *GH_DC_CORR,   9),
 ]
-_TZ_SEP_COLS = [4, 8, 12, 16]
+_TZ_SEP_COLS = [4, 9, 13, 17]
 
 FUENTE_BG  = {"yape": "E1F5EE", "efectivo": "EFF6FF"}
 FUENTE_TXT = {"yape": "085041", "efectivo": "1D4ED8"}
@@ -1087,6 +1139,7 @@ def _exportar_trazabilidad_cobranza(
     pagos_nuevos: set,
     trazabilidad_path: Path,
     retornos_por_lote: dict,
+    devueltos_por_lote: dict,
 ):
     """Append: lee filas previas, agrega solo las nuevas con CICLO_COBRANZA=ciclo_nuevo.
     RETORNO se recalcula en cada run desde el estado actual de retornos_por_lote —
@@ -1216,26 +1269,39 @@ def _exportar_trazabilidad_cobranza(
         else:
             _c(ws, ri, 7, None, TD_COB, "065F46", mono=True, align="center")
 
+        # DEVUELTO badge — pagos_yape_devolucion aplicado a este lote
+        devuelto_lote = devueltos_por_lote.get(f"{t['mz']}-{t['lt']}")
+        if devuelto_lote:
+            dv_bg  = RETORNO_BG.get(devuelto_lote, "FFFFFF")
+            dv_txt = RETORNO_TXT.get(devuelto_lote, "333333")
+            c_dv = ws.cell(row=ri, column=8, value=devuelto_lote)
+            c_dv.font      = Font(name="Arial", size=9, bold=True, color=dv_txt)
+            c_dv.fill      = PatternFill("solid", start_color=dv_bg)
+            c_dv.alignment = Alignment(horizontal="center", vertical="center")
+            c_dv.border    = _borde()
+        else:
+            _c(ws, ri, 8, None, TD_COB, "065F46", mono=True, align="center")
+
         # ¿Cómo verificarlo? — REFERENCIA · FECHA (con hora si Yape) · COMENTARIO
-        _c(ws, ri,  9, t.get("referencia") or None, TD_TZ_VERIF, "92400E",
+        _c(ws, ri, 10, t.get("referencia") or None, TD_TZ_VERIF, "92400E",
            mono=True, align="left")
-        _c(ws, ri, 10, t.get("fecha_hora") or None, TD_TZ_VERIF, "7C2D12",
+        _c(ws, ri, 11, t.get("fecha_hora") or None, TD_TZ_VERIF, "7C2D12",
            mono=True, align="center")
-        _c(ws, ri, 11, t.get("comentario") or None, TD_TZ_VERIF, "78350F",
+        _c(ws, ri, 12, t.get("comentario") or None, TD_TZ_VERIF, "78350F",
            align="left")
         # ¿De qué ciclo? — corrección origen · cobranza · timestamp de carga
-        _c(ws, ri, 13, t["ciclo_correccion_origen"], TD_TZ_CICLO, "1E40AF",
+        _c(ws, ri, 14, t["ciclo_correccion_origen"], TD_TZ_CICLO, "1E40AF",
            mono=True, align="center")
-        _c(ws, ri, 14, t["ciclo_cobranza"],          TD_TZ_CICLO, "1E40AF",
+        _c(ws, ri, 15, t["ciclo_cobranza"],          TD_TZ_CICLO, "1E40AF",
            mono=True, align="center", bold=True)
-        _c(ws, ri, 15, t["fecha_carga"],             TD_TZ_CICLO, "1E40AF",
+        _c(ws, ri, 16, t["fecha_carga"],             TD_TZ_CICLO, "1E40AF",
            mono=True, align="center")
         # Lote corregido — solo para pagos con remapeo de correcciones_lote
         mz_orig = t.get("mz_origen") or ""
         lt_orig = t.get("lt_origen") or ""
         bg_orig = TD_DC_CORR if mz_orig else TD_DC_CORR_V
-        _c(ws, ri, 17, mz_orig or None, bg_orig, GH_DC_CORR[1], mono=True, align="center")
-        _c(ws, ri, 18, lt_orig or None, bg_orig, GH_DC_CORR[1], mono=True, align="center")
+        _c(ws, ri, 18, mz_orig or None, bg_orig, GH_DC_CORR[1], mono=True, align="center")
+        _c(ws, ri, 19, lt_orig or None, bg_orig, GH_DC_CORR[1], mono=True, align="center")
         ws.row_dimensions[ri].height = 17
 
     wb.save(trazabilidad_path)
@@ -1665,6 +1731,7 @@ def main():
     blancos           = _cargar_blancos()
     dev_yape          = _cargar_retornos_yape()
     dev_efec          = _cargar_retornos_efectivo()
+    dev_devuelto      = _cargar_devueltos_yape()
     traz_path         = OUTPUTS_DIR / "trazabilidad_cobranza.xlsx"
     ids_previas, max_ciclo = _cargar_trazabilidad_previa()
 
@@ -1690,7 +1757,8 @@ def main():
 
     # Idempotencia: tambien comparar retornos contra el estado previo.
     # Si pagos no cambian pero retornos si → re-generar sin avanzar ciclo.
-    retornos_actuales = _retornos_por_lote(dev_yape, dev_efec)
+    retornos_actuales  = _retornos_por_lote(dev_yape, dev_efec)
+    devueltos_actuales = _devueltos_por_lote(dev_devuelto)
     retornos_previos  = _retornos_planilla_previa()
     retornos_cambiados = retornos_actuales != retornos_previos
 
@@ -1715,7 +1783,7 @@ def main():
     print("\n[4/6] Calculando cobranza...")
     resultado, blancos_usados = _calcular(
         usuarios, pagos_yape, pagos_efectivo, blancos,
-        dev_yape, dev_efec,
+        dev_yape, dev_efec, dev_devuelto,
         ciclo_nuevo, pagos_nuevos
     )
 
@@ -1728,7 +1796,7 @@ def main():
     _exportar_trazabilidad_cobranza(
         resultado, pagos_yape, pagos_efectivo,
         ciclo_nuevo, pagos_nuevos, traz_path,
-        retornos_actuales,
+        retornos_actuales, devueltos_actuales,
     )
     _exportar_resumen(resultado, n_corte, mes_ano, ciclo_nuevo)
     _exportar_arrastre_deuda(resultado, mes_ano)

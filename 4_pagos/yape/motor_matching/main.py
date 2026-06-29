@@ -1,4 +1,5 @@
 # =========================IMPORTS===========================
+import json
 import re
 import shutil
 from datetime import datetime
@@ -41,6 +42,7 @@ MAESTRO_FILE      = "maestro_yape.xlsx"
 OUTPUT_FILE       = "pagos_yape_tepago.xlsx"
 PAGASTE_FILE      = "pagos_yape_pagaste.xlsx"
 DEVOLUCION_FILE   = "pagos_yape_devolucion.xlsx"
+RETORNO_FILE      = "pagos_yape_retorno.xlsx"
 PENDIENTES_FILE   = "pendientes.xlsx"
 BLANCOS_FILE      = SHARED_DIR / "blancos_acumulados.xlsx"
 TIPO_PAGO         = "TE PAGÓ"
@@ -154,7 +156,10 @@ def obtener_ancla() -> datetime | None:
     Lee reporte_acumulado_crudo/ — toma el archivo más reciente
     y extrae la fecha máxima de sus registros como ancla de corte.
     """
-    archivos = sorted(SHARED_DIR.joinpath("reporte_acumulado_procesado").glob("*_procesado.xlsx"))
+    archivos = sorted(
+        p for p in SHARED_DIR.joinpath("reporte_acumulado_procesado").glob("*_procesado.xlsx")
+        if not p.name.startswith("~$")
+    )
     if not archivos:
         print(f"  ⚠ No hay archivos procesados en reporte_acumulado_procesado/ — sin ancla de corte")
         return None
@@ -1787,38 +1792,121 @@ def exportar_pagaste_xlsx(pagaste_conf: list, ciclo: int):
 
 def exportar_devolucion_xlsx(pagaste_conf: list, ciclo: int):
     """
-    Escribe pagos_yape_devolucion.xlsx con el subconjunto de PAGASTE que tienen MZ+LOTE.
-    Si no hay ninguna devolución a lote, borra el archivo si existiera.
+    Splitea PAGASTE con MZ+LOTE por CONCEPTO:
+      - CONCEPTO="retorno"   → pagos_yape_retorno.xlsx
+      - CONCEPTO otro/vacío  → pagos_yape_devolucion.xlsx
+    Si no hay entradas del tipo, borra el archivo si existiera.
     """
-    devoluciones = [
+    con_lote = [
         r for r in pagaste_conf
         if str(r.get("mz", "")).strip() and str(r.get("lote", "")).strip()
     ]
-    ruta = OUTPUT_DIR / DEVOLUCION_FILE
-    if not devoluciones:
-        if ruta.exists():
-            ruta.unlink()
+
+    retornos     = [r for r in con_lote if str(r.get("concepto", "")).strip().lower() == "retorno"]
+    devoluciones = [r for r in con_lote if str(r.get("concepto", "")).strip().lower() != "retorno"]
+
+    ruta_ret = OUTPUT_DIR / RETORNO_FILE
+    if retornos:
+        wb = exportar_pagos_devolucion(retornos, ciclo)
+        wb.save(ruta_ret)
+        print(f"  ✔ {RETORNO_FILE} — {len(retornos)} retorno(s) a lote")
+    else:
+        ruta_ret.unlink(missing_ok=True)
+        print(f"  · {RETORNO_FILE} — sin retornos a lote este ciclo")
+
+    ruta_dev = OUTPUT_DIR / DEVOLUCION_FILE
+    if devoluciones:
+        wb = exportar_pagos_devolucion(devoluciones, ciclo)
+        wb.save(ruta_dev)
+        print(f"  ✔ {DEVOLUCION_FILE} — {len(devoluciones)} devolución(es) a lote")
+    else:
+        ruta_dev.unlink(missing_ok=True)
         print(f"  · {DEVOLUCION_FILE} — sin devoluciones a lote este ciclo")
+
+
+# ── Estado del ciclo del mes ────────────────────────────────
+# El procesado se sobreescribe libremente mientras el mes está ABIERTO
+# (el banco sube reportes nuevos durante el mes). 7_cierre lo sella con
+# CERRADO al final del período de gracia y desde ahí nadie sobreescribe.
+
+ESTADO_FILE = SHARED_DIR / "reporte_acumulado_procesado" / "estado_ciclo.json"
+
+
+def _leer_estado_ciclo() -> dict:
+    if not ESTADO_FILE.exists():
+        return {}
+    try:
+        return json.loads(ESTADO_FILE.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+
+def _escribir_estado_ciclo(data: dict) -> None:
+    ESTADO_FILE.parent.mkdir(exist_ok=True)
+    tmp = ESTADO_FILE.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+    tmp.replace(ESTADO_FILE)
+
+
+def estado_mes(mes_str: str) -> str | None:
+    """Devuelve 'ABIERTO' · 'CERRADO' · None (nunca tocado)."""
+    info = _leer_estado_ciclo().get(mes_str)
+    return info.get("estado") if isinstance(info, dict) else None
+
+
+def marcar_mes_cerrado(mes_str: str, cerrado_por: str = "7_cierre") -> None:
+    """Sella el mes — desde aquí motor_matching no sobreescribe el procesado.
+    La invoca 7_cierre tras el git tag exitoso."""
+    data = _leer_estado_ciclo()
+    data[mes_str] = {
+        "estado":       "CERRADO",
+        "fecha_cierre": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "cerrado_por":  cerrado_por,
+    }
+    _escribir_estado_ciclo(data)
+    print(f"  ✔ Mes {mes_str} marcado CERRADO en estado_ciclo.json")
+
+
+def _marcar_mes_abierto(mes_str: str) -> None:
+    data = _leer_estado_ciclo()
+    info = data.get(mes_str, {}) if isinstance(data.get(mes_str), dict) else {}
+    info["estado"]                = "ABIERTO"
+    info["ultima_actualizacion"]  = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    data[mes_str] = info
+    _escribir_estado_ciclo(data)
+
+
+def _backup_si_existe(ruta: Path, backup_dir: Path) -> None:
+    if not ruta.exists():
         return
-    wb = exportar_pagos_devolucion(pagaste_conf, ciclo)
-    wb.save(ruta)
-    print(f"  ✔ {DEVOLUCION_FILE} — {len(devoluciones)} devolución(es) a lote")
+    backup_dir.mkdir(exist_ok=True)
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    destino = backup_dir / f"{ruta.stem}_{ts}{ruta.suffix}"
+    shutil.copy2(ruta, destino)
 
 
 def _archivar_ciclo_completo(mes_str: str):
     """
     Archiva reporte banco crudo + reporte procesado (TE_PAGÓ + PAGASTE)
     cuando el ciclo cierra sin pendientes.
+
+    Sobreescribe libremente mientras el mes esté ABIERTO (con backup timestamped).
+    Si 7_cierre ya marcó el mes como CERRADO → no toca nada.
     """
     acum_dir = SHARED_DIR / "reporte_acumulado_procesado"
     acum_dir.mkdir(exist_ok=True)
 
+    if estado_mes(mes_str) == "CERRADO":
+        print(f"  🔒 Mes {mes_str} CERRADO por 7_cierre — procesado no se sobreescribe")
+        return
+
     ruta_banco     = acum_dir / f"{mes_str}_banco.xlsx"
     ruta_procesado = acum_dir / f"{mes_str}_procesado.xlsx"
+    backup_dir     = acum_dir / "backup"
 
-    if ruta_procesado.exists():
-        print(f"  ⚠ Ya existe {ruta_procesado.name} — no sobrescrito")
-        return
+    # Backup de las versiones anteriores (mes abierto → puede haber re-runs)
+    _backup_si_existe(ruta_banco,     backup_dir)
+    _backup_si_existe(ruta_procesado, backup_dir)
 
     # Archivar reporte(s) banco crudo
     archivos_banco = sorted(REPORTE_DIR.glob("*.xlsx"))
@@ -1849,6 +1937,8 @@ def _archivar_ciclo_completo(mes_str: str):
     wb_proc.save(ruta_procesado)
     print(f"  ✔ Procesado archivado → {ruta_procesado.name}")
 
+    _marcar_mes_abierto(mes_str)
+
 
 def cleanup_temporales():
     """
@@ -1859,7 +1949,7 @@ def cleanup_temporales():
     if CORRECCIONES_DIR.exists():
         shutil.rmtree(CORRECCIONES_DIR)
         CORRECCIONES_DIR.mkdir()
-    for nombre in (OUTPUT_FILE, PAGASTE_FILE, DEVOLUCION_FILE, "blancos_mes.xlsx"):
+    for nombre in (OUTPUT_FILE, PAGASTE_FILE, DEVOLUCION_FILE, RETORNO_FILE, "blancos_mes.xlsx"):
         (OUTPUT_DIR / nombre).unlink(missing_ok=True)
     print("  ✔ motor_matching: temporales del mes limpiados")
 
