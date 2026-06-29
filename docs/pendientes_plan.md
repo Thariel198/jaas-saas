@@ -74,7 +74,6 @@
 | DE3 | `7_cierre` arrastre de reclamos EN_REVISION: el README define la regla especial de junio 2026 (diferir deuda, no cortar). ¿Esta regla aplica también a julio 2026 o se normaliza? | `7_cierre` | Decisión de negocio — Media |
 | DE4 | `3_boletas`: ¿refactor completo para seguir convenciones del sistema (M3) o mantener como herramienta manual independiente? Afecta si `DATA_boletas_repo` integra con `3_boletas` | `3_boletas` | Diseño — Alta |
 | DE5 | **Arrastre consolidado (Opción B — APROBADA):** `5_cobranza` debe generar UN solo arrastre con todos los componentes (agua + corte + multa) en orden de prioridad, reemplazando los 3 arrastres separados (5/6/6b). La descomposición por prioridad vive en `5_cobranza`, no en `6b`. Diseño pendiente de especificar antes de implementar | `5_cobranza`, `6_corte`, `6b_corte_multas` | Diseño — Alta |
-| DE6 | **Diferenciar devolucion vs retorno en `pendientes.xlsx`:** actualmente todo PAGASTE con MZ+LOTE va a `devolucion.xlsx` sin distinguir el motivo. Regla propuesta: agregar CONCEPTO="devolucion"\|"retorno" cuando hay MZ+LOTE. Motor_matching splitearía en dos outputs. 5_cobranza leería `retorno.xlsx` por separado y escribiría monto monetario en columna RETORNO (hoy es badge string). Afecta: `motor_matching/main.py`, `5_cobranza/main.py`, `pendientes_xlsx.html`, contrato planilla_cobrado | `4_pagos/yape`, `5_cobranza` | Diseño — Media |
 
 ---
 
@@ -141,6 +140,17 @@ B3 resuelto, S1 corrida (efectivo OK, yape por-MZ OK), S4 re-corrida OK (CANCELA
 
 ---
 
+### Sesión DE7-CODE — Sonnet (codificar CONCEPTO en el pipeline)
+
+**Orden:** Puede hacerse antes de Sesión B. Diseño HTML cerrado (2026-06-29). Formatos actualizados: `formato_pagos_efectivo.html`, `trazabilidad_cobranza.html`, `pagos_yape_tepago_diseno.html`.
+
+1. **`4_pagos/efectivo/main.py`**: leer columna CONCEPTO de `pagos_efectivo.xlsx` y propagarla al output (hoy se ignora). Vacío = agua.
+2. **`4_pagos/yape/motor_matching/exportar_motor.py`**: agregar `tanque` al dropdown de validación de datos de CONCEPTO en hoja Ambiguos de `pendientes.xlsx`. Vocabulario: `comunitario | tanque | honorario | gasto`.
+3. **`5_cobranza/main.py`**: leer CONCEPTO desde `pagos_efectivo` (efectivo) y desde `pagos_yape_tepago` (yape). Excluir del cálculo de agua todo pago con CONCEPTO no vacío. Propagar CONCEPTO a `trazabilidad_cobranza.xlsx`.
+4. Verificar regresión: correr `5_cobranza/main.py` + `5b_validacion/main.py` y confirmar que CANCELADO=291 EXCESO≈0 (los 17 EXCESO originales pasan a CONCEPTO=tanque/etc.).
+
+---
+
 ### Sesión D — Sonnet (implementación 7_cierre)
 
 **Orden:** Después de Sesión B (DE3 resuelto). El spec de 7_cierre está cerrado en `README.md`.
@@ -198,6 +208,6 @@ Agregar columna CONCEPTO a los documentos del pipeline (los 7 + pagos_efectivo +
 ---
 
 ## SIGUIENTE_ACCION
-modelo: Opus
-sesion: Sesión B — decisiones de negocio (DE2, DE3, DE4, DE5) + diseño DE7
-razon: B2 RESUELTO (2026-06-29). DE6 + Pagos_comunitarios cerrados. Nuevos: DE7 (generalizar CONCEPTO — el usuario lo implementa) y DE8 (ventas contador S/7,585.50). Sesión B sigue con DE2 (6b_corte_multas), DE3 (7_cierre EN_REVISION), DE4 (3_boletas), DE5 (arrastre consolidado, debe llevar CONSUMO_PREV + MANT_PREV separados). Commits pendientes de sesión 2026-06-28 + cambios de hoy (5_cobranza/main.py, 5b_validacion/main.py, exportar_motor.py, motor_matching/main.py) aún sin commitear.
+modelo: Sonnet
+sesion: Sesión DE7-CODE — codificar CONCEPTO en el pipeline
+razon: Diseño HTML de DE7 cerrado (2026-06-29): formato_pagos_efectivo.html + trazabilidad_cobranza.html + pagos_yape_tepago_diseno.html actualizados con vocabulario tanque/honorario/gasto/comunitario. Siguiente paso: codificar las 4 tareas de DE7-CODE (ver sesión arriba). Después de DE7-CODE, seguir con Sesión B (Opus): DE2, DE3, DE4, DE5.
