@@ -38,6 +38,10 @@ tr:last-child td{border-bottom:none}
 .b-yape    {background:#E1F5EE;color:#085041;font-size:10px;font-weight:500;padding:1px 6px;border-radius:3px}
 .b-efectivo{background:#EFF6FF;color:#1D4ED8;font-size:10px;font-weight:500;padding:1px 6px;border-radius:3px}
 .b-mixto   {background:#FEF9E7;color:#854F0B;font-size:10px;font-weight:500;padding:1px 6px;border-radius:3px}
+.c-tanque     {background:#FFF7ED;color:#9A3412;font-size:10px;font-weight:600;padding:1px 6px;border-radius:3px;font-family:var(--font-mono)}
+.c-honorario  {background:#F5F3FF;color:#5B21B6;font-size:10px;font-weight:600;padding:1px 6px;border-radius:3px;font-family:var(--font-mono)}
+.c-gasto      {background:#ECFDF5;color:#065F46;font-size:10px;font-weight:600;padding:1px 6px;border-radius:3px;font-family:var(--font-mono)}
+.c-comunitario{background:#FEF9E7;color:#7D6608;font-size:10px;font-weight:600;padding:1px 6px;border-radius:3px;font-family:var(--font-mono)}
 
 .legend{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center}
 .leg{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--color-text-secondary)}
@@ -51,6 +55,7 @@ tr:last-child td{border-bottom:none}
     <strong>REFERENCIA</strong>: para Yape → ORIGEN del banco (nombre abreviado del remitente, ej. <em>WILDER TRU* TRUJILLO WIL*</em>); para efectivo → <em>MESA / COBRADOR</em>.<br>
     <strong>FECHA</strong>: fecha y hora del pago. Yape incluye HH:MM del banco. Efectivo solo DD/MM/YYYY.<br>
     <strong>COMENTARIO</strong>: para Yape → texto libre del pagador enviado al banco; para efectivo → nota del cobrador.<br>
+    <strong>CONCEPTO</strong>: vacío = pago de agua normal · <code>tanque</code> / <code>honorario</code> / <code>gasto</code> / <code>comunitario</code> = pago no-agua, excluido del cálculo de ventas.<br>
     <strong>RETORNO</strong>: vacío si no hubo devolución · puntero a <strong>pagos_yape_devolucion.xlsx</strong> o <strong>pagos_efectivo_devolucion.xlsx</strong>.<br>
     <strong>CICLO_CORRECCION_ORIGEN</strong>: ciclo corrección en que <strong>4_pagos</strong> identificó el pago ·
     <strong>CICLO_COBRANZA</strong>: ciclo en que <strong>5_cobranza</strong> lo procesó ·
@@ -65,7 +70,7 @@ tr:last-child td{border-bottom:none}
           <th class="num" rowspan="2"></th>
           <th class="th-quien gh" colspan="3">¿Quién es?</th>
           <th class="th-sep" rowspan="2"></th>
-          <th class="th-pago gh" colspan="3">¿Qué pagó?</th>
+          <th class="th-pago gh" colspan="4">¿Qué pagó?</th>
           <th class="th-sep" rowspan="2"></th>
           <th class="th-verif gh" colspan="3">¿Cómo verificarlo?</th>
           <th class="th-sep" rowspan="2"></th>
@@ -80,6 +85,7 @@ tr:last-child td{border-bottom:none}
 
           <th class="th-pago">MONTO</th>
           <th class="th-pago">FUENTE</th>
+          <th class="th-pago">CONCEPTO</th>
           <th class="th-pago">RETORNO</th>
 
           <th class="th-verif">REFERENCIA</th>
@@ -104,6 +110,7 @@ tr:last-child td{border-bottom:none}
           <td class="td-pago">112</td>
           <td><span class="b-yape">yape</span></td>
           <td class="td-vacio">—</td>
+          <td class="td-vacio">—</td>
           <td class="td-sep"></td>
           <td class="td-ref">MARCELINA OBR*</td>
           <td class="td-fecha">10/06/2026 09:15</td>
@@ -122,6 +129,7 @@ tr:last-child td{border-bottom:none}
           <td class="td-pago">30</td>
           <td><span class="b-efectivo">efectivo</span></td>
           <td class="td-vacio">—</td>
+          <td class="td-vacio">—</td>
           <td class="td-sep"></td>
           <td class="td-ref">MESA 2 / CARMEN RIOS</td>
           <td class="td-fecha">10/06/2026</td>
@@ -139,6 +147,7 @@ tr:last-child td{border-bottom:none}
           <td class="td-sep"></td>
           <td class="td-pago">120</td>
           <td><span class="b-yape">yape</span></td>
+          <td class="td-vacio">—</td>
           <td><span class="b-yape">yape</span></td>
           <td class="td-sep"></td>
           <td class="td-ref">VICTOR MEL*</td>
@@ -158,12 +167,32 @@ tr:last-child td{border-bottom:none}
           <td class="td-pago">150</td>
           <td><span class="b-yape">yape</span></td>
           <td class="td-vacio">—</td>
+          <td class="td-vacio">—</td>
           <td class="td-sep"></td>
           <td class="td-ref">CARLOS QUI*</td>
           <td class="td-fecha">15/06/2026 14:30</td>
           <td class="td-comment">mes junio 2026</td>
           <td class="td-sep"></td>
           <td class="td-ciclo">3</td><td class="td-ciclo">2</td><td class="td-ciclo">15/06/2026 14:30</td>
+          <td class="td-sep"></td>
+          <td class="td-corr-vacio">—</td><td class="td-corr-vacio">—</td>
+        </tr>
+
+        <!-- fila 5: pago efectivo con CONCEPTO=tanque — excluido del cálculo de agua -->
+        <tr>
+          <td class="num">5</td>
+          <td class="td-quien">A</td><td class="td-quien">3</td><td class="td-nombre">JUAN QUISPE ROCA</td>
+          <td class="td-sep"></td>
+          <td class="td-pago">200</td>
+          <td><span class="b-efectivo">efectivo</span></td>
+          <td><span class="c-tanque">tanque</span></td>
+          <td class="td-vacio">—</td>
+          <td class="td-sep"></td>
+          <td class="td-ref">MESA 1 / CARMEN RIOS</td>
+          <td class="td-fecha">03/06/2026</td>
+          <td class="td-comment">aporte tanque jun 2026</td>
+          <td class="td-sep"></td>
+          <td class="td-ciclo">1</td><td class="td-ciclo">1</td><td class="td-ciclo">10/06/2026 09:15</td>
           <td class="td-sep"></td>
           <td class="td-corr-vacio">—</td><td class="td-corr-vacio">—</td>
         </tr>
@@ -181,5 +210,6 @@ tr:last-child td{border-bottom:none}
     <div class="leg"><span class="b-yape">yape</span> FUENTE/RETORNO: vía Yape/tePagó</div>
     <div class="leg"><span class="b-efectivo">efectivo</span> FUENTE/RETORNO: en mesa · cobrador</div>
     <div class="leg"><span class="b-mixto">mixto</span> FUENTE/RETORNO: ambos canales</div>
+    <div class="leg"><span class="c-tanque">tanque</span> <span class="c-honorario">honorario</span> <span class="c-gasto">gasto</span> <span class="c-comunitario">comunitario</span> CONCEPTO: pago no-agua · excluido de ventas</div>
   </div>
 </div>

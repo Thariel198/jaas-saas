@@ -87,12 +87,21 @@
   .th-who { background: #EBF5FB; color: #1A5276; }
   .td-who { background: #F4FAFF; color: #333; }
 
-  /* ── SECCIÓN 6: ¿Alguna nota? (lila) ── */
+  /* ── SECCIÓN 6: ¿Qué tipo? (naranja) ── */
+  .gh-tipo { background: #FFF7ED; color: #9A3412; }
+  .th-tipo { background: #FFF7ED; color: #9A3412; }
+  .td-tipo { background: #FFFBF7; font-family: var(--font-mono); text-align: center; font-size: 9px; font-weight: 600; }
+  .concepto-tanque      { color: #9A3412; }
+  .concepto-honorario   { color: #5B21B6; }
+  .concepto-gasto       { color: #065F46; }
+  .concepto-comunitario { color: #7D6608; }
+
+  /* ── SECCIÓN 7: ¿Alguna nota? (lila) ── */
   .gh-com { background: #F4ECF7; color: #5B21B6; }
   .th-com { background: #F4ECF7; color: #5B21B6; }
   .td-com { background: #FAF5FF; color: #888; font-style: italic; }
 
-  /* ── SECCIÓN 7: Trazabilidad (morado) ── */
+  /* ── SECCIÓN 8: Trazabilidad (morado) ── */
   .gh-traz { background: #F3E8FF; color: #5B21B6; }
   .th-traz { background: #F3E8FF; color: #5B21B6; }
   .td-traz { background: #FAF5FF; color: #5B21B6; font-family: var(--font-mono); text-align: center; }
@@ -134,8 +143,9 @@
 
 <p class="historia">
   <strong>Historia (izquierda → derecha):</strong>
-  ¿Dónde vive? → ¿Cuánto pagó y cuándo? → ¿De qué mesa vino? → ¿Qué tan confiable es el registro? → ¿Quién cobró? → ¿Alguna nota?<br><br>
-  El campo <strong>ESTADO</strong> es la columna clave: indica si el pago fue cruzado por 2+ cobradores
+  ¿Dónde vive? → ¿Cuánto pagó y cuándo? → ¿De qué mesa vino? → ¿Qué tan confiable es el registro? → ¿Quién cobró? → ¿Qué tipo de pago? → ¿Alguna nota?<br><br>
+  El campo <strong>CONCEPTO</strong> clasifica el tipo de pago: vacío = agua (mayoría), <code>tanque</code>, <code>honorario</code>, <code>gasto</code>. <code>5_cobranza</code> excluye del cálculo de agua todo pago con CONCEPTO no vacío.<br><br>
+  El campo <strong>ESTADO</strong> indica si el pago fue cruzado por 2+ cobradores
   (<code>confirmado</code>), si solo hubo un cobrador (<code>solo_un_cobrador</code>),
   o si la mayoría prevaleció sobre uno diferente (<code>mayoria_aplicada</code>).
 </p>
@@ -147,6 +157,7 @@
   <div class="ld-item"><div class="ld" style="background:#FEF9E7;border-color:#F9E79F"></div>¿De qué mesa?</div>
   <div class="ld-item"><div class="ld" style="background:#F3E8FF;border-color:#C4B5FD"></div>¿Es confiable?</div>
   <div class="ld-item"><div class="ld" style="background:#EBF5FB;border-color:#AED6F1"></div>¿Quién cobró?</div>
+  <div class="ld-item"><div class="ld" style="background:#FFF7ED;border-color:#FDBA74"></div>¿Qué tipo?</div>
   <div class="ld-item"><div class="ld" style="background:#F4ECF7;border-color:#D8B4FE"></div>¿Alguna nota?</div>
   <div class="ld-item"><div class="ld" style="background:#F3E8FF;border-color:#C4B5FD"></div>Trazabilidad</div>
 </div>
@@ -172,6 +183,8 @@
     <th class="th-sep"     rowspan="2"></th>
     <th class="gh gh-who"  colspan="1">¿Quién cobró?</th>
     <th class="th-sep"     rowspan="2"></th>
+    <th class="gh gh-tipo" colspan="1">¿Qué tipo?</th>
+    <th class="th-sep"     rowspan="2"></th>
     <th class="gh gh-com"  colspan="1">¿Alguna nota?</th>
     <th class="th-sep"     rowspan="2"></th>
     <th class="gh gh-traz" colspan="2">Trazabilidad</th>
@@ -190,6 +203,8 @@
     <th class="col th-est">ESTADO</th>
 
     <th class="col th-who">COBRADOR</th>
+
+    <th class="col th-tipo">CONCEPTO</th>
 
     <th class="col th-com">COMENTARIO</th>
 
@@ -212,6 +227,8 @@
     <td class="td-sep"></td>
     <td class="td-who">María García</td>
     <td class="td-sep"></td>
+    <td class="td-tipo"></td>
+    <td class="td-sep"></td>
     <td class="td-com"></td>
     <td class="td-sep"></td>
     <td class="td-traz">1</td>
@@ -232,6 +249,8 @@
     <td class="td-est est-solo"><span class="pill solo">solo_un_cobrador</span></td>
     <td class="td-sep"></td>
     <td class="td-who">Pedro Quispe</td>
+    <td class="td-sep"></td>
+    <td class="td-tipo"></td>
     <td class="td-sep"></td>
     <td class="td-com">Pagó con billete de 50</td>
     <td class="td-sep"></td>
@@ -254,13 +273,59 @@
     <td class="td-sep"></td>
     <td class="td-who">Ana Mamani</td>
     <td class="td-sep"></td>
+    <td class="td-tipo"></td>
+    <td class="td-sep"></td>
     <td class="td-com"></td>
     <td class="td-sep"></td>
     <td class="td-traz">1</td>
     <td class="td-traz">—</td>
   </tr>
 
+  <!-- FILA 4: pago tanque — CONCEPTO=tanque, no es agua -->
+  <tr>
+    <td class="num">4</td>
+    <td class="td-id">A</td>
+    <td class="td-id">3</td>
+    <td class="td-sep"></td>
+    <td class="td-cob">S/ 200.00</td>
+    <td class="td-cob">03/06/2026</td>
+    <td class="td-sep"></td>
+    <td class="td-mesa">mesa_1</td>
+    <td class="td-sep"></td>
+    <td class="td-est est-conf"><span class="pill conf">confirmado</span></td>
+    <td class="td-sep"></td>
+    <td class="td-who">Carmen Rios</td>
+    <td class="td-sep"></td>
+    <td class="td-tipo concepto-tanque">tanque</td>
+    <td class="td-sep"></td>
+    <td class="td-com">aporte tanque jun 2026</td>
+    <td class="td-sep"></td>
+    <td class="td-traz">1</td>
+    <td class="td-traz">—</td>
+  </tr>
+
 </table>
+</div>
+
+<!-- ── VALORES VÁLIDOS DE CONCEPTO ── -->
+<p class="section-title">Valores válidos de CONCEPTO</p>
+<div class="rule-grid">
+  <div class="rule-card">
+    <strong>vacío (agua)</strong>
+    Pago normal de consumo de agua. La mayoría de filas. <code>5_cobranza</code> lo procesa como agua.
+  </div>
+  <div class="rule-card">
+    <strong><span class="concepto-tanque" style="font-family:var(--font-mono);font-size:10px;font-weight:700">tanque</span></strong>
+    Aporte al tanque de reserva. No entra en la declaración de ventas al contador. Se acumula en la base de datos de aportes tanque.
+  </div>
+  <div class="rule-card">
+    <strong><span class="concepto-honorario" style="font-family:var(--font-mono);font-size:10px;font-weight:700">honorario</span></strong>
+    Pago por servicio de la directiva. No es venta de agua.
+  </div>
+  <div class="rule-card">
+    <strong><span class="concepto-gasto" style="font-family:var(--font-mono);font-size:10px;font-weight:700">gasto</span></strong>
+    Gasto operativo o material. No es venta de agua.
+  </div>
 </div>
 
 <!-- ── VALORES VÁLIDOS DE ESTADO ── -->
@@ -305,6 +370,7 @@
   <tr><td><code>MESA</code></td><td>10</td><td>str</td><td>— (texto)</td><td>centro</td></tr>
   <tr><td><code>ESTADO</code></td><td>20</td><td>str</td><td>— (texto)</td><td>centro</td></tr>
   <tr><td><code>COBRADOR</code></td><td>22</td><td>str</td><td>— (texto)</td><td>izquierda</td></tr>
+  <tr><td><code>CONCEPTO</code></td><td>14</td><td>str · vacío = agua</td><td>— (texto)</td><td>centro</td></tr>
   <tr><td><code>COMENTARIO</code></td><td>30</td><td>str</td><td>— (texto)</td><td>izquierda</td></tr>
   <tr><td><code>CICLO_CORRECCION</code></td><td>10</td><td>int</td><td>número entero</td><td>centro</td></tr>
   <tr><td><code>CICLO_COBRANZA</code></td><td>12</td><td>int / vacío</td><td>número entero · la llena 5_cobranza</td><td>centro</td></tr>
@@ -324,6 +390,7 @@
   <tr><td>¿De qué mesa?</td><td><code>FEF9E7</code></td><td><code>7D6608</code></td><td><code>FFFDF5</code></td></tr>
   <tr><td>¿Es confiable?</td><td><code>F3E8FF</code></td><td><code>5B21B6</code></td><td><code>FAF5FF</code></td></tr>
   <tr><td>¿Quién cobró?</td><td><code>EBF5FB</code></td><td><code>1A5276</code></td><td><code>F4FAFF</code></td></tr>
+  <tr><td>¿Qué tipo?</td><td><code>FFF7ED</code></td><td><code>9A3412</code></td><td><code>FFFBF7</code></td></tr>
   <tr><td>¿Alguna nota?</td><td><code>F4ECF7</code></td><td><code>5B21B6</code></td><td><code>FAF5FF</code></td></tr>
   <tr><td>Trazabilidad</td><td><code>F3E8FF</code></td><td><code>5B21B6</code></td><td><code>FAF5FF</code></td></tr>
 </table>
