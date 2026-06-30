@@ -172,6 +172,31 @@ B3 resuelto, S1 corrida (efectivo OK, yape por-MZ OK), S4 re-corrida OK (CANCELA
 
 ---
 
+### Sesión DE8-CODE — motor_matching: ESTADO en Ambiguos + CONCEPTO en Pagos_comunitarios
+
+**Orden:** Puede ir antes de Sesión B. Sonnet.
+
+**Contexto:** En `trazabilidad_2026_06.xlsx`, hoja `Ambiguos` tiene filas en dos estados distintos pero sin indicador visible:
+- `CONCEPTO=comunitario` → **trigger ya resuelto** (el desglose vive en `Pagos_comunitarios`)
+- `CONCEPTO=` vacío → **pendiente real** (aún sin resolver)
+
+Un agente (o humano) sin contexto no puede distinguirlos → confusión garantizada.
+
+**Dos cambios necesarios:**
+
+1. **Columna `ESTADO` en trazabilidad `Ambiguos`** — el motor escribe `enviado_pagos_comunitarios` cuando mueve la fila. Un agente lee ESTADO y sabe si la fila ya fue resuelta sin cruzar con otra hoja.
+
+2. **Columna `CONCEPTO` en `Pagos_comunitarios`** — cada fila del desglose puede ser `agua` (default, va a planilla) o `tanque` u otro concepto (va a tepago con CONCEPTO propio, no toca planilla). Esto permite depósitos mixtos dentro de un mismo comunitario sin perder el trigger `comunitario` en Ambiguos.
+
+**Fix de bug aplicado (2026-06-30):** `motor_matching/main.py` líneas 1525-1531 — invertido el orden de checks: `CONCEPTO` ahora tiene prioridad sobre `MZ==BLANCO`. Antes: MZ=BLANCO + CONCEPTO=tanque → CONCEPTO ignorado, hardcodeaba "BLANCO". Ahora: si CONCEPTO está seteado, lo usa aunque MZ=BLANCO.
+
+**Pendiente para esta sesión:**
+- Agregar columna `ESTADO` al formato y código de trazabilidad Ambiguos
+- Agregar columna `CONCEPTO` al formato y código de Pagos_comunitarios
+- Actualizar `motor_matching/docs/trazabilidad.html` con la distinción trigger vs pendiente
+
+---
+
 ### Pendientes sin clasificación clara
 
 - **Directorio `Pendiente/`** (raíz del proyecto): tiene `6b_corte_multas_README.md`. Evaluar si es draft o resto.
@@ -205,6 +230,20 @@ Agregar columna CONCEPTO a los documentos del pipeline (los 7 + pagos_efectivo +
 **DE8 (NUEVO) — Regla de ventas para el contador.** ventas = consumo + mantenimiento (corte EXCLUIDO: concepto agua pero no es venta por ley peruana). Base = dinero **real** cobrado con parciales: `min(PAGO, MES_ACTUAL + MANTENIMIENTO + MES_ANTERIOR)` sobre los que pagaron. Jun-2026 = **S/ 7,585.50**. Inmune a exceso/duplicados (el cap a lo facturado los neutraliza). El reporte solo es oficial tras 5b_validacion OK. Falta: generar `ventas_contador_YYYY-MM.xlsx` (¿en 5b o 5_cobranza?). | `5b_validacion` / `5_cobranza` | Implementación |
 
 **Hallazgo — el "exceso" NO son duplicados.** Los 17 EXCESO son pagos por **conceptos no modelados** en la planilla: tanque (A-3 S/200, E-1 S/100), deuda histórica (M-12 S/266, "2019 hasta octubre 2025"), reclamo (C1-17 S/170), + redondeos y P-6 (S/300 por averiguar). Mesa/cobrador/comentario en `4_pagos/efectivo/outputs/pagos_efectivo.xlsx`; origen/mensaje yape en `pagos_yape_tepago.xlsx`. **Aporte tanque** → futura base de datos, alimentada vía CONCEPTO=tanque (DE7).
+
+---
+
+---
+
+## DE10 — Gaps pendientes en Nivel 1a de 5b_validacion (2026-06-30)
+
+Nivel 1a actual: dif = -106 (después de fix blancos + DE9 tanque).
+Se descompone en dos problemas conocidos:
+
+1. **Comunitario S/152** (Janet Vil*, 07/06 10:39:56): en crudo como TE PAGÓ pero no en ninguna categoría del sum. Pendiente de decisión/diseño — cómo modelar comunitarios en Nivel 1a.
+2. **Devueltos S/46 double-contado**: B-8 Rosalina está en `agua` (tepago row 63, CONCEPTO=NaN) Y en `devueltos` (yape_devolucion.xlsx). Fix: sacar `devueltos` del sum de Nivel 1a (son PAGASTE outgoing, no TE PAGÓ). Sonnet.
+
+**Bug motor_matching (trazabilidad):** `trazabilidad_2026_06.xlsx` nunca escribe hoja `Pagos_comunitarios` — `com_resueltos_list` queda vacío porque el S/450 y S/152 de Janet Vil* entran como `fuente=ambiguo_auto` (no `comunitario`) cuando no hay corrección comunitario activa en pendientes. Pendiente de investigación + fix.
 
 ---
 

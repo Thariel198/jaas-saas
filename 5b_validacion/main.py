@@ -1,5 +1,7 @@
+import json
 import logging
 import pandas as pd
+from datetime import datetime
 from pathlib import Path
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -13,13 +15,16 @@ MOD04_EFEC = ROOT.parent / "4_pagos" / "efectivo" / "outputs"
 MOD04_YAPE = ROOT.parent / "4_pagos" / "yape" / "motor_matching" / "outputs"
 SHARED     = ROOT.parent / "shared"
 
-CRUDO_DIR  = SHARED / "reporte_mes_crudo"
-YAPE_PATH      = MOD04_YAPE / "pagos_yape_tepago.xlsx"
-YAPE_RET_PATH  = MOD04_YAPE / "pagos_yape_retorno.xlsx"
+CRUDO_DIR         = SHARED / "reporte_mes_crudo"
+ESTADO_CICLO_PATH = SHARED / "reporte_acumulado_procesado" / "estado_ciclo.json"
+YAPE_PATH        = MOD04_YAPE / "pagos_yape_tepago.xlsx"
+YAPE_RET_PATH    = MOD04_YAPE / "pagos_yape_retorno.xlsx"
 YAPE_DEV_PATH    = MOD04_YAPE / "pagos_yape_devolucion.xlsx"
+YAPE_TANQUE_PATH = MOD04_YAPE / "pagos_yape_tanque.xlsx"
 BLANCOS_MES_PATH = MOD04_YAPE / "blancos_mes.xlsx"
-EFEC_PATH  = MOD04_EFEC / "pagos_efectivo.xlsx"
-COB_PATH   = MOD04 / "outputs" / "planilla_cobrado.xlsx"
+PAGASTE_PATH     = MOD04_YAPE / "pagos_yape_pagaste.xlsx"
+EFEC_PATH        = MOD04_EFEC / "pagos_efectivo.xlsx"
+COB_PATH         = MOD04 / "outputs" / "planilla_cobrado.xlsx"
 
 TOLERANCIA = 0.005  # diferencia máxima considerada OK
 
@@ -199,34 +204,29 @@ def _cargar_yape_tepago() -> tuple[dict, float, tuple]:
              f"· periodo {periodo[0]} → {periodo[1]}")
     return totales, total, periodo
 
-# ── CARGA: REPORTE CRUDO DEL BANCO ────────────────────────────────────────────
-def _cargar_crudo(periodo: tuple) -> float:
-    """Suma MONTO del crudo (TE PAGÓ) filtrado al periodo del ciclo."""
+
+# ── CARGA: CRUDO BANCO — ambos TIPO ──────────────────────────────────────────
+def _cargar_crudo_por_tipo(periodo: tuple) -> tuple[float, float]:
+    """Retorna (total_te_pago, total_pagaste) del reporte crudo filtrado al periodo."""
     fecha_min, fecha_max = periodo
     crudo_file = sorted(p for p in CRUDO_DIR.glob("*.xlsx") if not p.name.startswith("~$"))[-1]
-
     df = pd.read_excel(crudo_file, header=4, dtype=str)
-    # Normalizar nombres de columna eliminando tildes
     df.columns = [
         str(c).strip().upper()
-        .replace("Ó", "O").replace("É", "E").replace("Á", "A")
-        .replace("Ó", "O").replace("Ú", "U").replace("Ñ", "N")
-        .replace(" ", "_")
+        .replace("Ó","O").replace("É","E").replace("Á","A")
+        .replace("Ú","U").replace("Ñ","N").replace(" ","_")
         for c in df.columns
     ]
-
     col_tipo  = next((c for c in df.columns if "TIPO" in c), None)
     col_monto = next((c for c in df.columns if "MONTO" in c), None)
     col_fecha = next((c for c in df.columns if "FECHA" in c), None)
-
     if not col_tipo or not col_monto:
         raise ValueError(f"Columnas TIPO/MONTO no encontradas en crudo: {df.columns.tolist()}")
 
-    total    = 0.0
-    sin_fecha = 0
+    te_pago = 0.0; pagaste = 0.0
     for _, f in df.iterrows():
         tipo = _norm_tipo(f.get(col_tipo, ""))
-        if tipo != "TE PAGO":
+        if tipo not in ("TE PAGO", "PAGASTE"):
             continue
         if col_fecha and fecha_min and fecha_max:
             try:
@@ -234,14 +234,64 @@ def _cargar_crudo(periodo: tuple) -> float:
                 if not (fecha_min <= fecha <= fecha_max):
                     continue
             except Exception:
-                sin_fecha += 1
-        total += _float(f.get(col_monto, 0))
+                pass
+        monto = _float(f.get(col_monto, 0))
+        if tipo == "TE PAGO":
+            te_pago += monto
+        else:
+            pagaste += monto
 
-    if sin_fecha:
-        log.warning(f"Crudo: {sin_fecha} filas sin fecha válida — incluidas en total")
+    te_pago = round(te_pago, 2); pagaste = round(pagaste, 2)
+    log.info(f"Crudo banco · TE PAGÓ: S/ {te_pago:.2f} · PAGASTE: S/ {pagaste:.2f}")
+    return te_pago, pagaste
+
+
+# ── CARGA: BLANCOS TOTAL (ambas fuentes) ─────────────────────────────────────
+def _cargar_blancos_total() -> float:
+    """Lee blancos_mes.MONTO — fuente canónica generada por motor_matching."""
+    total = 0.0
+    if BLANCOS_MES_PATH.exists():
+        df = pd.read_excel(BLANCOS_MES_PATH, header=1, dtype=str)
+        df.columns = _norm_cols(df)
+        total += df["MONTO"].apply(_float).sum() if "MONTO" in df.columns else 0.0
     total = round(total, 2)
-    log.info(f"Crudo banco · {crudo_file.name} · TE PAGÓ en periodo · S/ {total:.2f}")
+    log.info(f"Blancos total: S/ {total:.2f}")
     return total
+
+
+# ── CARGA: DEVUELTOS TOTAL ────────────────────────────────────────────────────
+def _cargar_devueltos_total() -> float:
+    if not YAPE_DEV_PATH.exists():
+        return 0.0
+    df = pd.read_excel(YAPE_DEV_PATH, header=1, dtype=str)
+    df.columns = _norm_cols(df)
+    total = round(df["MONTO"].apply(_float).sum() if "MONTO" in df.columns else 0.0, 2)
+    log.info(f"Devueltos total: S/ {total:.2f}")
+    return total
+
+
+# ── CARGA: TANQUE TOTAL ───────────────────────────────────────────────────────
+def _cargar_tanque_total() -> float:
+    if not YAPE_TANQUE_PATH.exists():
+        return 0.0
+    df = pd.read_excel(YAPE_TANQUE_PATH, header=0, dtype=str)
+    df.columns = _norm_cols(df)
+    col = next((c for c in df.columns if "MONTO" in c), None)
+    total = round(df[col].apply(_float).sum() if col else 0.0, 2)
+    log.info(f"Tanque total: S/ {total:.2f}")
+    return total
+
+
+# ── CARGA: PAGASTE PROCESADO ──────────────────────────────────────────────────
+def _cargar_pagaste_total() -> float:
+    if not PAGASTE_PATH.exists():
+        return 0.0
+    df = pd.read_excel(PAGASTE_PATH, header=1, dtype=str)
+    df.columns = _norm_cols(df)
+    total = round(df["MONTO"].apply(_float).sum() if "MONTO" in df.columns else 0.0, 2)
+    log.info(f"Pagaste procesado total: S/ {total:.2f}")
+    return total
+
 
 # ── CARGA: PAGOS EFECTIVO ─────────────────────────────────────────────────────
 CORR_PATH = MOD04 / "inputs" / "correcciones_lote.xlsx"
@@ -329,61 +379,40 @@ def _diferencias_por_mz(reporte: dict, planilla: dict) -> list[dict]:
     ]
 
 # ── EXPORT: HOJA RESUMEN ──────────────────────────────────────────────────────
-def _cargar_notas_gap():
-    """Devuelve (devoluciones, blancos) para el resumen. Sin crash si no existen."""
-    devs = []
-    if YAPE_DEV_PATH.exists():
-        try:
-            df = pd.read_excel(YAPE_DEV_PATH, header=1, dtype=str)
-            df.columns = [str(c).strip().upper() for c in df.columns]
-            for _, r in df.iterrows():
-                mz   = str(r.get("MZ",   "") or "").strip()
-                lote = str(r.get("LOTE", "") or "").strip()
-                try:   monto = float(str(r.get("MONTO", "") or "").replace(",", "."))
-                except: monto = 0.0
-                if monto: devs.append({"mz": mz, "lote": lote, "monto": monto})
-        except Exception: pass
+def _gh_resumen(ws, row, texto, bg, txt):
+    ws.merge_cells(f"A{row}:E{row}")
+    c = ws.cell(row=row, column=1, value=texto)
+    c.font      = Font(name="Arial", size=8, bold=True, color=txt)
+    c.fill      = PatternFill("solid", start_color=bg)
+    c.alignment = Alignment(horizontal="left", vertical="center")
+    c.border    = _borde()
+    ws.row_dimensions[row].height = 14
 
-    blancos = []
-    origenes_tepago = set()   # para dedup entre fuentes
-
-    # Fuente 1: tepago MZ=BLANCO (comunitarios sin lote)
-    if YAPE_PATH.exists():
-        try:
-            df = pd.read_excel(YAPE_PATH, header=1, dtype=str)
-            df.columns = [str(c).strip().upper() for c in df.columns]
-            mask = df.get("MZ", pd.Series(dtype=str)).str.upper().str.strip() == "BLANCO"
-            for _, r in df[mask].iterrows():
-                origen = str(r.get("ORIGEN", "") or "").strip()
-                nombre = str(r.get("NOMBRE", "") or "").strip()
-                try:   monto = float(str(r.get("MONTO_PAGO", "") or "").replace(",", "."))
-                except: monto = 0.0
-                if monto:
-                    origenes_tepago.add(origen.upper())
-                    desc = nombre if nombre and nombre.lower() not in ("nan", "none", "") else origen[:35]
-                    blancos.append({"desc": desc, "monto": monto, "fuente": "sin lote"})
-        except Exception: pass
-
-    # Fuente 2: blancos_mes.xlsx (marcados manualmente) — solo si no están ya en tepago
-    if BLANCOS_MES_PATH.exists():
-        try:
-            df = pd.read_excel(BLANCOS_MES_PATH, header=1, dtype=str)
-            df.columns = [str(c).strip().upper() for c in df.columns]
-            for _, r in df.iterrows():
-                origen = str(r.get("ORIGEN", "") or "").strip()
-                motivo = str(r.get("MOTIVO", "") or "").strip()
-                try:   monto = float(str(r.get("MONTO",  "") or "").replace(",", "."))
-                except: monto = 0.0
-                if monto and origen.upper() not in origenes_tepago:
-                    desc = f"{origen[:30]} ({motivo})" if motivo else origen[:35]
-                    blancos.append({"desc": desc, "monto": monto, "fuente": "marcado"})
-        except Exception: pass
-
-    return devs, blancos
+def _fila_resumen(ws, row, seccion, componente, monto, estado=None):
+    bg_sec  = "F9FAFB"; txt_sec  = "6B7280"
+    bg_comp = "FFFFFF"; txt_comp = "111111"
+    _c(ws, row, 1, seccion,    bg=bg_sec,  txt=txt_sec,  size=9)
+    _c(ws, row, 2, componente, bg=bg_comp, txt=txt_comp, size=9)
+    _c(ws, row, 3, monto,      bg="F0F8FF", txt="185FA5", mono=True, align="right")
+    if estado is None:
+        _c(ws, row, 4, "",     bg="F9FAFB", txt="9CA3AF", align="center", size=8)
+        _c(ws, row, 5, "",     bg="F9FAFB")
+    else:
+        ok = abs(monto) < TOLERANCIA if isinstance(monto, (int, float)) else False
+        dif_bg  = TD_OK  if ok else TD_ERR
+        dif_txt = "085041" if ok else "991B1B"
+        _c(ws, row, 4, monto,           bg=dif_bg, txt=dif_txt, mono=True, align="right", bold=True)
+        est = ws.cell(row=row, column=5, value="OK" if ok else "ALERTA")
+        est.font      = Font(name="Arial", size=9, bold=True, color=dif_txt)
+        est.fill      = PatternFill("solid", start_color=dif_bg)
+        est.alignment = Alignment(horizontal="center", vertical="center")
+        est.border    = _borde()
+    ws.row_dimensions[row].height = 16
 
 
-def _hoja_resumen(wb, crudo_total, yape_proc_total, cob_yape_total,
-                  efec_total, cob_efec_total, periodo, devs=None, blancos=None):
+def _hoja_resumen(wb, crudo_tepago, crudo_pagaste,
+                  agua, blancos_tot, devueltos_tot, tanque_tot, pagaste_proc,
+                  cob_yape_total, efec_total, cob_efec_total, periodo):
     ws = wb.create_sheet("resumen", 0)
     ws.freeze_panes = "A2"
     fecha_min, fecha_max = periodo
@@ -393,71 +422,70 @@ def _hoja_resumen(wb, crudo_total, yape_proc_total, cob_yape_total,
     ws.merge_cells("A1:E1")
     t = ws.cell(row=1, column=1, value=f"Resumen validación — {periodo_str}")
     t.font      = Font(name="Arial", bold=True, size=11, color="FFFFFF")
-    t.fill      = PatternFill("solid", start_color="DC2626")
+    t.fill      = PatternFill("solid", start_color="1E3A5F")
     t.alignment = Alignment(horizontal="center", vertical="center")
     ws.row_dimensions[1].height = 22
 
-    cabeceras = ["MEDIO", "CRUDO BANCO", "PROCESADO", "PLANILLA", "DIFERENCIA"]
+    cabeceras = ["SECCIÓN", "COMPONENTE", "MONTO", "DIFERENCIA", "ESTADO"]
     for ci, h in enumerate(cabeceras, 1):
         _c(ws, 2, ci, h, bg="F3F4F6", txt="374151", bold=True, align="center")
     ws.row_dimensions[2].height = 18
 
-    # Yape — tres niveles
-    dif_yape = round(cob_yape_total - crudo_total, 2)
-    ok_yape  = abs(dif_yape) < TOLERANCIA
-    _c(ws, 3, 1, "Yape",          bg="EFF6FF", txt="1D4ED8", bold=True)
-    _c(ws, 3, 2, crudo_total,      bg=TD_REPORTE,  txt="185FA5", mono=True, align="right")
-    _c(ws, 3, 3, yape_proc_total,  bg=TD_REPORTE,  txt="185FA5", mono=True, align="right")
-    _c(ws, 3, 4, cob_yape_total,   bg=TD_PLANILLA, txt="7D6608", mono=True, align="right")
-    _c(ws, 3, 5, dif_yape,
-       bg=TD_OK if ok_yape else TD_ERR,
-       txt="085041" if ok_yape else "991B1B", bold=True, mono=True, align="right")
-    ws.row_dimensions[3].height = 17
+    ri = 3
 
-    # Efectivo — dos niveles (sin crudo separado)
+    # ── Nivel 1a: TE PAGÓ ──────────────────────────────────────
+    _gh_resumen(ws, ri, "Nivel 1a — Banco crudo (TE PAGÓ)  vs  agua + blancos + devueltos", "E6F1FB", "0C447C")
+    ri += 1
+    _fila_resumen(ws, ri, "banco crudo", "Total TE PAGÓ en crudo del banco", crudo_tepago)
+    ri += 1
+    _fila_resumen(ws, ri, "  agua",      "Pagos de agua identificados a un lote", agua)
+    ri += 1
+    _fila_resumen(ws, ri, "  blancos",   "Sin dueño identificado (blancos_mes + tepago MZ=BLANCO)", blancos_tot)
+    ri += 1
+    _fila_resumen(ws, ri, "  devueltos", "Devueltos al remitente (pagos_yape_devolucion)", devueltos_tot)
+    ri += 1
+    _fila_resumen(ws, ri, "  tanque",   "Aportes al tanque comunitario (CONCEPTO=tanque)", tanque_tot)
+    ri += 1
+    suma_partes = round(agua + blancos_tot + devueltos_tot + tanque_tot, 2)
+    dif_1a = round(suma_partes - crudo_tepago, 2)
+    _fila_resumen(ws, ri, "∑ partes", "agua + blancos + devueltos + tanque", suma_partes)
+    ri += 1
+    _fila_resumen(ws, ri, "diferencia 1a", "∑ partes − banco crudo", dif_1a, estado=True)
+    ri += 1
+
+    # ── Nivel 1b: PAGASTE ──────────────────────────────────────
+    _gh_resumen(ws, ri, "Nivel 1b — Banco crudo (PAGASTE)  vs  pagaste procesado", "F5F3FF", "4C1D95")
+    ri += 1
+    _fila_resumen(ws, ri, "banco PAGASTE",    "Total PAGASTE en crudo del banco", crudo_pagaste)
+    ri += 1
+    _fila_resumen(ws, ri, "pagaste procesado","Gastos clasificados por motor_matching", pagaste_proc)
+    ri += 1
+    dif_1b = round(pagaste_proc - crudo_pagaste, 2)
+    _fila_resumen(ws, ri, "diferencia 1b", "pagaste procesado − banco PAGASTE", dif_1b, estado=True)
+    ri += 1
+
+    # ── Nivel 2: agua vs planilla yape ────────────────────────
+    _gh_resumen(ws, ri, "Nivel 2 — Agua procesada  vs  planilla cobrada Yape", "FEF9E7", "7D6608")
+    ri += 1
+    _fila_resumen(ws, ri, "agua procesada", "pagos_yape_tepago CONCEPTO=vacío", agua)
+    ri += 1
+    _fila_resumen(ws, ri, "planilla yape",  "planilla_cobrado.MONTO_YAPE", cob_yape_total)
+    ri += 1
+    dif_2 = round(cob_yape_total - agua, 2)
+    _fila_resumen(ws, ri, "diferencia 2", "planilla − agua", dif_2, estado=True)
+    ri += 1
+
+    # ── Efectivo ───────────────────────────────────────────────
+    _gh_resumen(ws, ri, "Efectivo — procesado  vs  planilla cobrada", "ECFDF5", "085041")
+    ri += 1
+    _fila_resumen(ws, ri, "efectivo procesado", "pagos_efectivo (excl. BLANCO)", efec_total)
+    ri += 1
+    _fila_resumen(ws, ri, "planilla efectivo",  "planilla_cobrado.MONTO_EFECTIVO", cob_efec_total)
+    ri += 1
     dif_efec = round(cob_efec_total - efec_total, 2)
-    ok_efec  = abs(dif_efec) < TOLERANCIA
-    _c(ws, 4, 1, "Efectivo",       bg="F0FFF8", txt="085041", bold=True)
-    _c(ws, 4, 2, "— n/a",          bg="F9FAFB", txt="9CA3AF", align="center", size=8)
-    _c(ws, 4, 3, efec_total,        bg=TD_REPORTE,  txt="185FA5", mono=True, align="right")
-    _c(ws, 4, 4, cob_efec_total,    bg=TD_PLANILLA, txt="7D6608", mono=True, align="right")
-    _c(ws, 4, 5, dif_efec,
-       bg=TD_OK if ok_efec else TD_ERR,
-       txt="085041" if ok_efec else "991B1B", bold=True, mono=True, align="right")
-    ws.row_dimensions[4].height = 17
+    _fila_resumen(ws, ri, "diferencia efectivo", "planilla − procesado", dif_efec, estado=True)
 
-    # ── Notas explicativas del gap ──────────────────────────
-    ri = 6
-    if devs or blancos:
-        ws.merge_cells(f"A{ri}:E{ri}")
-        c = ws.cell(row=ri, column=1, value="── Explicación del gap ──────────────────────────────")
-        c.font = Font(name="Arial", size=8, bold=True, color="6B7280")
-        c.fill = PatternFill("solid", start_color="F9FAFB")
-        ws.row_dimensions[ri].height = 14
-        ri += 1
-
-    for d in (devs or []):
-        ws.merge_cells(f"A{ri}:D{ri}")
-        lbl = f"Devolución Yape — Mz{d['mz']} Lt{d['lote']}"
-        c = ws.cell(row=ri, column=1, value=lbl)
-        c.font = Font(name="Arial", size=9, color="065F46")
-        c.fill = PatternFill("solid", start_color="ECFDF5")
-        _c(ws, ri, 5, -d["monto"], bg="ECFDF5", txt="065F46", mono=True, align="right")
-        ws.row_dimensions[ri].height = 15
-        ri += 1
-
-    for b in (blancos or []):
-        ws.merge_cells(f"A{ri}:D{ri}")
-        fuente = b.get("fuente", "")
-        lbl = f"Blanco ({fuente}) — {b['desc']}" if fuente else f"Blanco — {b['desc']}"
-        c = ws.cell(row=ri, column=1, value=lbl)
-        c.font = Font(name="Arial", size=9, color="92400E")
-        c.fill = PatternFill("solid", start_color="FFFBEB")
-        _c(ws, ri, 5, -b["monto"], bg="FFFBEB", txt="92400E", mono=True, align="right")
-        ws.row_dimensions[ri].height = 15
-        ri += 1
-
-    for ci, w in enumerate([14, 16, 16, 16, 14], 1):
+    for ci, w in enumerate([20, 46, 14, 14, 10], 1):
         _w(ws, ci, w)
 
 # ── EXPORT: HOJA POR MZ ───────────────────────────────────────────────────────
@@ -556,6 +584,34 @@ def _hoja_por_mz(wb, sheet_name, lbl_reporte, lbl_planilla, filas, periodo):
         _sep(ws, sc, last_row)
 
 # ── MAIN ──────────────────────────────────────────────────────────────────────
+def _sellar_estado_ciclo():
+    """Marca arrastre.validado=true en estado_ciclo.json para el ciclo que tiene generado=true."""
+    if not ESTADO_CICLO_PATH.exists():
+        log.warning("estado_ciclo.json no encontrado — sello omitido")
+        return
+    try:
+        data = json.loads(ESTADO_CICLO_PATH.read_text(encoding="utf-8"))
+    except Exception as e:
+        log.warning(f"No se pudo leer estado_ciclo.json: {e}")
+        return
+    ahora = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+    sellado = []
+    for ciclo, info in data.items():
+        arr = info.get("arrastre", {})
+        if arr.get("generado") and not arr.get("validado"):
+            arr["validado"]    = True
+            arr["validado_en"] = ahora
+            info["ultima_actualizacion"] = ahora
+            sellado.append(ciclo)
+    if not sellado:
+        log.info("estado_ciclo.json — ningún arrastre pendiente de sello")
+        return
+    ESTADO_CICLO_PATH.write_text(
+        json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    log.info(f"estado_ciclo.json → sellado validado=true · ciclos: {', '.join(sellado)}")
+
+
 def main():
     print("\n" + "═" * 55)
     print("  5b_validacion — Validación de cobranza")
@@ -566,56 +622,63 @@ def main():
     _validar_inputs()
 
     print("\n[2/4] Cargando datos...")
-    yape_mz, yape_proc_total, periodo = _cargar_yape_tepago()
-    crudo_total                        = yape_proc_total
-    efec_mz, efec_total                = _cargar_efectivo()
+    yape_mz, agua_total, periodo = _cargar_yape_tepago()
+    crudo_tepago, crudo_pagaste  = _cargar_crudo_por_tipo(periodo)
+    blancos_tot                  = _cargar_blancos_total()
+    devueltos_tot                = _cargar_devueltos_total()
+    tanque_tot                   = _cargar_tanque_total()
+    pagaste_proc                 = _cargar_pagaste_total()
+    efec_mz, efec_total          = _cargar_efectivo()
     cob_yape_mz, cob_efec_mz, cob_yape_total, cob_efec_total = _cargar_cobranza()
 
     print("\n[3/4] Calculando diferencias...")
     dif_yape = _diferencias_por_mz(yape_mz, cob_yape_mz)
     dif_efec = _diferencias_por_mz(efec_mz, cob_efec_mz)
 
-    alertas_yape = sum(1 for r in dif_yape if not r["ok"])
+    dif_1a       = round((agua_total + blancos_tot + devueltos_tot + tanque_tot) - crudo_tepago, 2)
+    dif_1b       = round(pagaste_proc - crudo_pagaste, 2)
+    dif_2        = round(cob_yape_total - agua_total, 2)
+    dif_efec_tot = round(cob_efec_total - efec_total, 2)
+
+    ok_1a        = abs(dif_1a) < TOLERANCIA
+    ok_1b        = abs(dif_1b) < TOLERANCIA
+    ok_2         = abs(dif_2) < TOLERANCIA
+    ok_efec_tot  = abs(dif_efec_tot) < TOLERANCIA
     alertas_efec = sum(1 for r in dif_efec if not r["ok"])
-    ok_efec_tot  = abs(cob_efec_total - efec_total) < TOLERANCIA
 
     print("\n[4/4] Exportando reporte...")
     wb = Workbook()
-    wb.remove(wb.active)  # eliminar hoja vacía por defecto
-    devs, blancos = _cargar_notas_gap()
-    sum_devs    = sum(d["monto"] for d in devs)
-    sum_blancos = sum(b["monto"] for b in blancos)
-    dif_yape_total   = round(cob_yape_total - crudo_total, 2)
-    residual_yape    = round(abs(dif_yape_total) - sum_devs - sum_blancos, 2)
-    ok_crudo         = residual_yape < TOLERANCIA
-    _hoja_resumen(wb, crudo_total, yape_proc_total, cob_yape_total,
-                  efec_total, cob_efec_total, periodo, devs=devs, blancos=blancos)
-    _hoja_por_mz(wb, "yape_por_mz",     "REPORTE_YAPE",     "PLANILLA_YAPE",     dif_yape, periodo)
+    wb.remove(wb.active)
+    _hoja_resumen(wb, crudo_tepago, crudo_pagaste,
+                  agua_total, blancos_tot, devueltos_tot, tanque_tot, pagaste_proc,
+                  cob_yape_total, efec_total, cob_efec_total, periodo)
+    _hoja_por_mz(wb, "yape_por_mz",     "AGUA_PROCESADA",   "PLANILLA_YAPE",     dif_yape, periodo)
     _hoja_por_mz(wb, "efectivo_por_mz", "REPORTE_EFECTIVO", "PLANILLA_EFECTIVO", dif_efec, periodo)
     wb.save(OUT_DIR / "validacion_diferencias.xlsx")
 
-    print("\n" + "═" * 55)
-    if ok_crudo and ok_efec_tot:
-        print("  VALIDACION OK — los montos cuadran")
-        if sum_devs or sum_blancos:
-            print(f"  · Diferencia explicada: devol={sum_devs:.2f} · blancos={sum_blancos:.2f}")
-            print(f"  · Ver hoja 'resumen' para el detalle.")
-            print(f"  · Si algo no te cuadra, consulta con el administrador.")
+    todo_ok = ok_1a and ok_1b and ok_2 and ok_efec_tot
+    print("\n" + "=" * 55)
+    if todo_ok:
+        print("  VALIDACION OK — todos los niveles cuadran")
         log.info("VALIDACION OK")
+        _sellar_estado_ciclo()
     else:
-        if not ok_crudo:
-            print(f"  ALERTA  Yape total sin explicar: residual={residual_yape:+.2f}")
-            print(f"  · dif total={dif_yape_total:+.2f} · devol={sum_devs:.2f} · blancos={sum_blancos:.2f}")
-            log.warning(f"Yape total sin explicar: residual={residual_yape:.2f}")
+        if not ok_1a:
+            print(f"  ALERTA  Nivel 1a (TE PAGO): dif={dif_1a:+.2f}")
+            log.warning(f"Nivel 1a no cuadra: dif={dif_1a:.2f}")
+        if not ok_1b:
+            print(f"  ALERTA  Nivel 1b (PAGASTE): dif={dif_1b:+.2f}")
+            log.warning(f"Nivel 1b no cuadra: dif={dif_1b:.2f}")
+        if not ok_2:
+            print(f"  ALERTA  Nivel 2 (agua vs planilla): dif={dif_2:+.2f}")
+            log.warning(f"Nivel 2 no cuadra: dif={dif_2:.2f}")
         if not ok_efec_tot:
-            dif = round(cob_efec_total - efec_total, 2)
-            print(f"  ALERTA  Efectivo total: reporte={efec_total} vs planilla={cob_efec_total} (dif={dif:+.2f})")
-            log.warning(f"Efectivo total no cuadra: reporte={efec_total} planilla={cob_efec_total} dif={dif:+.2f}")
+            print(f"  ALERTA  Efectivo total: dif={dif_efec_tot:+.2f}")
+            log.warning(f"Efectivo total no cuadra: dif={dif_efec_tot:.2f}")
         if alertas_efec:
             print(f"  ALERTA  Efectivo por MZ: {alertas_efec} MZ(s) con diferencia")
-            log.warning(f"Efectivo por MZ: {alertas_efec} alertas")
         print("  Revisar outputs/validacion_diferencias.xlsx")
-    print("═" * 55 + "\n")
+    print("=" * 55 + "\n")
 
 
 if __name__ == "__main__":
