@@ -34,9 +34,13 @@ PE = {
     "mesa": ("FEF9E7", "7D6608", "FFFDF5"),   # MESA
     "est":  ("F3E8FF", "5B21B6", "FAF5FF"),   # ESTADO
     "who":  ("EBF5FB", "1A5276", "F4FAFF"),   # COBRADOR
+    "tipo": ("FFF7ED", "9A3412", "FFFBF7"),   # CONCEPTO
     "com":  ("F4ECF7", "5B21B6", "FAF5FF"),   # COMENTARIO
     "meta": ("F3E8FF", "5B21B6", "FAF5FF"),   # CICLO_CORRECCION (trazabilidad)
 }
+
+_CONCEPTO_BG  = {"tanque": "FFF7ED", "honorario": "F5F3FF", "gasto": "ECFDF5", "comunitario": "FEF9E7"}
+_CONCEPTO_TXT = {"tanque": "9A3412", "honorario": "5B21B6", "gasto": "065F46", "comunitario": "7D6608"}
 
 # discrepancias — secciones
 DC = {
@@ -348,6 +352,7 @@ def leer_hoja(path: Path, hoja: str) -> list:
                 f"MONTO_EFECTIVO({monto_efec})+MONTO_YAPE({monto_yape}) ≠ MONTO({monto_total})"
             )
         cobrador  = str(row.get("COBRADOR") or cobrador_default).strip()
+        concepto  = str(row.get("CONCEPTO") or "").strip().lower()
         fecha_raw = row.get("FECHA")
         if isinstance(fecha_raw, datetime):
             fecha = fecha_raw.strftime("%d/%m/%Y")
@@ -360,6 +365,7 @@ def leer_hoja(path: Path, hoja: str) -> list:
             "monto":      monto_efec,
             "fecha":      fecha,
             "cobrador":   cobrador,
+            "concepto":   concepto,
             "comentario": coment,
         })
 
@@ -800,6 +806,7 @@ def exportar_pagos_efectivo(rows: list, mapa_ciclo_orig: dict = None):
         ("¿De qué mesa?",  1, "mesa"),
         ("¿Es confiable?", 1, "est"),
         ("¿Quién cobró?",  1, "who"),
+        ("¿Qué tipo?",     1, "tipo"),
         ("¿Alguna nota?",  1, "com"),
         ("Trazabilidad",   1, "meta"),
     ]
@@ -821,6 +828,7 @@ def exportar_pagos_efectivo(rows: list, mapa_ciclo_orig: dict = None):
         ("MESA",             "mesa", 10, "center"),
         ("ESTADO",           "est",  20, "center"),
         ("COBRADOR",         "who",  22, "left"),
+        ("CONCEPTO",         "tipo", 14, "center"),
         ("COMENTARIO",       "com",  30, "left"),
         ("CICLO_CORRECCION", "meta", 10, "center"),
     ]
@@ -847,18 +855,25 @@ def exportar_pagos_efectivo(rows: list, mapa_ciclo_orig: dict = None):
             r.get("mesa",       ""),
             r.get("estado",     ""),
             r.get("cobrador",   ""),
+            r.get("concepto",   ""),
             r.get("comentario", ""),
             ciclo_fila,
         ]
         formatos = [None, None, '"S/ "#,##0.00', "DD/MM/YYYY",
-                    None, None, None, None, None]
+                    None, None, None, None, None, None]
         aligns   = ["center", "center", "right", "center",
-                    "center", "center", "left",  "left", "center"]
+                    "center", "center", "left",  "center", "left", "center"]
         for ci, (nombre, sec, _, _align) in enumerate(cols, start=1):
             _, txt, bg_data = PE[sec]
             val = valores[ci - 1]
-            _dat(ws.cell(row=ri, column=ci), val, bg_data, txt,
-                 align=aligns[ci - 1], fmt=formatos[ci - 1])
+            if nombre == "CONCEPTO" and val:
+                _dat(ws.cell(row=ri, column=ci), val,
+                     _CONCEPTO_BG.get(val, "FFF7ED"),
+                     _CONCEPTO_TXT.get(val, "9A3412"),
+                     align="center", bold=True)
+            else:
+                _dat(ws.cell(row=ri, column=ci), val, bg_data, txt,
+                     align=aligns[ci - 1], fmt=formatos[ci - 1])
         ws.row_dimensions[ri].height = 18
 
     OUTPUTS_DIR.mkdir(exist_ok=True)

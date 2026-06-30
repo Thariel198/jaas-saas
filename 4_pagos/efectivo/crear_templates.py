@@ -18,6 +18,7 @@ GRUPOS = [
     ("¿Dónde vive?",      2, "E1F5EE", "085041"),
     ("¿Cuánto y cuándo?", 4, "FEF9E7", "7D6608"),
     ("¿Alguna nota?",     1, "F4ECF7", "5B21B6"),
+    ("¿Qué tipo?",        1, "FFF7ED", "9A3412"),
 ]
 
 # ── Columnas (del contrato formato_registro.html) ───────────────────────────
@@ -32,9 +33,10 @@ COLUMNAS = [
     ("MONTO_YAPE",      "FEF9E7", "7D6608", 14),
     ("FECHA",           "FEF9E7", "7D6608", 14),
     ("COMENTARIO",      "F4ECF7", "5B21B6", 30),
+    ("CONCEPTO",        "FFF7ED", "9A3412", 14),
 ]
 
-EJEMPLO = ["María García", "10/06/2026", "A", "8C", "38.00", "20.00", "18.00", "03/06/2026", ""]
+EJEMPLO = ["María García", "10/06/2026", "A", "8C", "38.00", "20.00", "18.00", "03/06/2026", "", ""]
 
 HOJAS   = ["registro_1", "registro_2", "registro_3"]
 N_MESAS = 7

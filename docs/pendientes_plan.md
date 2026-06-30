@@ -40,6 +40,7 @@
 | D1 | `2_planilla/inputs/` tiene todos los subdirectorios vacíos (corte, deuda_anterior, multas, convenios, acuerdos_asamblea). Para ciclo 2026-07 estos arrastres deben copiarse desde sus módulos fuente antes de correr `main.py` | `2_planilla` | Mecánica |
 | D2 | Dos pagos en blanco (O-6: S/107 y R-7: S/24) quedan sin dueño asignado. Sus dueños deben reclamar en ciclo 2026-07 — ya documentado en `deciciones/efectivo_2026-06_conflictos_lotes.md` | `4_pagos/efectivo` | Mecánica — proceso ya definido |
 | D3 | `1_lecturas` produjo `orden_verificacion_2026-07.pdf` con 15 bloqueantes de campo. El operario debe resolverlos antes del siguiente ciclo de correcciones | `1_lecturas` | Mecánica — operativa de campo |
+| D4 | **Revisar 13 EXCESO de jun-2026 antes de cerrar julio.** `5_cobranza/outputs/arrastre_devolucion_2026-06.xlsx` los tiene guardados. Decidir caso por caso si devolver o absorber: los críticos son C1-17 Macarlopu (S/170 — posible error cobrador Yerald Romero), E-1 Montalvo (S/100 — probable tanque vía yape), M-12 Iglesia Evangélica (S/266 — deuda histórica, no tiene deuda activa). Los otros 10 son overpagos pequeños (S/2–S/47). Si no se devuelve, sacar del arrastre_devolucion antes de que 2_planilla lo use como DEVOLUCION en julio. | `5_cobranza` / `2_planilla` | Decisión de negocio |
 
 ---
 
@@ -140,14 +141,14 @@ B3 resuelto, S1 corrida (efectivo OK, yape por-MZ OK), S4 re-corrida OK (CANCELA
 
 ---
 
-### Sesión DE7-CODE — Sonnet (codificar CONCEPTO en el pipeline)
+### ~~Sesión DE7-CODE~~ ✅ HECHA (2026-06-29 · Sonnet) — codificar CONCEPTO en el pipeline
 
 **Orden:** Puede hacerse antes de Sesión B. Diseño HTML cerrado (2026-06-29). Formatos actualizados: `formato_pagos_efectivo.html`, `trazabilidad_cobranza.html`, `pagos_yape_tepago_diseno.html`.
 
-1. **`4_pagos/efectivo/main.py`**: leer columna CONCEPTO de `pagos_efectivo.xlsx` y propagarla al output (hoy se ignora). Vacío = agua.
-2. **`4_pagos/yape/motor_matching/exportar_motor.py`**: agregar `tanque` al dropdown de validación de datos de CONCEPTO en hoja Ambiguos de `pendientes.xlsx`. Vocabulario: `comunitario | tanque | honorario | gasto`.
-3. **`5_cobranza/main.py`**: leer CONCEPTO desde `pagos_efectivo` (efectivo) y desde `pagos_yape_tepago` (yape). Excluir del cálculo de agua todo pago con CONCEPTO no vacío. Propagar CONCEPTO a `trazabilidad_cobranza.xlsx`.
-4. Verificar regresión: correr `5_cobranza/main.py` + `5b_validacion/main.py` y confirmar que CANCELADO=291 EXCESO≈0 (los 17 EXCESO originales pasan a CONCEPTO=tanque/etc.).
+1. ~~**`4_pagos/efectivo/main.py`**: leer columna CONCEPTO de `pagos_efectivo.xlsx` y propagarla al output (hoy se ignora). Vacío = agua.~~ ✅ HECHO — `leer_hoja()` lee CONCEPTO, `exportar_pagos_efectivo()` escribe columna con badges de color. `pagos_efectivo.xlsx` ahora tiene 10 cols.
+2. ~~**`4_pagos/yape/motor_matching/exportar_motor.py`**~~ ✅ NO-OP confirmado — CONCEPTO es texto libre en `pendientes.xlsx`, no hay dropdown.
+3. ~~**`5_cobranza/main.py`**: leer CONCEPTO desde `pagos_efectivo` (efectivo) y desde `pagos_yape_tepago` (yape). Excluir del cálculo de agua todo pago con CONCEPTO no vacío. Propagar CONCEPTO a `trazabilidad_cobranza.xlsx`.~~ ✅ HECHO — loaders leen `concepto`, `_calcular()` filtra `ys_agua`/`es_agua`, `_exportar_trazabilidad_cobranza()` escribe CONCEPTO col 7 (RETORNO→8, DEVUELTO→9, grupos y separadores desplazados).
+4. Verificar regresión: correr `5_cobranza/main.py` + `5b_validacion/main.py` y confirmar que CANCELADO=291 EXCESO≈0 (los 17 EXCESO originales pasan a CONCEPTO=tanque/etc.). **PENDIENTE** — el plombing está, pero los cobradores aún no han dividido pagos en mesa_N.xlsx con CONCEPTO. Re-correr el pipeline después de que llenen CONCEPTO en mesa files para verificar.
 
 ---
 
@@ -208,6 +209,6 @@ Agregar columna CONCEPTO a los documentos del pipeline (los 7 + pagos_efectivo +
 ---
 
 ## SIGUIENTE_ACCION
-modelo: Sonnet
-sesion: Sesión DE7-CODE — codificar CONCEPTO en el pipeline
-razon: Diseño HTML de DE7 cerrado (2026-06-29): formato_pagos_efectivo.html + trazabilidad_cobranza.html + pagos_yape_tepago_diseno.html actualizados con vocabulario tanque/honorario/gasto/comunitario. Siguiente paso: codificar las 4 tareas de DE7-CODE (ver sesión arriba). Después de DE7-CODE, seguir con Sesión B (Opus): DE2, DE3, DE4, DE5.
+modelo: Opus
+sesion: Sesión B — decisiones de diseño DE2, DE3, DE4, DE5
+razon: DE7-CODE cerrado (2026-06-29, Sonnet): código completo en 4_pagos/efectivo y 5_cobranza. Task 4 de DE7 (verificar EXCESO≈0) queda pendiente de datos — cobradores deben llenar CONCEPTO en mesa files. Siguiente bloque requiere decisiones de negocio/diseño (Opus): DE2 (6b_corte_multas día 0+2), DE3 (regla EN_REVISION en 7_cierre), DE4 (refactor 3_boletas), DE5 (pendiente definir). Después de Sesión B, Sesión D (Sonnet) implementa 7_cierre.

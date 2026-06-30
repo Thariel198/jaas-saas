@@ -16,6 +16,7 @@ sale sin modificar nada.
 """
 import logging
 import re
+import sys
 import pandas as pd
 from datetime import datetime
 from pathlib import Path
@@ -398,13 +399,12 @@ def _cargar_pagos_yape() -> list[dict]:
         if not mz or not lt:
             sin_id += 1
             continue
-        if conc and conc not in ("NAN", "NONE", ""):
-            continue  # gasto comunitario — no es pago de lote
         monto = _float(f.get("MONTO_ASIGNADO"))
         if monto <= TOL:
             monto = _float(f.get("MONTO_PAGO"))
         if monto <= TOL:
             continue
+        concepto = conc.lower() if conc and conc not in ("NAN", "NONE") else ""
         pagos.append({
             "row":    idx + 3,                # fila Excel (filas 1-2 son cabeceras)
             "mz":     mz,
@@ -415,6 +415,7 @@ def _cargar_pagos_yape() -> list[dict]:
             "fecha":  _fecha_str(f.get("FECHA")),
             "ciclo_correccion": int(_float(f.get(ciclo_col)) or 1),
             "fuente": "yape",
+            "concepto": concepto,
             # ORIGEN: nombre que el banco asigna al remitente (ej: "Wilder Tru*").
             # Sirve para rastrear pagos huérfanos en discrepancias_cobranza.xlsx.
             "origen": str(f.get("ORIGEN", "")).strip(),
@@ -443,6 +444,9 @@ def _cargar_pagos_efectivo() -> list[dict]:
         monto = _float(f.get("MONTO"))
         if monto <= TOL:
             continue
+        concepto = str(f.get("CONCEPTO") or "").strip().lower()
+        if concepto.upper() in ("NAN", "NONE"):
+            concepto = ""
         pagos.append({
             "row":    idx + 3,
             "mz":     mz,
@@ -453,6 +457,7 @@ def _cargar_pagos_efectivo() -> list[dict]:
             "fecha":  _fecha_str(f.get("FECHA")),
             "ciclo_correccion": int(_float(f.get(ciclo_col)) or 1),
             "fuente": "efectivo",
+            "concepto": concepto,
             # MESA + COBRADOR: pista física para rastrear pagos huérfanos.
             # MESA dice en cuál mesa_N.xlsx buscar, COBRADOR quién lo registró.
             "mesa":     str(f.get("MESA", "")).strip(),
@@ -817,8 +822,10 @@ def _calcular(usuarios: list[dict],
         k  = u["key"]
         ys = yape_por_key.get(k, [])
         es = efec_por_key.get(k, [])
-        yape_sum = round(sum(p["monto"] for p in ys), 2)
-        efec_sum = round(sum(p["monto"] for p in es), 2)
+        ys_agua = [p for p in ys if not p.get("concepto")]
+        es_agua = [p for p in es if not p.get("concepto")]
+        yape_sum = round(sum(p["monto"] for p in ys_agua), 2)
+        efec_sum = round(sum(p["monto"] for p in es_agua), 2)
 
         # Retornos y devoluciones — ambos reducen MONTO_YAPE.
         # RETORNO badge: desde pagos_yape_retorno.xlsx + pagos_efectivo_devolucion.xlsx
@@ -850,7 +857,7 @@ def _calcular(usuarios: list[dict],
             2,
         )
         saldo = round(total - pagado, 2)
-        fechas = [p["fecha"] for p in (ys + es)]
+        fechas = [p["fecha"] for p in (ys_agua + es_agua)]
 
         # CICLO_COBRANZA del usuario: ciclo del pago más reciente cargado.
         # Si alguno de sus pagos es "nuevo" este run → ciclo_nuevo.
@@ -1108,10 +1115,10 @@ def _exportar_planilla_cobrado(resultado: list[dict]):
 
 _TZ_GRUPOS = [
     (1,  3,  "¿Quién es?",          *GH_TZ_QUIEN),
-    (5,  8,  "¿Qué pagó?",          *GH_COB),
-    (10, 12, "¿Cómo verificarlo?",  *GH_TZ_VERIF),
-    (14, 16, "¿De qué ciclo?",      *GH_TZ_CICLO),
-    (18, 19, "Lote corregido",      *GH_DC_CORR),
+    (5,  9,  "¿Qué pagó?",          *GH_COB),
+    (11, 13, "¿Cómo verificarlo?",  *GH_TZ_VERIF),
+    (15, 17, "¿De qué ciclo?",      *GH_TZ_CICLO),
+    (19, 20, "Lote corregido",      *GH_DC_CORR),
 ]
 _TZ_COLS = [
     (1,  "MZ",                       *GH_TZ_QUIEN,   6),
@@ -1119,21 +1126,24 @@ _TZ_COLS = [
     (3,  "NOMBRE",                   *GH_TZ_QUIEN, 26),
     (5,  "MONTO",                    *GH_COB,      11),
     (6,  "FUENTE",                   *GH_COB,      10),
-    (7,  "RETORNO",                  *GH_COB,      10),
-    (8,  "DEVUELTO",                 *GH_COB,      10),
-    (10, "REFERENCIA",               *GH_TZ_VERIF, 24),
-    (11, "FECHA",                    *GH_TZ_VERIF, 18),
-    (12, "COMENTARIO",               *GH_TZ_VERIF, 30),
-    (14, "CICLO_CORRECCION_ORIGEN",  *GH_TZ_CICLO, 22),
-    (15, "CICLO_COBRANZA",           *GH_TZ_CICLO, 16),
-    (16, "FECHA_CARGA",              *GH_TZ_CICLO, 18),
-    (18, "MZ_ORIGEN",                *GH_DC_CORR,   9),
-    (19, "LT_ORIGEN",                *GH_DC_CORR,   9),
+    (7,  "CONCEPTO",                 *GH_COB,      14),
+    (8,  "RETORNO",                  *GH_COB,      10),
+    (9,  "DEVUELTO",                 *GH_COB,      10),
+    (11, "REFERENCIA",               *GH_TZ_VERIF, 24),
+    (12, "FECHA",                    *GH_TZ_VERIF, 18),
+    (13, "COMENTARIO",               *GH_TZ_VERIF, 30),
+    (15, "CICLO_CORRECCION_ORIGEN",  *GH_TZ_CICLO, 22),
+    (16, "CICLO_COBRANZA",           *GH_TZ_CICLO, 16),
+    (17, "FECHA_CARGA",              *GH_TZ_CICLO, 18),
+    (19, "MZ_ORIGEN",                *GH_DC_CORR,   9),
+    (20, "LT_ORIGEN",                *GH_DC_CORR,   9),
 ]
-_TZ_SEP_COLS = [4, 9, 13, 17]
+_TZ_SEP_COLS = [4, 10, 14, 18]
 
 FUENTE_BG  = {"yape": "E1F5EE", "efectivo": "EFF6FF"}
 FUENTE_TXT = {"yape": "085041", "efectivo": "1D4ED8"}
+CONCEPTO_BG  = {"tanque": "FFF7ED", "honorario": "F5F3FF", "gasto": "ECFDF5", "comunitario": "FEF9E7"}
+CONCEPTO_TXT = {"tanque": "9A3412", "honorario": "5B21B6", "gasto": "065F46", "comunitario": "7D6608"}
 
 
 def _exportar_trazabilidad_cobranza(
@@ -1168,6 +1178,7 @@ def _exportar_trazabilidad_cobranza(
                 "nombre": str(f.get("NOMBRE", "")).strip(),
                 "monto":  round(_float(f.get("MONTO")), 2),
                 "fuente": str(f.get("FUENTE", "")).strip().lower(),
+                "concepto":   _txt(f.get("CONCEPTO")) if "CONCEPTO" in df.columns else "",
                 "referencia": _txt(f.get("REFERENCIA")) if "REFERENCIA" in df.columns else "",
                 "fecha_hora":  _txt(f.get("FECHA")) if "FECHA" in df.columns else "",
                 "comentario":  _txt(f.get("COMENTARIO")) if "COMENTARIO" in df.columns else "",
@@ -1215,6 +1226,7 @@ def _exportar_trazabilidad_cobranza(
             "nombre": nombre_de.get(p["key"], p["nombre"]),
             "monto":  p["monto"],
             "fuente": p["fuente"],
+            "concepto":   p.get("concepto", ""),
             "referencia": p.get("referencia", ""),
             "fecha_hora": p.get("fecha_hora", "") or p.get("fecha", ""),
             "comentario": p.get("comentario", ""),
@@ -1261,52 +1273,65 @@ def _exportar_trazabilidad_cobranza(
         c_f.alignment = Alignment(horizontal="center", vertical="center")
         c_f.border    = _borde()
 
+        # CONCEPTO badge (tipo de pago: tanque, honorario, gasto, comunitario, o vacío=agua)
+        conc_val = t.get("concepto", "") or ""
+        if conc_val:
+            c_conc = ws.cell(row=ri, column=7, value=conc_val)
+            c_conc.font      = Font(name="Arial", size=9, bold=True,
+                                    color=CONCEPTO_TXT.get(conc_val, "9A3412"))
+            c_conc.fill      = PatternFill("solid",
+                                           start_color=CONCEPTO_BG.get(conc_val, "FFF7ED"))
+            c_conc.alignment = Alignment(horizontal="center", vertical="center")
+            c_conc.border    = _borde()
+        else:
+            _c(ws, ri, 7, None, TD_COB, "065F46", mono=True, align="center")
+
         # RETORNO badge (puntero al archivo de retornos — vacio si no hubo)
         retorno_lote = retornos_por_lote.get(f"{t['mz']}-{t['lt']}")
         if retorno_lote:
             r_bg  = RETORNO_BG.get(retorno_lote, "FFFFFF")
             r_txt = RETORNO_TXT.get(retorno_lote, "333333")
-            c_r = ws.cell(row=ri, column=7, value=retorno_lote)
+            c_r = ws.cell(row=ri, column=8, value=retorno_lote)
             c_r.font      = Font(name="Arial", size=9, bold=True, color=r_txt)
             c_r.fill      = PatternFill("solid", start_color=r_bg)
             c_r.alignment = Alignment(horizontal="center", vertical="center")
             c_r.border    = _borde()
         else:
-            _c(ws, ri, 7, None, TD_COB, "065F46", mono=True, align="center")
+            _c(ws, ri, 8, None, TD_COB, "065F46", mono=True, align="center")
 
         # DEVUELTO badge — pagos_yape_devolucion aplicado a este lote
         devuelto_lote = devueltos_por_lote.get(f"{t['mz']}-{t['lt']}")
         if devuelto_lote:
             dv_bg  = RETORNO_BG.get(devuelto_lote, "FFFFFF")
             dv_txt = RETORNO_TXT.get(devuelto_lote, "333333")
-            c_dv = ws.cell(row=ri, column=8, value=devuelto_lote)
+            c_dv = ws.cell(row=ri, column=9, value=devuelto_lote)
             c_dv.font      = Font(name="Arial", size=9, bold=True, color=dv_txt)
             c_dv.fill      = PatternFill("solid", start_color=dv_bg)
             c_dv.alignment = Alignment(horizontal="center", vertical="center")
             c_dv.border    = _borde()
         else:
-            _c(ws, ri, 8, None, TD_COB, "065F46", mono=True, align="center")
+            _c(ws, ri, 9, None, TD_COB, "065F46", mono=True, align="center")
 
         # ¿Cómo verificarlo? — REFERENCIA · FECHA (con hora si Yape) · COMENTARIO
-        _c(ws, ri, 10, t.get("referencia") or None, TD_TZ_VERIF, "92400E",
+        _c(ws, ri, 11, t.get("referencia") or None, TD_TZ_VERIF, "92400E",
            mono=True, align="left")
-        _c(ws, ri, 11, t.get("fecha_hora") or None, TD_TZ_VERIF, "7C2D12",
+        _c(ws, ri, 12, t.get("fecha_hora") or None, TD_TZ_VERIF, "7C2D12",
            mono=True, align="center")
-        _c(ws, ri, 12, t.get("comentario") or None, TD_TZ_VERIF, "78350F",
+        _c(ws, ri, 13, t.get("comentario") or None, TD_TZ_VERIF, "78350F",
            align="left")
         # ¿De qué ciclo? — corrección origen · cobranza · timestamp de carga
-        _c(ws, ri, 14, t["ciclo_correccion_origen"], TD_TZ_CICLO, "1E40AF",
+        _c(ws, ri, 15, t["ciclo_correccion_origen"], TD_TZ_CICLO, "1E40AF",
            mono=True, align="center")
-        _c(ws, ri, 15, t["ciclo_cobranza"],          TD_TZ_CICLO, "1E40AF",
+        _c(ws, ri, 16, t["ciclo_cobranza"],          TD_TZ_CICLO, "1E40AF",
            mono=True, align="center", bold=True)
-        _c(ws, ri, 16, t["fecha_carga"],             TD_TZ_CICLO, "1E40AF",
+        _c(ws, ri, 17, t["fecha_carga"],             TD_TZ_CICLO, "1E40AF",
            mono=True, align="center")
         # Lote corregido — solo para pagos con remapeo de correcciones_lote
         mz_orig = t.get("mz_origen") or ""
         lt_orig = t.get("lt_origen") or ""
         bg_orig = TD_DC_CORR if mz_orig else TD_DC_CORR_V
-        _c(ws, ri, 18, mz_orig or None, bg_orig, GH_DC_CORR[1], mono=True, align="center")
-        _c(ws, ri, 19, lt_orig or None, bg_orig, GH_DC_CORR[1], mono=True, align="center")
+        _c(ws, ri, 19, mz_orig or None, bg_orig, GH_DC_CORR[1], mono=True, align="center")
+        _c(ws, ri, 20, lt_orig or None, bg_orig, GH_DC_CORR[1], mono=True, align="center")
         ws.row_dimensions[ri].height = 17
 
     wb.save(trazabilidad_path)
@@ -1771,7 +1796,8 @@ def main():
     retornos_previos  = _retornos_planilla_previa()
     retornos_cambiados = retornos_actuales != retornos_previos
 
-    if not pagos_nuevos and not retornos_cambiados:
+    force = "--force" in sys.argv
+    if not pagos_nuevos and not retornos_cambiados and not force:
         log.info(f"Sin cambios (pagos ni retornos) · ciclo {max_ciclo} → idempotente")
         print(f"\n  Idempotencia: no hay pagos ni retornos nuevos")
         print(f"  Último ciclo cargado: {max_ciclo}")
