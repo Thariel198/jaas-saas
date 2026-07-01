@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Contrato de formato — lista_multas.xlsx</title>
+<style>
+  body { font-family: Arial, sans-serif; font-size: 13px; margin: 30px; color: #1f2937; }
+  h1   { font-size: 18px; color: #7C2D12; border-bottom: 2px solid #D97706; padding-bottom: 6px; }
+  h2   { font-size: 14px; color: #374151; margin-top: 28px; border-left: 4px solid #D97706; padding-left: 8px; }
+  p    { margin: 6px 0; }
+  .meta { background:#FFF7ED; border:1px solid #FCD34D; border-radius:4px; padding:10px 14px; margin-bottom:18px; }
+  .meta span { font-weight:bold; color:#7C2D12; }
+
+  .tabs { display:flex; gap:6px; margin:18px 0 0; }
+  .tab  { padding:5px 14px; border-radius:4px 4px 0 0; font-size:12px; font-weight:bold;
+          cursor:default; border:1px solid #d1d5db; border-bottom:none; }
+  .tab.active { background:#B45309; color:#fff; }
+
+  table { border-collapse: collapse; margin: 0 0 20px; font-size: 11.5px; }
+  th, td { border: 1px solid #fff; padding: 3px 8px; white-space: nowrap; }
+  .sec { font-weight:bold; font-size:10px; text-align:center; }
+  .col { font-weight:bold; font-size:10px; text-align:center; }
+  .dat { font-size:10px; }
+
+  /* 1 — Identidad — azul */
+  .s-id { background:#EBF5FB; color:#1A5276; }
+  .d-id { background:#F4FAFF; color:#1A5276; }
+
+  /* 2 — Deuda bruta — naranja */
+  .s-bruta { background:#FED7AA; color:#7C2D12; }
+  .d-bruta { background:#FFF7ED; color:#92400E; }
+
+  /* 3 — Descuento agua — gris cálido */
+  .s-agua { background:#D6D3D1; color:#292524; }
+  .d-agua { background:#F5F5F4; color:#44403C; }
+
+  /* 4 — Deuda real — naranja oscuro / resultado */
+  .s-real { background:#B45309; color:#fff; }
+  .d-real { background:#FDEBD0; color:#7C2D12; font-weight:bold; }
+
+  /* 5 — Penalidad — rojo */
+  .s-pen { background:#B91C1C; color:#fff; }
+  .d-pen { background:#FEE2E2; color:#7F1D1D; font-weight:bold; }
+
+  /* 6 — Decisión — morado */
+  .s-dec { background:#5B21B6; color:#fff; }
+  .d-dec { background:#F3E8FF; color:#4A235A; }
+
+  /* Valores especiales */
+  .val-si { background:#D5F5E3; color:#145A32; font-weight:bold; text-align:center; }
+  .val-no { background:#FADBD8; color:#7B241C; font-weight:bold; text-align:center; }
+
+  .logica-box { background:#FFF7ED; border:1px solid #FCD34D; border-radius:4px;
+                padding:10px 14px; margin:12px 0; font-size:12px; color:#7C2D12; }
+  .logica-box b { color:#C2410C; }
+  ul { margin:4px 0 4px 18px; }
+  li { margin:3px 0; }
+  code { background:#f3f4f6; padding:1px 5px; border-radius:3px; font-size:11px; }
+
+  .nota { background:#FFF3CD; border-left:3px solid #F0C040; padding:8px 12px;
+          border-radius:0 4px 4px 0; font-size:12px; color:#7D5A00; margin:10px 0; }
+
+  .gate-box { background:#FEF2F2; border:1px solid #FECACA; border-left:4px solid #DC2626;
+              border-radius:0 4px 4px 0; padding:10px 14px; margin:12px 0;
+              font-size:12px; color:#7F1D1D; }
+  .gate-box b { color:#991B1B; }
+  .gate-box code { background:#FEE2E2; color:#7F1D1D; }
+
+  .fase { display:inline-block; padding:2px 8px; border-radius:3px;
+          font-weight:bold; font-size:11px; margin:0 2px; }
+  .fase-1 { background:#FEF3C7; color:#78350F; }
+  .fase-2 { background:#FDECD0; color:#7C2D12; }
+  .fase-3 { background:#DCFCE7; color:#14532D; }
+
+  .ref-table th { background:#FFF7ED; padding:5px 12px; text-align:left;
+                  font-size:11px; color:#7C2D12; font-weight:bold; }
+  .ref-table td { padding:5px 12px; font-size:11px; }
+</style>
+</head>
+<body>
+
+<h1>Contrato de formato — lista_multas.xlsx</h1>
+
+<div class="meta">
+  <span>Módulo:</span> 6b_corte_multas &nbsp;|&nbsp;
+  <span>Script:</span> generar_lista_multas.py &nbsp;|&nbsp;
+  <span>Ruta:</span> 6b_corte_multas/outputs/lista_multas.xlsx &nbsp;|&nbsp;
+  <span>Tipo:</span> Auditoría — todos los elegibles sin filtrar &nbsp;|&nbsp;
+  <span>Versión:</span> 1.1 &nbsp;|&nbsp; 24/06/2026
+</div>
+
+<h2>Propósito</h2>
+
+<div class="logica-box">
+  <b>Registro de auditoría — ¿quién tenía deuda de multas y por qué se ejecutó o no el corte?</b><br><br>
+  <ul>
+    <li>Contiene <b>todos los elegibles</b> sin excepción, incluso los que no se cortan físicamente.</li>
+    <li>Elegibilidad: <code>DEUDA_MULTA = (MULTA + ACUERDOS_ASAMBLEA) − max(0, PAGADO_MES − CARGO_AGUA) &gt; 0</code></li>
+    <li><b>Regla del pago parcial:</b> solo entran usuarios con <code>PAGADO_MES &gt; 0</code> (pagaron algo este mes). Quienes no pagaron nada ya van a <code>6_corte</code> (corte por agua) — no al corte por multa.</li>
+    <li><b>CONVENIO excluido:</b> no cuenta como deuda de multa. Se paga por cuotas separadas.</li>
+    <li>Cruza con <code>compromisos.xlsx</code> para determinar <code>ESTADO_COMPROMISO</code>.</li>
+    <li><code>EJECUTAR_CORTE = NO</code> <b>solo</b> si el usuario tiene compromiso de pago <code>VIGENTE</code>.</li>
+    <li><b>Sin bloqueantes del mundo agua:</b> ni reclamos ni EXONERADO/CORTADO de registro_cortes
+        bloquean aquí. La multa es independiente del consumo de agua — un reclamo de lectura o una
+        exoneración de corte de agua no eximen de la multa de asamblea.</li>
+    <li><b>Única exclusión cruzada:</b> quien ya va a corte por agua este ciclo (6_corte ·
+        EJECUTAR=SI) se excluye, porque el S/40 de CORTE_RECONEXION es el mismo corte físico —
+        no se cobra dos veces.</li>
+    <li>Esta lista no va al operario — para eso existe <code>corte_fisico_multas.xlsx</code>.</li>
+    <li>Idempotente: re-correr el mismo día produce exactamente el mismo archivo.</li>
+  </ul>
+</div>
+
+<div class="nota">
+  <b>Diferencia con corte_fisico_multas:</b> lista_multas es la fuente de verdad (todos + reclamos).
+  corte_fisico_multas es la vista filtrada que usa el operario (solo EJECUTAR_CORTE = SI AND no saldó).
+</div>
+
+<h2>Phase Gate — ciclos de vida</h2>
+
+<div class="logica-box">
+  El ciclo tiene <b>3 fases</b> con distintos permisos de escritura:<br><br>
+  <span class="fase fase-1">1 · BORRADOR</span>
+  <span style="font-size:11px;"> — <code>generar_lista_multas.py</code> corre libre. Correcciones de multas, reclamos bienvenidas. <code>aplicar_penalidad_multas.py</code> aún no corre.</span><br><br>
+  <span class="fase fase-2">2 · PUBLICADA</span>
+  <span style="font-size:11px;"> — Secretaria notifica a socios. Si hay correcciones, editar <code>lista_multas.xlsx</code> directamente. <b>No re-correr <code>generar_lista_multas.py</code>.</b></span><br><br>
+  <span class="fase fase-3">3 · COMPROMETIDA</span>
+  <span style="font-size:11px;"> — <code>aplicar_penalidad_multas.py</code> corrió. Penalidades cobradas en planilla. <code>generar_lista_multas.py</code> <b>bloqueado automáticamente</b>. Solo <code>seguimiento_multas.py</code> opera.</span>
+</div>
+
+<div class="gate-box">
+  <b>Sentinel del gate:</b> <code>audit_penalidad_multas.xlsx</code><br><br>
+  Al arrancar, <code>generar_lista_multas.py</code> lee <code>audit_penalidad_multas.xlsx</code> y cuenta filas
+  <code>ACCION=APLICADO</code> para el <code>MES_ANO</code> actual.<br>
+  Si encuentra ≥ 1 → <b>aborta con <code>sys.exit(1)</code></b> y muestra mensaje claro.<br><br>
+  <b>Auto-release:</b> al cambiar de ciclo el audit no tiene entradas para el nuevo <code>MES_ANO</code>
+  → el gate se libera solo, sin reseteo manual.<br><br>
+  <b>¿Cómo corregir en fase COMPROMETIDA?</b> Editar <code>lista_multas.xlsx</code> directamente
+  (cambiar <code>EJECUTAR_CORTE</code> celda a celda).
+</div>
+
+<h2>Hoja: Lista</h2>
+
+<div class="tabs">
+  <div class="tab active">Lista</div>
+</div>
+
+<table>
+  <tr>
+    <th class="sec s-id"    colspan="3">¿Quién es?</th>
+    <th class="sec s-bruta" colspan="2">¿Qué debe en multas?</th>
+    <th class="sec s-agua"  colspan="3">¿Pagó algo que descuenta?</th>
+    <th class="sec s-real"  colspan="1">¿Cuánto queda real?</th>
+    <th class="sec s-pen"   colspan="2">Penalidad</th>
+    <th class="sec s-dec"   colspan="3">¿Se ejecuta el corte?</th>
+  </tr>
+  <tr>
+    <th class="col s-id">MZ</th>
+    <th class="col s-id">LT</th>
+    <th class="col s-id">NOMBRE</th>
+    <th class="col s-bruta">MULTA</th>
+    <th class="col s-bruta">ACUERDOS_ASAMBLEA</th>
+    <th class="col s-agua">CARGO_AGUA</th>
+    <th class="col s-agua">PAGADO_MES</th>
+    <th class="col s-agua">EXCEDENTE_AGUA</th>
+    <th class="col s-real">DEUDA_MULTA</th>
+    <th class="col s-pen">PENALIDAD_MULTA</th>
+    <th class="col s-pen">TOTAL_A_PAGAR</th>
+    <th class="col s-dec">ESTADO_COMPROMISO</th>
+    <th class="col s-dec">EJECUTAR_CORTE</th>
+    <th class="col s-dec">MOTIVO_NO_EJECUTAR</th>
+  </tr>
+  <!-- Fila 1 — sin compromiso, sin excedente de agua -->
+  <tr>
+    <td class="dat d-id">B</td>
+    <td class="dat d-id">5</td>
+    <td class="dat d-id">Rosa Mamani</td>
+    <td class="dat d-bruta">S/ 60.00</td>
+    <td class="dat d-bruta">S/ 30.00</td>
+    <td class="dat d-agua">S/ 43.00</td>
+    <td class="dat d-agua">S/ 43.00</td>
+    <td class="dat d-agua">S/ 0.00</td>
+    <td class="dat d-real">S/ 90.00</td>
+    <td class="dat d-pen">S/ 40.00</td>
+    <td class="dat d-pen">S/ 130.00</td>
+    <td class="dat d-dec">SIN_COMPROMISO</td>
+    <td class="dat val-si">SI</td>
+    <td class="dat d-dec"></td>
+  </tr>
+  <!-- Fila 2 — pagó más que el agua, excedente descuenta multa -->
+  <tr>
+    <td class="dat d-id">A</td>
+    <td class="dat d-id">3</td>
+    <td class="dat d-id">María Quispe</td>
+    <td class="dat d-bruta">S/ 60.00</td>
+    <td class="dat d-bruta">S/ 20.00</td>
+    <td class="dat d-agua">S/ 43.00</td>
+    <td class="dat d-agua">S/ 103.00</td>
+    <td class="dat d-agua">S/ 60.00</td>
+    <td class="dat d-real">S/ 20.00</td>
+    <td class="dat d-pen">S/ 40.00</td>
+    <td class="dat d-pen">S/ 60.00</td>
+    <td class="dat d-dec">SIN_COMPROMISO</td>
+    <td class="dat val-si">SI</td>
+    <td class="dat d-dec"></td>
+  </tr>
+  <!-- Fila 3 — compromiso de pago VIGENTE, no se ejecuta -->
+  <tr>
+    <td class="dat d-id">Q</td>
+    <td class="dat d-id">8</td>
+    <td class="dat d-id">María Martina Peña</td>
+    <td class="dat d-bruta">S/ 40.00</td>
+    <td class="dat d-bruta">S/ 0.00</td>
+    <td class="dat d-agua">S/ 43.00</td>
+    <td class="dat d-agua">S/ 43.00</td>
+    <td class="dat d-agua">S/ 0.00</td>
+    <td class="dat d-real">S/ 40.00</td>
+    <td class="dat d-pen">S/ 40.00</td>
+    <td class="dat d-pen">S/ 80.00</td>
+    <td class="dat d-dec">VIGENTE</td>
+    <td class="dat val-no">NO</td>
+    <td class="dat d-dec">Compromiso de pago 05/07</td>
+  </tr>
+</table>
+
+<h2>Fórmula clave — EXCEDENTE_AGUA y DEUDA_MULTA</h2>
+
+<div class="logica-box">
+  <b>¿Por qué existe EXCEDENTE_AGUA?</b><br><br>
+  Si un socio pagó más de lo que costaba el agua, ese excedente se abona primero a sus multas.<br>
+  Esto evita penalizar a quien intentó ponerse al día aunque no cubrió todo.<br><br>
+  <code>EXCEDENTE_AGUA = max(0, PAGADO_MES − CARGO_AGUA)</code><br>
+  <code>DEUDA_MULTA = (MULTA + ACUERDOS_ASAMBLEA) − EXCEDENTE_AGUA</code><br><br>
+  Un usuario entra en lista solo si <code>DEUDA_MULTA &gt; 0</code> después de ese descuento.<br><br>
+  <b>CONVENIO no entra en la fórmula</b> — se cobra por cuotas acordadas en asamblea.
+</div>
+
+<h2>Anchos de columna</h2>
+<table class="ref-table">
+  <tr>
+    <th>Columna</th>
+    <th>Ancho</th>
+    <th>Formato</th>
+    <th>Sección</th>
+  </tr>
+  <tr><td>MZ</td><td>6</td><td>texto · center</td><td>¿Quién es?</td></tr>
+  <tr><td>LT</td><td>7</td><td>texto · center</td><td>¿Quién es?</td></tr>
+  <tr><td>NOMBRE</td><td>28</td><td>texto · left</td><td>¿Quién es?</td></tr>
+  <tr><td>MULTA</td><td>14</td><td><code>"S/ "#,##0.00</code></td><td>¿Qué debe en multas?</td></tr>
+  <tr><td>ACUERDOS_ASAMBLEA</td><td>20</td><td><code>"S/ "#,##0.00</code></td><td>¿Qué debe en multas?</td></tr>
+  <tr><td>CARGO_AGUA</td><td>14</td><td><code>"S/ "#,##0.00</code></td><td>¿Pagó algo que descuenta?</td></tr>
+  <tr><td>PAGADO_MES</td><td>14</td><td><code>"S/ "#,##0.00</code> · también filtro de elegibilidad (> 0)</td><td>¿Pagó algo que descuenta?</td></tr>
+  <tr><td>EXCEDENTE_AGUA</td><td>16</td><td><code>"S/ "#,##0.00</code> · <code>max(0, PAGADO_MES−CARGO_AGUA)</code></td><td>¿Pagó algo que descuenta?</td></tr>
+  <tr><td>DEUDA_MULTA</td><td>14</td><td><code>"S/ "#,##0.00</code> · bold · resultado final</td><td>¿Cuánto queda real?</td></tr>
+  <tr><td>PENALIDAD_MULTA</td><td>16</td><td><code>"S/ "#,##0.00</code> · bold</td><td>Penalidad</td></tr>
+  <tr><td>TOTAL_A_PAGAR</td><td>16</td><td><code>"S/ "#,##0.00</code> · bold</td><td>Penalidad</td></tr>
+  <tr><td>ESTADO_COMPROMISO</td><td>16</td><td>texto · center · VIGENTE / SIN_COMPROMISO</td><td>¿Se ejecuta el corte?</td></tr>
+  <tr><td>EJECUTAR_CORTE</td><td>14</td><td>texto · center · bold · SI=verde / NO=rojo</td><td>¿Se ejecuta el corte?</td></tr>
+  <tr><td>MOTIVO_NO_EJECUTAR</td><td>24</td><td>texto · left · vacío si EJECUTAR=SI</td><td>¿Se ejecuta el corte?</td></tr>
+</table>
+
+<h2>Reglas de llenado — ¿Se ejecuta el corte?</h2>
+<table class="ref-table">
+  <tr>
+    <th>ESTADO_COMPROMISO</th>
+    <th>EJECUTAR_CORTE</th>
+    <th>MOTIVO_NO_EJECUTAR</th>
+  </tr>
+  <tr>
+    <td><code>SIN_COMPROMISO</code> — no firmó compromiso de pago</td>
+    <td style="background:#D5F5E3;color:#145A32;font-weight:bold;text-align:center;">SI</td>
+    <td style="color:#9ca3af;">(vacío)</td>
+  </tr>
+  <tr>
+    <td><code>VIGENTE</code> — compromiso de pago firmado y sin vencer</td>
+    <td style="background:#FADBD8;color:#7B241C;font-weight:bold;text-align:center;">NO</td>
+    <td>Compromiso de pago DD/MM</td>
+  </tr>
+</table>
+
+<div class="nota">
+  <b>Lo que NO bloquea aquí (a diferencia de 6_corte):</b> reclamos de 4b_reclamos y los estados
+  EXONERADO / CORTADO de registro_cortes. Todos pertenecen al mundo del corte por agua. La multa
+  es una sanción de asamblea independiente del consumo, así que no se exonera por esas vías —
+  solo por compromiso de pago de la propia multa.
+</div>
+
+<h2>Leyenda de colores</h2>
+<table class="ref-table">
+  <tr>
+    <th>Color</th>
+    <th>Sección</th>
+    <th>Significado</th>
+  </tr>
+  <tr>
+    <td style="background:#EBF5FB;padding:5px 12px;">Azul</td>
+    <td>¿Quién es?</td>
+    <td>Identificador del socio</td>
+  </tr>
+  <tr>
+    <td style="background:#FED7AA;padding:5px 12px;">Naranja claro</td>
+    <td>¿Qué debe en multas?</td>
+    <td>Componentes brutos: MULTA y ACUERDOS_ASAMBLEA (sin descontar)</td>
+  </tr>
+  <tr>
+    <td style="background:#D6D3D1;padding:5px 12px;">Gris</td>
+    <td>¿Pagó algo que descuenta?</td>
+    <td>CARGO_AGUA, PAGADO_MES, EXCEDENTE_AGUA — la mecánica del descuento de agua</td>
+  </tr>
+  <tr>
+    <td style="background:#B45309;padding:5px 12px;color:#fff;">Naranja oscuro</td>
+    <td>¿Cuánto queda real?</td>
+    <td>DEUDA_MULTA — resultado tras descontar el excedente de agua</td>
+  </tr>
+  <tr>
+    <td style="background:#B91C1C;padding:5px 12px;color:#fff;">Rojo</td>
+    <td>Penalidad</td>
+    <td>PENALIDAD_MULTA y TOTAL_A_PAGAR — lo que debe pagar para salvarse</td>
+  </tr>
+  <tr>
+    <td style="background:#F3E8FF;padding:5px 12px;">Morado</td>
+    <td>¿Se ejecuta el corte?</td>
+    <td>Decisión basada en compromisos.xlsx (compromiso de pago de multa)</td>
+  </tr>
+</table>
+
+<h2>Freeze panes</h2>
+<p><code>freeze_panes = "A3"</code> — filas 1 y 2 fijas (sección + columnas).</p>
+
+<hr style="margin-top:30px; border-color:#FDE68A;">
+<p style="font-size:11px; color:#9ca3af;">
+  Contrato visual v1.2 — generar_lista_multas.py debe replicar exactamente este formato.<br>
+  Módulo: 6b_corte_multas &nbsp;|&nbsp; Fecha: 24/06/2026 — v1.2: ESTADO_RECLAMO → ESTADO_COMPROMISO,
+  quita bloqueos por reclamo/EXONERADO/CORTADO (solo compromiso exonera)
+</p>
+
+</body>
+</html>

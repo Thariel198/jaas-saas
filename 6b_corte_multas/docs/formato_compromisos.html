@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Contrato de formato — compromisos.xlsx</title>
+<style>
+  body { font-family: Arial, sans-serif; font-size: 13px; margin: 30px; color: #1f2937; }
+  h1   { font-size: 18px; color: #7C2D12; border-bottom: 2px solid #D97706; padding-bottom: 6px; }
+  h2   { font-size: 14px; color: #374151; margin-top: 28px; border-left: 4px solid #D97706; padding-left: 8px; }
+  p    { margin: 6px 0; }
+  .meta { background:#FFF7ED; border:1px solid #FCD34D; border-radius:4px; padding:10px 14px; margin-bottom:18px; }
+  .meta span { font-weight:bold; color:#7C2D12; }
+
+  .tabs { display:flex; gap:6px; margin:18px 0 0; }
+  .tab  { padding:5px 14px; border-radius:4px 4px 0 0; font-size:12px; font-weight:bold;
+          cursor:default; border:1px solid #d1d5db; border-bottom:none; }
+  .tab.active { background:#065F46; color:#fff; }
+
+  table { border-collapse: collapse; margin: 0 0 20px; font-size: 11.5px; }
+  th, td { border: 1px solid #fff; padding: 3px 8px; white-space: nowrap; }
+  .sec { font-weight:bold; font-size:10px; text-align:center; }
+  .col { font-weight:bold; font-size:10px; text-align:center; }
+  .dat { font-size:10px; }
+
+  /* 1 — Identidad — azul */
+  .s-id   { background:#EBF5FB; color:#1A5276; }
+  .d-id   { background:#F4FAFF; color:#1A5276; }
+  /* 2 — Compromiso — naranja */
+  .s-comp { background:#FED7AA; color:#7C2D12; }
+  .d-comp { background:#FFF7ED; color:#92400E; }
+  .d-key  { background:#B45309; color:#fff; font-weight:bold; }
+  /* 3 — Estado — verde */
+  .s-est  { background:#065F46; color:#fff; }
+  .d-est  { background:#D1FAE5; color:#064E3B; font-weight:bold; }
+  /* 4 — Trazabilidad — ámbar */
+  .s-traz { background:#FEF9E7; color:#7D6608; }
+  .d-traz { background:#FFFDF5; color:#374151; }
+
+  .pill-comp { background:#DBEAFE; color:#1E40AF; font-size:9px; font-weight:bold;
+               padding:2px 7px; border-radius:10px; }
+  .pill-exo  { background:#EDE9FE; color:#5B21B6; font-size:9px; font-weight:bold;
+               padding:2px 7px; border-radius:10px; }
+
+  .logica-box { background:#FFF7ED; border:1px solid #FCD34D; border-radius:4px;
+                padding:10px 14px; margin:12px 0; font-size:12px; color:#7C2D12; }
+  .logica-box b { color:#C2410C; }
+  .nota { background:#ECFDF5; border:1px solid #6EE7B7; border-radius:4px;
+          padding:8px 12px; margin:12px 0; font-size:12px; color:#065F46; }
+  ul { margin:4px 0 4px 18px; }
+  li { margin:3px 0; }
+  code { background:#f3f4f6; padding:1px 5px; border-radius:3px; font-size:11px; }
+
+  .ref-table th { background:#FFF7ED; padding:5px 12px; text-align:left;
+                  font-size:11px; color:#7C2D12; font-weight:bold; }
+  .ref-table td { padding:5px 12px; font-size:11px; }
+</style>
+</head>
+<body>
+
+<h1>Contrato de formato — compromisos.xlsx</h1>
+
+<div class="meta">
+  <span>Módulo:</span> 6b_corte_multas &nbsp;|&nbsp;
+  <span>Script:</span> generar_compromisos.py &nbsp;|&nbsp;
+  <span>Ruta:</span> 6b_corte_multas/compromisos.xlsx &nbsp;|&nbsp;
+  <span>Tipo:</span> Estado persistente · append-idempotente &nbsp;|&nbsp;
+  <span>Versión:</span> 1.0 &nbsp;|&nbsp; 24/06/2026
+</div>
+
+<h2>Propósito</h2>
+
+<div class="logica-box">
+  <b>Fuente de verdad de los socios que firmaron compromiso de pago de su multa.</b><br><br>
+  <ul>
+    <li>Promueve el tag suelto <code>"compromiso"</code> de <code>COMENTARIO</code> en las mesas de
+        pago a un <b>archivo de primera clase</b> con fecha límite, monto y estado de seguimiento.</li>
+    <li>Quien tiene compromiso <code>VIGENTE</code> se <b>exonera del corte por multa</b>:
+        <code>generar_lista_multas.py</code> lo marca <code>EJECUTAR_CORTE=NO</code>.</li>
+    <li><b>Solo aplica al corte por multa.</b> No exonera del corte por agua (6_corte) ni
+        depende de reclamos — la multa es independiente del consumo de agua.</li>
+    <li><b>Append-idempotente:</b> re-correr no pisa registros existentes. Los nuevos entran
+        como <code>VIGENTE</code>; los que ya están conservan su <code>ESTADO</code> (incl. el
+        que el seguimiento haya cambiado a <code>CUMPLIDO</code>/<code>INCUMPLIDO</code>).</li>
+    <li>Se puebla automático desde <code>pagos_efectivo.xlsx</code> (tag <code>compromi</code>,
+        cubre "compromiso" y "compromizo"). NOMBRE y deuda se cruzan con la planilla por (MZ, LT).</li>
+  </ul>
+</div>
+
+<div class="nota">
+  <b>Regla de vigencia (hoy):</b> <code>ESTADO=VIGENTE</code> exonera, sin depender de la fecha.
+  El seguimiento posterior compara los pagos contra <code>MONTO_COMPROMETIDO</code> al llegar
+  <code>FECHA_LIMITE</code> y mueve el estado a <code>CUMPLIDO</code> o <code>INCUMPLIDO</code>.
+</div>
+
+<h2>Hoja: Compromisos</h2>
+
+<div class="tabs">
+  <div class="tab active">Compromisos</div>
+</div>
+
+<table>
+  <tr>
+    <th class="sec s-id"   colspan="3">¿Quién firmó?</th>
+    <th class="sec s-comp" colspan="5">¿Qué se comprometió?</th>
+    <th class="sec s-est"  colspan="1">Estado</th>
+    <th class="sec s-traz" colspan="4">¿Dónde y cuándo se registró?</th>
+  </tr>
+  <tr>
+    <th class="col s-id">MZ</th>
+    <th class="col s-id">LT</th>
+    <th class="col s-id">NOMBRE</th>
+    <th class="col s-comp">FECHA_FIRMA</th>
+    <th class="col s-comp">MONTO_PAGO_FIRMA</th>
+    <th class="col s-comp">MONTO_COMPROMETIDO</th>
+    <th class="col s-comp">FECHA_LIMITE</th>
+    <th class="col s-comp">TIPO</th>
+    <th class="col s-est">ESTADO</th>
+    <th class="col s-traz">MESA</th>
+    <th class="col s-traz">COBRADOR</th>
+    <th class="col s-traz">FECHA_REGISTRO</th>
+    <th class="col s-traz">SOURCE</th>
+  </tr>
+  <tr>
+    <td class="dat d-id">Y</td>
+    <td class="dat d-id">3</td>
+    <td class="dat d-id">Rosa Mamani</td>
+    <td class="dat d-comp">05/06/2026</td>
+    <td class="dat d-comp">S/ 66.00</td>
+    <td class="dat d-key">S/ 90.00</td>
+    <td class="dat d-comp">05/07/2026</td>
+    <td class="dat d-comp"><span class="pill-comp">COMPROMISO</span></td>
+    <td class="dat d-est">VIGENTE</td>
+    <td class="dat d-traz">mesa_1</td>
+    <td class="dat d-traz">Wilder Trujillo</td>
+    <td class="dat d-traz">24/06/2026</td>
+    <td class="dat d-traz">generar_compromisos.py</td>
+  </tr>
+  <tr>
+    <td class="dat d-id">P</td>
+    <td class="dat d-id">13</td>
+    <td class="dat d-id">Carlos Huanca</td>
+    <td class="dat d-comp">05/06/2026</td>
+    <td class="dat d-comp">S/ 36.00</td>
+    <td class="dat d-key">S/ 60.00</td>
+    <td class="dat d-comp">05/07/2026</td>
+    <td class="dat d-comp"><span class="pill-exo">COMPROMISO_EXONERACION</span></td>
+    <td class="dat d-est">VIGENTE</td>
+    <td class="dat d-traz">mesa_6</td>
+    <td class="dat d-traz">Wagner Trujillo</td>
+    <td class="dat d-traz">24/06/2026</td>
+    <td class="dat d-traz">generar_compromisos.py</td>
+  </tr>
+</table>
+
+<h2>Origen de cada columna</h2>
+<table class="ref-table">
+  <tr><th>Columna</th><th>Ancho</th><th>Origen / Formato</th></tr>
+  <tr><td>MZ</td><td>6</td><td>pagos_efectivo · texto center</td></tr>
+  <tr><td>LT</td><td>7</td><td>pagos_efectivo · texto center</td></tr>
+  <tr><td>NOMBRE</td><td>28</td><td>cruce (MZ, LT) con planilla_cobrado</td></tr>
+  <tr><td>FECHA_FIRMA</td><td>14</td><td>FECHA del pago en efectivo · <code>DD/MM/YYYY</code></td></tr>
+  <tr><td>MONTO_PAGO_FIRMA</td><td>16</td><td>MONTO pagado ese día · <code>"S/ "#,##0.00</code></td></tr>
+  <tr><td>MONTO_COMPROMETIDO</td><td>18</td><td>DEUDA_MULTA (MULTA+ACUERDOS) de planilla como referencia · <b>editable</b> · <code>"S/ "#,##0.00</code></td></tr>
+  <tr><td>FECHA_LIMITE</td><td>14</td><td>default <code>config.COMPROMISO_FECHA_LIMITE</code> (05/07/2026) · <b>editable</b></td></tr>
+  <tr><td>TIPO</td><td>22</td><td><code>COMPROMISO</code> ó <code>COMPROMISO_EXONERACION</code> (si COMENTARIO contiene "exonera")</td></tr>
+  <tr><td>ESTADO</td><td>12</td><td><code>VIGENTE</code> / <code>CUMPLIDO</code> / <code>INCUMPLIDO</code> — inicial VIGENTE</td></tr>
+  <tr><td>MESA</td><td>10</td><td>pagos_efectivo · mesa donde firmó</td></tr>
+  <tr><td>COBRADOR</td><td>20</td><td>pagos_efectivo · quién lo registró</td></tr>
+  <tr><td>FECHA_REGISTRO</td><td>16</td><td>fecha de corrida de generar_compromisos.py · <code>DD/MM/YYYY</code></td></tr>
+  <tr><td>SOURCE</td><td>24</td><td>fijo <code>generar_compromisos.py</code></td></tr>
+</table>
+
+<h2>Append-idempotente — clave de deduplicación</h2>
+<div class="logica-box">
+  Clave única: <code>(MZ, LT)</code>. Al re-correr:<br>
+  <ul>
+    <li>Si <code>(MZ, LT)</code> <b>ya existe</b> → se conserva la fila tal cual (no se pisa ESTADO ni montos editados a mano).</li>
+    <li>Si <code>(MZ, LT)</code> <b>es nuevo</b> → se agrega con <code>ESTADO=VIGENTE</code>.</li>
+  </ul>
+  Mismo patrón que <code>shared/registro_cortes.xlsx</code> y <code>audit_penalidad_multas.xlsx</code>:
+  el archivo crece, nunca se reescribe desde cero.
+</div>
+
+<h2>Leyenda de colores</h2>
+<table class="ref-table">
+  <tr><th>Color</th><th>Sección</th><th>Significado</th></tr>
+  <tr><td style="background:#EBF5FB;padding:5px 12px;">Azul</td><td>¿Quién firmó?</td><td>Identificador del socio</td></tr>
+  <tr><td style="background:#FED7AA;padding:5px 12px;">Naranja</td><td>¿Qué se comprometió?</td><td>Fechas, montos y tipo del compromiso</td></tr>
+  <tr><td style="background:#B45309;padding:5px 12px;color:#fff;">Naranja oscuro</td><td>MONTO_COMPROMETIDO</td><td>Lo que debe saldar — base del seguimiento</td></tr>
+  <tr><td style="background:#D1FAE5;padding:5px 12px;color:#064E3B;">Verde</td><td>Estado</td><td>VIGENTE exonera del corte por multa</td></tr>
+  <tr><td style="background:#FEF9E7;padding:5px 12px;">Ámbar</td><td>Trazabilidad</td><td>Mesa, cobrador y registro — verificar contra la fuente</td></tr>
+</table>
+
+<h2>Freeze panes</h2>
+<p><code>freeze_panes = "A3"</code> — filas 1 y 2 fijas (sección + columnas).</p>
+
+<hr style="margin-top:30px; border-color:#FDE68A;">
+<p style="font-size:11px; color:#9ca3af;">
+  Contrato visual v1.0 — generar_compromisos.py debe replicar exactamente este formato.<br>
+  Módulo: 6b_corte_multas &nbsp;|&nbsp; Fecha: 24/06/2026
+</p>
+
+</body>
+</html>

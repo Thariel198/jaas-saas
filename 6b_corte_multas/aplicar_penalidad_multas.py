@@ -1,8 +1,9 @@
-"""6_corte/aplicar_penalidad.py v2 — Reconciliación bidireccional (Día 0)
+"""6b_corte_multas/aplicar_penalidad_multas.py — Reconciliación bidireccional (Día 0)
 
-Compara dos sets en cada corrida y modifica planilla_mes para que coincida:
+Espejo de 6_corte/aplicar_penalidad.py. Compara dos sets en cada corrida y
+escribe su audit para que coincida:
 
-  SET_DEBE  = (MZ, LT) con EJECUTAR_CORTE=SI en lista_corte.xlsx
+  SET_DEBE  = (MZ, LT) con EJECUTAR_CORTE=SI en lista_multas.xlsx
   SET_TIENE = (MZ, LT) con cargo activo en audit (APLICADO − REVERTIDO) este ciclo
 
   DEBE − TIENE → NUEVOS    → escribe APLICADO en audit
@@ -10,18 +11,20 @@ Compara dos sets en cada corrida y modifica planilla_mes para que coincida:
   DEBE ∩ TIENE → CORRECTOS → skip (idempotente)
 
 Modelo A (writer único): este módulo NO escribe CORTE_RECONEXION en shared/planilla_mes.
-La penalidad vive SOLO en audit_penalidad.xlsx (col PENALIDAD_APLICADA, con signo).
-5_cobranza la overlaya en vivo al construir planilla_cobrado. shared queda como
-base pura de 2_planilla → sin lost-update (ver docs/aprendizaje/writer_unico_*.html).
-
-Retrocompatibilidad: filas de audit v1 sin columna ACCION se tratan como APLICADO.
-La primera corrida v2 migra el archivo automáticamente (extiende sección Trazabilidad).
+La penalidad (cargo de corte/reconexión físico por no saldar la multa) vive SOLO en
+audit_penalidad_multas.xlsx; 5_cobranza la overlaya en vivo. 6_corte y 6b nunca tocan
+el mismo predio el mismo ciclo (exclusión por lista_corte de agua + registro_cortes),
+y cada uno reconcilia contra su PROPIO audit sin pisarse.
 
 Re-correr siempre produce el estado correcto: aplica los que faltan, revierte
 los sobrantes, skipea los correctos.
 
+Phase gate: la primera corrida exitosa activa el bloqueo de
+generar_lista_multas.py para el resto del ciclo — el audit con filas APLICADO
+es el sentinel.
+
 Uso:
-    python aplicar_penalidad.py
+    python aplicar_penalidad_multas.py
 """
 import logging
 import shutil
@@ -37,18 +40,18 @@ from openpyxl.utils import get_column_letter
 sys.path.insert(0, str(Path(__file__).parent))
 import config
 
-SOURCE = "6_corte/aplicar_penalidad"
+SOURCE = "6b_corte_multas/aplicar_penalidad_multas"
 
 # ── VALORES de la columna ACCION (audit v2) ─────────────────────────────────
 ACCION_APLICADO  = "APLICADO"
 ACCION_REVERTIDO = "REVERTIDO"
 
-# ── PALETA AUDIT (azul/verde/morado — registro de auditoría) ────────────────
+# ── PALETA AUDIT (azul/rojo/morado — registro de auditoría de multas) ────────
 GH_AUD_ID    = ("EBF5FB", "1A5276")
-GH_AUD_APL   = ("E9F7EF", "1E5C3A")
+GH_AUD_APL   = ("FEE2E2", "7F1D1D")
 GH_AUD_TRAZ  = ("F3E8FF", "5B21B6")
 TD_AUD_ID    = "F4FAFF"
-TD_AUD_APL   = "F4FBF7"
+TD_AUD_APL   = "FEF2F2"
 TD_AUD_TRAZ  = "FAF5FF"
 
 # Colores condicionales para la celda ACCION
@@ -56,19 +59,19 @@ TD_AUD_APL_VAL = "D5F5E3"; TX_AUD_APL_VAL = "145A32"   # APLICADO
 TD_AUD_REV_VAL = "FADBD8"; TX_AUD_REV_VAL = "7B241C"   # REVERTIDO
 
 _AUDIT_GRUPOS = [
-    (1, 4, "Identidad",         *GH_AUD_ID),
-    (5, 6, "Aplicado",          *GH_AUD_APL),
-    (7, 9, "Trazabilidad",      *GH_AUD_TRAZ),
+    (1, 4, "Identidad",    *GH_AUD_ID),
+    (5, 6, "Aplicado",     *GH_AUD_APL),
+    (7, 9, "Trazabilidad", *GH_AUD_TRAZ),
 ]
 _AUDIT_COLS = [
-    (1, "MZ",                 *GH_AUD_ID,    6),
-    (2, "LT",                 *GH_AUD_ID,    7),
-    (3, "NOMBRE",             *GH_AUD_ID,   28),
-    (4, "MES_ANO",            *GH_AUD_ID,   10),
-    (5, "PENALIDAD_APLICADA", *GH_AUD_APL,  18),
-    (6, "CORTE_RECON_DESPUES",*GH_AUD_APL,  20),
-    (7, "FECHA_APLICACION",   *GH_AUD_TRAZ, 18),
-    (8, "SOURCE",              *GH_AUD_TRAZ, 28),
+    (1, "MZ",                  *GH_AUD_ID,    6),
+    (2, "LT",                  *GH_AUD_ID,    7),
+    (3, "NOMBRE",              *GH_AUD_ID,   28),
+    (4, "MES_ANO",             *GH_AUD_ID,   10),
+    (5, "PENALIDAD_APLICADA",  *GH_AUD_APL,  18),
+    (6, "CORTE_RECON_DESPUES", *GH_AUD_APL,  20),
+    (7, "FECHA_APLICACION",    *GH_AUD_TRAZ, 18),
+    (8, "SOURCE",              *GH_AUD_TRAZ, 30),
     (9, "ACCION",              *GH_AUD_TRAZ, 12),
 ]
 
@@ -138,9 +141,7 @@ def _float(val) -> float:
 def _localizar_planilla_mes(log: logging.Logger) -> Path:
     """Busca planilla_*.xlsx en shared/planilla_mes/. Debe haber exactamente una."""
     if not config.PLANILLA_MES_DIR.exists():
-        raise FileNotFoundError(
-            f"Falta directorio: {config.PLANILLA_MES_DIR}"
-        )
+        raise FileNotFoundError(f"Falta directorio: {config.PLANILLA_MES_DIR}")
     candidatos = sorted(config.PLANILLA_MES_DIR.glob("planilla_*.xlsx"))
     if not candidatos:
         raise FileNotFoundError(
@@ -151,27 +152,27 @@ def _localizar_planilla_mes(log: logging.Logger) -> Path:
         log.warning(f"Multiples planillas en planilla_mes/ -> usando {candidatos[-1].name}")
     return candidatos[-1]
 
-def _leer_lista_corte(log: logging.Logger) -> list[dict]:
-    if not config.LISTA_CORTE_PATH.exists():
+def _leer_lista_multas(log: logging.Logger) -> list[dict]:
+    if not config.LISTA_MULTAS_PATH.exists():
         raise FileNotFoundError(
-            f"Falta: {config.LISTA_CORTE_PATH}\n"
-            f"  -> Correr generar_lista.py primero"
+            f"Falta: {config.LISTA_MULTAS_PATH}\n"
+            f"  -> Correr generar_lista_multas.py primero"
         )
-    df = pd.read_excel(config.LISTA_CORTE_PATH, header=1)
+    df = pd.read_excel(config.LISTA_MULTAS_PATH, header=1)
     df.columns = [str(c).strip().upper() for c in df.columns]
     requeridas = {"MZ", "LT", "NOMBRE"}
     faltantes = requeridas - set(df.columns)
     if faltantes:
-        raise ValueError(f"lista_corte.xlsx · faltan columnas {sorted(faltantes)}")
+        raise ValueError(f"lista_multas.xlsx · faltan columnas {sorted(faltantes)}")
 
     total = len(df)
     if "EJECUTAR_CORTE" in df.columns:
         bloqueados = (df["EJECUTAR_CORTE"].astype(str).str.strip().str.upper() != "SI").sum()
         df = df[df["EJECUTAR_CORTE"].astype(str).str.strip().str.upper() == "SI"]
         if bloqueados:
-            log.info(f"lista_corte.xlsx · {total} total · {bloqueados} omitidos (EJECUTAR_CORTE=NO)")
+            log.info(f"lista_multas.xlsx · {total} total · {bloqueados} omitidos (EJECUTAR_CORTE=NO)")
     else:
-        log.warning("lista_corte.xlsx · columna EJECUTAR_CORTE no encontrada · procesando todos")
+        log.warning("lista_multas.xlsx · columna EJECUTAR_CORTE no encontrada · procesando todos")
 
     filas = []
     for _, f in df.iterrows():
@@ -189,10 +190,7 @@ def _leer_lista_corte(log: logging.Logger) -> list[dict]:
 
 # ── AUDIT LOG — net APLICADO − REVERTIDO ─────────────────────────────────────
 def _net_aplicados(mes_ano: str, log: logging.Logger) -> set[tuple[str, str]]:
-    """Set de (MZ, LT) con cargo activo en MES_ANO = #APLICADO − #REVERTIDO > 0.
-
-    Filas sin columna ACCION (audit v1) se cuentan como APLICADO (retrocompat).
-    """
+    """Set de (MZ, LT) con cargo activo en MES_ANO = #APLICADO − #REVERTIDO > 0."""
     p = config.AUDIT_PENALIDAD_PATH
     if not p.exists():
         return set()
@@ -205,7 +203,7 @@ def _net_aplicados(mes_ano: str, log: logging.Logger) -> set[tuple[str, str]]:
     df.columns = [str(c).strip().upper() for c in df.columns]
     tiene_accion = "ACCION" in df.columns
     if not tiene_accion:
-        log.info("audit_penalidad sin columna ACCION (v1) — filas tratadas como APLICADO")
+        log.info("audit_penalidad_multas sin columna ACCION — filas tratadas como APLICADO")
 
     net: dict[tuple[str, str], int] = {}
     for _, f in df.iterrows():
@@ -233,11 +231,6 @@ def _reconciliar(
     mes_ano: str,
     log: logging.Logger,
 ) -> tuple[list[dict], list[tuple[str, str]]]:
-    """Devuelve (nuevos_a_aplicar, sobrantes_a_revertir) comparando DEBE vs TIENE.
-
-    nuevos    = items de `lista` cuya (mz, lt) no está en el audit (DEBE − TIENE)
-    sobrantes = (mz, lt) en el audit que ya no están en `lista` (TIENE − DEBE)
-    """
     set_debe  = {(item["mz"], item["lt"]) for item in lista}
     set_tiene = _net_aplicados(mes_ano, log)
 
@@ -255,19 +248,15 @@ def _reconciliar(
 
 
 def _migrar_audit_v1_a_v2(ws, log: logging.Logger) -> bool:
-    """Si el audit no tiene columna ACCION, la agrega y marca existentes como APLICADO.
-
-    Retorna True si migró, False si ya estaba en v2.
-    """
+    """Si el audit no tiene columna ACCION, la agrega y marca existentes como APLICADO."""
     headers = [ws.cell(row=2, column=c).value for c in range(1, ws.max_column + 1)]
     headers_upper = [str(h).strip().upper() if h else "" for h in headers]
     if "ACCION" in headers_upper:
         return False
 
-    log.info("audit_penalidad: migrando v1->v2 (agregando columna ACCION)")
+    log.info("audit_penalidad_multas: migrando v1->v2 (agregando columna ACCION)")
     col_accion = 9
 
-    # 1) Extender el merge "Trazabilidad" de 7-8 a 7-9
     for merged_range in list(ws.merged_cells.ranges):
         if (merged_range.min_row == 1 and merged_range.max_row == 1
                 and merged_range.min_col == 7 and merged_range.max_col == 8):
@@ -275,23 +264,21 @@ def _migrar_audit_v1_a_v2(ws, log: logging.Logger) -> bool:
             break
     _gh(ws, 1, 7, 9, "Trazabilidad", GH_AUD_TRAZ[0], GH_AUD_TRAZ[1])
 
-    # 2) Header de columna ACCION en fila 2
     _ch(ws, 2, col_accion, "ACCION", GH_AUD_TRAZ[0], GH_AUD_TRAZ[1])
     _w(ws, col_accion, 12)
 
-    # 3) Marcar cada fila existente con ACCION=APLICADO
     migradas = 0
     for r in range(3, ws.max_row + 1):
-        if ws.cell(row=r, column=1).value:   # fila con datos
+        if ws.cell(row=r, column=1).value:
             _c(ws, r, col_accion, ACCION_APLICADO,
                TD_AUD_APL_VAL, TX_AUD_APL_VAL, bold=True, align="center")
             migradas += 1
-    log.info(f"audit_penalidad: {migradas} filas existentes marcadas como APLICADO")
+    log.info(f"audit_penalidad_multas: {migradas} filas existentes marcadas como APLICADO")
     return True
 
 
 def _audit_append(filas_nuevas: list[dict], log: logging.Logger) -> None:
-    """Append a audit_penalidad.xlsx — crea con headers o migra v1→v2 si hace falta."""
+    """Append a audit_penalidad_multas.xlsx — crea con headers o migra v1→v2."""
     p = config.AUDIT_PENALIDAD_PATH
     config.OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -303,7 +290,7 @@ def _audit_append(filas_nuevas: list[dict], log: logging.Logger) -> None:
     else:
         wb = Workbook()
         ws = wb.active
-        ws.title = "audit_penalidad"
+        ws.title = "audit_penalidad_multas"
         ws.freeze_panes = "A3"
         for cs, ce, texto, bg, txt in _AUDIT_GRUPOS:
             _gh(ws, 1, cs, ce, texto, bg, txt)
@@ -317,17 +304,16 @@ def _audit_append(filas_nuevas: list[dict], log: logging.Logger) -> None:
     MONEY = '"S/ "#,##0.00'
     for ri_offset, fila in enumerate(filas_nuevas):
         r = next_row + ri_offset
-        _c(ws, r, 1, fila["mz"],     TD_AUD_ID, "1A5276", mono=True, align="center")
-        _c(ws, r, 2, fila["lt"],     TD_AUD_ID, "1A5276", mono=True, align="center")
-        _c(ws, r, 3, fila["nombre"], TD_AUD_ID, "333333", align="left")
-        _c(ws, r, 4, fila["mes_ano"],TD_AUD_ID, "1A5276", mono=True, align="center")
-        _c(ws, r, 5, fila["penalidad"], TD_AUD_APL, "1E5C3A",
+        _c(ws, r, 1, fila["mz"],      TD_AUD_ID, "1A5276", mono=True, align="center")
+        _c(ws, r, 2, fila["lt"],      TD_AUD_ID, "1A5276", mono=True, align="center")
+        _c(ws, r, 3, fila["nombre"],  TD_AUD_ID, "333333", align="left")
+        _c(ws, r, 4, fila["mes_ano"], TD_AUD_ID, "1A5276", mono=True, align="center")
+        _c(ws, r, 5, fila["penalidad"], TD_AUD_APL, "7F1D1D",
            mono=True, align="right", bold=True, fmt=MONEY)
-        _c(ws, r, 6, fila["corte_recon_despues"], TD_AUD_APL, "1E5C3A",
+        _c(ws, r, 6, fila["corte_recon_despues"], TD_AUD_APL, "7F1D1D",
            mono=True, align="right", fmt=MONEY)
         _c(ws, r, 7, fila["fecha"], TD_AUD_TRAZ, "5B21B6", mono=True, align="center")
         _c(ws, r, 8, fila["source"], TD_AUD_TRAZ, "5B21B6", mono=True, align="left")
-        # ACCION — color condicional según el valor
         if fila["accion"] == ACCION_APLICADO:
             _c(ws, r, 9, ACCION_APLICADO,
                TD_AUD_APL_VAL, TX_AUD_APL_VAL, bold=True, align="center")
@@ -349,24 +335,17 @@ def _backup_planilla(plan_path: Path) -> Path:
     return dest
 
 
-# ── CÁLCULO DE PENALIDAD — bidireccional (solo audit, NO escribe planilla) ───
+# ── ESCRITURA EN PLANILLA — bidireccional (aplicar + revertir) ───────────────
 def _modificar_planilla(
     plan_path: Path,
     nuevos: list[dict],
     sobrantes: list[tuple[str, str]],
     log: logging.Logger,
 ) -> tuple[list[dict], list[dict], list[str]]:
-    """Calcula las filas de audit para `nuevos` (+PENALIDAD) y `sobrantes` (−PENALIDAD).
-
-    Modelo A: NO escribe CORTE_RECONEXION en la planilla — solo la lee para
-    resolver NOMBRE y detectar no_encontrados. Devuelve (aplicadas, revertidas,
-    no_encontrados) que van al audit; 5_cobranza los overlaya al leer.
-    """
+    """Aplica +PENALIDAD a `nuevos` y −PENALIDAD a `sobrantes` en CORTE_RECONEXION."""
     wb = load_workbook(plan_path)
     ws = wb.active
 
-    # Headers en fila 2 (fila 1 = grupos). Buscamos columna por nombre — robusto
-    # frente a reordenamientos del layout de 2_planilla.
     header_row = 2
     headers = {}
     for col in range(1, ws.max_column + 1):
@@ -374,17 +353,17 @@ def _modificar_planilla(
         if v:
             headers[str(v).strip().upper()] = col
 
-    for req in ("MZ", "LT", "CORTE_RECONEXION", "MES_ANO"):
+    col_pen_name = config.COL_PENALIDAD   # CORTE_RECONEXION
+    for req in ("MZ", "LT", col_pen_name, "MES_ANO"):
         if req not in headers:
             raise ValueError(f"planilla_mes · falta columna {req} en fila {header_row}")
 
     col_mz   = headers["MZ"]
     col_lt   = headers["LT"]
-    col_cr   = headers["CORTE_RECONEXION"]
+    col_cr   = headers[col_pen_name]
     col_mes  = headers["MES_ANO"]
     col_nom  = headers.get("NOMBRE", 0)
 
-    # Index (mz, lt) → row para localizar rápido sin re-escanear N veces
     fila_de: dict[tuple[str, str], int] = {}
     mes_ano_planilla = ""
     for r in range(3, ws.max_row + 1):
@@ -432,7 +411,7 @@ def _modificar_planilla(
             "accion": ACCION_APLICADO,
         })
         log.info(f"  +S/{config.PENALIDAD:.0f} -> {p['mz']}-{p['lt']} "
-                 f"(CORTE_RECON: {actual:.2f} -> {nuevo:.2f})")
+                 f"({col_pen_name}: {actual:.2f} -> {nuevo:.2f})")
 
     # ── SOBRANTES — restar PENALIDAD ──
     for mz, lt in sobrantes:
@@ -448,18 +427,17 @@ def _modificar_planilla(
             "lt":     lt,
             "nombre": _nombre_de(r),
             "mes_ano": mes_ano_planilla,
-            "penalidad": -config.PENALIDAD,   # negativo en el audit
+            "penalidad": -config.PENALIDAD,
             "corte_recon_despues": nuevo,
             "fecha":  ahora,
             "source": SOURCE,
             "accion": ACCION_REVERTIDO,
         })
         log.info(f"  -S/{config.PENALIDAD:.0f} -> {mz}-{lt} "
-                 f"(CORTE_RECON: {actual:.2f} -> {nuevo:.2f})")
+                 f"({col_pen_name}: {actual:.2f} -> {nuevo:.2f})")
 
-    # Modelo A: NO se escribe la planilla. Se abrió en lectura solo para resolver
-    # NOMBRE, la base actual (col 6 informativa) y detectar no_encontrados.
-    # La penalidad se persiste únicamente en el audit; 5_cobranza la overlaya.
+    # Modelo A: NO se escribe la planilla. La penalidad vive solo en el audit
+    # (audit_penalidad_multas.xlsx); 5_cobranza la overlaya al leer.
     return aplicados, revertidos, no_encontrados
 
 
@@ -476,19 +454,18 @@ def main() -> None:
         force=True,
     )
     log = logging.getLogger(__name__)
-    log.info("aplicar_penalidad.py · iniciando")
+    log.info("aplicar_penalidad_multas.py · iniciando")
 
     print("=" * 60)
-    print("  6_corte/aplicar_penalidad.py")
+    print("  6b_corte_multas/aplicar_penalidad_multas.py")
     print("=" * 60)
 
     print("\n[1/5] Validando inputs...")
-    lista = _leer_lista_corte(log)
-    log.info(f"lista_corte.xlsx · {len(lista)} usuarios elegibles (EJECUTAR_CORTE=SI)")
+    lista = _leer_lista_multas(log)
+    log.info(f"lista_multas.xlsx · {len(lista)} usuarios elegibles (EJECUTAR_CORTE=SI)")
     plan_path = _localizar_planilla_mes(log)
     log.info(f"planilla_mes · {plan_path.name}")
 
-    # Detectar MES_ANO de la planilla (necesario para reconciliar contra el audit)
     df_plan_head = pd.read_excel(plan_path, header=1, nrows=1)
     df_plan_head.columns = [str(c).strip().upper() for c in df_plan_head.columns]
     if "MES_ANO" not in df_plan_head.columns:
@@ -498,14 +475,14 @@ def main() -> None:
         raise ValueError("planilla_mes · MES_ANO vacío en la primera fila de datos")
     log.info(f"Ciclo detectado · {mes_ano_actual}")
 
-    print(f"\n[2/5] Reconciliando SET_DEBE (lista_corte) vs SET_TIENE (audit) · ciclo {mes_ano_actual}...")
+    print(f"\n[2/5] Reconciliando SET_DEBE (lista_multas) vs SET_TIENE (audit) · ciclo {mes_ano_actual}...")
     nuevos, sobrantes = _reconciliar(lista, mes_ano_actual, log)
 
     if not nuevos and not sobrantes:
-        print(f"\n  Nada que reconciliar · audit y lista_corte ya están alineados")
+        print(f"\n  Nada que reconciliar · audit y lista_multas ya están alineados")
         print(f"  (idempotencia desde {config.AUDIT_PENALIDAD_PATH.name})")
         print("\n" + "=" * 60)
-        print("  aplicar_penalidad.py completado · 0 escrituras")
+        print("  aplicar_penalidad_multas.py completado · 0 escrituras")
         print("=" * 60 + "\n")
         return
 
@@ -530,11 +507,11 @@ def main() -> None:
     filas_audit = aplicados + revertidos
     if filas_audit:
         _audit_append(filas_audit, log)
-        log.info(f"audit_penalidad.xlsx · +{len(aplicados)} APLICADO · "
+        log.info(f"audit_penalidad_multas.xlsx · +{len(aplicados)} APLICADO · "
                  f"+{len(revertidos)} REVERTIDO")
 
     print("\n" + "=" * 60)
-    print(f"  aplicar_penalidad.py completado")
+    print(f"  aplicar_penalidad_multas.py completado")
     print(f"  -> {len(aplicados)} APLICADOS (+S/{config.PENALIDAD:.0f})")
     print(f"  -> {len(revertidos)} REVERTIDOS (-S/{config.PENALIDAD:.0f})")
     if no_encontrados:
@@ -542,7 +519,7 @@ def main() -> None:
     print(f"  -> Backup: {backup_path}")
     print(f"  -> Audit:  {config.AUDIT_PENALIDAD_PATH}")
     if aplicados:
-        print(f"\n  Esperar ventana de gracia (2 días) y luego: python seguimiento.py")
+        print(f"\n  Esperar ventana de gracia (2 días) y luego: python seguimiento_multas.py")
     print("=" * 60 + "\n")
 
 

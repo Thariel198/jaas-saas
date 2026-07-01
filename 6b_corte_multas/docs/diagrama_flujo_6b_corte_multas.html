@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>6b_corte_multas — Flujo visual</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Arial, sans-serif; background: #F5F0EB; font-size: 13px; }
+.page { padding: 28px 24px 60px; max-width: 1060px; margin: 0 auto; }
+h1   { font-size: 17px; color: #7C2D12; margin-bottom: 4px; }
+.sub { font-size: 11px; color: #888; margin-bottom: 10px; }
+.hermano { font-size: 11px; color: #92400E; background: #FEF3C7;
+           border: 1px solid #FCD34D; border-radius: 4px;
+           padding: 5px 12px; display: inline-block; margin-bottom: 28px; }
+
+/* ═══ DIFERENCIA CLAVE ═══ */
+.diff-banner {
+  background: #FFF7ED; border: 2px solid #F97316; border-radius: 6px;
+  padding: 10px 14px; margin-bottom: 28px; font-size: 11px; color: #7C2D12;
+}
+.diff-banner b { color: #C2410C; }
+.diff-banner ul { margin: 6px 0 0 16px; }
+.diff-banner li { margin: 2px 0; }
+
+/* ═══ FILA PRINCIPAL ═══ */
+.flow { display: flex; align-items: flex-start; gap: 0; }
+.step { display: flex; flex-direction: column; align-items: center; flex: 1; }
+
+/* flecha horizontal */
+.harr { display: flex; flex-direction: column; align-items: center;
+        justify-content: center; flex: 0 0 32px; padding-top: 34px; }
+.harr-line { border-top: 2px dashed #D97706; width: 100%; }
+.harr-tip  { color: #D97706; font-size: 14px; line-height: 1; margin-top: -2px; }
+
+/* flecha vertical */
+.varr { color: #9CA3AF; font-size: 20px; margin: 5px 0; line-height: 1; }
+
+/* ═══ SCRIPTS ═══ */
+.script {
+  width: 100%; border-radius: 8px; padding: 10px 12px;
+  text-align: center; border: 2px solid transparent;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+}
+.sc-name { font-family: Consolas, monospace; font-size: 11px; font-weight: bold; }
+.sc-note { font-size: 10px; opacity: 0.85; }
+
+/* colores propios de 6b — naranja/ámbar en vez del azul de 6_corte */
+.sc-orange  { background: #FEF3C7; border-color: #B45309; color: #7C2D12; }
+.sc-red     { background: #FEE2E2; border-color: #B91C1C; color: #7F1D1D; }
+.sc-purple  { background: #EDE9FE; border-color: #5B21B6; color: #4C1D95; }
+
+/* ═══ ARCHIVOS ═══ */
+.file-wrap { width: 100%; display: flex; flex-direction: column; gap: 4px; margin-top: 2px; }
+.file {
+  border-radius: 5px; padding: 5px 8px; font-size: 10px;
+  font-family: Consolas, monospace; font-weight: bold;
+  text-align: left; width: 100%; line-height: 1.5;
+  border-left: 3px solid transparent;
+}
+.file small { font-weight: normal; font-family: Arial, sans-serif;
+              display: block; color: inherit; opacity: 0.8; }
+
+/* tipos de archivo */
+.fa { background: #FEF3C7; color: #92400E; border-left-color: #D97706; }  /* auditoría */
+.ff { background: #D5F5E3; color: #145A32; border-left-color: #1E8449; }  /* final/operario */
+.fn { background: #F5F5F4; color: #44403C; border-left-color: #78716C; }  /* input externo */
+.fg { background: #ECFDF5; color: #064E3B; border-left-color: #10B981; }  /* shared (cross-módulo) */
+
+/* etiquetas */
+.tag { font-size: 9px; font-weight: bold; text-transform: uppercase;
+       letter-spacing: 0.4px; margin-bottom: 3px; color: #888; }
+.tag-green  { color: #1E8449; }
+.tag-orange { color: #B45309; }
+
+/* ═══ BIFURCACIÓN ═══ */
+.split {
+  width: 100%; background: #FFF7ED; border: 2px dashed #F97316;
+  border-radius: 8px; padding: 8px 10px; text-align: center;
+  font-size: 11px; color: #7C2D12; font-weight: bold; margin: 4px 0;
+}
+.br-si {
+  background: #D5F5E3; color: #145A32; border: 1px solid #82E0AA;
+  border-radius: 4px; padding: 4px 8px; font-size: 10px;
+  font-weight: bold; text-align: center; margin: 2px 0; width: 100%;
+}
+.br-no {
+  background: #FADBD8; color: #7B241C; border: 1px solid #F1948A;
+  border-radius: 4px; padding: 4px 8px; font-size: 10px;
+  font-weight: bold; text-align: center; margin: 2px 0; width: 100%;
+}
+
+/* ═══ CHIPS RESULTADO ═══ */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 36px; }
+.chip  { border-radius: 20px; padding: 6px 16px; font-size: 11px; font-weight: bold; line-height: 1.5; }
+.ch-g { background: #D5F5E3; color: #145A32; border: 1px solid #52BE80; }
+.ch-o { background: #FEF3C7; color: #7D5A00; border: 1px solid #F0C040; }
+.ch-r { background: #FADBD8; color: #7B241C; border: 1px solid #F1948A; }
+.ch-s { background: #F0F4FF; color: #1E3A8A; border: 1px solid #93C5FD; }
+
+/* ═══ LEYENDA ═══ */
+.legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 28px;
+          padding-top: 14px; border-top: 1px dashed #CCC; justify-content: center; }
+.leg { display: flex; align-items: center; gap: 5px; font-size: 10px; color: #555; }
+.leg-dot { width: 12px; height: 12px; border-radius: 2px; flex-shrink: 0; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <h1>6b_corte_multas — Flujo visual del ciclo</h1>
+  <div class="sub">Módulo espejo de 6_corte · penaliza deuda de multas y acuerdos de asamblea · 24/06/2026</div>
+  <div class="hermano">⟵ Hermano de <strong>6_corte</strong> — misma arquitectura, condiciones de corte distintas</div>
+
+  <!-- DIFERENCIAS CLAVE -->
+  <div class="diff-banner">
+    <b>Diferencias respecto a 6_corte:</b>
+    <ul>
+      <li><b>Elegibilidad:</b> <code>(MULTA + ACUERDOS_ASAMBLEA) − max(0, pagado − cargo_agua) &gt; 0</code> — deuda de multas real después de cubrir agua</li>
+      <li><b>Columna:</b> <code>PENALIDAD_MULTA</code> (no CORTE_RECONEXION)</li>
+      <li><b>Penalidad este mes:</b> S/40 directo en Día 0 — sin ventana en S/20 (decisión de secretaria, solo junio 2026)</li>
+      <li><b>Salvado:</b> saldó <em>toda</em> su deuda (agua + multa + acuerdos) — condición más estricta que 6_corte</li>
+      <li><b>CONVENIO:</b> excluido de la deuda — se paga por separado en cuotas</li>
+      <li><b>registro_cortes:</b> compartido en <code>shared/</code> — un solo estado de cortes para ambos módulos</li>
+    </ul>
+  </div>
+
+  <div class="flow">
+
+    <!-- ══ PASO 1: generar_lista_multas ══ -->
+    <div class="step">
+
+      <div class="tag tag-orange">Lee</div>
+      <div class="file-wrap">
+        <div class="file fn">planilla_cobrado.xlsx<small>de 5_cobranza/outputs/</small></div>
+        <div class="file fn">reclamos_2026-06.xlsx<small>de 4b_reclamos/outputs/</small></div>
+        <div class="file fg">registro_cortes.xlsx<small>de shared/ · excluye CORTADO activos</small></div>
+        <div class="file fa" style="border-left-color:#DC2626;background:#FEF2F2;color:#7F1D1D;">
+          audit_penalidad_multas.xlsx<small>🔒 phase gate — aborta si ya hay APLICADO este ciclo</small>
+        </div>
+      </div>
+      <div class="varr">↓</div>
+
+      <div class="script sc-orange">
+        <div class="sc-name">① generar_lista_multas.py</div>
+        <div class="sc-note">
+          filtra (MULTA + ACUERDOS) - pago_excedente &gt; 0<br>
+          excluye ESTADO=CORTADO en multas<br>
+          excluye CONVENIO de la deuda<br>
+          cruza con reclamos → EJECUTAR_CORTE<br>
+          <span style="color:#DC2626;font-weight:bold;">🔒 bloqueado si aplicar_penalidad ya corrió</span>
+        </div>
+      </div>
+      <div class="varr">↓</div>
+
+      <div class="tag tag-green">Genera — 1 archivo</div>
+      <div class="file-wrap">
+        <div class="file fa">
+          lista_multas.xlsx — AUDITORÍA<br>
+          <small>Todos los elegibles · DEUDA_MULTA · EJECUTAR_CORTE=SI/NO</small>
+        </div>
+      </div>
+      <div class="varr">↓</div>
+
+      <div class="split">Columna EJECUTAR_CORTE</div>
+      <div class="br-si">SI → sin reclamo → sigue el flujo →</div>
+      <div class="br-no">NO → EN_REVISION → bloqueado hasta resolución →</div>
+
+    </div>
+
+    <div class="harr"><div class="harr-line"></div><div class="harr-tip">›</div></div>
+
+    <!-- ══ PASO 2: aplicar_penalidad_multas ══ -->
+    <div class="step">
+
+      <div class="tag tag-orange">Lee</div>
+      <div class="file-wrap">
+        <div class="file fa">lista_multas.xlsx<small>filtra EJECUTAR_CORTE = SI</small></div>
+        <div class="file fn">planilla_mes actual<small>de shared/planilla_mes/</small></div>
+      </div>
+      <div class="varr">↓</div>
+
+      <div class="script sc-orange">
+        <div class="sc-name">② aplicar_penalidad_multas.py</div>
+        <div class="sc-note">
+          escribe S/40 en PENALIDAD_MULTA<br>
+          en shared/planilla_mes/<br>
+          registra APLICADO en audit
+        </div>
+      </div>
+      <div class="varr">↓</div>
+
+      <!-- COMMIT POINT -->
+      <div style="width:100%;background:#FEF2F2;border:1px solid #FECACA;border-left:3px solid #DC2626;
+                  border-radius:0 4px 4px 0;padding:5px 8px;font-size:9px;color:#7F1D1D;
+                  font-weight:bold;text-align:center;margin:4px 0;">
+        ✅ COMMIT POINT — phase gate activo · generar_lista_multas.py bloqueado
+      </div>
+
+      <!-- GENERA -->
+      <div class="tag tag-green" style="margin-top:8px;">Genera — 2 archivos</div>
+      <div class="file-wrap">
+        <div class="file fa">
+          audit_penalidad_multas.xlsx<br>
+          <small>Registro inmutable: MZ, LT, NOMBRE, MONTO, FECHA, ESTADO=APLICADO</small>
+        </div>
+        <div class="file fn" style="border-left-color:#B45309;background:#FFFBEB;color:#92400E;">
+          shared/planilla_mes/ ← +S/40<br>
+          <small>PENALIDAD_MULTA cargado · 5_cobranza lo verá en el siguiente ciclo</small>
+        </div>
+      </div>
+      <div class="varr">↓</div>
+
+      <!-- VENTANA DE GRACIA -->
+      <div class="script sc-purple" style="margin-top:4px;">
+        <div class="sc-name">Ventana de gracia (2 días)</div>
+        <div class="sc-note">
+          <span style="color:#B91C1C;font-weight:bold;">Este mes: S/40 directo desde Día 0</span><br>
+          (Normal: S/20 Día 0 → S/40 si no pagan a Día 2)<br>
+          usuarios pueden saldar toda su deuda
+        </div>
+      </div>
+      <div class="varr" style="color:#5B21B6;">↕</div>
+      <div style="font-size:10px;color:#5B21B6;text-align:center;
+                  background:#F3E8FF;border:1px solid #C4B5FD;border-radius:4px;
+                  padding:5px 8px;width:100%;">
+        MANUAL: re-correr 4_pagos → 5_cobranza<br>
+        <span style="font-size:9px;color:#7C3AED;">planilla_cobrado se actualiza con pagos del período</span>
+      </div>
+
+    </div>
+
+    <div class="harr"><div class="harr-line"></div><div class="harr-tip">›</div></div>
+
+    <!-- ══ PASO 3: seguimiento_multas ══ -->
+    <div class="step">
+
+      <div class="tag tag-orange">Lee</div>
+      <div class="file-wrap">
+        <div class="file fa">lista_multas.xlsx<small>filtra EJECUTAR_CORTE = SI</small></div>
+        <div class="file fn">planilla_cobrado.xlsx (ciclo 2)<small>post-cobranza · saldos actualizados</small></div>
+        <div class="file fn">pagos_yape_tepago.xlsx<small>de 4_pagos/ · trazabilidad Yape</small></div>
+        <div class="file fn">pagos_efectivo.xlsx<small>de 4_pagos/ · trazabilidad efectivo</small></div>
+        <div class="file fg">registro_cortes.xlsx<small>de shared/ · guard de consistencia</small></div>
+      </div>
+      <div class="varr">↓</div>
+
+      <div class="script sc-orange">
+        <div class="sc-name">③ seguimiento_multas.py</div>
+        <div class="sc-note">
+          ¿saldó toda su deuda?<br>
+          agua + multa + acuerdos ≤ total pagado<br>
+          enriquece con trazabilidad YAPE / EFECTIVO
+        </div>
+      </div>
+      <div class="varr">↓</div>
+
+      <div class="split" style="font-size:10px;">
+        Condición SALVADO (más estricta que 6_corte):<br>
+        <code style="font-size:10px;">(cargo_agua + MULTA + ACUERDOS) ≤ pagado_total</code>
+      </div>
+      <div class="br-si">✓ Saldó todo → SALVADO → pagaron_penalidad_multas</div>
+      <div class="br-no">✗ Deuda pendiente → CORTADO → corte_fisico_multas</div>
+      <div class="varr">↓</div>
+
+      <!-- GENERA -->
+      <div class="tag tag-green">Genera — 4 archivos</div>
+      <div class="file-wrap">
+        <div class="file ff">
+          pagaron_penalidad_multas.xlsx<br>
+          <small>SALVADOS con trazabilidad · tipo, referencia, monto, fecha</small>
+        </div>
+        <div class="file ff">
+          corte_fisico_multas.xlsx<br>
+          <small>Solo los que NO saldaron · → operario físico</small>
+        </div>
+        <div class="file ff">
+          arrastre_multa_2026-06.xlsx<br>
+          <small>PENALIDAD_MULTA S/40 arrastra → 2_planilla próximo mes</small>
+        </div>
+        <div class="file fg">
+          shared/registro_cortes.xlsx (append)<br>
+          <small>Agrega nuevos CORTADO_MULTA · estado compartido con 6_corte</small>
+        </div>
+      </div>
+
+    </div>
+
+  </div><!-- end flow -->
+
+  <!-- CHIPS -->
+  <div style="text-align:center;font-size:10px;text-transform:uppercase;
+              letter-spacing:0.5px;color:#888;margin-top:40px;margin-bottom:10px;">
+    ¿Qué le pasa a cada usuario?
+  </div>
+  <div class="chips">
+    <div class="chip ch-g">Saldó agua + multa + acuerdos → SALVADO · no va a corte físico</div>
+    <div class="chip ch-r">Deuda pendiente → corte_fisico_multas.xlsx · S/40 en arrastre</div>
+    <div class="chip ch-o">EN_REVISION → bloqueado hasta que supervisor resuelva reclamo</div>
+    <div class="chip ch-s">Ya CORTADO en multas → excluido de lista cada mes hasta REACTIVADO</div>
+  </div>
+
+  <!-- LEYENDA -->
+  <div class="legend">
+    <div class="leg"><div class="leg-dot" style="background:#FEF3C7;border:1px solid #B45309;"></div>Script automático 6b</div>
+    <div class="leg"><div class="leg-dot" style="background:#EDE9FE;border:1px solid #5B21B6;"></div>Acción humana / espera</div>
+    <div class="leg"><div class="leg-dot" style="background:#FEF3C7;border:1px solid #D97706;"></div>Auditoría 6b (todos, no se filtra)</div>
+    <div class="leg"><div class="leg-dot" style="background:#D5F5E3;border:1px solid #52BE80;"></div>Output final / operario / próximo mes</div>
+    <div class="leg"><div class="leg-dot" style="background:#F5F5F4;border:1px solid #78716C;"></div>Input externo (otro módulo)</div>
+    <div class="leg"><div class="leg-dot" style="background:#ECFDF5;border:1px solid #10B981;"></div>Estado compartido — shared/ (ambos módulos leen y escriben)</div>
+  </div>
+
+</div>
+</body>
+</html>

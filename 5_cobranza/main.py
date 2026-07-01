@@ -43,6 +43,13 @@ YAPE_DIR      = ROOT.parent / "4_pagos" / "yape" / "motor_matching" / "outputs"
 EFEC_DIR      = ROOT.parent / "4_pagos" / "efectivo" / "outputs"
 BLANCOS_PATH  = SHARED_DIR / "blancos_acumulados.xlsx"
 
+# Overlay de penalidad (Modelo A · writer único). 6_corte y 6b ya NO escriben
+# CORTE_RECONEXION en shared/planilla_mes — la penalidad vive SOLO en sus audits.
+# 5_cobranza la re-deriva en vivo sumando el neto de PENALIDAD_APLICADA (col 5,
+# ya viene con signo +/-) por predio. shared queda como base pura de 2_planilla.
+AUDIT_CORTE_PATH = ROOT.parent / "6_corte" / "outputs" / "audit_penalidad.xlsx"
+AUDIT_MULTA_PATH = ROOT.parent / "6b_corte_multas" / "outputs" / "audit_penalidad_multas.xlsx"
+
 YAPE_FILE         = "pagos_yape_tepago.xlsx"
 EFEC_FILE         = "pagos_efectivo.xlsx"
 YAPE_DEV_FILE     = "pagos_yape_devolucion.xlsx"
@@ -294,6 +301,30 @@ def _fecha_hora_str(val) -> str:
         return dt.strftime("%d/%m/%Y")
     return dt.strftime("%d/%m/%Y %H:%M")
 
+
+def _fecha_hora_seg_str(val) -> str:
+    """Como _fecha_hora_str pero con segundos: DD/MM/YYYY HH:MM:SS.
+    Usado en REFERENCIA de arrastre_devolucion — ahí sí importa el segundo exacto."""
+    if val is None:
+        return ""
+    try:
+        if pd.isna(val):
+            return ""
+    except (TypeError, ValueError):
+        pass
+    if isinstance(val, (pd.Timestamp, datetime)):
+        dt = val
+    else:
+        s = str(val).strip()
+        if not s or s.upper() in ("NAN", "NAT", "NONE"):
+            return ""
+        dt = pd.to_datetime(s, dayfirst=True, errors="coerce")
+        if pd.isna(dt):
+            return _fecha_str(val)
+    if dt.hour == 0 and dt.minute == 0 and dt.second == 0:
+        return dt.strftime("%d/%m/%Y")
+    return dt.strftime("%d/%m/%Y %H:%M:%S")
+
 def _fecha_max(fechas: list[str]) -> str:
     """Devuelve la fecha más reciente en formato DD/MM/YYYY."""
     fechas = [f for f in fechas if f]
@@ -340,6 +371,34 @@ def _validar_inputs() -> Path:
     return plan
 
 
+# ── CARGA: PENALIDADES (overlay Modelo A) ────────────────────────────────────
+def _cargar_penalidades(mes_ano: str) -> dict[tuple[str, str], float]:
+    """Neto de penalidad de corte por predio, sumado de los audits de 6_corte y 6b.
+
+    Fuente única de la penalidad: sus audit_*.xlsx. Se suma PENALIDAD_APLICADA
+    (col 5, ya trae signo: +APLICADO / −REVERTIDO) → net delta. Robusto a que la
+    base cambie: no depende del absoluto (col 6). Solo el ciclo MES_ANO actual.
+    """
+    neto: dict[tuple[str, str], float] = {}
+    for p in (AUDIT_CORTE_PATH, AUDIT_MULTA_PATH):
+        if not p.exists():
+            continue
+        df = pd.read_excel(p, header=1)
+        df.columns = _norm_cols(df)
+        if "PENALIDAD_APLICADA" not in df.columns:
+            continue
+        for _, f in df.iterrows():
+            if str(f.get("MES_ANO", "")).strip() != mes_ano:
+                continue
+            mz = _norm_mz(f.get("MZ"))
+            lt = _norm_lt(f.get("LT"))
+            if not mz or not lt:
+                continue
+            key = (mz, lt)
+            neto[key] = round(neto.get(key, 0.0) + _float(f.get("PENALIDAD_APLICADA")), 2)
+    return {k: v for k, v in neto.items() if abs(v) > TOL}
+
+
 # ── CARGA: PLANILLA ──────────────────────────────────────────────────────────
 def _cargar_planilla(plan_path: Path) -> tuple[list[dict], str]:
     df = pd.read_excel(plan_path, header=1)
@@ -379,6 +438,18 @@ def _cargar_planilla(plan_path: Path) -> tuple[list[dict], str]:
             "blanco_inicial":    _float(f.get("BLANCO")),
             "devolucion":        _float(f.get("DEVOLUCION")),
         })
+    # Overlay Modelo A: sumar penalidad de corte (audits de 6_corte/6b) sobre la
+    # base leída de shared. shared ya no la trae — se re-deriva acá en cada corrida.
+    penalidades = _cargar_penalidades(mes_ano)
+    if penalidades:
+        n = 0
+        for u in usuarios:
+            d = penalidades.get((u["mz"], u["lt"]), 0.0)
+            if abs(d) > TOL:
+                u["corte_reconexion"] = round(u["corte_reconexion"] + d, 2)
+                n += 1
+        log.info(f"Overlay penalidad · {n} predios con delta de audit (CORTE_RECONEXION)")
+
     log.info(f"Planilla {mes_ano} → {len(usuarios)} usuarios")
     return usuarios, mes_ano
 
@@ -424,6 +495,7 @@ def _cargar_pagos_yape() -> list[dict]:
             "referencia": str(f.get("ORIGEN", "")).strip(),
             "comentario": str(f.get("MENSAJE", "")).strip(),
             "fecha_hora": _fecha_hora_str(f.get("FECHA")),
+            "fecha_hora_seg": _fecha_hora_seg_str(f.get("FECHA")),
         })
     log.info(f"Pagos Yape → {len(pagos)} filas · {sin_id} sin identificar")
     return pagos
@@ -688,6 +760,85 @@ def _leer_correcciones() -> dict:
     return corr
 
 
+def _escribir_correcciones_lote(filas: list[dict]):
+    """Escribe correcciones_lote.xlsx con formato desde una lista de dicts."""
+    CORR_LOTE_PATH.parent.mkdir(exist_ok=True)
+    cols_cl = ["MZ_ORIGEN", "LT_ORIGEN", "MZ_DESTINO", "LT_DESTINO", "MOTIVO", "CICLO", "FECHA"]
+    wb_cl = Workbook()
+    ws_cl = wb_cl.active
+    ws_cl.title = "correcciones_lote"
+    bg_h = PatternFill("solid", start_color=GH_DC_CORR[0])
+    for ci, col in enumerate(cols_cl, 1):
+        c = ws_cl.cell(1, ci, col)
+        c.font = Font(name="Arial", bold=True, size=9, color=GH_DC_CORR[1])
+        c.fill = bg_h
+        c.alignment = Alignment(horizontal="center", vertical="center")
+        c.border = _borde()
+        ws_cl.column_dimensions[get_column_letter(ci)].width = [8, 8, 10, 10, 40, 8, 18][ci - 1]
+    ws_cl.row_dimensions[1].height = 20
+
+    for ri, row in enumerate(filas, 2):
+        for ci, col in enumerate(cols_cl, 1):
+            c = ws_cl.cell(ri, ci, row.get(col, ""))
+            c.font = Font(name="Consolas", size=9)
+            c.alignment = Alignment(horizontal="center" if ci <= 4 or ci == 6 else "left",
+                                    vertical="center")
+            c.border = _borde()
+            if ci <= 4:
+                c.fill = PatternFill("solid", start_color=TD_DC_CORR)
+        ws_cl.row_dimensions[ri].height = 16
+
+    wb_cl.save(CORR_LOTE_PATH)
+
+
+def _recuperar_correcciones_trazabilidad(existentes: dict, ciclo: int) -> dict:
+    """Auto-sana correcciones_lote desde trazabilidad_cobranza.xlsx.
+    Cada corrección aplicada queda grabada en la trazabilidad (MZ_ORIGEN/LT_ORIGEN
+    → MZ/LT). Si correcciones_lote se revirtió (git) y perdió alguna, se recupera
+    desde ahí — el trabajo manual no depende de un solo archivo mutable.
+    """
+    traz = OUTPUTS_DIR / "trazabilidad_cobranza.xlsx"
+    if not traz.exists():
+        return existentes
+    try:
+        df = pd.read_excel(traz, header=1, dtype=str)
+    except Exception as e:
+        log.warning(f"No se pudo leer trazabilidad para recuperar correcciones: {e}")
+        return existentes
+    df.columns = _norm_cols(df)
+    if not {"MZ_ORIGEN", "LT_ORIGEN", "MZ", "LT"} <= set(df.columns):
+        return existentes
+
+    nuevas = {}
+    for _, f in df.iterrows():
+        mo = _norm_mz(f.get("MZ_ORIGEN"))
+        lo = _norm_lt(f.get("LT_ORIGEN"))
+        md = _norm_mz(f.get("MZ"))
+        ld = _norm_lt(f.get("LT"))
+        if mo and lo and md and ld and (mo, lo) not in existentes:
+            nuevas[(mo, lo)] = (md, ld)
+    if not nuevas:
+        return existentes
+
+    ahora = datetime.now().strftime("%d/%m/%Y %H:%M")
+    filas_prev = []
+    if CORR_LOTE_PATH.exists():
+        df_prev = pd.read_excel(CORR_LOTE_PATH, header=0)
+        df_prev.columns = _norm_cols(df_prev)
+        filas_prev = df_prev.to_dict("records")
+    filas_nuevas = [
+        {"MZ_ORIGEN": mo, "LT_ORIGEN": lo, "MZ_DESTINO": md, "LT_DESTINO": ld,
+         "MOTIVO": "Recuperado desde trazabilidad_cobranza.xlsx",
+         "CICLO": ciclo, "FECHA": ahora}
+        for (mo, lo), (md, ld) in nuevas.items()
+    ]
+    _escribir_correcciones_lote(filas_prev + filas_nuevas)
+    log.info(f"correcciones_lote.xlsx → {len(nuevas)} recuperada(s) desde trazabilidad")
+    for (mo, lo), (md, ld) in nuevas.items():
+        log.info(f"  recuperada: {mo}-{lo} → {md}-{ld}")
+    return {**existentes, **nuevas}
+
+
 def _absorber_correcciones_discrepancias(existentes: dict, ciclo: int) -> dict:
     """Lee MZ_CORRECTO+LT_CORRECTO llenados en discrepancias_cobranza.xlsx.
     Guarda las nuevas en correcciones_lote.xlsx y retorna el mapa combinado.
@@ -740,32 +891,7 @@ def _absorber_correcciones_discrepancias(existentes: dict, ciclo: int) -> dict:
         for (mo, lo), (md, ld) in nuevas.items()
     ]
 
-    wb_cl = Workbook()
-    ws_cl = wb_cl.active
-    ws_cl.title = "correcciones_lote"
-    cols_cl = ["MZ_ORIGEN", "LT_ORIGEN", "MZ_DESTINO", "LT_DESTINO", "MOTIVO", "CICLO", "FECHA"]
-    bg_h = PatternFill("solid", start_color=GH_DC_CORR[0])
-    for ci, col in enumerate(cols_cl, 1):
-        c = ws_cl.cell(1, ci, col)
-        c.font = Font(name="Arial", bold=True, size=9, color=GH_DC_CORR[1])
-        c.fill = bg_h
-        c.alignment = Alignment(horizontal="center", vertical="center")
-        c.border = _borde()
-        ws_cl.column_dimensions[get_column_letter(ci)].width = [8, 8, 10, 10, 40, 8, 18][ci - 1]
-    ws_cl.row_dimensions[1].height = 20
-
-    for ri, row in enumerate(filas_prev + filas_nuevas, 2):
-        for ci, col in enumerate(cols_cl, 1):
-            c = ws_cl.cell(ri, ci, row.get(col, ""))
-            c.font = Font(name="Consolas", size=9)
-            c.alignment = Alignment(horizontal="center" if ci <= 4 or ci == 6 else "left",
-                                    vertical="center")
-            c.border = _borde()
-            if ci <= 4:
-                c.fill = PatternFill("solid", start_color=TD_DC_CORR)
-        ws_cl.row_dimensions[ri].height = 16
-
-    wb_cl.save(CORR_LOTE_PATH)
+    _escribir_correcciones_lote(filas_prev + filas_nuevas)
     log.info(f"correcciones_lote.xlsx → {len(nuevas)} nueva(s) guardada(s) · "
              f"total {len(filas_prev) + len(filas_nuevas)}")
 
@@ -1465,6 +1591,7 @@ _AV_GRUPOS = [
     (1, 3, "¿Quién es?",      *GH_AV_QUIEN),
     (5, 5, "¿Cuánto sobra?",  *GH_AV_MONTO),
     (7, 7, "¿De qué mes?",    *GH_AV_TRAZ),
+    (9, 10, "¿Cómo ubicarlo?", *GH_AV_TRAZ),
 ]
 _AV_COLS = [
     (1, "MZ",             *GH_AV_QUIEN,   6),
@@ -1472,8 +1599,10 @@ _AV_COLS = [
     (3, "NOMBRE",         *GH_AV_QUIEN, 26),
     (5, "monto",          *GH_AV_MONTO, 12),
     (7, "MES_ANO_ORIGEN", *GH_AV_TRAZ,  16),
+    (9, "REFERENCIA",     *GH_AV_TRAZ,  32),
+    (10, "COMENTARIO",    *GH_AV_TRAZ,  28),
 ]
-_AV_SEP_COLS = [4, 6]
+_AV_SEP_COLS = [4, 6, 8]
 
 
 def _exportar_arrastre_devolucion(resultado: list[dict], mes_ano: str):
@@ -1505,6 +1634,21 @@ def _exportar_arrastre_devolucion(resultado: list[dict], mes_ano: str):
         _c(ws, ri, 5, monto,       TD_AV_MONTO, "1D4ED8",
            mono=True, align="right", bold=True, fmt=MONEY)
         _c(ws, ri, 7, mes_ano,     TD_AV_TRAZ,  "1D4ED8", mono=True, align="center")
+
+        # REFERENCIA/COMENTARIO — solo pagos agua (sin CONCEPTO), son los que generan el exceso.
+        refs, coments = [], []
+        for p in r["pagos_efectivo"]:
+            if p.get("concepto"):
+                continue
+            refs.append(f"{p.get('mesa','')} / {p.get('cobrador','')} / {p.get('fecha','')}")
+            coments.append(p.get("comentario", ""))
+        for p in r["pagos_yape"]:
+            if p.get("concepto"):
+                continue
+            refs.append(f"{p.get('referencia','')} / S/{p['monto']:g} / {p.get('fecha_hora_seg','')}")
+            coments.append(p.get("comentario", ""))
+        _c(ws, ri, 9,  " · ".join(refs),    TD_AV_TRAZ, "1D4ED8", mono=True, align="left")
+        _c(ws, ri, 10, " · ".join(coments), TD_AV_TRAZ, "555555", align="left")
         ws.row_dimensions[ri].height = 17
 
     nombre = f"arrastre_devolucion_{mes_ano}.xlsx"
@@ -1583,6 +1727,36 @@ _DC_EFEC_COLS = [
 _DC_EFEC_SEP_COLS = [3, 6, 9, 12]
 
 
+def _leer_correcciones_tipeadas(ruta) -> dict:
+    """Lee MZ_CORRECTO/LT_CORRECTO ya tipeados en discrepancias_cobranza.xlsx,
+    keyed por (sheet, mz, lt), para re-mostrarlos al regenerar el archivo y no
+    borrar el trabajo manual de un huérfano que persiste entre corridas."""
+    tipeadas = {}
+    if not ruta.exists():
+        return tipeadas
+    try:
+        wb = load_workbook(ruta, data_only=True)
+    except Exception as e:
+        log.warning(f"No se pudo leer correcciones tipeadas: {e}")
+        return tipeadas
+    for sheet in wb.sheetnames:
+        ws = wb[sheet]
+        hdrs = {str(ws.cell(2, c).value or "").strip().upper(): c
+                for c in range(1, ws.max_column + 1)}
+        cmzo, clto = hdrs.get("MZ"), hdrs.get("LT")
+        cmzc, cltc = hdrs.get("MZ_CORRECTO"), hdrs.get("LT_CORRECTO")
+        if not all([cmzo, clto, cmzc, cltc]):
+            continue
+        for r in range(3, ws.max_row + 1):
+            mo = _norm_mz(ws.cell(r, cmzo).value)
+            lo = _norm_lt(ws.cell(r, clto).value)
+            mc = ws.cell(r, cmzc).value
+            lc = ws.cell(r, cltc).value
+            if mo and lo and (mc not in (None, "") or lc not in (None, "")):
+                tipeadas[(sheet, mo, lo)] = (mc, lc)
+    return tipeadas
+
+
 def _exportar_discrepancias_cobranza(disc_yape: list[dict], disc_efec: list[dict]):
     """
     Genera 5_cobranza/outputs/discrepancias_cobranza.xlsx con dos hojas:
@@ -1598,6 +1772,9 @@ def _exportar_discrepancias_cobranza(disc_yape: list[dict], disc_efec: list[dict
             ruta.unlink()
             log.info("discrepancias_cobranza.xlsx eliminado — todo imputado")
         return
+
+    # Preservar correcciones ya tipeadas por el operador (no borrarlas al regenerar)
+    tipeadas = _leer_correcciones_tipeadas(ruta)
 
     MONEY = '"S/ "#,##0.00'
     wb = Workbook()
@@ -1629,8 +1806,9 @@ def _exportar_discrepancias_cobranza(disc_yape: list[dict], disc_efec: list[dict
         _c(ws, ri, 7,  p.get("origen", ""),   TD_DC_ORIGEN, "7D6608", align="left")
         _c(ws, ri, 9,  p["ciclo_correccion"], TD_DC_TRAZ,   "5B21B6", mono=True, align="center")
         _c(ws, ri, 10, _DC_MOTIVO,            TD_DC_TRAZ,   "5B21B6", align="left")
-        _c(ws, ri, 12, None, TD_DC_CORR_V, GH_DC_CORR[1], mono=True, align="center")
-        _c(ws, ri, 13, None, TD_DC_CORR_V, GH_DC_CORR[1], mono=True, align="center")
+        mzc, ltc = tipeadas.get(("discrepancias_pago_yape", _norm_mz(p["mz"]), _norm_lt(p["lt"])), (None, None))
+        _c(ws, ri, 12, mzc, TD_DC_CORR_V, GH_DC_CORR[1], mono=True, align="center")
+        _c(ws, ri, 13, ltc, TD_DC_CORR_V, GH_DC_CORR[1], mono=True, align="center")
         ws.row_dimensions[ri].height = 17
 
     # ── Hoja 2: discrepancias_pago_efectivo ──────────────────────────────────
@@ -1659,8 +1837,9 @@ def _exportar_discrepancias_cobranza(disc_yape: list[dict], disc_efec: list[dict
         _c(ws, ri, 8,  p.get("cobrador", ""), TD_DC_ORIGEN, "7D6608", align="left")
         _c(ws, ri, 10, p["ciclo_correccion"], TD_DC_TRAZ,   "5B21B6", mono=True, align="center")
         _c(ws, ri, 11, _DC_MOTIVO,            TD_DC_TRAZ,   "5B21B6", align="left")
-        _c(ws, ri, 13, None, TD_DC_CORR_V, GH_DC_CORR[1], mono=True, align="center")
-        _c(ws, ri, 14, None, TD_DC_CORR_V, GH_DC_CORR[1], mono=True, align="center")
+        mzc, ltc = tipeadas.get(("discrepancias_pago_efectivo", _norm_mz(p["mz"]), _norm_lt(p["lt"])), (None, None))
+        _c(ws, ri, 13, mzc, TD_DC_CORR_V, GH_DC_CORR[1], mono=True, align="center")
+        _c(ws, ri, 14, ltc, TD_DC_CORR_V, GH_DC_CORR[1], mono=True, align="center")
         ws.row_dimensions[ri].height = 17
 
     wb.save(ruta)
@@ -1767,6 +1946,7 @@ def main():
 
     print("\n[2b/6] Aplicando correcciones de lote...")
     correcciones   = _leer_correcciones()
+    correcciones   = _recuperar_correcciones_trazabilidad(correcciones, max_ciclo)
     correcciones   = _absorber_correcciones_discrepancias(correcciones, max_ciclo)
     pagos_yape     = _aplicar_correcciones_lote(pagos_yape,     correcciones)
     pagos_efectivo = _aplicar_correcciones_lote(pagos_efectivo, correcciones)
