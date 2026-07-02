@@ -15,10 +15,25 @@ def deuda_path(mes: str) -> Path:
 def corte_path(mes: str) -> Path:
     return INPUTS_DIR / "corte" / f"arrastre_corte_{mes}.xlsx"
 
-# Inputs estáticos (el tesorero los actualiza cada mes)
+# Inputs estáticos (LEGACY — reemplazados por arrastre_consolidado, ver abajo).
+# Se conservan para los tests; build_planilla ya no los lee.
 CONVENIOS_PATH        = INPUTS_DIR / "convenios"        / "convenios.xlsx"
 MULTAS_PATH           = INPUTS_DIR / "multas"           / "multas.xlsx"
 ACUERDOS_PATH         = INPUTS_DIR / "acuerdos_asamblea" / "acuerdos_asamblea.xlsx"
+
+# ── Fuente única de arrastres (Opción A · writer único) ────────────────────
+# 2_planilla lee el consolidado del MES ANTERIOR que genera 5_cobranza, en vivo
+# desde sus outputs/ (no se copia a inputs/). Reemplaza deuda_anterior + corte +
+# convenios + multas + acuerdos como inputs separados. Gate: el ciclo anterior
+# debe estar validado:true en estado_ciclo.json (lo sella 5b_validacion).
+COBRANZA_OUTPUTS_DIR  = BASE_DIR.parent / "5_cobranza" / "outputs"
+
+def consolidado_path(mes: str) -> Path:
+    return COBRANZA_OUTPUTS_DIR / f"arrastre_consolidado_{mes}.xlsx"
+
+ESTADO_CICLO_PATH     = BASE_DIR.parent / "shared" / "reporte_acumulado_procesado" / "estado_ciclo.json"
+COLS_CONSOLIDADO      = ["MZ", "LT", "DEUDA_AGUA", "CORTE_RECONEXION",
+                         "MULTA", "ACUERDOS_ASAMBLEA", "CONVENIO"]
 
 def output_path(mes: str) -> Path:
     return OUTPUTS_DIR / f"planilla_{mes}.xlsx"

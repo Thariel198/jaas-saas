@@ -1,4 +1,5 @@
 import glob
+import json
 import logging
 import shutil
 import sys
@@ -61,20 +62,71 @@ def _load_optional(path: Path, required_cols: list, label: str) -> pd.DataFrame 
     return _add_key(df)
 
 
+# ── Fuente única de arrastres — arrastre_consolidado del mes anterior ──────
+
+def _mes_anterior(mes: str) -> str:
+    y, m = mes.split("-")
+    y, m = int(y), int(m)
+    m -= 1
+    if m == 0:
+        m, y = 12, y - 1
+    return f"{y:04d}-{m:02d}"
+
+
+def _ciclo_validado(mes: str) -> bool:
+    p = config.ESTADO_CICLO_PATH
+    if not p.exists():
+        return False
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+    except Exception as e:
+        log.warning(f"No se pudo leer estado_ciclo.json: {e}")
+        return False
+    return bool(data.get(mes, {}).get("arrastre", {}).get("validado"))
+
+
+def _load_consolidado(mes: str) -> pd.DataFrame | None:
+    """Lee arrastre_consolidado del mes anterior (writer único = 5_cobranza/outputs).
+
+    Devuelve None si no existe (mes de génesis / pipeline sin cerrar → arrastres=0).
+    Aborta si existe pero el ciclo anterior no está validado (dato no confiable).
+    El archivo trae la fila de grupos en la 1 y los nombres de columna en la 2
+    → header=1. Los guiones (—) de componentes en 0 se coercionan a 0 en el join.
+    """
+    mes_ant = _mes_anterior(mes)
+    path = config.consolidado_path(mes_ant)
+    if not path.exists():
+        log.warning(f"arrastre_consolidado {mes_ant}: no encontrado -> arrastres = 0 "
+                    f"(mes de génesis o ciclo anterior sin cerrar)")
+        return None
+    if not _ciclo_validado(mes_ant):
+        raise ValueError(
+            f"arrastre_consolidado_{mes_ant}.xlsx existe pero el ciclo {mes_ant} NO está "
+            f"validado en estado_ciclo.json — correr 5b_validacion antes de generar la planilla."
+        )
+    df = pd.read_excel(path, header=1, dtype=str)
+    missing = [c for c in config.COLS_CONSOLIDADO if c not in df.columns]
+    if missing:
+        raise ValueError(f"arrastre_consolidado {mes_ant}: columnas faltantes {missing}")
+    log.info(f"arrastre_consolidado {mes_ant} -> {len(df)} filas de arrastre")
+    return _add_key(df)
+
+
 # ── Join de arrastres ─────────────────────────────────────────────────────
 
 def _join_optional(base: pd.DataFrame, src: pd.DataFrame | None,
-                   src_col: str, dest_col: str) -> pd.DataFrame:
+                   src_col: str, dest_col: str, warn: bool = True) -> pd.DataFrame:
     if src is None:
         base = base.copy()
         base[dest_col] = 0.0
         return base
 
     # Advertir sobre filas en src sin match en base
-    check = src.merge(base[["_mz", "_lt"]], on=["_mz", "_lt"], how="left", indicator=True)
-    sin_match = (check["_merge"] == "left_only").sum()
-    if sin_match:
-        log.warning(f"{dest_col}: {sin_match} fila(s) en arrastre sin match en lecturas -> ignoradas")
+    if warn:
+        check = src.merge(base[["_mz", "_lt"]], on=["_mz", "_lt"], how="left", indicator=True)
+        sin_match = (check["_merge"] == "left_only").sum()
+        if sin_match:
+            log.warning(f"arrastre: {sin_match} fila(s) sin match en lecturas -> ignoradas")
 
     merged = base.merge(
         src[["_mz", "_lt", src_col]].rename(columns={src_col: dest_col}),
@@ -94,17 +146,15 @@ def build_planilla(mes: str) -> pd.DataFrame:
     for col in ["MARC_ANT", "MARC_ACT", "M3"]:
         df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
 
-    df_deuda     = _load_optional(config.deuda_path(mes), config.COLS_DEUDA,     "arrastre_deuda")
-    df_corte     = _load_optional(config.corte_path(mes), config.COLS_CORTE,     "arrastre_corte")
-    df_convenios = _load_optional(config.CONVENIOS_PATH,  config.COLS_CONVENIOS, "convenios")
-    df_multas    = _load_optional(config.MULTAS_PATH,     config.COLS_MULTAS,    "multas")
-    df_acuerdos  = _load_optional(config.ACUERDOS_PATH,   config.COLS_ACUERDOS,  "acuerdos_asamblea")
-
-    df = _join_optional(df, df_deuda,     "monto",     "MES_ANTERIOR")
-    df = _join_optional(df, df_corte,     "monto",     "CORTE_RECONEXION")
-    df = _join_optional(df, df_convenios, "cuota_mes", "CONVENIO")
-    df = _join_optional(df, df_multas,    "monto_mes", "MULTA")
-    df = _join_optional(df, df_acuerdos,  "monto_mes", "ACUERDOS_ASAMBLEA")
+    # Fuente única: el consolidado del mes anterior (5_cobranza) trae los 5
+    # componentes de arrastre ya descompuestos por prioridad. DEUDA_AGUA es la
+    # deuda de agua no cubierta → alimenta MES_ANTERIOR.
+    df_cons = _load_consolidado(mes)
+    df = _join_optional(df, df_cons, "DEUDA_AGUA",        "MES_ANTERIOR")
+    df = _join_optional(df, df_cons, "CORTE_RECONEXION",  "CORTE_RECONEXION",  warn=False)
+    df = _join_optional(df, df_cons, "MULTA",             "MULTA",             warn=False)
+    df = _join_optional(df, df_cons, "ACUERDOS_ASAMBLEA", "ACUERDOS_ASAMBLEA", warn=False)
+    df = _join_optional(df, df_cons, "CONVENIO",          "CONVENIO",          warn=False)
 
     df["MES_ACTUAL"]    = df["M3"].apply(
         lambda m: max(float(m) * config.TARIFA_M3, config.TARIFA_MIN)

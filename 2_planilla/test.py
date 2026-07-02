@@ -8,8 +8,10 @@ Escenarios cubiertos:
   B1/11A — consumo bajo (M3=2 → mínimo S/5), corte+reconexión, acuerdo asamblea
   B1/5   — consumo alto (M3=15), sin arrastres, acuerdo asamblea
 
-convenios.xlsx y multas.xlsx NO se crean → prueba el path opcional (CONVENIO=0, MULTA=0).
+Los arrastres vienen del arrastre_consolidado del mes anterior (2026-05), fuente
+única (Opción A · writer único). CONVENIO/MULTA=0 en el fixture → prueba el path 0.
 """
+import json
 import logging
 import shutil
 import sys
@@ -26,22 +28,19 @@ _TMP = Path(__file__).parent / "tests" / "_tmp_integracion"
 def _setup_paths() -> None:
     if _TMP.exists():
         shutil.rmtree(_TMP)
-    for sub in [
-        "inputs/lecturas", "inputs/deuda_anterior", "inputs/corte",
-        "inputs/acuerdos_asamblea", "outputs",
-    ]:
+    for sub in ["inputs/lecturas", "cobranza_outputs", "outputs"]:
         (_TMP / sub).mkdir(parents=True)
 
-    config.INPUTS_DIR     = _TMP / "inputs"
-    config.OUTPUTS_DIR    = _TMP / "outputs"
-    config.CONVENIOS_PATH = _TMP / "inputs" / "convenios"  / "convenios.xlsx"
-    config.MULTAS_PATH    = _TMP / "inputs" / "multas"     / "multas.xlsx"
-    config.ACUERDOS_PATH  = _TMP / "inputs" / "acuerdos_asamblea" / "acuerdos_asamblea.xlsx"
+    config.INPUTS_DIR            = _TMP / "inputs"
+    config.OUTPUTS_DIR           = _TMP / "outputs"
+    config.COBRANZA_OUTPUTS_DIR  = _TMP / "cobranza_outputs"
+    config.ESTADO_CICLO_PATH     = _TMP / "estado_ciclo.json"
 
 
 import main as mod_main  # noqa: E402 — importar después de definir _setup_paths
 
 MES = "2026-06"
+MES_ANT = "2026-05"   # el consolidado que alimenta la planilla de junio
 
 # ── Fixtures ──────────────────────────────────────────────────────────────
 
@@ -52,30 +51,28 @@ _LECTURAS = pd.DataFrame([
     {"MZ": "B1", "LT": "5",   "NOMBRE": "CONDORI QUISPE, ELENA", "MES_ANO": MES, "MARC_ANT": 600,  "MARC_ACT": 615,  "M3": 15},
 ])
 
-_DEUDA = pd.DataFrame([
-    {"MZ": "A", "LT": "12", "monto": 15.0},   # solo A/12 tiene deuda anterior
+# arrastre_consolidado del mes anterior (2026-05): componentes ya descompuestos.
+#   A/12  → DEUDA_AGUA 15   (deuda de agua no cubierta → MES_ANTERIOR)
+#   B1/11A → CORTE 25        (corte no cubierto)
+#   todos → ACUERDOS 10 · MULTA/CONVENIO 0 (columnas en 0)
+_CONSOLIDADO = pd.DataFrame([
+    {"MZ": "A",  "LT": "7",   "DEUDA_AGUA": 0,  "CORTE_RECONEXION": 0,  "MULTA": 0, "ACUERDOS_ASAMBLEA": 10, "CONVENIO": 0},
+    {"MZ": "A",  "LT": "12",  "DEUDA_AGUA": 15, "CORTE_RECONEXION": 0,  "MULTA": 0, "ACUERDOS_ASAMBLEA": 10, "CONVENIO": 0},
+    {"MZ": "B1", "LT": "11A", "DEUDA_AGUA": 0,  "CORTE_RECONEXION": 25, "MULTA": 0, "ACUERDOS_ASAMBLEA": 10, "CONVENIO": 0},
+    {"MZ": "B1", "LT": "5",   "DEUDA_AGUA": 0,  "CORTE_RECONEXION": 0,  "MULTA": 0, "ACUERDOS_ASAMBLEA": 10, "CONVENIO": 0},
 ])
-
-_CORTE = pd.DataFrame([
-    {"MZ": "B1", "LT": "11A", "monto": 25.0},  # solo B1/11A tuvo corte
-])
-
-_ACUERDOS = pd.DataFrame([
-    {"MZ": "A",  "LT": "7",   "monto_mes": 10.0},
-    {"MZ": "A",  "LT": "12",  "monto_mes": 10.0},
-    {"MZ": "B1", "LT": "11A", "monto_mes": 10.0},
-    {"MZ": "B1", "LT": "5",   "monto_mes": 10.0},
-])
-
-# convenios.xlsx y multas.xlsx se omiten a propósito → deben loguear warning y valer 0
 
 
 def _crear_fixtures() -> None:
     _LECTURAS.to_excel(config.lecturas_path(MES), index=False)
-    _DEUDA.to_excel(config.deuda_path(MES),       index=False)
-    _CORTE.to_excel(config.corte_path(MES),       index=False)
-    _ACUERDOS.to_excel(config.ACUERDOS_PATH,      index=False)
-    print("  (convenios.xlsx y multas.xlsx omitidos — deben dar WARNING)")
+    # El consolidado real trae grupos en la fila 1 y nombres de columna en la 2
+    # → header=1. Reproducimos ese layout con startrow=1 (fila 1 en blanco).
+    _CONSOLIDADO.to_excel(config.consolidado_path(MES_ANT), index=False, startrow=1)
+    config.ESTADO_CICLO_PATH.write_text(
+        json.dumps({MES_ANT: {"arrastre": {"generado": True, "validado": True}}}),
+        encoding="utf-8",
+    )
+    print("  (consolidado 2026-05 con validado:true · MULTA/CONVENIO en 0)")
 
 
 # ── Verificación del dataframe calculado ──────────────────────────────────

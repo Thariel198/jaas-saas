@@ -14,8 +14,10 @@ genera 6_corte/generar_lista.py leyendo SALDO + MES_ANTERIOR desde acá.
 Idempotente: si los pagos no cambiaron respecto a la trazabilidad existente,
 sale sin modificar nada.
 """
+import json
 import logging
 import re
+import shutil
 import sys
 import pandas as pd
 from datetime import datetime
@@ -49,6 +51,9 @@ BLANCOS_PATH  = SHARED_DIR / "blancos_acumulados.xlsx"
 # ya viene con signo +/-) por predio. shared queda como base pura de 2_planilla.
 AUDIT_CORTE_PATH = ROOT.parent / "6_corte" / "outputs" / "audit_penalidad.xlsx"
 AUDIT_MULTA_PATH = ROOT.parent / "6b_corte_multas" / "outputs" / "audit_penalidad_multas.xlsx"
+
+# Gate del arrastre_consolidado: solo se emite tras el sello de 5b_validacion.
+ESTADO_CICLO_PATH = SHARED_DIR / "reporte_acumulado_procesado" / "estado_ciclo.json"
 
 YAPE_FILE         = "pagos_yape_tepago.xlsx"
 EFEC_FILE         = "pagos_efectivo.xlsx"
@@ -112,6 +117,21 @@ TD_AD_QUIEN  = "F0FFF8"
 TD_AD_MONTO  = "EBF5FB"
 TD_AD_TRAZ   = "F0FFF8"
 
+# arrastre_consolidado — P1..P5 por prioridad (formato_arrastre_consolidado.html)
+GH_AC_QUIEN = ("E8F8F5", "0E6655")
+GH_AC_TOTAL = ("1E8449", "FFFFFF")
+# (header_bg, header_txt, cell_bg, cell_txt) por componente en orden de prioridad
+_AC_P = [
+    ("DEUDA_AGUA",        "EAF2FF", "1A5276", "F4F9FF", "1A5276"),  # P1
+    ("CORTE_RECONEXION",  "FEF3C7", "92400E", "FFFBEB", "92400E"),  # P2
+    ("MULTA",             "FEF2F2", "991B1B", "FFF5F5", "991B1B"),  # P3
+    ("ACUERDOS_ASAMBLEA", "EDE9FE", "4C1D95", "F5F3FF", "4C1D95"),  # P4
+    ("CONVENIO",          "E0F2FE", "0C4A6E", "F0F9FF", "0369A1"),  # P5
+]
+TD_AC_QUIEN = "F0FFF8"
+TD_AC_TOTAL = "D5F5E3"
+TD_AC_ZERO  = "F3F4F6"
+
 # Paleta arrastre_devolucion (paleta EXCESO — azul)
 GH_AV_QUIEN  = ("EFF6FF", "1D4ED8")
 GH_AV_MONTO  = ("EFF6FF", "1D4ED8")
@@ -119,6 +139,8 @@ GH_AV_TRAZ   = ("EFF6FF", "1D4ED8")
 TD_AV_QUIEN  = "F5F9FF"
 TD_AV_MONTO  = "F5F9FF"
 TD_AV_TRAZ   = "F5F9FF"
+GH_AV_REVIS  = ("ECFDF5", "065F46")   # verde — revisión editable por el operador (¿legítimo o error?)
+TD_AV_REVIS  = "F9FAFB"               # gris claro — celda vacía esperando input
 
 # Paleta discrepancias_cobranza (coincide con formato_discrepancias_cobranza.html)
 GH_DC_PREDIO = ("FEF2F2", "991B1B")   # rojo — el MZ+LT que no existe
@@ -1592,6 +1614,7 @@ _AV_GRUPOS = [
     (5, 5, "¿Cuánto sobra?",  *GH_AV_MONTO),
     (7, 7, "¿De qué mes?",    *GH_AV_TRAZ),
     (9, 10, "¿Cómo ubicarlo?", *GH_AV_TRAZ),
+    (12, 12, "¿Revisado?",    *GH_AV_REVIS),
 ]
 _AV_COLS = [
     (1, "MZ",             *GH_AV_QUIEN,   6),
@@ -1601,13 +1624,57 @@ _AV_COLS = [
     (7, "MES_ANO_ORIGEN", *GH_AV_TRAZ,  16),
     (9, "REFERENCIA",     *GH_AV_TRAZ,  32),
     (10, "COMENTARIO",    *GH_AV_TRAZ,  28),
+    (12, "REVISION",      *GH_AV_REVIS, 32),
 ]
-_AV_SEP_COLS = [4, 6, 8]
+_AV_SEP_COLS = [4, 6, 8, 11]
+
+
+def _backup_arrastre_devolucion(ruta: Path) -> Path | None:
+    """Copia el archivo actual a outputs/backups/ antes de sobreescribirlo —
+    capa 1 de preservación de trabajo manual (columna REVISION, Regla 9)."""
+    if not ruta.exists():
+        return None
+    bk_dir = OUTPUTS_DIR / "backups"
+    bk_dir.mkdir(parents=True, exist_ok=True)
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    bk = bk_dir / f"{ruta.stem}_{ts}{ruta.suffix}"
+    shutil.copy2(ruta, bk)
+    return bk
+
+
+def _leer_revision_previa(ruta: Path) -> dict:
+    """Lee REVISION ya tipeada en arrastre_devolucion, keyed por (mz, lt),
+    para no borrar el trabajo manual del operador al regenerar el archivo."""
+    revisiones = {}
+    if not ruta.exists():
+        return revisiones
+    try:
+        wb = load_workbook(ruta, data_only=True)
+    except Exception as e:
+        log.warning(f"No se pudo leer REVISION previa: {e}")
+        return revisiones
+    ws = wb.active
+    hdrs = {str(ws.cell(2, c).value or "").strip().upper(): c
+            for c in range(1, ws.max_column + 1)}
+    cmz, clt, crev = hdrs.get("MZ"), hdrs.get("LT"), hdrs.get("REVISION")
+    if not all([cmz, clt, crev]):
+        return revisiones
+    for r in range(3, ws.max_row + 1):
+        mz = _norm_mz(ws.cell(r, cmz).value)
+        lt = _norm_lt(ws.cell(r, clt).value)
+        rev = ws.cell(r, crev).value
+        if mz and lt and rev not in (None, ""):
+            revisiones[(mz, lt)] = rev
+    return revisiones
 
 
 def _exportar_arrastre_devolucion(resultado: list[dict], mes_ano: str):
     excesos = [r for r in resultado if r["saldo"] < -TOL]
     last_row = max(len(excesos) + 2, 3)
+
+    ruta = OUTPUTS_DIR / f"arrastre_devolucion_{mes_ano}.xlsx"
+    _backup_arrastre_devolucion(ruta)
+    revisiones = _leer_revision_previa(ruta)
 
     wb = Workbook()
     ws = wb.active
@@ -1649,15 +1716,143 @@ def _exportar_arrastre_devolucion(resultado: list[dict], mes_ano: str):
             coments.append(p.get("comentario", ""))
         _c(ws, ri, 9,  " · ".join(refs),    TD_AV_TRAZ, "1D4ED8", mono=True, align="left")
         _c(ws, ri, 10, " · ".join(coments), TD_AV_TRAZ, "555555", align="left")
+
+        rev = revisiones.get((r["mz"], r["lt"]))
+        bg_rev = TD_DC_CORR if rev else TD_AV_REVIS
+        _c(ws, ri, 12, rev, bg_rev, GH_AV_REVIS[1], align="left")
         ws.row_dimensions[ri].height = 17
 
-    nombre = f"arrastre_devolucion_{mes_ano}.xlsx"
-    wb.save(OUTPUTS_DIR / nombre)
-    log.info(f"{nombre} → {len(excesos)} usuarios con SALDO<0 (esperan reclamo)")
+    wb.save(ruta)
+    log.info(f"{ruta.name} → {len(excesos)} usuarios con SALDO<0 (esperan reclamo)")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-#  OUTPUT 6 — discrepancias_cobranza.xlsx
+#  OUTPUT 6 — arrastre_consolidado_YYYY-MM.xlsx  (writer único hacia 2_planilla)
+#  Consolida en un archivo lo que eran 3 arrastres separados (deuda + corte +
+#  multa). Descompone el SALDO pendiente por componente en orden de prioridad
+#  P1 DEUDA_AGUA → P2 CORTE → P3 MULTA → P4 ACUERDOS → P5 CONVENIO: cada columna
+#  muestra lo que quedó SIN cubrir tras aplicar el pago en ese orden.
+#  Solo filas TOTAL_ARRASTRE>0. Gate: estado_ciclo.json[mes].arrastre.validado.
+#  2_planilla del próximo mes lo lee como fuente única de multa/acuerdos/convenio.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _leer_estado_ciclo() -> dict:
+    if not ESTADO_CICLO_PATH.exists():
+        return {}
+    try:
+        return json.loads(ESTADO_CICLO_PATH.read_text(encoding="utf-8"))
+    except Exception as e:
+        log.warning(f"No se pudo leer estado_ciclo.json: {e}")
+        return {}
+
+
+def _ciclo_validado(mes_ano: str) -> bool:
+    data = _leer_estado_ciclo()
+    return bool(data.get(mes_ano, {}).get("arrastre", {}).get("validado"))
+
+
+def _marcar_generado(mes_ano: str):
+    """Marca arrastre.generado=true (idempotente). 5b lo lee para sellar validado."""
+    data = _leer_estado_ciclo()
+    ciclo = data.setdefault(mes_ano, {"estado": "ABIERTO"})
+    arr = ciclo.setdefault("arrastre", {})
+    if not arr.get("generado"):
+        ahora = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+        arr["generado"] = True
+        arr["generado_en"] = ahora
+        ciclo["ultima_actualizacion"] = ahora
+        ESTADO_CICLO_PATH.parent.mkdir(parents=True, exist_ok=True)
+        ESTADO_CICLO_PATH.write_text(
+            json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        log.info(f"estado_ciclo.json → arrastre.generado=true · {mes_ano}")
+
+
+def _descomponer_saldo(r: dict) -> tuple[list[float], float]:
+    """Aplica total_pagado en prioridad P1→P5. Devuelve (sin_cubrir[5], total)."""
+    comps = [
+        round(r["mes_actual"] + r["mantenimiento"] + r["mes_anterior"]
+              + r["blanco_final"] + r["devolucion"], 2),   # P1 DEUDA_AGUA
+        round(r["corte_reconexion"], 2),                    # P2 CORTE_RECONEXION
+        round(r["multa"], 2),                               # P3 MULTA
+        round(r["acuerdos_asamblea"], 2),                   # P4 ACUERDOS_ASAMBLEA
+        round(r["convenio"], 2),                            # P5 CONVENIO
+    ]
+    restante = r["total_pagado"]
+    sin_cubrir = []
+    for comp in comps:
+        comp = max(comp, 0.0)
+        if restante >= comp:
+            restante = round(restante - comp, 2)
+            sin_cubrir.append(0.0)
+        else:
+            sin_cubrir.append(round(comp - restante, 2))
+            restante = 0.0
+    return sin_cubrir, round(sum(sin_cubrir), 2)
+
+
+def _exportar_arrastre_consolidado(resultado: list[dict], mes_ano: str):
+    if not _ciclo_validado(mes_ano):
+        log.warning(f"arrastre_consolidado_{mes_ano} omitido — "
+                    f"estado_ciclo.json sin validado:true (falta 5b_validacion)")
+        return
+
+    filas = []
+    for r in resultado:
+        sin_cubrir, total_arr = _descomponer_saldo(r)
+        if total_arr > TOL:
+            filas.append((r["mz"], r["lt"], r["nombre"], sin_cubrir, total_arr))
+
+    last_row = max(len(filas) + 2, 3)
+    wb = Workbook()
+    ws = wb.active
+    ws.title = f"arrastre_consolidado_{mes_ano}"[:31]
+    ws.freeze_panes = "A3"
+
+    # Group headers (fila 1)
+    _gh(ws, 1, 1, 3, "¿Quién es?", *GH_AC_QUIEN)
+    for i, (_, hbg, htx, _, _) in enumerate(_AC_P):
+        _gh(ws, 1, 5 + i, 5 + i, f"P{i + 1}", hbg, htx)
+    _gh(ws, 1, 11, 11, "Cierre", *GH_AC_TOTAL)
+
+    # Column headers (fila 2)
+    _ch(ws, 2, 1, "MZ",     *GH_AC_QUIEN)
+    _ch(ws, 2, 2, "LT",     *GH_AC_QUIEN)
+    _ch(ws, 2, 3, "NOMBRE", *GH_AC_QUIEN)
+    for i, (nombre, hbg, htx, _, _) in enumerate(_AC_P):
+        _ch(ws, 2, 5 + i, nombre, hbg, htx)
+    _ch(ws, 2, 11, "TOTAL_ARRASTRE", *GH_AC_TOTAL)
+
+    for sc in (4, 10):
+        _sep(ws, sc, last_row)
+    for col, ancho in ((1, 6), (2, 6), (3, 26),
+                       (5, 12), (6, 16), (7, 8), (8, 17), (9, 10), (11, 15)):
+        _w(ws, col, ancho)
+    ws.row_dimensions[1].height = 18
+    ws.row_dimensions[2].height = 22
+
+    MONEY = '"S/ "#,##0.00'
+    for ri, (mz, lt, nombre, sin_cubrir, total_arr) in enumerate(filas, 3):
+        _c(ws, ri, 1, mz,     TD_AC_QUIEN, "065F46", mono=True, align="center")
+        _c(ws, ri, 2, lt,     TD_AC_QUIEN, "065F46", mono=True, align="center")
+        _c(ws, ri, 3, nombre, TD_AC_QUIEN, "333333", align="left")
+        for i, val in enumerate(sin_cubrir):
+            _, _, _, cbg, ctx = _AC_P[i]
+            if val > TOL:
+                _c(ws, ri, 5 + i, val, cbg, ctx,
+                   mono=True, align="right", bold=True, fmt=MONEY)
+            else:
+                _c(ws, ri, 5 + i, "—", TD_AC_ZERO, "9CA3AF", align="center")
+        _c(ws, ri, 11, total_arr, TD_AC_TOTAL, "1E5C3A",
+           mono=True, align="right", bold=True, fmt=MONEY)
+        ws.row_dimensions[ri].height = 17
+
+    nombre_arch = f"arrastre_consolidado_{mes_ano}.xlsx"
+    wb.save(OUTPUTS_DIR / nombre_arch)
+    log.info(f"{nombre_arch} → {len(filas)} usuarios con TOTAL_ARRASTRE>0")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  OUTPUT 7 — discrepancias_cobranza.xlsx
 #  Pagos cuyo MZ+LT no existe en planilla — no pudieron imputarse a un usuario.
 #  Layout (matching formato_discrepancias_cobranza.html):
 #
@@ -2016,6 +2211,8 @@ def main():
     _exportar_resumen(resultado, n_corte, mes_ano, ciclo_nuevo)
     _exportar_arrastre_deuda(resultado, mes_ano)
     _exportar_arrastre_devolucion(resultado, mes_ano)
+    _marcar_generado(mes_ano)                          # 5b lo lee para sellar validado
+    _exportar_arrastre_consolidado(resultado, mes_ano)  # gate: validado:true
 
     print("\n[6/6] Retroescritura y blancos...")
     filas_yape_nuevas = [p["row"] for p in pagos_yape
