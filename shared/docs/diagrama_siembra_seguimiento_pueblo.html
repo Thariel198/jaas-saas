@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>sembrar_seguimiento_pueblo — reglas de mapeo por concepto</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'IBM Plex Sans', sans-serif; background: #fff; padding: 24px; color: #111; }
+  .title { font-size: 19px; font-weight: 700; margin-bottom: 4px; }
+  .sub   { font-size: 12px; color: #888; margin-bottom: 22px; }
+  code { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; background: rgba(0,0,0,.06); padding: 1px 4px; border-radius: 3px; }
+
+  .concepto {
+    border-radius: 10px; padding: 14px 16px; margin-bottom: 14px;
+    background: #FAFAFA; border: 1px solid #E5E7EB;
+  }
+  .concepto-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #E5E7EB; }
+  .cbadge { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 6px; color: #fff; }
+  .cbadge.multa    { background: #B45309; }
+  .cbadge.acuerdos { background: #0369A1; }
+  .cbadge.convenio { background: #7C3AED; }
+  .ctitle { font-size: 13px; font-weight: 700; }
+
+  .flow { display: flex; align-items: stretch; gap: 10px; flex-wrap: wrap; }
+  .fbox { border-radius: 8px; padding: 10px 12px; font-size: 11px; min-width: 200px; }
+  .fbox.fuente { background: #EBF5FB; border: 1px solid #AED6F1; color: #1A5276; }
+  .fbox.regla  { background: #FEF3C7; border: 1px solid #FCD34D; color: #92400E; }
+  .fbox.result { background: #D1FAE5; border: 1px solid #6EE7B7; color: #065F46; }
+  .fbox .h { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 5px; opacity: .8; }
+  .arrow-h { display: flex; align-items: center; font-size: 18px; color: #9CA3AF; font-weight: 300; }
+
+  .split { display: flex; gap: 8px; margin-top: 8px; }
+  .split .fbox { flex: 1; }
+
+  .caso {
+    display: flex; align-items: center; gap: 10px; margin-top: 10px;
+    background: white; border-radius: 6px; padding: 8px 12px; font-size: 11px; border-left: 3px solid #7C3AED;
+  }
+  .caso .n { font-size: 9px; font-weight: 700; text-transform: uppercase; color: #7C3AED; min-width: 90px; }
+
+  .nota { margin-top: 18px; background: #FEE2E2; border: 1px solid #FCA5A5; border-radius: 8px; padding: 10px 14px; font-size: 11.5px; color: #991B1B; line-height: 1.6; }
+  .nota b { color: #7F1D1D; }
+
+  table { border-collapse: collapse; margin-top: 10px; font-size: 10.5px; width: 100%; }
+  th, td { border: 1px solid #E5E7EB; padding: 4px 8px; text-align: left; }
+  th { background: #F3F4F6; }
+</style>
+</head>
+<body>
+
+<p class="title">sembrar_seguimiento_pueblo.py — reglas de mapeo, un concepto a la vez</p>
+<p class="sub">Qué fuente, qué regla, qué CARGO resulta — antes de escribir el script</p>
+
+<!-- MULTA -->
+<div class="concepto">
+  <div class="concepto-header"><span class="cbadge multa">MULTA</span><span class="ctitle">323 predios · S/12,710</span></div>
+  <div class="flow">
+    <div class="fbox fuente"><div class="h">fuente</div>DATA_boletas.xlsx<br><code>Multa (faena + reunión)</code></div>
+    <div class="arrow-h">→</div>
+    <div class="fbox regla"><div class="h">regla</div>valor &gt; 0 → un evento CARGO</div>
+    <div class="arrow-h">→</div>
+    <div class="fbox result"><div class="h">resultado</div>registrar_cargo(mz, lt, MULTA, mes_siembra, valor)</div>
+  </div>
+</div>
+
+<!-- ACUERDOS -->
+<div class="concepto">
+  <div class="concepto-header"><span class="cbadge acuerdos">ACUERDOS</span><span class="ctitle">249 predios · S/14,505</span></div>
+  <div class="flow">
+    <div class="fbox fuente"><div class="h">fuente</div>DATA_boletas.xlsx<br><code>Cuota directa</code></div>
+    <div class="arrow-h">→</div>
+    <div class="fbox regla"><div class="h">regla</div>valor &gt; 0 → un evento CARGO</div>
+    <div class="arrow-h">→</div>
+    <div class="fbox result"><div class="h">resultado</div>registrar_cargo(mz, lt, ACUERDOS, mes_siembra, valor)</div>
+  </div>
+</div>
+
+<!-- CONVENIO -->
+<div class="concepto">
+  <div class="concepto-header"><span class="cbadge convenio">CONVENIO</span><span class="ctitle">un solo número por predio: lo que debe hoy, completo</span></div>
+
+  <div class="flow">
+    <div class="fbox fuente"><div class="h">fuente 1</div>medidor_saldo.xlsx<br>hoja "Cobro medidores"<br>columna Saldo</div>
+    <div class="split" style="flex-direction: column; justify-content: center;">
+      <div style="text-align:center; font-size:16px; color:#9CA3AF;">+</div>
+    </div>
+    <div class="fbox fuente"><div class="h">fuente 2</div>inscripcion_saldo.xlsx<br>hoja "NUEVAS INSTALACIONES"<br>columna SALDO</div>
+    <div class="arrow-h">→</div>
+    <div class="fbox regla"><div class="h">regla</div>población = todo predio con Saldo&gt;0 en cualquiera de las 2 fuentes. Monto = suma de ambos saldos si tiene los 2.</div>
+    <div class="arrow-h">→</div>
+    <div class="fbox result"><div class="h">resultado</div>1 evento CARGO con MONTO = saldo_medidor + saldo_inscripcion — el total real, no una cuota</div>
+  </div>
+</div>
+
+<div class="nota" style="background:#FEF3C7; border-color:#FCD34D; color:#92400E;">
+  <b>Predios ya cubiertos por la deuda de instalación</b> (B-20 · C-43 · C-35 · F1-11 · G-21 · W-2, hoy
+  completos en <code>arrastre_consolidado_2026-06</code> porque junio los cargó full desde DATA_boletas):
+  si alguno de estos 6 también aparece con Saldo&gt;0 en medidor/inscripción, se excluye de la siembra
+  para no duplicar la deuda que el consolidado ya está arrastrando bien.
+</div>
+
+</body>
+</html>

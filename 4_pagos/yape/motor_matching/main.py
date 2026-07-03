@@ -709,6 +709,7 @@ def _leer_acum_ambiguos_traz(wb) -> list:
     i_cand = idx("CANDIDATOS")
     i_mzf  = idx("MZ_FINAL"); i_lotf = idx("LOTE_FINAL")
     i_conc = idx("CONCEPTO")
+    i_estr = idx("ESTADO_REGISTRO")
     if i_orig is None:
         return []
     resultado = []
@@ -724,6 +725,11 @@ def _leer_acum_ambiguos_traz(wb) -> list:
         conc_vacio = not concepto or concepto.upper() in ("NAN", "NONE")
         if mz_vacio and conc_vacio:
             continue
+        # ESTADO_REGISTRO no existía en trazabilidad histórica (pre-migración) →
+        # default REGISTRO_NORMAL. Backfill implícito, no se reescribe el archivo.
+        estado_registro = str(fila[i_estr]).strip().upper() if i_estr is not None and i_estr < len(fila) and fila[i_estr] else ""
+        if not estado_registro or estado_registro in ("NAN", "NONE"):
+            estado_registro = "REGISTRO_NORMAL"
         resultado.append({
             "user_id":    str(fila[i_uid]).strip()    if i_uid  is not None and i_uid  < len(fila) and fila[i_uid]  else "",
             "nombre":     str(fila[i_nom]).strip()    if i_nom  is not None and i_nom  < len(fila) and fila[i_nom]  else "",
@@ -735,6 +741,7 @@ def _leer_acum_ambiguos_traz(wb) -> list:
             "mz_final":   "" if mz_vacio else mz,
             "lote_final": "" if mz_vacio else (limpiar_lote(fila[i_lotf]) if i_lotf is not None and i_lotf < len(fila) and fila[i_lotf] else ""),
             "concepto":   "" if conc_vacio else concepto,
+            "estado_registro": estado_registro,
         })
     return resultado
 
@@ -781,6 +788,45 @@ def _leer_acum_maestro_inexacto_traz(wb) -> list:
             "motivo":   str(fila[i_mot]).strip()    if i_mot  is not None and i_mot  < len(fila) and fila[i_mot]  else "",
         })
     return resultado
+
+
+def _leer_acum_pagos_comunitarios_traz(wb) -> dict:
+    """Lee hoja Pagos_comunitarios de trazabilidad → hijos (HIJO_SEGREGADO) acumulados.
+    Agrupa por ID_PADRE (= ORIGEN|FECHA del padre) → list[{mz, lote, monto_parcial, motivo, concepto}].
+    Re-siembra comunitarios_resueltos entre corridas para que un desglose ya trazado
+    no dependa de que la fila siga viva en pendientes.xlsx."""
+    if "Pagos_comunitarios" not in wb.sheetnames:
+        return {}
+    filas = list(wb["Pagos_comunitarios"].values)
+    if len(filas) < 3:
+        return {}
+    headers = [str(h).strip().upper() if h else "" for h in filas[1]]
+    def idx(n):
+        try: return headers.index(n)
+        except: return None
+    i_mz      = idx("MZ");            i_lote   = idx("LOTE")
+    i_parcial = idx("MONTO_PARCIAL"); i_motivo = idx("MOTIVO")
+    i_conc    = idx("CONCEPTO");      i_estr   = idx("ESTADO_REGISTRO")
+    i_padre   = idx("ID_PADRE")
+    if i_padre is None or i_mz is None or i_lote is None:
+        return {}
+    grupos: dict[str, list] = {}
+    for fila in filas[2:]:
+        if not fila:
+            continue
+        estado_registro = str(fila[i_estr]).strip().upper() if i_estr is not None and i_estr < len(fila) and fila[i_estr] else ""
+        if estado_registro and estado_registro != "HIJO_SEGREGADO":
+            continue
+        id_padre = str(fila[i_padre]).strip().upper() if i_padre < len(fila) and fila[i_padre] else ""
+        mz       = str(fila[i_mz]).strip().upper()    if i_mz   < len(fila) and fila[i_mz]   else ""
+        lote     = limpiar_lote(fila[i_lote])         if i_lote < len(fila) and fila[i_lote] else ""
+        if not id_padre or not mz or not lote:
+            continue
+        monto_parcial = limpiar_monto(fila[i_parcial]) if i_parcial is not None and i_parcial < len(fila) and fila[i_parcial] else 0.0
+        motivo  = str(fila[i_motivo]).strip()         if i_motivo is not None and i_motivo < len(fila) and fila[i_motivo] else ""
+        concepto= str(fila[i_conc]).strip().lower()   if i_conc   is not None and i_conc   < len(fila) and fila[i_conc] and str(fila[i_conc]).strip().lower() not in ("nan","none","") else ""
+        grupos.setdefault(id_padre, []).append({"mz": mz, "lote": lote, "monto_parcial": round(monto_parcial, 2), "motivo": motivo, "concepto": concepto})
+    return grupos
 
 
 def _leer_hoja_ambiguos(wb) -> dict:
@@ -899,14 +945,15 @@ def _leer_hoja_comunitarios(wb) -> dict:
         try: return headers.index(n)
         except: return None
 
-    i_origen  = idx("ORIGEN")
-    i_fecha   = idx("FECHA")
-    i_total   = idx("MONTO_TOTAL")
-    i_mz      = idx("MZ")
-    i_lote    = idx("LOTE")
-    i_parcial = idx("MONTO_PARCIAL")
-    i_motivo  = idx("MOTIVO")
-    i_ok      = idx("OK")
+    i_origen   = idx("ORIGEN")
+    i_fecha    = idx("FECHA")
+    i_total    = idx("MONTO_TOTAL")
+    i_mz       = idx("MZ")
+    i_lote     = idx("LOTE")
+    i_parcial  = idx("MONTO_PARCIAL")
+    i_motivo   = idx("MOTIVO")
+    i_concepto = idx("CONCEPTO")
+    i_ok       = idx("OK")
 
     if i_origen is None or i_fecha is None:
         return {}
@@ -927,12 +974,13 @@ def _leer_hoja_comunitarios(wb) -> dict:
         clave = f"{origen}|{fecha}"
         monto_total   = limpiar_monto(fila[i_total])   if i_total   is not None and i_total   < len(fila) and fila[i_total]   else 0.0
         monto_parcial = limpiar_monto(fila[i_parcial]) if i_parcial is not None and i_parcial < len(fila) and fila[i_parcial] else 0.0
-        mz    = str(fila[i_mz]).strip().upper() if i_mz    is not None and i_mz    < len(fila) and fila[i_mz]    else ""
-        lote  = str(fila[i_lote]).strip()        if i_lote  is not None and i_lote  < len(fila) and fila[i_lote]  else ""
-        motivo= str(fila[i_motivo]).strip()      if i_motivo is not None and i_motivo < len(fila) and fila[i_motivo] else ""
+        mz      = str(fila[i_mz]).strip().upper()    if i_mz       is not None and i_mz       < len(fila) and fila[i_mz]       else ""
+        lote    = str(fila[i_lote]).strip()           if i_lote     is not None and i_lote     < len(fila) and fila[i_lote]     else ""
+        motivo  = str(fila[i_motivo]).strip()         if i_motivo   is not None and i_motivo   < len(fila) and fila[i_motivo]   else ""
+        concepto= str(fila[i_concepto]).strip().lower() if i_concepto is not None and i_concepto < len(fila) and fila[i_concepto] and str(fila[i_concepto]).strip().lower() not in ("nan","none","") else ""
         if not mz or not lote or monto_parcial <= 0:
             continue
-        grupos.setdefault(clave, []).append({"mz": mz, "lote": lote, "monto_parcial": round(monto_parcial, 2), "motivo": motivo})
+        grupos.setdefault(clave, []).append({"mz": mz, "lote": lote, "monto_parcial": round(monto_parcial, 2), "motivo": motivo, "concepto": concepto})
         totales[clave] = monto_total
 
     # Validar suma parciales == total
@@ -1104,6 +1152,10 @@ def _leer_validados_ambiguos(wb) -> list:
         conc_vacio = not concepto or concepto.upper() in ("NAN", "NONE")
         if mz_vacio and conc_vacio:
             continue
+        # CONCEPTO=comunitario: el padre SÍ se traza (ancla durable), pero como
+        # PADRE_SEGREGADO — no suma en caja, solo permite reconstruir el estado
+        # "ya clasificado como comunitario" entre corridas.
+        es_comunitario = concepto.lower() == "comunitario"
         resultado.append({
             "user_id":    str(fila[i_uid]).strip()    if i_uid  is not None and i_uid  < len(fila) and fila[i_uid]  else "",
             "nombre":     str(fila[i_nom]).strip()    if i_nom  is not None and i_nom  < len(fila) and fila[i_nom]  else "",
@@ -1115,6 +1167,7 @@ def _leer_validados_ambiguos(wb) -> list:
             "mz_final":   "" if mz_vacio else mz,
             "lote_final": "" if mz_vacio else lote,
             "concepto":   "" if conc_vacio else concepto,
+            "estado_registro": "PADRE_SEGREGADO" if es_comunitario else "REGISTRO_NORMAL",
         })
     return resultado
 
@@ -1205,6 +1258,14 @@ def leer_correcciones(planilla: dict = None) -> tuple[dict, dict, dict, list, li
             corr_multiples             = _leer_hoja_multiples(wb_acum)
             validados_ambiguos         = _leer_acum_ambiguos_traz(wb_acum)
             validados_maestro_inexacto = _leer_acum_maestro_inexacto_traz(wb_acum)
+            comunitarios_resueltos     = _leer_acum_pagos_comunitarios_traz(wb_acum)
+            # Re-sembrar corr_comunitarios desde el padre trazado (PADRE_SEGREGADO) —
+            # ancla durable: el pago sigue "ya clasificado comunitario" aunque la fila
+            # Ambiguos ya no esté viva en pendientes.xlsx.
+            for r in validados_ambiguos:
+                if r.get("estado_registro") in ("PADRE_SEGREGADO", "INCIDENCIA"):
+                    clave = f"{r['origen'].upper()}|{r['fecha']}"
+                    corr_comunitarios[clave] = {"origen": r["origen"], "fecha": r["fecha"], "monto": r["monto"]}
             # Persistir correcciones de maestro_inexacto en corr_simples: la trazabilidad
             # Maestro_inexacto es el único lugar donde queda registro de MZ-LOTE validados,
             # ya que exportar_trazabilidad las excluye del sheet Sin_identificar.
@@ -1337,8 +1398,13 @@ def leer_correcciones(planilla: dict = None) -> tuple[dict, dict, dict, list, li
                 if clave not in corr_pagaste:
                     corr_pagaste[clave] = v
 
-            # Hoja Pagos_comunitarios — desgloses OK=SI
-            comunitarios_resueltos = _leer_hoja_comunitarios(wb_pend)
+            # Hoja Pagos_comunitarios — desgloses OK=SI nuevos de este ciclo.
+            # Se MERGEA (no reemplaza) sobre lo ya sembrado desde trazabilidad —
+            # un padre resuelto en un ciclo previo no debe perder sus hijos aunque
+            # la fila ya no esté viva en este pendientes.
+            nuevos_resueltos = _leer_hoja_comunitarios(wb_pend)
+            for clave, lotes in nuevos_resueltos.items():
+                comunitarios_resueltos[clave] = lotes
             if comunitarios_resueltos:
                 print(f"  Comunitarios resueltos: {len(comunitarios_resueltos)} depósito(s)")
 
@@ -1348,6 +1414,24 @@ def leer_correcciones(planilla: dict = None) -> tuple[dict, dict, dict, list, li
 
     if n_rechazadas:
         print(f"  ⚠ {n_rechazadas} correcciones rechazadas — MZ-LOTE no existe en planilla")
+
+    # Validación de integridad: Σ HIJO_SEGREGADO debe igualar el MONTO del padre.
+    # No falla silenciosamente — marca INCIDENCIA en el padre para auditoría.
+    for r in validados_ambiguos:
+        if r.get("estado_registro") not in ("PADRE_SEGREGADO", "INCIDENCIA"):
+            continue
+        clave = f"{r['origen'].upper()}|{r['fecha']}"
+        hijos = comunitarios_resueltos.get(clave)
+        if not hijos:
+            r["estado_registro"] = "PADRE_SEGREGADO"
+            continue
+        suma = round(sum(h.get("monto_parcial", 0) for h in hijos), 2)
+        if abs(suma - round(r["monto"], 2)) > 0.05:
+            r["estado_registro"] = "INCIDENCIA"
+            print(f"  ⚠ Comunitario INCIDENCIA {clave[:40]}: hijos {suma} ≠ padre {r['monto']}")
+        else:
+            r["estado_registro"] = "PADRE_SEGREGADO"
+
     n_si   = len(corr_simples)
     n_amb  = len(corr_ambiguos)
     n_mult = len(corr_multiples)
@@ -1464,6 +1548,7 @@ def ejecutar_matching(df: pd.DataFrame, mapa: dict,
             for item in comunitarios_resueltos[corr_key]:
                 mz_c  = item["mz"];  lote_c = item["lote"]
                 mp    = item["monto_parcial"]
+                concepto_c = item.get("concepto", "")
                 datos_c = planilla.get((mz_c, lote_c), {})
                 deuda_c = datos_c.get("deuda_total", 0.0)
                 dif_c   = round(mp - deuda_c, 2) if deuda_c else 0.0
@@ -1479,7 +1564,10 @@ def ejecutar_matching(df: pd.DataFrame, mapa: dict,
                     "deuda_total": deuda_c, "mes_anterior": datos_c.get("mes_anterior", 0),
                     "diferencia": dif_c, "estado_pago": ep_c,
                     "fuente": "comunitario", "motivo": item.get("motivo", ""),
+                    "concepto": concepto_c,
                     "estado": "identificado",
+                    "estado_registro": "HIJO_SEGREGADO",
+                    "id_padre": corr_key,
                 })
             continue
 
@@ -1523,13 +1611,15 @@ def ejecutar_matching(df: pd.DataFrame, mapa: dict,
             continue
 
         if ciclo > 1 and corr_simple:
-            if corr_simple["mz"] == "BLANCO":
+            _conc_val = str(corr_simple.get("concepto","")).strip()
+            _conc_ok  = bool(_conc_val) and _conc_val.upper() not in ("NAN","NONE","")
+            if corr_simple["mz"] == "BLANCO" and not _conc_ok:
                 todos.append({**base, "user_id":"","nombre":"","mz":"BLANCO","lote":"",
                     "nivel_confianza":"","deuda_total":"","mes_anterior":"",
                     "diferencia":"","estado_pago":"concepto","fuente":"blanco",
                     "concepto":"BLANCO","motivo":"marcado como blanco","estado":"identificado"})
                 continue
-            elif corr_simple.get("concepto") and str(corr_simple["concepto"]).strip().upper() not in ("NAN","NONE",""):
+            elif _conc_ok:
                 todos.append({
                     **base,
                     "user_id": "", "nombre": "", "mz": "", "lote": "",
@@ -1842,6 +1932,58 @@ def _leer_pendientes_preservados(ruta_pend: Path) -> dict:
     return preservados
 
 
+def _leer_comunitarios_preservados(ruta_pend: Path) -> dict:
+    """Lee filas de Pagos_comunitarios sin OK=SI del pendientes anterior.
+    Retorna ORIGEN_UPPER|FECHA → list[row_dict] para inyectarlas en el próximo pendientes."""
+    result: dict = {}
+    if not ruta_pend.exists():
+        return result
+    try:
+        wb = load_workbook(ruta_pend, read_only=True, data_only=True)
+    except Exception:
+        return result
+    if "Pagos_comunitarios" not in wb.sheetnames:
+        wb.close()
+        return result
+    filas = list(wb["Pagos_comunitarios"].values)
+    wb.close()
+    if len(filas) < 3:
+        return result
+    headers = [str(h).strip().upper() if h else "" for h in filas[1]]
+    def idx(n):
+        try: return headers.index(n)
+        except: return None
+    i_origen  = idx("ORIGEN");  i_msg    = idx("MENSAJE"); i_fecha = idx("FECHA")
+    i_total   = idx("MONTO_TOTAL"); i_mz = idx("MZ");    i_lote  = idx("LOTE")
+    i_parcial = idx("MONTO_PARCIAL"); i_motivo = idx("MOTIVO")
+    i_conc    = idx("CONCEPTO"); i_ok = idx("OK")
+    if i_origen is None:
+        return result
+    for fila in filas[2:]:
+        if not fila:
+            continue
+        ok_val = str(fila[i_ok]).strip().upper() if i_ok is not None and i_ok < len(fila) and fila[i_ok] else ""
+        if ok_val == "SI":
+            continue
+        origen = str(fila[i_origen]).strip() if i_origen < len(fila) and fila[i_origen] else ""
+        fecha  = str(fila[i_fecha]).strip()  if i_fecha  is not None and i_fecha  < len(fila) and fila[i_fecha]  else ""
+        if not origen or origen.upper() in ("NAN", "NONE", ""):
+            continue
+        clave = f"{origen.upper()}|{fecha}"
+        result.setdefault(clave, []).append({
+            "origen":        origen,
+            "mensaje":       str(fila[i_msg]).strip()     if i_msg     is not None and i_msg     < len(fila) and fila[i_msg]     else "",
+            "fecha":         fecha,
+            "monto_total":   fila[i_total]                if i_total   is not None and i_total   < len(fila) and fila[i_total]   else "",
+            "mz":            str(fila[i_mz]).strip()      if i_mz      is not None and i_mz      < len(fila) and fila[i_mz]      else "",
+            "lote":          str(fila[i_lote]).strip()    if i_lote    is not None and i_lote    < len(fila) and fila[i_lote]    else "",
+            "monto_parcial": fila[i_parcial]              if i_parcial is not None and i_parcial < len(fila) and fila[i_parcial] else "",
+            "motivo":        str(fila[i_motivo]).strip()  if i_motivo  is not None and i_motivo  < len(fila) and fila[i_motivo]  else "",
+            "concepto":      str(fila[i_conc]).strip()    if i_conc    is not None and i_conc    < len(fila) and fila[i_conc]    else "",
+        })
+    return result
+
+
 def _backup_pendientes(ruta_pend: Path):
     """Copia pendientes.xlsx a correcciones/backup/ con timestamp antes de regenerarlo."""
     if not ruta_pend.exists():
@@ -1866,8 +2008,9 @@ def exportar_pendientes(todos: list, pagaste_pendientes: list = None):
     ruta = CORRECCIONES_DIR / PENDIENTES_FILE
 
     # Preservar trabajo manual del run anterior + backup defensivo
-    preservados = _leer_pendientes_preservados(ruta)
-    n_preserv = sum(len(d) for d in preservados.values())
+    preservados        = _leer_pendientes_preservados(ruta)
+    com_preservados    = _leer_comunitarios_preservados(ruta)
+    n_preserv = sum(len(d) for d in preservados.values()) + sum(len(v) for v in com_preservados.values())
     if n_preserv:
         print(f"  ⤴ Preservando {n_preserv} fila(s) con trabajo manual del run anterior")
     _backup_pendientes(ruta)
@@ -1904,7 +2047,8 @@ def exportar_pendientes(todos: list, pagaste_pendientes: list = None):
         return
 
     wb = exportar_pendientes_diseño(sin_identificar, ambiguos, maestro_inexacto, pagaste_pendientes,
-                                    preservados=preservados, pagos_comunitarios=comunitarios_pendientes)
+                                    preservados=preservados, pagos_comunitarios=comunitarios_pendientes,
+                                    comunitarios_preservados=com_preservados)
     wb.save(ruta)
     print(f"  ⚠ Pendientes: {len(sin_identificar)} sin_id · {len(ambiguos)} ambiguos · {len(maestro_inexacto)} maestro_inexacto · {len(pagaste_pendientes)} pagaste · {len(comunitarios_pendientes)} comunitarios")
 
@@ -2205,7 +2349,9 @@ def main():
 
     print("\n[12] Actualizando blancos acumulados...")
     mes_str_bd = datetime.today().strftime("%Y-%m")
-    blancos = [r for r in todos if r.get("fuente") == "blanco"]
+    # mz=="BLANCO" es el campo semántico real de "sin lote asignado" — no fuente=="blanco",
+    # que solo cubre la ruta clásica y se pierde los hijos comunitario con MZ=BLANCO.
+    blancos = [r for r in todos if r.get("mz") == "BLANCO"]
     if blancos:
         wb_bl = load_workbook(BLANCOS_FILE) if BLANCOS_FILE.exists() else None
         for r in blancos:

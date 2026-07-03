@@ -215,6 +215,11 @@
     </div>
 
     <div class="process-rule">
+      <span class="label">Aplica overlay penalidades</span>
+      Lee audit_penalidad.xlsx (6_corte)<br>+ audit_penalidad_multas.xlsx (6b)<br>suma delta PENALIDAD_APLICADA
+    </div>
+
+    <div class="process-rule">
       <span class="label">Calcula saldo y estado</span>
       CANCELADO / EXCESO<br>PARCIAL / PENDIENTE
     </div>
@@ -236,9 +241,9 @@
     <div class="output-box">
       <div class="output-header green">planilla_cobrado.xlsx</div>
       <div class="output-body green">
-        <div class="out-label">21 cols planilla + CICLO_COBRANZA</div>
-        <div class="out-desc">Rellena MONTO_YAPE · MONTO_EFECTIVO · SALDO<br>RETORNO · DEVUELTO · ESTADO · FECHA_PAGO · CICLO_COBRANZA</div>
-        <div class="feeds-badge purple-bd">→ 3_boletas · 7_cierre</div>
+        <div class="out-label">21 cols planilla + CICLO_COBRANZA + overlay penalidades</div>
+        <div class="out-desc">Rellena MONTO_YAPE · MONTO_EFECTIVO · SALDO<br>RETORNO · DEVUELTO · ESTADO · FECHA_PAGO · CICLO_COBRANZA<br>CORTE_RECONEXION = base + Σ delta audits (6_corte + 6b)</div>
+        <div class="feeds-badge purple-bd">→ 3_boletas · 6_corte · 6b · 7_cierre</div>
       </div>
     </div>
 
@@ -291,7 +296,9 @@
   <strong>Idempotencia:</strong> re-correr con los mismos inputs produce el mismo output.
   Si no hay pagos nuevos respecto a <code>trazabilidad_cobranza.xlsx</code>, el módulo sale sin modificar nada.<br>
   <strong>Retroescritura:</strong> <code>CICLO_COBRANZA</code> se escribe también en
-  <code>pagos_yape_tepago.xlsx</code> e <code>pagos_efectivo.xlsx</code> (inputs/).
+  <code>pagos_yape_tepago.xlsx</code> e <code>pagos_efectivo.xlsx</code> (inputs/).<br>
+  <strong>Penalidades (B7 Fase 2 / writer único):</strong> <code>6_corte/aplicar_penalidad.py</code> y <code>6b/aplicar_penalidad_multas.py</code>
+  NO escriben en shared/planilla_mes — solo en sus audits. 5_cobranza lee ambos audits en vivo y materializa el overlay en <code>planilla_cobrado.xlsx</code> (que downstream consume 6_corte/6b/7_cierre).
 </div>
 
 <div style="margin-top:20px; border:1.5px solid #6366F1; border-radius:8px; padding:12px 16px; background:#EEF2FF; max-width:700px;">

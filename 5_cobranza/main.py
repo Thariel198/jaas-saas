@@ -28,6 +28,14 @@ from openpyxl.utils import get_column_letter
 
 # ── CONFIG ────────────────────────────────────────────────────────────────────
 ROOT          = Path(__file__).parent
+
+# seguimiento_pueblo: writer único es shared/seguimiento_repo.py (patrón repo,
+# igual que data_boletas_repo). Se importa por ruta física — no depende de
+# SHARED_DIR (que sí se monkey-patchea en tests) porque el módulo vive siempre
+# en el shared/ real, sea cual sea la data que apunte ahí en un test.
+sys.path.insert(0, str(ROOT.parent / "shared"))
+import seguimiento_repo as repo  # noqa: E402
+import utils_estado_ciclo as repo_estado  # noqa: E402
 INPUTS_DIR    = ROOT / "inputs"
 OUTPUTS_DIR   = ROOT / "outputs"
 SHARED_DIR    = ROOT.parent / "shared"
@@ -783,34 +791,10 @@ def _leer_correcciones() -> dict:
 
 
 def _escribir_correcciones_lote(filas: list[dict]):
-    """Escribe correcciones_lote.xlsx con formato desde una lista de dicts."""
-    CORR_LOTE_PATH.parent.mkdir(exist_ok=True)
-    cols_cl = ["MZ_ORIGEN", "LT_ORIGEN", "MZ_DESTINO", "LT_DESTINO", "MOTIVO", "CICLO", "FECHA"]
-    wb_cl = Workbook()
-    ws_cl = wb_cl.active
-    ws_cl.title = "correcciones_lote"
-    bg_h = PatternFill("solid", start_color=GH_DC_CORR[0])
-    for ci, col in enumerate(cols_cl, 1):
-        c = ws_cl.cell(1, ci, col)
-        c.font = Font(name="Arial", bold=True, size=9, color=GH_DC_CORR[1])
-        c.fill = bg_h
-        c.alignment = Alignment(horizontal="center", vertical="center")
-        c.border = _borde()
-        ws_cl.column_dimensions[get_column_letter(ci)].width = [8, 8, 10, 10, 40, 8, 18][ci - 1]
-    ws_cl.row_dimensions[1].height = 20
-
-    for ri, row in enumerate(filas, 2):
-        for ci, col in enumerate(cols_cl, 1):
-            c = ws_cl.cell(ri, ci, row.get(col, ""))
-            c.font = Font(name="Consolas", size=9)
-            c.alignment = Alignment(horizontal="center" if ci <= 4 or ci == 6 else "left",
-                                    vertical="center")
-            c.border = _borde()
-            if ci <= 4:
-                c.fill = PatternFill("solid", start_color=TD_DC_CORR)
-        ws_cl.row_dimensions[ri].height = 16
-
-    wb_cl.save(CORR_LOTE_PATH)
+    """Escribe correcciones_lote.xlsx — delega el dibujo al primitivo compartido
+    (shared/utils_lote.py) para que 7_cierre pueda resetearlo con el mismo formato."""
+    from utils_lote import escribir_correcciones_lote
+    escribir_correcciones_lote(CORR_LOTE_PATH, filas)
 
 
 def _recuperar_correcciones_trazabilidad(existentes: dict, ciclo: int) -> dict:
@@ -1736,39 +1720,18 @@ def _exportar_arrastre_devolucion(resultado: list[dict], mes_ano: str):
 #  2_planilla del próximo mes lo lee como fuente única de multa/acuerdos/convenio.
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _leer_estado_ciclo() -> dict:
-    if not ESTADO_CICLO_PATH.exists():
-        return {}
-    try:
-        return json.loads(ESTADO_CICLO_PATH.read_text(encoding="utf-8"))
-    except Exception as e:
-        log.warning(f"No se pudo leer estado_ciclo.json: {e}")
-        return {}
-
-
 def _ciclo_validado(mes_ano: str) -> bool:
-    data = _leer_estado_ciclo()
-    return bool(data.get(mes_ano, {}).get("arrastre", {}).get("validado"))
+    return repo_estado.ciclo_validado(mes_ano, ruta=ESTADO_CICLO_PATH)
 
 
 def _marcar_generado(mes_ano: str):
     """Marca arrastre.generado=true (idempotente). 5b lo lee para sellar validado."""
-    data = _leer_estado_ciclo()
-    ciclo = data.setdefault(mes_ano, {"estado": "ABIERTO"})
-    arr = ciclo.setdefault("arrastre", {})
-    if not arr.get("generado"):
-        ahora = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
-        arr["generado"] = True
-        arr["generado_en"] = ahora
-        ciclo["ultima_actualizacion"] = ahora
-        ESTADO_CICLO_PATH.parent.mkdir(parents=True, exist_ok=True)
-        ESTADO_CICLO_PATH.write_text(
-            json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-        log.info(f"estado_ciclo.json → arrastre.generado=true · {mes_ano}")
+    repo_estado.marcar_generado(mes_ano, ruta=ESTADO_CICLO_PATH)
+    log.info(f"estado_ciclo.json → arrastre.generado=true · {mes_ano}")
 
 
-def _descomponer_saldo(r: dict) -> tuple[list[float], float]:
-    """Aplica total_pagado en prioridad P1→P5. Devuelve (sin_cubrir[5], total)."""
+def _descomponer_saldo(r: dict) -> tuple[list[float], list[float], float]:
+    """Aplica total_pagado en prioridad P1→P5. Devuelve (comps[5], sin_cubrir[5], total)."""
     comps = [
         round(r["mes_actual"] + r["mantenimiento"] + r["mes_anterior"]
               + r["blanco_final"] + r["devolucion"], 2),   # P1 DEUDA_AGUA
@@ -1787,7 +1750,49 @@ def _descomponer_saldo(r: dict) -> tuple[list[float], float]:
         else:
             sin_cubrir.append(round(comp - restante, 2))
             restante = 0.0
-    return sin_cubrir, round(sum(sin_cubrir), 2)
+    return comps, sin_cubrir, round(sum(sin_cubrir), 2)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Reconciliación de pagos hacia seguimiento_pueblo (MULTA/ACUERDOS/CONVENIO)
+#  5_cobranza recalcula el mes ENTERO en cada corrida — no procesa pago por
+#  pago. seguimiento_pueblo es append-only (nunca "sobreescribe" un total).
+#  Por eso cada corrida reconcilia por DELTA: SET_DEBE (recién calculado) −
+#  SET_TIENE (Σ PAGO ya en el registro) = lo que falta anotar.
+#  No gateada por _ciclo_validado — los pagos son hechos, no esperan el
+#  sello de fin de mes (a diferencia de arrastre_consolidado).
+#  Ver docs/decisiones/seguimiento_pueblo.md
+# ─────────────────────────────────────────────────────────────────────────────
+
+_CONCEPTOS_PUEBLO = ((2, "MULTA"), (3, "ACUERDOS"), (4, "CONVENIO"))
+
+
+def _reconciliar_pagos_pueblo(resultado: list[dict], mes_ano: str) -> None:
+    n_pago = n_ajuste = 0
+    for r in resultado:
+        comps, sin_cubrir, _ = _descomponer_saldo(r)
+        for idx, concepto in _CONCEPTOS_PUEBLO:
+            # Los predios de convenio de instalación no viven en seguimiento_pueblo
+            # (su deuda ya está completa en arrastre_consolidado) — reconciliarles
+            # un pago acá crearía un PAGO sin CARGO, saldo negativo falso.
+            if concepto == "CONVENIO" and (r["mz"], r["lt"]) in repo.PREDIOS_INSTALACION_EXCLUIDOS:
+                continue
+            pagado_fresco = round(comps[idx] - sin_cubrir[idx], 2)
+            ya = repo.pago_registrado(r["mz"], r["lt"], concepto, mes_ano)
+            delta = round(pagado_fresco - ya, 2)
+            if delta > TOL:
+                ref = f"recon_{mes_ano}_{concepto}_{r['mz']}_{r['lt']}_{datetime.now().timestamp()}"
+                repo.registrar_pago(r["mz"], r["lt"], concepto, mes_ano, delta,
+                                     source="5_cobranza", audit_ref=ref)
+                n_pago += 1
+            elif delta < -TOL:
+                ref = f"recon_{mes_ano}_{concepto}_{r['mz']}_{r['lt']}_{datetime.now().timestamp()}"
+                repo.registrar_ajuste(r["mz"], r["lt"], concepto, mes_ano, delta,
+                                      source="5_cobranza", audit_ref=ref,
+                                      motivo="corrección: pago recalculado a la baja en 5_cobranza")
+                n_ajuste += 1
+    if n_pago or n_ajuste:
+        log.info(f"seguimiento_pueblo: {n_pago} pago(s) · {n_ajuste} ajuste(s) registrados")
 
 
 def _exportar_arrastre_consolidado(resultado: list[dict], mes_ano: str):
@@ -1798,7 +1803,7 @@ def _exportar_arrastre_consolidado(resultado: list[dict], mes_ano: str):
 
     filas = []
     for r in resultado:
-        sin_cubrir, total_arr = _descomponer_saldo(r)
+        _comps, sin_cubrir, total_arr = _descomponer_saldo(r)
         if total_arr > TOL:
             filas.append((r["mz"], r["lt"], r["nombre"], sin_cubrir, total_arr))
 
@@ -2196,6 +2201,9 @@ def main():
         dev_yape, dev_efec, dev_devuelto,
         ciclo_nuevo, pagos_nuevos
     )
+    # Reconciliación hacia seguimiento_pueblo — no gateada por _ciclo_validado
+    # (los pagos ya ocurrieron, no esperan el sello de fin de mes).
+    _reconciliar_pagos_pueblo(resultado, mes_ano)
 
     print("\n[5/6] Exportando outputs...")
     _exportar_planilla_cobrado(resultado)

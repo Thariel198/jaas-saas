@@ -102,8 +102,14 @@
       <div class="box box-check" style="font-size:10px">operador resuelve en hoja <em>Ambiguos</em></div>
       <span class="arrow" style="font-size:11px">→ MZ+LOTE</span>
       <div class="box box-ok" style="font-size:10px">identificado — lote asignado</div>
-      <span class="arrow" style="font-size:11px;color:#9A3412">→ CONCEPTO=MULTIPLE</span>
+      <span class="arrow" style="font-size:11px;color:#9A3412">→ CONCEPTO=comunitario</span>
       <div class="box box-comun" style="font-size:10px">→ <strong>Pagos_comunitarios</strong><span class="badge badge-new">nuevo</span></div>
+    </div>
+  </div>
+  <div style="margin-left:130px;margin-top:3px;margin-bottom:3px">
+    <div style="display:flex;align-items:center;gap:6px">
+      <div style="width:40px;flex-shrink:0;border-left:1.5px solid #FDBA74;border-bottom:1.5px solid #FDBA74;height:22px;margin-top:-11px"></div>
+      <div class="box box-comun" style="font-size:10px">padre trazado en <em>trazabilidad/Ambiguos</em><br><span style="font-size:9px;font-weight:400">ESTADO_REGISTRO=PADRE_SEGREGADO · ancla durable · no suma en caja</span></div>
     </div>
   </div>
   <div style="margin-left:130px;margin-top:3px;margin-bottom:3px">
@@ -111,7 +117,25 @@
       <div style="width:40px;flex-shrink:0;border-left:1.5px solid #FDBA74;border-bottom:1.5px solid #FDBA74;height:22px;margin-top:-11px"></div>
       <div class="box box-comun" style="font-size:10px">operador copia filas · llena MZ+LOTE+MONTO_PARCIAL por lote · verifica suma = MONTO_TOTAL · OK=SI</div>
       <span class="arrow" style="font-size:11px">→</span>
-      <div class="box box-ok" style="font-size:10px">multiple_corregido (desglose comunitario)</div>
+      <div class="box box-ok" style="font-size:10px">identificado por lote (hijo segregado)</div>
+    </div>
+  </div>
+  <div style="margin-left:170px;margin-top:3px;margin-bottom:3px">
+    <div style="display:flex;align-items:center;gap:6px">
+      <div style="width:40px;flex-shrink:0;border-left:1.5px solid #6EE7B7;border-bottom:1.5px solid #6EE7B7;height:22px;margin-top:-11px"></div>
+      <div class="box box-ok" style="font-size:10px">hijo trazado en <em>trazabilidad/Pagos_comunitarios</em><br><span style="font-size:9px;font-weight:400">ESTADO_REGISTRO=HIJO_SEGREGADO · ID_PADRE=padre · sí suma en caja</span></div>
+      <span class="arrow" style="font-size:11px">→</span>
+      <div class="box box-check" style="font-size:10px">Σ hijos = MONTO padre?<br><span style="font-size:9px;font-weight:400">tolerancia S/0.05</span></div>
+      <span class="arrow" style="font-size:11px;color:#991B1B">→ no</span>
+      <div class="box box-pend" style="font-size:10px">padre → INCIDENCIA</div>
+    </div>
+  </div>
+  <div style="margin-left:130px;margin-top:3px;margin-bottom:3px">
+    <div style="display:flex;align-items:center;gap:6px">
+      <div style="width:40px;flex-shrink:0;border-left:1.5px dashed #D1D5DB;border-bottom:1.5px dashed #D1D5DB;height:22px;margin-top:-11px"></div>
+      <div class="box box-check" style="font-size:10px">¿desglose incompleto al cerrar el ciclo?</div>
+      <span class="arrow" style="font-size:11px">→ sí</span>
+      <div class="box box-comun" style="font-size:10px">próxima corrida: padre re-leído desde trazabilidad<br><span style="font-size:9px;font-weight:400">re-siembra Pagos_comunitarios con parciales ya llenados — sin repetir trabajo</span></div>
     </div>
   </div>
 
@@ -139,7 +163,13 @@
       <div style="width:9px;height:9px;border-radius:2px;background:#FEF2F2;border:0.5px solid #FCA5A5"></div>pendiente (requiere intervención)
     </div>
     <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--color-text-secondary)">
-      <div style="width:9px;height:9px;border-radius:2px;background:#FFF7ED;border:0.5px solid #FDBA74"></div>Pagos_comunitarios — nuevo
+      <div style="width:9px;height:9px;border-radius:2px;background:#FFF7ED;border:0.5px solid #FDBA74"></div>PADRE_SEGREGADO — ancla, no suma
+    </div>
+    <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--color-text-secondary)">
+      <div style="width:9px;height:9px;border-radius:2px;background:#E1F5EE;border:0.5px solid #6EE7B7"></div>HIJO_SEGREGADO — sí suma
+    </div>
+    <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--color-text-secondary)">
+      <div style="width:9px;height:9px;border-radius:2px;background:#FEF2F2;border:0.5px solid #FCA5A5"></div>INCIDENCIA — hijos no cuadran
     </div>
     <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--color-text-secondary)">
       <span class="badge badge-auto" style="margin:0">auto</span>sin intervención del operador

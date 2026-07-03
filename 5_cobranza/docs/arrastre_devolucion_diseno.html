@@ -17,12 +17,18 @@ tr:last-child td{border-bottom:none}
 .th-quien{background:#EFF6FF;color:#1D4ED8}
 .th-monto{background:#EFF6FF;color:#1D4ED8}
 .th-traz {background:#EFF6FF;color:#1D4ED8}
+.th-ubica{background:#EFF6FF;color:#1D4ED8}
+.th-revis{background:#ECFDF5;color:#065F46}
 .th-sep  {width:4px;background:var(--color-background-secondary);padding:0;border-right:2px solid var(--color-border-secondary)}
 
 .td-quien{background:#F5F9FF;font-family:var(--font-mono);font-size:10px;color:#1D4ED8}
 .td-nombre{background:#F5F9FF;font-size:11px;color:var(--color-text-primary)}
 .td-monto{background:#F5F9FF;font-family:var(--font-mono);font-size:11px;font-weight:600;color:#1D4ED8;text-align:right}
 .td-traz {background:#F5F9FF;font-family:var(--font-mono);font-size:11px;color:#1D4ED8;text-align:center}
+.td-ref  {background:#F5F9FF;font-family:var(--font-mono);font-size:10px;color:#1D4ED8;white-space:normal}
+.td-coment{background:#F5F9FF;font-size:10px;color:var(--color-text-secondary);white-space:normal}
+.td-revis-v{background:#F9FAFB;font-size:10px;color:var(--color-text-secondary);white-space:normal}
+.td-revis-l{background:#ECFDF5;font-size:10px;color:#065F46;white-space:normal}
 .td-sep  {width:4px;background:var(--color-background-secondary);padding:0;border-right:2px solid var(--color-border-secondary)}
 
 .gh{font-size:9px;font-weight:600;text-align:center;padding:2px 0;letter-spacing:.05em;text-transform:uppercase;border-bottom:0.5px solid var(--color-border-tertiary)}
@@ -34,10 +40,12 @@ tr:last-child td{border-bottom:none}
 
 <div id="w">
   <div class="instruc">
-    Generado por <strong>5_cobranza/main.py</strong> — solo lectura.<br>
+    Generado por <strong>5_cobranza/main.py</strong> — columna <strong>REVISION</strong> es editable por el operador.<br>
     Un registro por usuario con <strong>SALDO &lt; 0</strong> (pagó de más) al cierre del ciclo.<br>
     El <strong>monto</strong> es el valor absoluto del exceso — lo que la JASS le debe al usuario.<br>
-    Este archivo se usa en <strong>7_cierre</strong> para acumular excesos pendientes de reclamo.
+    Este archivo se usa en <strong>7_cierre</strong> para acumular excesos pendientes de reclamo.<br>
+    <strong>REFERENCIA</strong> y <strong>COMENTARIO</strong> ubican el pago origen — efectivo: mesa/cobrador/fecha + nota del cobrador · yape: origen/monto/fecha-hora + mensaje del banco.<br>
+    <strong>REVISION</strong> es texto libre que tipeás vos (origen/legitimidad del exceso). Se preserva en re-corridas — es la base para decidir si devolver o absorber cada caso.
   </div>
 
   <div class="tab-excel">arrastre_devolucion_2026-06</div>
@@ -51,6 +59,10 @@ tr:last-child td{border-bottom:none}
           <th class="th-monto gh" colspan="1">¿Cuánto sobra?</th>
           <th class="th-sep" rowspan="2"></th>
           <th class="th-traz gh" colspan="1">¿De qué mes?</th>
+          <th class="th-sep" rowspan="2"></th>
+          <th class="th-ubica gh" colspan="2">¿Cómo ubicarlo?</th>
+          <th class="th-sep" rowspan="2"></th>
+          <th class="th-revis gh" colspan="1">¿Revisado?</th>
         </tr>
         <tr>
           <th class="th-quien">MZ</th>
@@ -60,38 +72,58 @@ tr:last-child td{border-bottom:none}
           <th class="th-monto">monto</th>
 
           <th class="th-traz">MES_ANO_ORIGEN</th>
+
+          <th class="th-ubica">REFERENCIA</th>
+          <th class="th-ubica">COMENTARIO</th>
+
+          <th class="th-revis">REVISION</th>
         </tr>
       </thead>
       <tbody>
 
-        <!-- fila 1: exceso por pago doble -->
+        <!-- fila 1: yape con concepto no modelado en el mensaje del banco + REVISION vacío -->
         <tr>
           <td class="num">1</td>
-          <td class="td-quien">A</td><td class="td-quien">3</td><td class="td-nombre">MANUEL QUISPE FLORES</td>
+          <td class="td-quien">E</td><td class="td-quien">1</td><td class="td-nombre">YOLANDA MATILDE MONTALVO COSME</td>
           <td class="td-sep"></td>
-          <td class="td-monto">12.50</td>
+          <td class="td-monto">100.00</td>
           <td class="td-sep"></td>
           <td class="td-traz">2026-06</td>
+          <td class="td-sep"></td>
+          <td class="td-ref">yape / S/100 / 21/06/2026 12:08:29</td>
+          <td class="td-coment">E1 1 tanque</td>
+          <td class="td-sep"></td>
+          <td class="td-revis-v"></td>
         </tr>
 
-        <!-- fila 2: exceso por blanco aplicado después del pago -->
+        <!-- fila 2: efectivo con nota del cobrador + REVISION llena -->
         <tr>
           <td class="num">2</td>
-          <td class="td-quien">C</td><td class="td-quien">7</td><td class="td-nombre">LUCY MAMANI CONDORI</td>
+          <td class="td-quien">C1</td><td class="td-quien">9</td><td class="td-nombre">ROBERTO MACARLOPU FLORES</td>
           <td class="td-sep"></td>
-          <td class="td-monto">5.00</td>
+          <td class="td-monto">218.50</td>
           <td class="td-sep"></td>
           <td class="td-traz">2026-06</td>
+          <td class="td-sep"></td>
+          <td class="td-ref">mesa_2 / Yerald Romero / 05/06/2026</td>
+          <td class="td-coment">reclamo</td>
+          <td class="td-sep"></td>
+          <td class="td-revis-l">reclamo legítimo — absorber</td>
         </tr>
 
-        <!-- fila 3: exceso por pago mayor al total -->
+        <!-- fila 3: efectivo sin nota + REVISION vacío -->
         <tr>
           <td class="num">3</td>
-          <td class="td-quien">G1</td><td class="td-quien">2</td><td class="td-nombre">ROSA AURORA ROCA PARI</td>
+          <td class="td-quien">P</td><td class="td-quien">6</td><td class="td-nombre">FLOR VALDIVIA MILLA</td>
           <td class="td-sep"></td>
-          <td class="td-monto">8.00</td>
+          <td class="td-monto">300.00</td>
           <td class="td-sep"></td>
           <td class="td-traz">2026-06</td>
+          <td class="td-sep"></td>
+          <td class="td-ref">mesa_6 / Wagner Trujillo / 05/06/2026</td>
+          <td class="td-coment"></td>
+          <td class="td-sep"></td>
+          <td class="td-revis-v"></td>
         </tr>
 
       </tbody>
@@ -99,8 +131,8 @@ tr:last-child td{border-bottom:none}
   </div>
 
   <div class="legend">
-    <div class="leg"><div class="ld" style="background:#F5F9FF;border:0.5px solid #93C5FD"></div>¿Quién es?</div>
-    <div class="leg"><div class="ld" style="background:#F5F9FF;border:0.5px solid #93C5FD"></div>monto = |SALDO| del ciclo actual (exceso a devolver)</div>
-    <div class="leg"><div class="ld" style="background:#F5F9FF;border:0.5px solid #93C5FD"></div>mes en que se originó el exceso</div>
+    <div class="leg"><div class="ld" style="background:#F5F9FF;border:0.5px solid #93C5FD"></div>¿Quién es?, monto = |SALDO|, mes origen, REFERENCIA/COMENTARIO: si hay &gt;1 pago-agua, concatenan con " · "</div>
+    <div class="leg"><div class="ld" style="background:#F9FAFB;border:0.5px solid #E5E7EB"></div>REVISION: vacío (pendiente de revisar) — editable vos</div>
+    <div class="leg"><div class="ld" style="background:#ECFDF5;border:0.5px solid #86EFAC"></div>REVISION: lleno (ya tipeaste) — se preserva en re-corridas</div>
   </div>
 </div>

@@ -20,6 +20,8 @@ Si cumple 1 y 2 pero no 3, vive en el módulo que es dueño del concepto y se im
 |---|---|---|
 | `data_boletas_repo.py` | **Único writer de `DATA_boletas.xlsx`.** Encapsula backup + write + audit en cada mutación. Lecturas y escrituras pasan por este repo. | `4b_reclamos/{resolucion, aplicar_correcciones, validacion_*}.py` · agentes futuros · UI/dashboard futuro |
 | `data_boletas_audit.xlsx` | Audit log centralizado de toda mutación a `DATA_boletas`. Append-only. Owner: `data_boletas_repo`. | Cualquier consumidor que quiera responder "quién cambió qué/cuándo/por qué" |
+| `seguimiento_repo.py` | **Único writer de `seguimiento_pueblo.xlsx`.** Registro event-sourced (CARGO/PAGO/AJUSTE) de la deuda de MULTA · ACUERDOS · CONVENIO por predio. El saldo nunca se guarda mutable — se deriva de los eventos. | `sembrar_seguimiento_pueblo.py` (siembra inicial) · `5_cobranza/main.py` (registra pagos) · `2_planilla/main.py` (lee saldo) |
+| `seguimiento_pueblo.xlsx` | Registro largo de eventos de deuda de pueblo. Append-only. Owner: `seguimiento_repo`. | 2_planilla · consulta humana (`estado_cuenta`) |
 
 ### Primitivos puros (sin estado)
 
@@ -69,17 +71,149 @@ aplicar_correcciones ──apply_corr.()─▶                      └─▶ 3_
 
 Cuando `DATA_boletas` migre a Postgres o a un microservicio, **solo el repo cambia internamente**. Los callers siguen llamando la misma API. Eso convierte una migración de archivo → base de datos en una sustitución de implementación, no en un refactor global.
 
-## Documentación
+## Patrón Event-Sourced — `seguimiento_repo`
+
+`multa`, `acuerdos de asamblea` y `convenio` son deuda tipo *stock* (se amortiza de a poco), a diferencia
+del agua que es *flujo* (cargo nuevo cada mes, no se amortiza). Un stock que se amortiza necesita
+**historial**, no solo una foto del saldo — por eso `seguimiento_repo` guarda **eventos**, no un saldo mutable.
+
+```
+Emisores de eventos              Repo                              Persistencia
+──────────────────               ────                              ────────────
+sembrar_seguimiento_pueblo ──registrar_cargo()──▶
+                                                  ┐
+5_cobranza/main.py         ──registrar_pago()────┼─▶ seguimiento_repo ──▶ shared/seguimiento_pueblo.xlsx
+                                                  ┘
+(corrección manual)        ──registrar_ajuste()──▶
+
+2_planilla/main.py         ──get_saldo()─────────▶ (solo lectura)
+(consulta humana)          ──estado_cuenta()─────▶ (solo lectura, pivot a vista ancha)
+```
+
+**Génesis = el primer evento.** No existe un "ledger de génesis" aparte — sembrar la deuda inicial de
+un predio es simplemente su primer `registrar_cargo()`. El mismo mecanismo cubre siembra, cargos nuevos
+mensuales (faena/reunión/asamblea) y pagos: todo es un evento.
+
+### API
+
+| Función | Side-effects | Para qué |
+|---|---|---|
+| `registrar_cargo(mz, lt, concepto, mes, monto, *, source, audit_ref)` | Append de evento CARGO | Deuda nueva — siembra inicial o cargo del mes (multa/acuerdos/convenio) |
+| `registrar_pago(mz, lt, concepto, mes, monto, *, source, audit_ref)` | Append de evento PAGO | 5_cobranza registra la porción de un pago que va a ese concepto |
+| `registrar_ajuste(mz, lt, concepto, mes, ±monto, *, source, audit_ref, motivo)` | Append de evento AJUSTE | Corrección — nunca se edita un evento pasado |
+| `get_saldo(mz, lt, concepto, mes)` | Ninguno | Suma eventos hasta ese mes — lo que 2_planilla consulta |
+| `estado_cuenta(mz, lt, concepto)` | Ninguno | Pivot ancho de 1 predio (DEUDA·PAGO·SALDO por mes) — DataFrame en memoria |
+| `generar_vista(ruta=None)` | Escribe `vista_seguimiento_pueblo.xlsx` (regenerable) | Pivot ancho de TODOS los predios, 3 hojas (MULTA/ACUERDOS/CONVENIO) — lo que el usuario abre en Excel |
+
+### Invariantes
+
+- **Single writer:** `seguimiento_pueblo.xlsx` solo se escribe vía las 3 funciones `registrar_*`. Ningún módulo lo abre con `load_workbook` para escribir directo.
+- **Append-only real:** un evento nunca se modifica ni se borra. Toda corrección es un nuevo evento `AJUSTE` con motivo obligatorio.
+- **Saldo derivado, nunca mutable:** `SALDO(mz, lt, concepto, mes) = Σcargos − Σpagos ± Σajustes`. Sin celda que dos escrituras puedan pisarse (evita la clase de bug de B7 — ver `docs/aprendizaje/writer_unico_desincronizacion_20260701.html`).
+- **Idempotencia:** mismo `(source, audit_ref)` no duplica el evento.
+- **Guardar largo, mostrar ancho:** el registro es la fuente; el estado de cuenta ancho es un pivot regenerable, nunca se edita directo.
+- **Escritura atómica:** cada `wb.save()` va a un archivo temporal en el mismo directorio y recién se reemplaza con `os.replace()` (atómico en Windows/POSIX). Si el proceso se corta a mitad de camino, el archivo real queda intacto — nunca un `.xlsx` corrupto a medio escribir. Verificado con test que simula el corte (`shared/tests/test_seguimiento_repo.py`) y con un fallo real en producción (`PermissionError` de Windows por antivirus/indexador bloqueando el archivo un instante — el archivo real quedó intacto). El `os.replace()` reintenta hasta 5 veces ante `PermissionError` transitorio antes de fallar de verdad.
+
+### Cuándo se corre
+
+| Quién llama | Cuándo | Comando / forma de invocar |
+|---|---|---|
+| `sembrar_seguimiento_pueblo.py` | Una sola vez — siembra la deuda inicial (julio 2026) o cuando aparezca una tanda nueva de altas | `py shared/sembrar_seguimiento_pueblo.py` (manual, no forma parte de ningún pipeline automático) |
+| `5_cobranza/main.py` | Cada corrida mensual del ciclo, automático — dentro de su propio flujo | no se llama aparte; es una llamada interna de `5_cobranza` a `repo.registrar_pago()` |
+| `2_planilla/main.py` | Cada corrida mensual, automático — al armar la planilla | no se llama aparte; es una llamada interna a `repo.get_saldo()` |
+| Consulta humana (`estado_cuenta`, `deudores`) | Bajo demanda, sin calendario | `python -c "import seguimiento_repo as r; print(r.estado_cuenta('A','6','CONVENIO'))"` o script ad-hoc |
+
+### Tabla de lifecycle
+
+| Archivo | Se borra? | Se regenera? | Persistencia |
+|---|---|---|---|
+| `shared/seguimiento_pueblo.xlsx` | Nunca | Nunca — cada corrida solo agrega filas | Permanente |
+| Vista `estado_cuenta()` (en memoria) | N/A — no se guarda a disco | Sí, cada vez que se llama | Efímera |
+| `shared/genesis_inputs/medidor_saldo.xlsx` · `inscripcion_saldo.xlsx` | No — se reemplaza a mano cuando hay una fuente más nueva | Manual (copiar de nuevo desde Downloads) | Permanente hasta el próximo reemplazo |
+
+### Lo que NO hace `seguimiento_repo`
+
+- No decide el reparto del pago entre conceptos (agua/corte/multa/acuerdos/convenio) — eso lo calcula `5_cobranza` con el waterfall de prioridad; el repo solo registra el resultado.
+- No genera la planilla ni escribe en `shared/planilla_mes` — `2_planilla` solo *lee* `get_saldo()`.
+- No reemplaza `arrastre_consolidado` — agua y corte siguen siendo responsabilidad de 5_cobranza/el consolidado. Este repo es dueño únicamente de MULTA, ACUERDOS y CONVENIO.
+- No borra ni corrige eventos existentes — toda corrección es un evento `AJUSTE` nuevo.
+
+### Errores comunes
+
+| Síntoma | Causa probable | Cómo revisar |
+|---|---|---|
+| `ValueError: concepto inválido` | Se llamó con un concepto fuera de `{MULTA, ACUERDOS, CONVENIO}` | Revisar el caller — típicamente un typo o intento de meter agua/corte acá |
+| Un pago se registró dos veces con distinto saldo | `audit_ref` no era único para ese pago (ej. reutilizado entre corridas) | Revisar que `5_cobranza` arme `audit_ref` con una clave estable del pago (mesa+fecha o id de trazabilidad) |
+| `get_saldo()` devuelve 0 para un predio que sí tiene deuda | Todavía no se corrió `sembrar_seguimiento_pueblo.py`, o el predio no estaba en las fuentes de siembra | Revisar `shared/seguimiento_pueblo.xlsx` filtrando por MZ/LT — si no hay ninguna fila, falta la siembra |
+| `estado_cuenta()` muestra un mes con DEUDA y PAGO en cero pero SALDO distinto al mes anterior | No debería pasar — señal de un evento AJUSTE sin revisar | Filtrar TIPO_EVENTO=AJUSTE de ese predio/mes y verificar el motivo |
+
+### Esquema de inputs — `sembrar_seguimiento_pueblo.py`
+
+Los 3 archivos que lee la siembra inicial. Ninguno se copia a un `inputs/` del pipeline automático —
+`DATA_boletas` ya vive en `3_boletas/inputs/`; `medidor_saldo.xlsx` e `inscripcion_saldo.xlsx` viven en
+`shared/genesis_inputs/` (copiados a mano desde `Downloads/Base de datos/` — no hay fuente automática).
+
+**1. `3_boletas/inputs/DATA_boletas.xlsx`, hoja `Data`** (usado para MULTA y ACUERDOS)
+
+| Columna requerida | Tipo | Uso |
+|---|---|---|
+| `MZ` | texto | llave |
+| `LT` | texto | llave |
+| `Multa (faena + reunión)` | número, puede venir vacío | valor &gt; 0 → 1 evento CARGO concepto MULTA |
+| `Cuota directa` | número, puede venir vacío | valor &gt; 0 → 1 evento CARGO concepto ACUERDOS |
+
+Si falta el archivo: la siembra aborta con error explícito (no hay MULTA/ACUERDOS sin esta fuente).
+Si falta una de las 2 columnas: la siembra aborta — son las únicas 2 columnas de esta fuente que usa.
+La columna `Convenio` de este mismo archivo **no se usa** — el monto de convenio sale de las otras 2 fuentes.
+
+**2. `shared/genesis_inputs/medidor_saldo.xlsx`, hoja `Cobro medidores`** (usado para CONVENIO)
+
+| Columna requerida | Tipo | Uso |
+|---|---|---|
+| `MZ` | texto | llave |
+| `LT` | texto | llave |
+| `Saldo` | número | predio con `Saldo > 0` entra a la población de convenio; el monto se suma con inscripción |
+
+Si falta el archivo: la siembra aborta — sin esta fuente no hay forma de saber la deuda real de medidor.
+
+**3. `shared/genesis_inputs/inscripcion_saldo.xlsx`, hoja `NUEVAS INSTALACIONES`** (usado para CONVENIO)
+
+| Columna requerida | Tipo | Uso |
+|---|---|---|
+| `MZ` | texto | llave |
+| `LT` | texto | llave |
+| `SALDO` | número | predio con `SALDO > 0` entra a la población de convenio; se suma con medidor si tiene ambos |
+
+Si falta el archivo: la siembra aborta — mismo motivo que medidor.
+
+**Predios excluidos de la siembra de CONVENIO:** B-20 · C-43 · C-35 · F1-11 · G-21 · W-2.
+
+Estos 6 tienen un convenio de **instalación** (conexión nueva), no de medidor/inscripción — montos grandes
+(283 · 346 · 300 · 776 · 50 · 50). Junio ya cargó esa deuda **completa** en `arrastre_consolidado_2026-06`
+y se sigue arrastrando bien mes a mes desde ahí. Si la siembra nueva **también** les crea un evento
+CONVENIO (porque por casualidad aparecen con saldo&gt;0 en `medidor_saldo`/`inscripcion_saldo`), quedarían
+con la misma deuda contada dos veces — una en el consolidado, otra en `seguimiento_pueblo` — la misma
+clase de bug que B7 (dos escritores para el mismo dinero), prevenida acá antes de que pase.
+
+Verificado (2026-07-02): hoy ninguno de los 6 aparece con saldo&gt;0 en medidor ni inscripción — la
+exclusión no cambia ningún número actual, es un candado para el día en que alguno sí aparezca ahí.
+
+### Documentación
 
 ```
 shared/
 ├── README.md                              (este archivo)
 ├── data_boletas_repo.py                   # módulo
 ├── data_boletas_audit.xlsx                # audit log (output)
+├── seguimiento_repo.py                    # módulo — pendiente de codificar (Sonnet)
+├── seguimiento_pueblo.xlsx                # registro de eventos (output) — pendiente de codificar
 ├── utils_lote.py                          # primitivo puro
 └── docs/
-    ├── diagrama_repo_pattern.html         # arquitectura del repo
-    └── formato_data_boletas_audit.html    # contrato del audit log
+    ├── diagrama_repo_pattern.html              # arquitectura del repo (data_boletas)
+    ├── formato_data_boletas_audit.html         # contrato del audit log (data_boletas)
+    ├── diagrama_seguimiento_pueblo.html        # arquitectura event-sourced (5 capas)
+    ├── diagrama_flujo_seguimiento_pueblo.html  # flujo de 5 segundos (LEE/GENERA por paso)
+    └── formato_seguimiento_pueblo.html         # contrato del registro de eventos
 ```
 
 ## Reglas para contribuir aquí

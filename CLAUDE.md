@@ -75,6 +75,7 @@ Todas las columnas Excel — sin importar si las llenó un humano o el sistema �
 6. **Fase 1 cerrada antes de empezar Fase 2.** Si aparece una duda de diseño durante la implementación, parar y volver a Fase 1.
 7. **Actualizar README al mismo tiempo que la estructura.** Si un cambio agrega, elimina, reordena o cambia el estado de un módulo, actualizar el pipeline en README.md como parte de ese mismo trabajo — no como tarea aparte ni pendiente para después.
 8. **Verificar sincronía del README al cerrar sesión.** Antes de cerrar, confirmar que README.md refleje la estructura real de módulos actual. Si hay desajuste, corregirlo antes de actualizar memoria/pendientes.
+9. **Preservación cableada antes de agregar una columna humana a un output regenerado.** Si un `main.py` regenera un archivo y se le agrega una columna que llena un humano, la preservación (3 capas: backup + leer decisión previa + reaplicar por clave) es parte del mismo diseño, no un parche posterior. Si no se puede preservar, no agregar esa columna a un output regenerable — va a un input propio. (El bug B5 fue exactamente esto: columna manual pisada por regeneración ciega.)
 
 ---
 
@@ -85,7 +86,7 @@ Todas las columnas Excel — sin importar si las llenó un humano o el sistema �
 | **Phase gate** | Ciclo `BORRADOR → PUBLICADA → COMPROMETIDA`. El commit point bloquea re-generación de la lista. Auto-release por nuevo `MES_ANO`. |
 | **Thin layer** | Primitivos puros en `shared/utils_*.py`. Orquestación (orden de pasos, qué columnas, cuándo aplicar) siempre en `main.py`. Regla del Tres: no abstraer antes de 3 usos reales idénticos. |
 | **Reconciliación bidireccional** | `SET_DEBE − SET_TIENE` → aplicar · `SET_TIENE − SET_DEBE` → revertir. Columna `ACCION` en audit log. |
-| **Preservación de trabajo manual** | Backup + leer decisiones humanas + set de ya-procesados. Las 3 capas juntas en cada re-corrida. |
+| **Preservación de trabajo manual** | Backup + leer decisiones humanas + set de ya-procesados. Las 3 capas juntas en cada re-corrida. **Toda columna humana en un archivo regenerado la exige desde el diseño** (ver Regla 9). |
 | **Writer único** | Un solo módulo escribe el archivo compartido. Los demás solo leen. |
 | **Resiliencia** | Guard + Journal + Idempotencia desde día 1. Sidecar / Incremental cuando el volumen lo justifica. |
 

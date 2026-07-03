@@ -32,23 +32,28 @@ def main():
     motor      = _cargar("pagos_motor",      ROOT / "yape/motor_matching/main.py")
     validacion = _cargar("pagos_validacion", ROOT / "yape/validacion/main.py")
     efectivo   = _cargar("pagos_efectivo",   ROOT / "efectivo/main.py")
+    tanque     = _cargar("pagos_tanque",     ROOT / "consolidar_tanque.py")
 
     # ── Pipeline Yape ───────────────────────────────────────
-    _paso(1, 5, "Yape — Construyendo orígenes")
+    _paso(1, 6, "Yape — Construyendo orígenes")
     origenes.main()
 
-    _paso(2, 5, "Yape — Construyendo maestro")
+    _paso(2, 6, "Yape — Construyendo maestro")
     maestro.main()
 
-    _paso(3, 5, "Yape — Motor de matching")
+    _paso(3, 6, "Yape — Motor de matching")
     motor.main()
 
-    _paso(4, 5, "Yape — Validación")
+    _paso(4, 6, "Yape — Validación")
     validacion.main()
 
     # ── Pipeline Efectivo ───────────────────────────────────
-    _paso(5, 5, "Efectivo — Procesando cobros")
+    _paso(5, 6, "Efectivo — Procesando cobros")
     efectivo.main()
+
+    # ── Consolidado — tanque comunitario (canal-agnóstico) ──
+    _paso(6, 6, "Tanque — Consolidando aportes (yape + efectivo)")
+    tanque.main()
 
     _banner("4_pagos completado → entregar outputs a 5_cobranza")
 

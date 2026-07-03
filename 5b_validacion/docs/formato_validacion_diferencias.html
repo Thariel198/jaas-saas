@@ -1,0 +1,322 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+#w{font-family:var(--font-sans);padding:4px 0 16px}
+.instruc{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-left:3px solid #0C447C;border-radius:0 var(--border-radius-md) var(--border-radius-md) 0;padding:9px 13px;font-size:12px;color:var(--color-text-secondary);margin-bottom:12px;line-height:1.7}
+.instruc strong{color:var(--color-text-primary)}
+.tab-excel{display:inline-flex;align-items:center;gap:5px;background:#E6F1FB;border:0.5px solid #93C6E9;border-bottom:none;border-radius:6px 6px 0 0;padding:5px 14px;font-size:12px;font-weight:500;color:#0C447C;margin-bottom:-1px}
+.tab-excel+.tw{border-radius:0 var(--border-radius-md) var(--border-radius-md) var(--border-radius-md)}
+.tw{border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);overflow-x:auto;margin-bottom:14px}
+table{width:100%;border-collapse:collapse;font-size:11px;min-width:680px}
+th{padding:6px 8px;font-size:10px;font-weight:500;text-align:left;border-bottom:0.5px solid var(--color-border-tertiary);border-right:0.5px solid var(--color-border-tertiary);white-space:nowrap;background:var(--color-background-secondary);color:var(--color-text-secondary)}
+th:last-child{border-right:none}
+td{padding:5px 8px;border-bottom:0.5px solid var(--color-border-tertiary);border-right:0.5px solid var(--color-border-tertiary);vertical-align:middle;white-space:nowrap}
+td:last-child{border-right:none}
+tr:last-child td{border-bottom:none}
+
+/* Secciones del resumen */
+.gh{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;padding:5px 10px;border-bottom:0.5px solid var(--color-border-tertiary)}
+.gh-banco  {background:#E6F1FB;color:#0C447C}
+.gh-partes {background:#EFF6FF;color:#1D4ED8}
+.gh-sum    {background:#F3F4F6;color:#374151}
+.gh-planilla{background:#FEF9E7;color:#7D6608}
+.gh-efec   {background:#F0FFF8;color:#085041}
+.gh-pagaste{background:#F5F3FF;color:#4C1D95}
+
+/* Celdas */
+.td-label {font-size:11px;color:var(--color-text-primary);padding-left:20px}
+.td-label-bold{font-size:11px;font-weight:600;color:var(--color-text-primary)}
+.td-src   {font-size:10px;color:var(--color-text-tertiary);font-family:var(--font-mono)}
+.td-monto-banco  {font-family:var(--font-mono);font-size:11px;font-weight:700;color:#0C447C;text-align:right;background:#F0F8FF}
+.td-monto-parte  {font-family:var(--font-mono);font-size:11px;color:#1D4ED8;text-align:right;background:#F4F9FF}
+.td-monto-sum    {font-family:var(--font-mono);font-size:11px;font-weight:700;color:#374151;text-align:right;background:#F3F4F6}
+.td-monto-plan   {font-family:var(--font-mono);font-size:11px;font-weight:700;color:#7D6608;text-align:right;background:#FEFCE8}
+.td-monto-efec   {font-family:var(--font-mono);font-size:11px;font-weight:700;color:#085041;text-align:right;background:#ECFDF5}
+.td-monto-pagaste{font-family:var(--font-mono);font-size:11px;color:#4C1D95;text-align:right;background:#F5F3FF}
+.td-ok  {font-size:10px;font-weight:600;text-align:center;background:#E1F5EE;color:#085041}
+.td-err {font-size:10px;font-weight:600;text-align:center;background:#FEF2F2;color:#991B1B}
+.td-info{font-size:10px;text-align:center;background:#F9FAFB;color:#9CA3AF}
+
+/* Hoja MZ */
+.th-periodo {background:#F3F4F6;color:#374151}
+.th-quien   {background:#F4ECF7;color:#5B21B6}
+.th-agua    {background:#E6F1FB;color:#0C447C}
+.th-planilla{background:#FEF9E7;color:#7D6608}
+.th-cuadra  {background:#E1F5EE;color:#085041}
+.td-periodo {font-size:10px;font-family:var(--font-mono);color:#374151;background:#F9FAFB}
+.td-quien   {font-family:var(--font-mono);font-size:11px;color:#5B21B6;background:#FAF5FF;text-align:center}
+.td-agua    {font-family:var(--font-mono);font-size:11px;color:#185FA5;background:#F0F8FF;text-align:right}
+.td-plan    {font-family:var(--font-mono);font-size:11px;color:#7D6608;background:#FEFCE8;text-align:right}
+.td-dif-ok  {font-family:var(--font-mono);font-size:11px;font-weight:600;color:#085041;background:#E1F5EE;text-align:right}
+.td-dif-err {font-family:var(--font-mono);font-size:11px;font-weight:600;color:#991B1B;background:#FEF2F2;text-align:right}
+.td-est-ok  {font-size:10px;font-weight:600;color:#085041;background:#E1F5EE;text-align:center}
+.td-est-err {font-size:10px;font-weight:600;color:#991B1B;background:#FEF2F2;text-align:center}
+
+.sep-col{width:4px;background:var(--color-background-secondary);padding:0;border-right:1px solid var(--color-border-secondary)}
+
+.eq{margin-top:10px;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:10px 14px;font-size:11px;line-height:2;color:var(--color-text-secondary)}
+.eq code{font-family:var(--font-mono);font-size:11px;color:var(--color-text-primary)}
+.section-title{font-size:10px;font-weight:600;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.06em;margin:14px 0 5px}
+</style>
+
+<div id="w">
+  <div class="instruc">
+    <strong>validacion_diferencias.xlsx</strong> — generado por <strong>5b_validacion/main.py</strong>.<br>
+    Reconcilia en dos niveles: (1) el banco crudo contra lo que el motor clasificó,
+    (2) lo que el motor clasificó como agua contra lo que llegó a planilla_cobrado.<br>
+    Si nivel 1 cuadra → el motor no perdió plata. Si nivel 2 cuadra → 5_cobranza aplicó bien.
+  </div>
+
+  <!-- ── HOJA RESUMEN ─────────────────────────────────────────── -->
+  <div class="section-title">Hoja 1 — resumen</div>
+  <div class="tab-excel">resumen</div>
+  <div class="tw">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:140px">SECCIÓN</th>
+          <th style="width:200px">COMPONENTE</th>
+          <th style="width:100px;text-align:right">MONTO (S/)</th>
+          <th>FUENTE</th>
+          <th style="width:70px;text-align:center">ESTADO</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Banco crudo TE PAGO -->
+        <tr>
+          <td colspan="5" class="gh gh-banco">Nivel 1 — Banco crudo (TIPO = TE PAGÓ)</td>
+        </tr>
+        <tr>
+          <td class="td-label-bold">banco_crudo</td>
+          <td class="td-label">Total TE PAGÓ en el periodo</td>
+          <td class="td-monto-banco">S/ xxxx</td>
+          <td class="td-src">shared/reporte_mes_crudo/*.xlsx · col MONTO filtrado TIPO=TE PAGÓ</td>
+          <td class="td-info">—</td>
+        </tr>
+        <!-- Partes del banco -->
+        <tr>
+          <td colspan="5" class="gh gh-partes">Descomposición — cada sol del banco debe caer en una cubeta</td>
+        </tr>
+        <tr>
+          <td class="td-label">  agua</td>
+          <td class="td-label">Pagos de agua identificados a un lote</td>
+          <td class="td-monto-parte">S/ xxxx</td>
+          <td class="td-src">motor_matching/outputs/pagos_yape_tepago.xlsx · CONCEPTO=vacío · MONTO_PAGO</td>
+          <td class="td-info">—</td>
+        </tr>
+        <tr>
+          <td class="td-label">  blancos</td>
+          <td class="td-label">Pagos sin dueño identificado</td>
+          <td class="td-monto-parte">S/ xxxx</td>
+          <td class="td-src">motor_matching/outputs/blancos_mes.xlsx · MONTO  +  tepago MZ=BLANCO · MONTO_PAGO</td>
+          <td class="td-info">—</td>
+        </tr>
+        <tr>
+          <td class="td-label">  devueltos</td>
+          <td class="td-label">Pagos devueltos al remitente</td>
+          <td class="td-monto-parte">S/ xxxx</td>
+          <td class="td-src">motor_matching/outputs/pagos_yape_devolucion.xlsx · MONTO</td>
+          <td class="td-info">—</td>
+        </tr>
+        <!-- Suma partes -->
+        <tr>
+          <td colspan="5" class="gh gh-sum">Verificación — suma partes vs banco crudo</td>
+        </tr>
+        <tr>
+          <td class="td-label-bold">suma partes</td>
+          <td class="td-label">agua + blancos + devueltos</td>
+          <td class="td-monto-sum">S/ xxxx</td>
+          <td class="td-src">calculado</td>
+          <td class="td-ok">OK</td>
+        </tr>
+
+        <!-- PAGASTE (flujo separado) -->
+        <tr>
+          <td colspan="5" class="gh gh-pagaste">Flujo separado — Banco crudo (TIPO = PAGASTE) · egresos de la JASS</td>
+        </tr>
+        <tr>
+          <td class="td-label">banco PAGASTE</td>
+          <td class="td-label">Total PAGASTE en crudo del banco</td>
+          <td class="td-monto-pagaste">S/ xxxx</td>
+          <td class="td-src">shared/reporte_mes_crudo/*.xlsx · MONTO filtrado TIPO=PAGASTE</td>
+          <td class="td-info">—</td>
+        </tr>
+        <tr>
+          <td class="td-label">pagaste procesado</td>
+          <td class="td-label">Gastos directivos clasificados por motor</td>
+          <td class="td-monto-pagaste">S/ xxxx</td>
+          <td class="td-src">motor_matching/outputs/pagos_yape_pagaste.xlsx · MONTO</td>
+          <td class="td-info">—</td>
+        </tr>
+        <tr>
+          <td class="td-label-bold">diferencia pagaste</td>
+          <td class="td-label">procesado − banco PAGASTE</td>
+          <td class="td-monto-pagaste">S/ xxxx</td>
+          <td class="td-src">calculado</td>
+          <td class="td-ok">OK</td>
+        </tr>
+
+        <!-- Nivel 2: planilla vs agua -->
+        <tr>
+          <td colspan="5" class="gh gh-planilla">Nivel 2 — Planilla vs agua procesada</td>
+        </tr>
+        <tr>
+          <td class="td-label">agua procesada</td>
+          <td class="td-label">Mismo valor que cubeta agua arriba</td>
+          <td class="td-monto-parte">S/ xxxx</td>
+          <td class="td-src">pagos_yape_tepago.xlsx · CONCEPTO=vacío</td>
+          <td class="td-info">—</td>
+        </tr>
+        <tr>
+          <td class="td-label">planilla yape</td>
+          <td class="td-label">Lo que 5_cobranza escribió en planilla_cobrado</td>
+          <td class="td-monto-plan">S/ xxxx</td>
+          <td class="td-src">5_cobranza/outputs/planilla_cobrado.xlsx · MONTO_YAPE</td>
+          <td class="td-info">—</td>
+        </tr>
+        <tr>
+          <td class="td-label-bold">diferencia</td>
+          <td class="td-label">planilla − agua</td>
+          <td class="td-monto-plan">S/ xxxx</td>
+          <td class="td-src">calculado</td>
+          <td class="td-ok">OK</td>
+        </tr>
+
+        <!-- Efectivo -->
+        <tr>
+          <td colspan="5" class="gh gh-efec">Efectivo — procesado vs planilla</td>
+        </tr>
+        <tr>
+          <td class="td-label">efectivo procesado</td>
+          <td class="td-label">Pagos en efectivo registrados por las mesas</td>
+          <td class="td-monto-efec">S/ xxxx</td>
+          <td class="td-src">4_pagos/efectivo/outputs/pagos_efectivo.xlsx · MONTO (excl. BLANCO)</td>
+          <td class="td-info">—</td>
+        </tr>
+        <tr>
+          <td class="td-label">planilla efectivo</td>
+          <td class="td-label">Lo que 5_cobranza escribió en planilla_cobrado</td>
+          <td class="td-monto-efec">S/ xxxx</td>
+          <td class="td-src">5_cobranza/outputs/planilla_cobrado.xlsx · MONTO_EFECTIVO</td>
+          <td class="td-info">—</td>
+        </tr>
+        <tr>
+          <td class="td-label-bold">diferencia</td>
+          <td class="td-label">planilla − procesado</td>
+          <td class="td-monto-efec">S/ xxxx</td>
+          <td class="td-src">calculado</td>
+          <td class="td-ok">OK</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ── HOJA YAPE POR MZ ────────────────────────────────────── -->
+  <div class="section-title">Hoja 2 — yape_por_mz</div>
+  <div class="tab-excel">yape_por_mz</div>
+  <div class="tw">
+    <table>
+      <thead>
+        <tr>
+          <th class="th-periodo" style="width:170px">PERIODO</th>
+          <th class="sep-col"></th>
+          <th class="th-quien" style="width:50px">MZ</th>
+          <th class="sep-col"></th>
+          <th class="th-agua" style="width:120px;text-align:right">AGUA_PROCESADA</th>
+          <th class="sep-col"></th>
+          <th class="th-planilla" style="width:120px;text-align:right">PLANILLA_YAPE</th>
+          <th class="sep-col"></th>
+          <th class="th-cuadra" style="width:110px;text-align:right">DIFERENCIA</th>
+          <th class="th-cuadra" style="width:70px;text-align:center">ESTADO</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="td-periodo">2026-06-01 / 2026-06-30</td>
+          <td class="sep-col"></td>
+          <td class="td-quien">A</td>
+          <td class="sep-col"></td>
+          <td class="td-agua">S/ 450.00</td>
+          <td class="sep-col"></td>
+          <td class="td-plan">S/ 450.00</td>
+          <td class="sep-col"></td>
+          <td class="td-dif-ok">0.00</td>
+          <td class="td-est-ok">OK</td>
+        </tr>
+        <tr>
+          <td class="td-periodo">2026-06-01 / 2026-06-30</td>
+          <td class="sep-col"></td>
+          <td class="td-quien">B</td>
+          <td class="sep-col"></td>
+          <td class="td-agua">S/ 275.00</td>
+          <td class="sep-col"></td>
+          <td class="td-plan">S/ 229.00</td>
+          <td class="sep-col"></td>
+          <td class="td-dif-err">−46.00</td>
+          <td class="td-est-err">ALERTA</td>
+        </tr>
+        <tr>
+          <td class="td-periodo">—</td>
+          <td class="sep-col"></td>
+          <td class="td-quien" style="font-style:italic;font-size:10px">BLANCO</td>
+          <td class="sep-col"></td>
+          <td class="td-agua" style="color:#9CA3AF;font-style:italic">n/a</td>
+          <td class="sep-col"></td>
+          <td class="td-plan" style="color:#9CA3AF;font-style:italic">n/a</td>
+          <td class="sep-col"></td>
+          <td colspan="2" style="font-size:10px;color:#9CA3AF;text-align:center;background:#F9FAFB">ver hoja resumen → cubeta blancos</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ── HOJA EFECTIVO POR MZ ───────────────────────────────── -->
+  <div class="section-title">Hoja 3 — efectivo_por_mz</div>
+  <div class="tab-excel" style="background:#E6F7EF;border-color:#86EFAC;color:#085041">efectivo_por_mz</div>
+  <div class="tw">
+    <table>
+      <thead>
+        <tr>
+          <th class="th-periodo" style="width:170px">PERIODO</th>
+          <th class="sep-col"></th>
+          <th class="th-quien" style="width:50px">MZ</th>
+          <th class="sep-col"></th>
+          <th style="background:#E6F7EF;color:#085041;width:120px;text-align:right">REPORTE_EFECTIVO</th>
+          <th class="sep-col"></th>
+          <th style="background:#FEF9E7;color:#7D6608;width:120px;text-align:right">PLANILLA_EFECTIVO</th>
+          <th class="sep-col"></th>
+          <th class="th-cuadra" style="width:110px;text-align:right">DIFERENCIA</th>
+          <th class="th-cuadra" style="width:70px;text-align:center">ESTADO</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="td-periodo">2026-06-01 / 2026-06-30</td>
+          <td class="sep-col"></td>
+          <td class="td-quien">A</td>
+          <td class="sep-col"></td>
+          <td style="font-family:var(--font-mono);font-size:11px;color:#085041;background:#ECFDF5;text-align:right">S/ 300.00</td>
+          <td class="sep-col"></td>
+          <td style="font-family:var(--font-mono);font-size:11px;color:#7D6608;background:#FEFCE8;text-align:right">S/ 300.00</td>
+          <td class="sep-col"></td>
+          <td class="td-dif-ok">0.00</td>
+          <td class="td-est-ok">OK</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ── ECUACIONES DE VALIDACIÓN ────────────────────────────── -->
+  <div class="section-title">Ecuaciones de validación</div>
+  <div class="eq">
+    <strong>Nivel 1a</strong> — ¿El banco cuadra con lo que el motor clasificó (ingresos)?<br>
+    <code>banco_crudo[TE PAGÓ]  ==  agua + blancos + devueltos</code><br><br>
+    <strong>Nivel 1b</strong> — ¿Los gastos del banco cuadran con los gastos del motor (egresos)?<br>
+    <code>banco_crudo[PAGASTE]  ==  pagaste procesado</code><br><br>
+    <strong>Nivel 2</strong> — ¿El motor trasladó bien los pagos de agua a la planilla?<br>
+    <code>agua (tepago CONCEPTO=vacío)  ≈  planilla_cobrado.MONTO_YAPE</code><br><br>
+    <strong>Efectivo</strong> — flujo independiente:<br>
+    <code>efectivo procesado  ≈  planilla_cobrado.MONTO_EFECTIVO</code><br><br>
+    Tolerancia para "OK": <code>|diferencia| &lt; 0.005</code>
+  </div>
+</div>

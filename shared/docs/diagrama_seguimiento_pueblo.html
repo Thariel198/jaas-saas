@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>seguimiento_pueblo — arquitectura event-sourced (multa · acuerdos · convenio)</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'IBM Plex Sans', sans-serif; background: #fff; padding: 24px; color: #111; }
+
+  .title { font-size: 19px; font-weight: 700; color: #111; margin-bottom: 4px; }
+  .sub   { font-size: 12px; color: #888; margin-bottom: 22px; }
+
+  .intro {
+    background: #FAFAFA; border: 1px solid #E5E7EB;
+    border-left: 4px solid #B45309;
+    border-radius: 6px; padding: 12px 16px; margin-bottom: 22px;
+    font-size: 12px; color: #374151; line-height: 1.6;
+  }
+  .intro b { color: #92400E; }
+
+  .layer {
+    margin-bottom: 12px;
+    border-radius: 10px; padding: 14px 16px;
+    background: #FAFAFA; border: 1px solid #E5E7EB;
+  }
+  .layer-header {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #E5E7EB;
+  }
+  .layer-num {
+    width: 26px; height: 26px;
+    background: #B45309; color: #fff;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; flex-shrink: 0;
+  }
+  .layer-title { font-size: 13px; font-weight: 700; color: #111; }
+  .layer-sub   { font-size: 11px; color: #6B7280; margin-left: 6px; }
+
+  .arrow-down {
+    display: flex; justify-content: center;
+    font-size: 22px; color: #FCD34D; font-weight: 300;
+    margin: -8px 0 -4px;
+  }
+
+  code {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; background: rgba(0,0,0,.06);
+    padding: 1px 4px; border-radius: 3px;
+  }
+
+  /* ── Capa 1: Entidades ─────────────────────────────────── */
+  .ent-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .ent { border-radius: 7px; padding: 10px 12px; font-size: 11px; background: #EBF5FB; border: 1px solid #AED6F1; color: #1A5276; }
+  .ent .label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px; opacity: .8; }
+  .ent .fname { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 700; margin-bottom: 4px; }
+  .ent .detail { font-size: 10px; line-height: 1.5; }
+
+  /* ── Capa 2: Eventos ───────────────────────────────────── */
+  .ev-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .ev { border-radius: 7px; padding: 10px 12px; font-size: 11px; }
+  .ev.cargo  { background: #FEF3C7; border: 1px solid #FCD34D; color: #92400E; }
+  .ev.pago   { background: #D1FAE5; border: 1px solid #6EE7B7; color: #065F46; }
+  .ev.ajuste { background: #FEE2E2; border: 1px solid #FCA5A5; color: #991B1B; }
+  .ev .label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px; opacity: .85; }
+  .ev .call { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 700; margin-bottom: 5px; line-height: 1.4; }
+  .ev .who { font-size: 10px; line-height: 1.5; }
+  .ev .who b { display: block; margin-bottom: 2px; }
+
+  /* ── Capa 3: repo ──────────────────────────────────────── */
+  .repo-box {
+    background: linear-gradient(180deg, #FEF3C7 0%, #FDE68A 30%);
+    border: 2px solid #B45309;
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .repo-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px; font-weight: 700; color: #92400E;
+    text-align: center;
+    border-bottom: 1px solid #FCD34D;
+    padding-bottom: 8px; margin-bottom: 10px;
+  }
+  .api-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .api-card {
+    background: #fff; border-radius: 5px; padding: 8px 10px;
+    border-left: 3px solid #B45309;
+  }
+  .api-sig {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10.5px; font-weight: 700; color: #78350F; margin-bottom: 3px;
+  }
+  .api-desc { font-size: 10px; color: #92400E; line-height: 1.45; }
+
+  /* ── Capa 4: estado derivado ───────────────────────────── */
+  .derived-box {
+    background: #F3F4F6; border: 1.5px dashed #9CA3AF; border-radius: 10px;
+    padding: 14px 16px; text-align: center;
+  }
+  .derived-formula {
+    font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 700;
+    color: #374151; margin-bottom: 6px;
+  }
+  .derived-note { font-size: 10.5px; color: #6B7280; line-height: 1.5; }
+
+  /* ── Capa 5: vistas ────────────────────────────────────── */
+  .vista-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .vista { border-radius: 7px; padding: 10px 12px; font-size: 11px; background: #F3E8FF; border: 1px solid #C4B5FD; color: #5B21B6; }
+  .vista .label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px; opacity: .85; }
+  .vista .fname { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 700; margin-bottom: 4px; }
+  .vista .detail { font-size: 10px; line-height: 1.5; }
+
+  /* ── Footer: invariantes ───────────────────────────────── */
+  .inv-row {
+    margin-top: 16px;
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;
+  }
+  .inv {
+    border-radius: 6px; padding: 10px 12px;
+    font-size: 10.5px; line-height: 1.5;
+  }
+  .inv.write { background: #FEF3C7; border: 1px solid #FCD34D; color: #78350F; }
+  .inv.audit { background: #DBEAFE; border: 1px solid #93C5FD; color: #1E3A8A; }
+  .inv.read  { background: #D1FAE5; border: 1px solid #6EE7B7; color: #065F46; }
+  .inv.scale { background: #F3E8FF; border: 1px solid #C4B5FD; color: #5B21B6; }
+  .inv .ititle {
+    font-size: 9px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .05em; margin-bottom: 4px; display: block;
+  }
+
+  .ejemplo {
+    margin-top: 16px; background: #FAFAFA; border: 1px solid #E5E7EB; border-radius: 8px;
+    padding: 12px 14px; font-size: 11px;
+  }
+  .ejemplo .etitle { font-size: 11px; font-weight: 700; color: #111; margin-bottom: 8px; }
+  table { border-collapse: collapse; width: 100%; font-size: 10.5px; }
+  th, td { border: 1px solid #E5E7EB; padding: 4px 8px; text-align: left; }
+  th { background: #F3F4F6; font-weight: 700; color: #374151; }
+  td.cargo { color: #92400E; font-weight: 600; }
+  td.pago  { color: #065F46; font-weight: 600; }
+  td.saldo { color: #1A5276; font-weight: 700; }
+</style>
+</head>
+<body>
+
+<p class="title">seguimiento_pueblo — arquitectura event-sourced</p>
+<p class="sub">Deuda de multa · acuerdos de asamblea · convenio — lote (MZ, LT) como llave, saldo derivado nunca guardado</p>
+
+<div class="intro">
+  <b>Por qué event-sourced:</b> "génesis" (foto inicial), "cargo nuevo" (multa de julio) y "pago" (5_cobranza)
+  son la misma cosa vista desde tres momentos: un <b>evento</b>. Guardar eventos en vez de un saldo mutable
+  significa que el saldo de cualquier mes se puede reconstruir siempre, nadie edita una celda a mano, y
+  cada movimiento queda auditado con quién y por qué — la forma que un agente puede invocar sin leer código.
+</div>
+
+<!-- ═══════════════════ CAPA 1 — ENTIDADES ═══════════════════ -->
+<div class="layer">
+  <div class="layer-header">
+    <div class="layer-num">1</div>
+    <div class="layer-title">Entidades</div>
+    <div class="layer-sub">objeto estable — toda deuda (agua y pueblo) sigue al lote, igual que hoy</div>
+  </div>
+  <div class="ent-grid" style="grid-template-columns: 1fr;">
+    <div class="ent">
+      <div class="label">lote</div>
+      <div class="fname">MZ, LT</div>
+      <div class="detail">Única llave. Reasignación de lote (ocurrió una vez, 16 casos, ya resuelta en
+        <code>reasignaciones_lotes_2026-06.xlsx</code>) se trata como corrección puntual, no como
+        infraestructura permanente — no se acuña identidad de persona para eso (Regla del Tres).</div>
+    </div>
+  </div>
+</div>
+
+<div class="arrow-down">↓</div>
+
+<!-- ═══════════════════ CAPA 2 — EVENTOS ═══════════════════ -->
+<div class="layer">
+  <div class="layer-header">
+    <div class="layer-num">2</div>
+    <div class="layer-title">Eventos</div>
+    <div class="layer-sub">append-only — nadie edita una celda, todo es un evento nuevo</div>
+  </div>
+  <div class="ev-grid">
+    <div class="ev cargo">
+      <div class="label">cargo nuevo</div>
+      <div class="call">registrar_cargo(mz, lt,<br>concepto, evento, monto)</div>
+      <div class="who"><b>Quién lo emite:</b> siembra inicial (DATA_boletas, una vez) · faena/reunión/asamblea nueva cada mes</div>
+    </div>
+    <div class="ev pago">
+      <div class="label">pago</div>
+      <div class="call">registrar_pago(mz, lt,<br>concepto, ref, monto)</div>
+      <div class="who"><b>Quién lo emite:</b> 5_cobranza — aplica el waterfall (agua→multa→acuerdos→convenio) y reparte</div>
+    </div>
+    <div class="ev ajuste">
+      <div class="label">ajuste</div>
+      <div class="call">registrar_ajuste(mz, lt,<br>concepto, ±monto, motivo)</div>
+      <div class="who"><b>Quién lo emite:</b> corrección manual — nunca se edita un evento pasado, se agrega uno nuevo</div>
+    </div>
+  </div>
+</div>
+
+<div class="arrow-down">↓</div>
+
+<!-- ═══════════════════ CAPA 3 — REPO ═══════════════════ -->
+<div class="layer">
+  <div class="layer-header">
+    <div class="layer-num">3</div>
+    <div class="layer-title">shared/seguimiento_repo.py</div>
+    <div class="layer-sub">único writer · cada función es una tool que un agente invoca sin leer código</div>
+  </div>
+  <div class="repo-box">
+    <div class="repo-title">API pública</div>
+    <div class="api-grid">
+      <div class="api-card">
+        <div class="api-sig">registrar_cargo(...) / registrar_pago(...)</div>
+        <div class="api-desc">Append de evento. Idempotente por (source, audit_ref) — reintentar no duplica.</div>
+      </div>
+      <div class="api-card">
+        <div class="api-sig">registrar_ajuste(...)</div>
+        <div class="api-desc">Corrección — nueva fila con motivo obligatorio, nunca reescribe una fila previa.</div>
+      </div>
+      <div class="api-card">
+        <div class="api-sig">get_saldo(mz, lt, concepto, mes) → float</div>
+        <div class="api-desc">Suma eventos hasta ese mes. Esto es lo que 2_planilla consulta.</div>
+      </div>
+      <div class="api-card">
+        <div class="api-sig">estado_cuenta(mz, lt, concepto) → DataFrame</div>
+        <div class="api-desc">Pivot a la vista ancha (DEUDA·PAGO·SALDO por mes) — para que la lea un humano.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="arrow-down">↓</div>
+
+<!-- ═══════════════════ CAPA 4 — ESTADO DERIVADO ═══════════════════ -->
+<div class="layer">
+  <div class="layer-header">
+    <div class="layer-num">4</div>
+    <div class="layer-title">Estado derivado</div>
+    <div class="layer-sub">nunca se guarda directamente — siempre se calcula desde los eventos</div>
+  </div>
+  <div class="derived-box">
+    <div class="derived-formula">SALDO(mz, lt, concepto, mes) = Σ cargos − Σ pagos ± Σ ajustes  (hasta ese mes)</div>
+    <div class="derived-note">Si el saldo estuviera guardado como celda mutable, dos escrituras concurrentes se pisan
+      (el mismo bug que B7 en <code>shared/planilla_mes</code>). Al derivarlo de eventos, no hay celda que pisar.</div>
+  </div>
+</div>
+
+<div class="arrow-down">↓</div>
+
+<!-- ═══════════════════ CAPA 5 — VISTAS ═══════════════════ -->
+<div class="layer">
+  <div class="layer-header">
+    <div class="layer-num">5</div>
+    <div class="layer-title">Vistas</div>
+    <div class="layer-sub">regenerables — se reconstruyen desde los eventos, nunca son la fuente</div>
+  </div>
+  <div class="vista-grid">
+    <div class="vista">
+      <div class="label">humano</div>
+      <div class="fname">estado_cuenta ancho</div>
+      <div class="detail">DEUDA · PAGO · SALDO por mes, un bloque por mes — el formato que la persona lee hoy.</div>
+    </div>
+    <div class="vista">
+      <div class="label">planilla</div>
+      <div class="fname">2_planilla lee get_saldo()</div>
+      <div class="detail">MULTA · ACUERDOS · CONVENIO del mes — reemplaza esas 3 columnas del consolidado.</div>
+    </div>
+    <div class="vista">
+      <div class="label">agente</div>
+      <div class="fname">deudores(concepto, mínimo)</div>
+      <div class="detail">"¿Qué lotes deben +S/500 de convenio?" — consulta directa, sin parsear Excel.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ EJEMPLO ═══════════════════ -->
+<div class="ejemplo">
+  <div class="etitle">Ejemplo — A-6 (Esteban Reyes), convenio</div>
+  <table>
+    <tr><th>mz</th><th>lt</th><th>concepto</th><th>mes</th><th>evento</th><th>cargo</th><th>pago</th><th>saldo tras el evento</th></tr>
+    <tr><td>A</td><td>6</td><td>CONVENIO</td><td>2026-07</td><td>siembra_inicial</td><td class="cargo">900.00</td><td>—</td><td class="saldo">900.00</td></tr>
+    <tr><td>A</td><td>6</td><td>CONVENIO</td><td>2026-07</td><td>pago_5_cobranza:mesa_2|03/07</td><td>—</td><td class="pago">100.00</td><td class="saldo">800.00</td></tr>
+    <tr><td>A</td><td>6</td><td>CONVENIO</td><td>2026-08</td><td>pago_5_cobranza:mesa_1|05/08</td><td>—</td><td class="pago">79.00</td><td class="saldo">721.00</td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ INVARIANTES ═══════════════════ -->
+<div class="inv-row">
+  <div class="inv write">
+    <span class="ititle">Single writer</span>
+    El registro de eventos solo se escribe vía <code>seguimiento_repo.py</code>. Ningún módulo abre el archivo con <code>load_workbook</code> para escribir directo.
+  </div>
+  <div class="inv audit">
+    <span class="ititle">Append-only real</span>
+    Un evento nunca se modifica ni se borra. Una corrección es un nuevo evento de tipo <code>ajuste</code> con motivo.
+  </div>
+  <div class="inv read">
+    <span class="ititle">Guardar largo, mostrar ancho</span>
+    El registro (fuente) es una tabla larga con schema fijo. El estado de cuenta ancho es un <b>pivot</b> regenerable — nunca se edita directo.
+  </div>
+  <div class="inv scale">
+    <span class="ititle">Listo para escalar</span>
+    Cuando el registro migre a Postgres, solo el repo cambia. 5_cobranza y 2_planilla siguen llamando la misma API.
+  </div>
+</div>
+
+</body>
+</html>

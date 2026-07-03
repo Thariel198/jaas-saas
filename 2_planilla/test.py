@@ -39,6 +39,12 @@ def _setup_paths() -> None:
 
 import main as mod_main  # noqa: E402 — importar después de definir _setup_paths
 
+# mod_main.repo ES el módulo seguimiento_repo (singleton en sys.modules) —
+# redirigir acá aísla get_saldos_bulk() del archivo real de producción. Path
+# inexistente en el fixture → devuelve {} → MULTA/ACUERDOS/CONVENIO=0,
+# determinístico (no depende de qué prediós tenga hoy seguimiento_pueblo real).
+mod_main.repo.SEGUIMIENTO_PATH = _TMP / "seguimiento_pueblo.xlsx"
+
 MES = "2026-06"
 MES_ANT = "2026-05"   # el consolidado que alimenta la planilla de junio
 
@@ -51,15 +57,15 @@ _LECTURAS = pd.DataFrame([
     {"MZ": "B1", "LT": "5",   "NOMBRE": "CONDORI QUISPE, ELENA", "MES_ANO": MES, "MARC_ANT": 600,  "MARC_ACT": 615,  "M3": 15},
 ])
 
-# arrastre_consolidado del mes anterior (2026-05): componentes ya descompuestos.
+# arrastre_consolidado del mes anterior (2026-05): solo agua+corte (desde
+# seguimiento_pueblo, MULTA/ACUERDOS/CONVENIO ya no vienen de acá).
 #   A/12  → DEUDA_AGUA 15   (deuda de agua no cubierta → MES_ANTERIOR)
 #   B1/11A → CORTE 25        (corte no cubierto)
-#   todos → ACUERDOS 10 · MULTA/CONVENIO 0 (columnas en 0)
 _CONSOLIDADO = pd.DataFrame([
-    {"MZ": "A",  "LT": "7",   "DEUDA_AGUA": 0,  "CORTE_RECONEXION": 0,  "MULTA": 0, "ACUERDOS_ASAMBLEA": 10, "CONVENIO": 0},
-    {"MZ": "A",  "LT": "12",  "DEUDA_AGUA": 15, "CORTE_RECONEXION": 0,  "MULTA": 0, "ACUERDOS_ASAMBLEA": 10, "CONVENIO": 0},
-    {"MZ": "B1", "LT": "11A", "DEUDA_AGUA": 0,  "CORTE_RECONEXION": 25, "MULTA": 0, "ACUERDOS_ASAMBLEA": 10, "CONVENIO": 0},
-    {"MZ": "B1", "LT": "5",   "DEUDA_AGUA": 0,  "CORTE_RECONEXION": 0,  "MULTA": 0, "ACUERDOS_ASAMBLEA": 10, "CONVENIO": 0},
+    {"MZ": "A",  "LT": "7",   "DEUDA_AGUA": 0,  "CORTE_RECONEXION": 0},
+    {"MZ": "A",  "LT": "12",  "DEUDA_AGUA": 15, "CORTE_RECONEXION": 0},
+    {"MZ": "B1", "LT": "11A", "DEUDA_AGUA": 0,  "CORTE_RECONEXION": 25},
+    {"MZ": "B1", "LT": "5",   "DEUDA_AGUA": 0,  "CORTE_RECONEXION": 0},
 ])
 
 
@@ -72,7 +78,15 @@ def _crear_fixtures() -> None:
         json.dumps({MES_ANT: {"arrastre": {"generado": True, "validado": True}}}),
         encoding="utf-8",
     )
-    print("  (consolidado 2026-05 con validado:true · MULTA/CONVENIO en 0)")
+    # ACUERDOS=10 para los 4 predios, sembrado en seguimiento_pueblo (no en el
+    # consolidado) — prueba el path real de lectura vía get_saldos_bulk().
+    # MULTA/CONVENIO se dejan sin sembrar → prueba el path 0 (predio sin eventos).
+    for mz, lt in (("A", "7"), ("A", "12"), ("B1", "11A"), ("B1", "5")):
+        mod_main.repo.registrar_cargo(
+            mz, lt, "ACUERDOS", MES_ANT, 10.0,
+            source="test_fixture", audit_ref=f"fixture_{mz}_{lt}",
+        )
+    print("  (consolidado 2026-05: agua+corte · seguimiento_pueblo: ACUERDOS=10, MULTA/CONVENIO ausentes)")
 
 
 # ── Verificación del dataframe calculado ──────────────────────────────────

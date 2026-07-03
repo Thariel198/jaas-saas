@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>jass_system → Agentic SaaS · Visión arquitectónica</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Arial, sans-serif; background: #F0F4F8; font-size: 13px; color: #2C3E50; }
+.page { padding: 28px 24px 60px; max-width: 1180px; margin: 0 auto; }
+
+h1   { font-size: 19px; color: #1A5276; margin-bottom: 4px; }
+.sub { font-size: 11px; color: #888; margin-bottom: 36px; }
+
+h2 {
+  font-size: 14px; color: #fff; padding: 10px 16px;
+  border-radius: 6px 6px 0 0; margin-top: 0;
+  display: flex; align-items: center; gap: 10px;
+}
+h2 .num {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; background: rgba(255,255,255,0.25);
+  border-radius: 50%; font-size: 12px;
+}
+.section { margin-bottom: 36px; }
+.sec-body {
+  background: #fff; border: 1px solid #DDE; border-radius: 0 0 6px 6px;
+  padding: 20px;
+}
+
+.h-blue   { background: #1A5276; }
+.h-indigo { background: #4338CA; }
+.h-purple { background: #5B21B6; }
+.h-green  { background: #1E8449; }
+.h-orange { background: #CA6F1E; }
+.h-gray   { background: #34495E; }
+
+/* ═══ DIPTYCO: Hoy vs Mañana ═══ */
+.diptych { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.dip-col {
+  border-radius: 8px; padding: 14px 16px;
+  border: 2px solid transparent;
+}
+.dip-hoy    { background: #FDF6EC; border-color: #F0C040; }
+.dip-manana { background: #EDE9FE; border-color: #5B21B6; }
+.dip-title {
+  font-size: 12px; font-weight: bold; text-transform: uppercase;
+  letter-spacing: 0.5px; margin-bottom: 10px;
+}
+.dip-hoy .dip-title    { color: #7D5A00; }
+.dip-manana .dip-title { color: #5B21B6; }
+.dip-row {
+  background: rgba(255,255,255,0.6); border-radius: 4px;
+  padding: 8px 10px; margin-bottom: 6px; font-size: 11px; line-height: 1.5;
+}
+.dip-row strong { display: block; margin-bottom: 2px; }
+
+/* ═══ 4 CAPAS ═══ */
+.layers { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.layer {
+  border-radius: 8px; padding: 14px; border: 2px solid transparent;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.layer-title {
+  font-weight: bold; font-size: 12px; text-align: center;
+  padding-bottom: 6px; border-bottom: 1px dashed currentColor;
+}
+.layer-purpose { font-size: 10px; line-height: 1.5; font-style: italic; opacity: 0.85; }
+.layer-items {
+  font-size: 10px; line-height: 1.6; background: rgba(255,255,255,0.5);
+  padding: 6px 10px; border-radius: 4px;
+}
+.layer-items code { font-family: Consolas, monospace; font-size: 10px; }
+.layer-tag {
+  display: inline-block; font-size: 9px; padding: 2px 8px;
+  border-radius: 10px; font-weight: bold; align-self: center;
+}
+
+.ly-blue   { background: #D6EAF8; border-color: #1A5276; color: #154360; }
+.ly-indigo { background: #E0E7FF; border-color: #4338CA; color: #3730A3; }
+.ly-purple { background: #EDE9FE; border-color: #5B21B6; color: #4A1D96; }
+.ly-green  { background: #D5F5E3; border-color: #1E8449; color: #145A32; }
+
+.ly-blue   .layer-tag { background: #1A5276; color: #fff; }
+.ly-indigo .layer-tag { background: #4338CA; color: #fff; }
+.ly-purple .layer-tag { background: #5B21B6; color: #fff; }
+.ly-green  .layer-tag { background: #1E8449; color: #fff; }
+
+/* ═══ ÁRBOL DE CARPETAS ═══ */
+.tree {
+  font-family: Consolas, monospace; font-size: 12px; line-height: 1.7;
+  background: #1E2A3A; color: #E8ECF0; border-radius: 8px;
+  padding: 18px 24px; overflow-x: auto;
+}
+.tree .new { color: #82E0AA; font-weight: bold; }
+.tree .new::after { content: "  ◄ NUEVO"; font-size: 10px; color: #52BE80; font-weight: normal; }
+.tree .mod { color: #F0C040; }
+.tree .mod::after { content: "  ◄ SUBMÓDULO NUEVO"; font-size: 10px; color: #F0C040; font-weight: normal; }
+.tree .keep { color: #AED6F1; }
+.tree .com { color: #7F8C9B; font-style: italic; }
+.tree .root { color: #fff; font-weight: bold; font-size: 13px; }
+
+/* ═══ FLUJO AGENTE ═══ */
+.agent-flow {
+  display: flex; flex-direction: column; gap: 0;
+  background: #F8F9FA; border-radius: 8px; padding: 16px;
+  border: 1px solid #DDE;
+}
+.af-step {
+  display: flex; align-items: center; gap: 12px; padding: 10px 12px;
+  background: #fff; border-radius: 6px; border-left: 4px solid;
+  font-size: 11px; line-height: 1.5;
+}
+.af-arrow { text-align: center; color: #BBB; font-size: 18px; padding: 4px 0; }
+.af-step .af-actor {
+  font-size: 9px; font-weight: bold; text-transform: uppercase;
+  letter-spacing: 0.5px; min-width: 80px;
+  padding: 4px 8px; border-radius: 4px; text-align: center;
+}
+.af-step .af-body { flex: 1; }
+.af-step code { font-family: Consolas, monospace; background: #F0F4F8; padding: 1px 5px; border-radius: 3px; font-size: 10px; }
+
+.af-user  { border-left-color: #2C3E50; }
+.af-user  .af-actor { background: #2C3E50; color: #fff; }
+.af-agent { border-left-color: #4338CA; }
+.af-agent .af-actor { background: #4338CA; color: #fff; }
+.af-tool  { border-left-color: #1A5276; }
+.af-tool  .af-actor { background: #1A5276; color: #fff; }
+.af-gate  { border-left-color: #C0392B; background: #FADBD8; }
+.af-gate  .af-actor { background: #C0392B; color: #fff; }
+.af-human { border-left-color: #5B21B6; background: #EDE9FE; }
+.af-human .af-actor { background: #5B21B6; color: #fff; }
+.af-out   { border-left-color: #1E8449; background: #D5F5E3; }
+.af-out   .af-actor { background: #1E8449; color: #fff; }
+
+/* ═══ PRINCIPIOS ═══ */
+.principles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.pri {
+  background: #F8F9FA; border-left: 4px solid #CCC;
+  padding: 10px 14px; border-radius: 0 4px 4px 0;
+  font-size: 11px; line-height: 1.5;
+}
+.pri strong { display: block; color: #2C3E50; margin-bottom: 3px; font-size: 12px; }
+.pri-blue   { border-left-color: #1A5276; }
+.pri-purple { border-left-color: #5B21B6; }
+.pri-green  { border-left-color: #1E8449; }
+.pri-orange { border-left-color: #CA6F1E; }
+.pri-indigo { border-left-color: #4338CA; }
+.pri-red    { border-left-color: #C0392B; }
+
+/* ═══ DECISIONES ═══ */
+.decisions { display: flex; flex-direction: column; gap: 10px; }
+.dec {
+  background: #FFF8E1; border: 1px dashed #F0C040;
+  border-radius: 6px; padding: 12px 14px; font-size: 11px;
+}
+.dec-q { font-weight: bold; color: #7D5A00; margin-bottom: 4px; }
+.dec-opt { color: #555; line-height: 1.6; }
+.dec-opt code { background: #FEF3C7; padding: 1px 5px; border-radius: 3px; font-family: Consolas, monospace; }
+
+</style>
+</head>
+<body>
+<div class="page">
+
+  <h1>jass_system → Agentic SaaS · Visión arquitectónica</h1>
+  <div class="sub">El camino evolutivo · de scripts en carpetas a herramientas orquestadas por un agente · 20/06/2026</div>
+
+  <!-- ═══ SECCIÓN 1: EL CAMBIO MENTAL ═══ -->
+  <div class="section">
+    <h2 class="h-gray"><span class="num">1</span> El cambio mental</h2>
+    <div class="sec-body">
+      <div class="diptych">
+
+        <div class="dip-col dip-hoy">
+          <div class="dip-title">Hoy · scripts ordenados</div>
+          <div class="dip-row"><strong>Procedural</strong>El humano sabe qué script correr y en qué orden. Los números 0_, 1_, 2_… le dicen la secuencia.</div>
+          <div class="dip-row"><strong>Estado implícito</strong>El estado vive en Excel files dispersos. Para saber "¿qué falta?" hay que abrir carpetas.</div>
+          <div class="dip-row"><strong>Gates implícitos</strong>El supervisor decide ejecutar el siguiente script. El "permiso" es un acto humano sin huella.</div>
+          <div class="dip-row"><strong>Sin manifiesto</strong>No hay registro central de qué scripts existen, qué inputs piden ni qué outputs producen.</div>
+          <div class="dip-row"><strong>Audit disperso</strong>Cada módulo decide qué registrar y dónde. La trazabilidad depende del autor del script.</div>
+        </div>
+
+        <div class="dip-col dip-manana">
+          <div class="dip-title">Mañana · tools orquestadas</div>
+          <div class="dip-row"><strong>Declarativo</strong>El humano pide intenciones ("cierra el mes"). El agente decide qué tools llamar y en qué orden.</div>
+          <div class="dip-row"><strong>Estado consultable</strong>Cada tool reporta estado estructurado. El agente puede responder "¿qué falta?" sin abrir nada.</div>
+          <div class="dip-row"><strong>Gates explícitos</strong>El agente pausa en checkpoints definidos y espera autorización. La decisión queda registrada.</div>
+          <div class="dip-row"><strong>Manifiesto vivo</strong>Un <code>tools_manifest</code> describe cada tool: inputs, outputs, idempotencia, side-effects.</div>
+          <div class="dip-row"><strong>Audit uniforme</strong>Cada tool emite el mismo evento estructurado. La trazabilidad es global, no por módulo.</div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SECCIÓN 2: LAS 4 CAPAS ═══ -->
+  <div class="section">
+    <h2 class="h-blue"><span class="num">2</span> Las 4 capas del sistema</h2>
+    <div class="sec-body">
+      <div class="layers">
+
+        <div class="layer ly-blue">
+          <div class="layer-title">TOOLS</div>
+          <span class="layer-tag">atómicas · idempotentes</span>
+          <div class="layer-purpose">Cada script es una herramienta. Una intención = un archivo = una función pública.</div>
+          <div class="layer-items">
+            • input/output contractuales<br>
+            • <code>--dry-run</code> obligatorio<br>
+            • exit codes estandarizados<br>
+            • writer único por artefacto<br>
+            • emite evento de audit
+          </div>
+        </div>
+
+        <div class="layer ly-indigo">
+          <div class="layer-title">AGENT</div>
+          <span class="layer-tag">orquesta · razona</span>
+          <div class="layer-purpose">Recibe intenciones del humano. Decide qué tools llamar, en qué orden, con qué args.</div>
+          <div class="layer-items">
+            • lee <code>tools_manifest.yaml</code><br>
+            • mantiene grafo de dependencias<br>
+            • paraleliza lo paralelizable<br>
+            • respeta gates humanos<br>
+            • reporta progreso
+          </div>
+        </div>
+
+        <div class="layer ly-purple">
+          <div class="layer-title">HUMAN GATES</div>
+          <span class="layer-tag">checkpoints · decisión</span>
+          <div class="layer-purpose">Puntos explícitos donde el sistema se detiene y espera autorización humana.</div>
+          <div class="layer-items">
+            • MOVIMIENTOs en sincronización<br>
+            • EN_REVISION en reclamos<br>
+            • AUTORIZAR en corte físico<br>
+            • cada gate tiene UI (Excel o web)<br>
+            • la decisión queda persistida
+          </div>
+        </div>
+
+        <div class="layer ly-green">
+          <div class="layer-title">DATA</div>
+          <span class="layer-tag">contratos · auditable</span>
+          <div class="layer-purpose">Excel files con schema explícito. Un writer por artefacto. Append-only para audit.</div>
+          <div class="layer-items">
+            • un solo writer por archivo<br>
+            • backup timestamped pre-mutación<br>
+            • columnas STICKY entre ciclos<br>
+            • trazabilidad append-only<br>
+            • columnas APLICADO/REVISADO
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SECCIÓN 3: ESTRUCTURA DE CARPETAS ═══ -->
+  <div class="section">
+    <h2 class="h-indigo"><span class="num">3</span> Estructura de carpetas propuesta</h2>
+    <div class="sec-body">
+
+<div class="tree">
+<span class="root">jass_system/</span>
+│
+├── <span class="new">agent/</span>
+│   ├── orchestrator.py        <span class="com"># punto de entrada · "cierra el mes"</span>
+│   ├── tools_manifest.yaml    <span class="com"># registro de todas las tools</span>
+│   ├── gates.py               <span class="com"># definición de checkpoints humanos</span>
+│   └── state.py               <span class="com"># consulta de estado del ciclo</span>
+│
+├── <span class="keep">0_padron/</span>                <span class="com"># módulo de dominio · ya existe</span>
+│   ├── 01_cofopri/
+│   ├── 02_matching/
+│   ├── tools.py               <span class="com"># expone reconciliar() como tool pública</span>
+│   └── docs/
+│
+├── <span class="keep">1_lecturas/</span>
+│   ├── <span class="mod">00_sync/</span>
+│   │   ├── proponer_sincronizacion.py
+│   │   ├── aplicar_sincronizacion.py
+│   │   ├── outputs/
+│   │   ├── backups/
+│   │   └── docs/
+│   ├── main.py                <span class="com"># genera planilla de lecturas</span>
+│   ├── tools.py               <span class="com"># expone sync_proponer, sync_aplicar, generar_planilla</span>
+│   └── docs/
+│
+├── <span class="keep">2_planilla/</span>
+│   ├── main.py
+│   └── tools.py
+│
+├── <span class="keep">3_boletas/</span>
+│   ├── main.py
+│   ├── tools.py
+│   └── shared/data_boletas_repo.py   <span class="com"># único writer · ya existe</span>
+│
+├── <span class="keep">4_pagos/</span>
+│   ├── <span class="mod">01_yape/</span>             <span class="com"># conciliar pagos digitales</span>
+│   ├── <span class="mod">02_efectivo/</span>         <span class="com"># registrar pagos en efectivo</span>
+│   └── tools.py
+│
+├── <span class="keep">5_cobranza/</span>
+│   ├── main.py
+│   └── tools.py
+│
+├── <span class="keep">6_corte/</span>
+│   ├── generar_lista.py
+│   ├── aplicar_penalidad.py
+│   ├── seguimiento.py
+│   └── tools.py
+│
+├── <span class="keep">7_cierre/</span>
+│   ├── main.py
+│   └── tools.py
+│
+├── <span class="keep">shared/</span>                  <span class="com"># utilidades puras estables</span>
+│   ├── utils_excel.py
+│   ├── utils_normalize.py
+│   └── <span class="new">audit_logger.py</span>     <span class="com"># emisor uniforme de eventos</span>
+│
+└── <span class="keep">docs/</span>
+    ├── arquitectura_jass_sistema.html
+    ├── metodologia_desarrollo.md
+    └── vision_agentic_saas.html       <span class="com"># este documento</span>
+</div>
+
+      <div style="margin-top:14px;font-size:11px;color:#555;line-height:1.6;">
+        <strong>Decisiones clave de la estructura:</strong><br>
+        • Los módulos <code>N_dominio/</code> se conservan — el número es <strong>orden de dependencia</strong>, no instrucción de ejecución.<br>
+        • Cada módulo expone su API pública en <code>tools.py</code> (funciones llamables desde el agente).<br>
+        • Submódulos <code>NN_fase/</code> aparecen cuando un dominio tiene fases con lifecycle propio (sync, yape, efectivo).<br>
+        • <code>agent/</code> es el único componente "nuevo" en la primera ola — el resto es refactor incremental.<br>
+        • <code>shared/</code> solo crece con primitivas puras estables (no orquestación).
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══ SECCIÓN 4: CÓMO TRABAJA EL AGENTE ═══ -->
+  <div class="section">
+    <h2 class="h-purple"><span class="num">4</span> Cómo trabaja el agente · ejemplo concreto</h2>
+    <div class="sec-body">
+
+      <div style="font-size:11px;color:#555;margin-bottom:12px;font-style:italic;">
+        Escenario: el presidente de la JASS escribe al sistema → <em>"cierra el ciclo de junio 2026"</em>
+      </div>
+
+      <div class="agent-flow">
+
+        <div class="af-step af-user">
+          <div class="af-actor">Humano</div>
+          <div class="af-body">"<strong>cierra el ciclo de junio 2026</strong>"</div>
+        </div>
+        <div class="af-arrow">↓</div>
+
+        <div class="af-step af-agent">
+          <div class="af-actor">Agente</div>
+          <div class="af-body">Lee <code>tools_manifest</code> · arma plan: <code>sync → planilla → boletas → cobranza → corte → cierre</code></div>
+        </div>
+        <div class="af-arrow">↓</div>
+
+        <div class="af-step af-tool">
+          <div class="af-actor">Tool</div>
+          <div class="af-body"><code>lecturas.sync_proponer()</code> → detecta <strong>3 MOVIMIENTOs</strong> · genera <code>reporte_sincronizacion.xlsx</code></div>
+        </div>
+        <div class="af-arrow">↓</div>
+
+        <div class="af-step af-gate">
+          <div class="af-actor">Gate</div>
+          <div class="af-body">"<strong>Necesito autorización</strong> para 3 movimientos en padrón. Abre <code>reporte_sincronizacion.xlsx</code> y marca AUTORIZAR."</div>
+        </div>
+        <div class="af-arrow">↓</div>
+
+        <div class="af-step af-human">
+          <div class="af-actor">Humano</div>
+          <div class="af-body">Revisa los 3 MOVIMIENTOs · autoriza 2 · rechaza 1 · guarda Excel</div>
+        </div>
+        <div class="af-arrow">↓</div>
+
+        <div class="af-step af-tool">
+          <div class="af-actor">Tool</div>
+          <div class="af-body"><code>lecturas.sync_aplicar()</code> → aplica 2 movimientos + AGREGADOs + SIN_SERVICIO + RENAMEs · backup + trazabilidad</div>
+        </div>
+        <div class="af-arrow">↓</div>
+
+        <div class="af-step af-agent">
+          <div class="af-actor">Agente</div>
+          <div class="af-body">Continúa el plan · ejecuta tools en paralelo cuando puede (<code>boletas + pdf_orden</code>)</div>
+        </div>
+        <div class="af-arrow">↓</div>
+
+        <div class="af-step af-out">
+          <div class="af-actor">Resultado</div>
+          <div class="af-body">"Ciclo cerrado. <strong>2 movimientos aplicados, 47 boletas emitidas, 12 cortes pendientes de revisión.</strong> Audit en <code>shared/audit/2026-06.jsonl</code>"</div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══ SECCIÓN 5: PRINCIPIOS IRRENUNCIABLES ═══ -->
+  <div class="section">
+    <h2 class="h-orange"><span class="num">5</span> Principios irrenunciables del agentic SaaS</h2>
+    <div class="sec-body">
+      <div class="principles">
+
+        <div class="pri pri-blue">
+          <strong>Una tool · una intención</strong>
+          Si un script hace dos cosas, son dos tools. El agente debe poder pedir solo una.
+        </div>
+
+        <div class="pri pri-green">
+          <strong>Idempotencia obligatoria</strong>
+          Correr la misma tool dos veces produce el mismo resultado. Sin duplicados. Sin efectos extra.
+        </div>
+
+        <div class="pri pri-purple">
+          <strong>Writer único por artefacto</strong>
+          Cada Excel tiene un solo escritor. Backup + audit + idempotencia se ejecutan juntos.
+        </div>
+
+        <div class="pri pri-orange">
+          <strong>Audit como ciudadano de primera</strong>
+          Cada tool emite un evento estructurado. La trazabilidad no es opcional ni decisión del autor.
+        </div>
+
+        <div class="pri pri-red">
+          <strong>Gates humanos explícitos</strong>
+          Si el sistema necesita autorización, lo dice. No asume. No avanza sin decisión registrada.
+        </div>
+
+        <div class="pri pri-indigo">
+          <strong>Estado siempre consultable</strong>
+          El agente puede responder "¿qué falta del ciclo?" en cualquier momento sin abrir archivos.
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SECCIÓN 6: DECISIONES PENDIENTES ═══ -->
+  <div class="section">
+    <h2 class="h-gray"><span class="num">6</span> Decisiones pendientes antes de codificar</h2>
+    <div class="sec-body">
+      <div class="decisions">
+
+        <div class="dec">
+          <div class="dec-q">¿Refactor en una ola o evolutivo?</div>
+          <div class="dec-opt">
+            <strong>A. Ola única:</strong> rehacer la estructura completa antes de seguir.<br>
+            <strong>B. Evolutivo (recomendado):</strong> empezar por <code>1_lecturas/00_sync/</code> y crecer módulo por módulo. Cada nuevo trabajo respeta el nuevo patrón.
+          </div>
+        </div>
+
+        <div class="dec">
+          <div class="dec-q">¿Conservar el prefijo numérico <code>N_dominio/</code>?</div>
+          <div class="dec-opt">
+            <strong>A. Sí (recomendado):</strong> los números siguen siendo útiles para humanos. Documentan dependencia, no prescriben ejecución.<br>
+            <strong>B. No:</strong> renombrar a <code>padron/</code>, <code>lecturas/</code>… más limpio pero rompe imports y docs.
+          </div>
+        </div>
+
+        <div class="dec">
+          <div class="dec-q">¿Qué tan ambicioso es <code>agent/</code> en la primera versión?</div>
+          <div class="dec-opt">
+            <strong>A. Solo orquestador secuencial:</strong> ejecuta tools en orden definido por manifest. Sin IA.<br>
+            <strong>B. Orquestador + LLM (recomendado):</strong> el humano escribe intenciones en español, un LLM las traduce a llamadas a tools. Reutiliza Claude API.
+          </div>
+        </div>
+
+        <div class="dec">
+          <div class="dec-q">¿Dónde vive el audit log uniforme?</div>
+          <div class="dec-opt">
+            <strong>A. <code>shared/audit/YYYY-MM.jsonl</code></strong> · un archivo por mes, append-only.<br>
+            <strong>B. <code>shared/audit/eventos.xlsx</code></strong> · Excel para que el supervisor pueda leerlo sin tooling.<br>
+            La elección depende de si quieres consultar audit desde Excel o desde código.
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

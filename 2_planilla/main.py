@@ -1,5 +1,4 @@
 import glob
-import json
 import logging
 import shutil
 import sys
@@ -11,6 +10,13 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 import config
+
+# seguimiento_pueblo: writer único es shared/seguimiento_repo.py (patrón repo).
+# Se importa por ruta física, no depende de config (que sí se monkey-patchea
+# en tests) porque el módulo vive siempre en el shared/ real.
+sys.path.insert(0, str(config.BASE_DIR.parent / "shared"))
+import seguimiento_repo as repo  # noqa: E402
+import utils_estado_ciclo as repo_estado  # noqa: E402
 
 log = logging.getLogger(__name__)
 
@@ -74,15 +80,7 @@ def _mes_anterior(mes: str) -> str:
 
 
 def _ciclo_validado(mes: str) -> bool:
-    p = config.ESTADO_CICLO_PATH
-    if not p.exists():
-        return False
-    try:
-        data = json.loads(p.read_text(encoding="utf-8"))
-    except Exception as e:
-        log.warning(f"No se pudo leer estado_ciclo.json: {e}")
-        return False
-    return bool(data.get(mes, {}).get("arrastre", {}).get("validado"))
+    return repo_estado.ciclo_validado(mes, ruta=config.ESTADO_CICLO_PATH)
 
 
 def _load_consolidado(mes: str) -> pd.DataFrame | None:
@@ -139,6 +137,16 @@ def _join_optional(base: pd.DataFrame, src: pd.DataFrame | None,
 
 # ── Build del dataframe de planilla ──────────────────────────────────────
 
+def _join_saldo_pueblo(df: pd.DataFrame, concepto: str, mes_ant: str, dest_col: str) -> pd.DataFrame:
+    """MULTA/ACUERDOS_ASAMBLEA/CONVENIO vienen de seguimiento_pueblo, no del
+    consolidado — writer único es seguimiento_repo (ver shared/README.md).
+    get_saldos_bulk lee el registro UNA vez para todos los predios."""
+    saldos = repo.get_saldos_bulk(concepto, mes_ant)
+    df = df.copy()
+    df[dest_col] = [saldos.get((mz, lt), 0.0) for mz, lt in zip(df["_mz"], df["_lt"])]
+    return df
+
+
 def build_planilla(mes: str) -> pd.DataFrame:
     df = _load_lecturas(mes)
     log.info(f"Lecturas cargadas: {len(df)} usuarios · mes {mes}")
@@ -146,15 +154,19 @@ def build_planilla(mes: str) -> pd.DataFrame:
     for col in ["MARC_ANT", "MARC_ACT", "M3"]:
         df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
 
-    # Fuente única: el consolidado del mes anterior (5_cobranza) trae los 5
-    # componentes de arrastre ya descompuestos por prioridad. DEUDA_AGUA es la
-    # deuda de agua no cubierta → alimenta MES_ANTERIOR.
+    # Agua + corte: el consolidado del mes anterior (5_cobranza) los trae ya
+    # descompuestos por prioridad. DEUDA_AGUA es la deuda de agua no cubierta
+    # → alimenta MES_ANTERIOR.
     df_cons = _load_consolidado(mes)
     df = _join_optional(df, df_cons, "DEUDA_AGUA",        "MES_ANTERIOR")
     df = _join_optional(df, df_cons, "CORTE_RECONEXION",  "CORTE_RECONEXION",  warn=False)
-    df = _join_optional(df, df_cons, "MULTA",             "MULTA",             warn=False)
-    df = _join_optional(df, df_cons, "ACUERDOS_ASAMBLEA", "ACUERDOS_ASAMBLEA", warn=False)
-    df = _join_optional(df, df_cons, "CONVENIO",          "CONVENIO",          warn=False)
+
+    # Pueblo (MULTA/ACUERDOS/CONVENIO): fuente única es seguimiento_pueblo,
+    # saldo al cierre del mes anterior — el consolidado ya no los carga.
+    mes_ant = _mes_anterior(mes)
+    df = _join_saldo_pueblo(df, "MULTA",    mes_ant, "MULTA")
+    df = _join_saldo_pueblo(df, "ACUERDOS", mes_ant, "ACUERDOS_ASAMBLEA")
+    df = _join_saldo_pueblo(df, "CONVENIO", mes_ant, "CONVENIO")
 
     df["MES_ACTUAL"]    = df["M3"].apply(
         lambda m: max(float(m) * config.TARIFA_M3, config.TARIFA_MIN)

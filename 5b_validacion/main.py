@@ -1,5 +1,6 @@
 import json
 import logging
+import sys
 import pandas as pd
 from datetime import datetime
 from pathlib import Path
@@ -10,9 +11,13 @@ from openpyxl.utils import get_column_letter
 # ── CONFIG ────────────────────────────────────────────────────────────────────
 ROOT      = Path(__file__).parent
 OUT_DIR   = ROOT / "outputs"
+
+sys.path.insert(0, str(ROOT.parent / "shared"))
+import utils_estado_ciclo as repo_estado  # noqa: E402
 MOD04      = ROOT.parent / "5_cobranza"
 MOD04_EFEC = ROOT.parent / "4_pagos" / "efectivo" / "outputs"
 MOD04_YAPE = ROOT.parent / "4_pagos" / "yape" / "motor_matching" / "outputs"
+MOD04_PAGOS = ROOT.parent / "4_pagos" / "outputs"
 SHARED     = ROOT.parent / "shared"
 
 CRUDO_DIR         = SHARED / "reporte_mes_crudo"
@@ -20,7 +25,7 @@ ESTADO_CICLO_PATH = SHARED / "reporte_acumulado_procesado" / "estado_ciclo.json"
 YAPE_PATH        = MOD04_YAPE / "pagos_yape_tepago.xlsx"
 YAPE_RET_PATH    = MOD04_YAPE / "pagos_yape_retorno.xlsx"
 YAPE_DEV_PATH    = MOD04_YAPE / "pagos_yape_devolucion.xlsx"
-YAPE_TANQUE_PATH = MOD04_YAPE / "pagos_yape_tanque.xlsx"
+TANQUE_PATH      = MOD04_PAGOS / "aportes_tanque.xlsx"  # canal-agnóstico (DE10) — reemplaza pagos_yape_tanque.xlsx
 BLANCOS_MES_PATH = MOD04_YAPE / "blancos_mes.xlsx"
 PAGASTE_PATH     = MOD04_YAPE / "pagos_yape_pagaste.xlsx"
 EFEC_PATH        = MOD04_EFEC / "pagos_efectivo.xlsx"
@@ -34,6 +39,7 @@ GH_QUIEN    = ("F4ECF7", "5B21B6")
 GH_REPORTE  = ("E6F1FB", "0C447C")
 GH_PLANILLA = ("FEF9E7", "7D6608")
 GH_CUADRA   = ("E1F5EE", "085041")
+GH_PORQUE   = ("FEF2F2", "991B1B")
 
 TD_PERIODO  = "F9FAFB"
 TD_QUIEN    = "FAF5FF"
@@ -155,28 +161,36 @@ def _validar_inputs():
     log.info("Inputs validados")
 
 # ── CARGA: PAGOS YAPE TEPAGO ──────────────────────────────────────────────────
-def _cargar_yape_tepago() -> tuple[dict, float, tuple]:
-    """Retorna ({mz: monto_neto}, total, (fecha_min, fecha_max)).
+def _cargar_yape_tepago() -> tuple[dict, dict, dict, float, tuple]:
+    """Retorna ({mz: monto_neto}, {(mz,lote): monto}, {(mz,lote): [ORIGEN_MONTO_FECHA]},
+    total, (fecha_min, fecha_max)).
     Suma TE PAGÓ y resta retornos por MZ para que el reporte refleje
     lo mismo que planilla_cobrado (que también descuenta retornos)."""
     df = pd.read_excel(YAPE_PATH, header=1, dtype=str)
     df.columns = _norm_cols(df)
 
-    totales = {}
-    fechas  = []
+    totales  = {}
+    por_lote = {}
+    detalle  = {}
+    fechas   = []
     for _, f in df.iterrows():
         tipo = _norm_tipo(f.get("TIPO", ""))
         if tipo != "TE PAGO":
             continue
         mz   = _norm_mz(f.get("MZ", ""))
-        lote = str(f.get("LOTE", "")).strip()
+        lote = str(f.get("LOTE", "")).strip().upper()
         conc = str(f.get("CONCEPTO", "")).strip().upper()
-        if not mz or mz == "NAN" or not lote or lote == "NAN":
+        if not mz or mz == "NAN" or mz == "BLANCO" or not lote or lote == "NAN":
             continue
         if conc and conc not in ("NAN", "NONE", ""):
             continue
-        totales[mz] = totales.get(mz, 0.0) + _float(f.get("MONTO_PAGO", 0))
+        monto = _float(f.get("MONTO_PAGO", 0))
+        totales[mz] = totales.get(mz, 0.0) + monto
+        key = (mz, lote)
+        por_lote[key] = por_lote.get(key, 0.0) + monto
+        origen    = str(f.get("ORIGEN", "")).strip()
         fecha_raw = str(f.get("FECHA", "")).strip()
+        detalle.setdefault(key, []).append(f"{origen}_{monto:.2f}_{fecha_raw}")
         if fecha_raw and fecha_raw not in ("NAN", ""):
             try:
                 fechas.append(pd.to_datetime(fecha_raw, dayfirst=True))
@@ -202,13 +216,16 @@ def _cargar_yape_tepago() -> tuple[dict, float, tuple]:
     total   = round(sum(totales.values()), 2)
     log.info(f"Yape tepago: {len(totales)} MZ · S/ {total:.2f} "
              f"· periodo {periodo[0]} → {periodo[1]}")
-    return totales, total, periodo
+    return totales, por_lote, detalle, total, periodo
 
 
 # ── CARGA: CRUDO BANCO — ambos TIPO ──────────────────────────────────────────
-def _cargar_crudo_por_tipo(periodo: tuple) -> tuple[float, float]:
-    """Retorna (total_te_pago, total_pagaste) del reporte crudo filtrado al periodo."""
+def _cargar_crudo_por_tipo(periodo: tuple, periodo_pagaste: tuple = None) -> tuple[float, float]:
+    """Retorna (total_te_pago, total_pagaste) del reporte crudo.
+    TE PAGÓ y PAGASTE se mueven en ventanas de fecha independientes — cada
+    tipo se filtra con su propio periodo, no con el del otro."""
     fecha_min, fecha_max = periodo
+    fecha_min_pg, fecha_max_pg = periodo_pagaste if periodo_pagaste else (None, None)
     crudo_file = sorted(p for p in CRUDO_DIR.glob("*.xlsx") if not p.name.startswith("~$"))[-1]
     df = pd.read_excel(crudo_file, header=4, dtype=str)
     df.columns = [
@@ -228,10 +245,11 @@ def _cargar_crudo_por_tipo(periodo: tuple) -> tuple[float, float]:
         tipo = _norm_tipo(f.get(col_tipo, ""))
         if tipo not in ("TE PAGO", "PAGASTE"):
             continue
-        if col_fecha and fecha_min and fecha_max:
+        f_min, f_max = (fecha_min, fecha_max) if tipo == "TE PAGO" else (fecha_min_pg, fecha_max_pg)
+        if col_fecha and f_min and f_max:
             try:
                 fecha = pd.to_datetime(str(f[col_fecha]), dayfirst=True)
-                if not (fecha_min <= fecha <= fecha_max):
+                if not (f_min <= fecha <= f_max):
                     continue
             except Exception:
                 pass
@@ -270,52 +288,100 @@ def _cargar_devueltos_total() -> float:
     return total
 
 
+def _netear_devoluciones(yape_mz: dict) -> dict:
+    """Resta devoluciones Yape por MZ — SOLO para comparar contra planilla_cobrado
+    (Nivel 2), que ya las netea. NO usar para Nivel 1a: ahí agua_total debe
+    quedar crudo, igual que crudo_tepago (el pago original es legítimo en TE PAGÓ
+    del banco, la devolución es un evento PAGASTE aparte con su propia
+    reconciliación en Nivel 1b)."""
+    if not YAPE_DEV_PATH.exists():
+        return dict(yape_mz)
+    dev = pd.read_excel(YAPE_DEV_PATH, header=1, dtype=str)
+    dev.columns = _norm_cols(dev)
+    neto = dict(yape_mz)
+    total_dev = 0.0
+    for _, f in dev.iterrows():
+        mz = _norm_mz(f.get("MZ", ""))
+        if not mz or mz == "NAN":
+            continue
+        monto = _float(f.get("MONTO", 0))
+        neto[mz] = neto.get(mz, 0.0) - monto
+        total_dev += monto
+    if total_dev:
+        log.info(f"Yape devoluciones descontadas (solo Nivel 2): S/ {total_dev:.2f}")
+    return neto
+
+
 # ── CARGA: TANQUE TOTAL ───────────────────────────────────────────────────────
 def _cargar_tanque_total() -> float:
-    if not YAPE_TANQUE_PATH.exists():
+    """Tanque de Yape únicamente — alimenta Nivel 1a, que reconcilia contra el
+    crudo bancario de TE PAGÓ (solo Yape). aportes_tanque.xlsx es canal-agnóstico
+    (yape + efectivo, ver DE10) — filtrar CANAL='yape' aquí para no mezclar
+    dinero de efectivo en una reconciliación que es específica del banco."""
+    if not TANQUE_PATH.exists():
         return 0.0
-    df = pd.read_excel(YAPE_TANQUE_PATH, header=0, dtype=str)
+    df = pd.read_excel(TANQUE_PATH, header=1, dtype=str)
     df.columns = _norm_cols(df)
+    if "CANAL" in df.columns:
+        df = df[df["CANAL"].str.strip().str.lower() == "yape"]
+    # MZ=="BLANCO" ya se cuenta vía blancos_tot (blancos_mes.xlsx) — excluir aquí
+    # para no duplicarlo.
+    if "MZ" in df.columns:
+        df = df[df["MZ"].apply(_norm_mz) != "BLANCO"]
     col = next((c for c in df.columns if "MONTO" in c), None)
     total = round(df[col].apply(_float).sum() if col else 0.0, 2)
-    log.info(f"Tanque total: S/ {total:.2f}")
+    log.info(f"Tanque total (yape): S/ {total:.2f}")
     return total
 
 
 # ── CARGA: PAGASTE PROCESADO ──────────────────────────────────────────────────
-def _cargar_pagaste_total() -> float:
+def _cargar_pagaste_total() -> tuple[float, tuple]:
+    """Retorna (total, (fecha_min, fecha_max)) — PAGASTE tiene su propia ventana
+    de fechas, independiente de TE PAGÓ (no se mueven en el mismo rango)."""
     if not PAGASTE_PATH.exists():
-        return 0.0
+        return 0.0, (None, None)
     df = pd.read_excel(PAGASTE_PATH, header=1, dtype=str)
     df.columns = _norm_cols(df)
     total = round(df["MONTO"].apply(_float).sum() if "MONTO" in df.columns else 0.0, 2)
     log.info(f"Pagaste procesado total: S/ {total:.2f}")
-    return total
+    fechas = pd.to_datetime(df["FECHA"], dayfirst=True, errors="coerce").dropna() if "FECHA" in df.columns else pd.Series([], dtype="datetime64[ns]")
+    periodo = (fechas.min(), fechas.max()) if len(fechas) else (None, None)
+    return total, periodo
 
 
 # ── CARGA: PAGOS EFECTIVO ─────────────────────────────────────────────────────
 CORR_PATH = MOD04 / "inputs" / "correcciones_lote.xlsx"
 
-def _cargar_efectivo() -> tuple[dict, float]:
-    """Retorna ({mz: monto}, total) desde pagos_efectivo.xlsx.
-    Excluye MZ=BLANCO y aplica correcciones de lote cross-MZ para que
-    el reporte refleje el mismo lote destino que usa planilla_cobrado."""
+def _cargar_efectivo() -> tuple[dict, dict, dict, float]:
+    """Retorna ({mz: monto}, {(mz,lt): monto}, {(mz,lt): [MESA_COBRADOR_LT]}, total)
+    desde pagos_efectivo.xlsx.
+    Excluye MZ=BLANCO, excluye CONCEPTO no vacío (tanque/honorario/gasto/etc. —
+    igual que _cargar_yape_tepago, ver E1) y aplica correcciones de lote
+    cross-MZ para que el reporte refleje el mismo lote destino que usa
+    planilla_cobrado."""
     df = pd.read_excel(EFEC_PATH, header=1, dtype=str)
     df.columns = _norm_cols(df)
 
     # totales por (mz, lt) para poder aplicar correcciones por lote
     por_lote = {}
+    detalle  = {}
     blancos  = 0.0
     for _, f in df.iterrows():
         mz = _norm_mz(f.get("MZ", ""))
         lt = str(f.get("LT", "")).strip().upper()
+        conc = str(f.get("CONCEPTO", "")).strip().upper()
         if not mz or mz == "NAN":
+            continue
+        if conc and conc not in ("NAN", "NONE", ""):
             continue
         if mz == "BLANCO":
             blancos += _float(f.get("MONTO", 0))
             continue
         key = (mz, lt)
         por_lote[key] = por_lote.get(key, 0.0) + _float(f.get("MONTO", 0))
+        mesa      = str(f.get("MESA", "")).strip()
+        cobrador  = str(f.get("COBRADOR", "")).strip()
+        detalle.setdefault(key, []).append(f"{mesa}_{cobrador}_LT{lt}")
 
     # Aplicar correcciones cross-MZ desde correcciones_lote.xlsx
     if CORR_PATH.exists():
@@ -333,6 +399,8 @@ def _cargar_efectivo() -> tuple[dict, float]:
             monto = por_lote.pop(key_o)
             key_d = (mz_d, lt_d)
             por_lote[key_d] = por_lote.get(key_d, 0.0) + monto
+            refs = detalle.pop(key_o, [])
+            detalle.setdefault(key_d, []).extend(refs)
             log.info(f"Corrección aplicada en reporte: {mz_o}-{lt_o} → {mz_d}-{lt_d} S/ {monto:.2f}")
 
     # Agregar por MZ
@@ -344,28 +412,53 @@ def _cargar_efectivo() -> tuple[dict, float]:
     log.info(f"Efectivo: {len(totales)} MZ · S/ {total:.2f}")
     if blancos:
         log.info(f"Efectivo BLANCO excluido (sin dueño): S/ {blancos:.2f}")
-    return totales, total
+    return totales, por_lote, detalle, total
 
 # ── CARGA: COBRANZA FINAL ─────────────────────────────────────────────────────
-def _cargar_cobranza() -> tuple[dict, dict, float, float]:
-    """Retorna ({mz: yape}, {mz: efectivo}, total_yape, total_efectivo)."""
+def _cargar_cobranza() -> tuple[dict, dict, dict, dict, float, float]:
+    """Retorna ({mz: yape}, {mz: efectivo}, {(mz,lt): yape}, {(mz,lt): efectivo},
+    total_yape, total_efectivo)."""
     df = pd.read_excel(COB_PATH, header=1, dtype=str)
     df.columns = _norm_cols(df)
     yape_mz, efec_mz = {}, {}
+    yape_lote, efec_lote = {}, {}
     for _, f in df.iterrows():
         mz = _norm_mz(f.get("MZ", ""))
         if not mz or mz == "NAN":
             continue
-        yape_mz[mz] = yape_mz.get(mz, 0.0) + _float(f.get("MONTO_YAPE",     0))
-        efec_mz[mz] = efec_mz.get(mz, 0.0) + _float(f.get("MONTO_EFECTIVO", 0))
+        lt = str(f.get("LT", "")).strip().upper()
+        y = _float(f.get("MONTO_YAPE",     0))
+        e = _float(f.get("MONTO_EFECTIVO", 0))
+        yape_mz[mz] = yape_mz.get(mz, 0.0) + y
+        efec_mz[mz] = efec_mz.get(mz, 0.0) + e
+        key = (mz, lt)
+        yape_lote[key] = yape_lote.get(key, 0.0) + y
+        efec_lote[key] = efec_lote.get(key, 0.0) + e
     t_yape = round(sum(yape_mz.values()), 2)
     t_efec = round(sum(efec_mz.values()), 2)
     log.info(f"Cobranza → YAPE: S/ {t_yape:.2f} · EFECTIVO: S/ {t_efec:.2f}")
-    return yape_mz, efec_mz, t_yape, t_efec
+    return yape_mz, efec_mz, yape_lote, efec_lote, t_yape, t_efec
 
 # ── CALCULAR DIFERENCIAS ─────────────────────────────────────────────────────
-def _diferencias_por_mz(reporte: dict, planilla: dict) -> list[dict]:
+def _referencia_por_mz(reporte_lote: dict, planilla_lote: dict, detalle: dict) -> dict:
+    """Para cada MZ, cuenta la historia de POR QUÉ no cuadra: lista las
+    referencias (detalle crudo) de los lotes cuyo monto difiere entre
+    reporte y planilla. MZs sin diferencia por lote no aparecen."""
+    keys = set(reporte_lote) | set(planilla_lote)
+    por_mz: dict = {}
+    for (mz, lt) in sorted(keys):
+        r = round(reporte_lote.get((mz, lt), 0.0), 2)
+        p = round(planilla_lote.get((mz, lt), 0.0), 2)
+        if abs(r - p) < TOLERANCIA:
+            continue
+        refs = detalle.get((mz, lt), [f"LT{lt}"])
+        por_mz.setdefault(mz, []).extend(refs)
+    return {mz: "; ".join(refs) for mz, refs in por_mz.items()}
+
+
+def _diferencias_por_mz(reporte: dict, planilla: dict, referencia: dict = None) -> list[dict]:
     """DIFERENCIA = PLANILLA − REPORTE. Incluye MZs de ambas fuentes."""
+    referencia = referencia or {}
     mzs = sorted(set(reporte) | set(planilla))
     return [
         {
@@ -374,6 +467,7 @@ def _diferencias_por_mz(reporte: dict, planilla: dict) -> list[dict]:
             "planilla":  round(planilla.get(mz, 0.0), 2),
             "diferencia": round(planilla.get(mz, 0.0) - reporte.get(mz, 0.0), 2),
             "ok":        abs(planilla.get(mz, 0.0) - reporte.get(mz, 0.0)) < TOLERANCIA,
+            "referencia": referencia.get(mz, ""),
         }
         for mz in mzs
     ]
@@ -411,7 +505,7 @@ def _fila_resumen(ws, row, seccion, componente, monto, estado=None):
 
 
 def _hoja_resumen(wb, crudo_tepago, crudo_pagaste,
-                  agua, blancos_tot, devueltos_tot, tanque_tot, pagaste_proc,
+                  agua, agua_neto, blancos_tot, devueltos_tot, tanque_tot, pagaste_proc,
                   cob_yape_total, efec_total, cob_efec_total, periodo):
     ws = wb.create_sheet("resumen", 0)
     ws.freeze_panes = "A2"
@@ -434,7 +528,7 @@ def _hoja_resumen(wb, crudo_tepago, crudo_pagaste,
     ri = 3
 
     # ── Nivel 1a: TE PAGÓ ──────────────────────────────────────
-    _gh_resumen(ws, ri, "Nivel 1a — Banco crudo (TE PAGÓ)  vs  agua + blancos + devueltos", "E6F1FB", "0C447C")
+    _gh_resumen(ws, ri, "Nivel 1a — Banco crudo (TE PAGÓ)  vs  agua + blancos + tanque", "E6F1FB", "0C447C")
     ri += 1
     _fila_resumen(ws, ri, "banco crudo", "Total TE PAGÓ en crudo del banco", crudo_tepago)
     ri += 1
@@ -442,15 +536,15 @@ def _hoja_resumen(wb, crudo_tepago, crudo_pagaste,
     ri += 1
     _fila_resumen(ws, ri, "  blancos",   "Sin dueño identificado (blancos_mes + tepago MZ=BLANCO)", blancos_tot)
     ri += 1
-    _fila_resumen(ws, ri, "  devueltos", "Devueltos al remitente (pagos_yape_devolucion)", devueltos_tot)
-    ri += 1
     _fila_resumen(ws, ri, "  tanque",   "Aportes al tanque comunitario (CONCEPTO=tanque)", tanque_tot)
     ri += 1
-    suma_partes = round(agua + blancos_tot + devueltos_tot + tanque_tot, 2)
+    suma_partes = round(agua + blancos_tot + tanque_tot, 2)
     dif_1a = round(suma_partes - crudo_tepago, 2)
-    _fila_resumen(ws, ri, "∑ partes", "agua + blancos + devueltos + tanque", suma_partes)
+    _fila_resumen(ws, ri, "∑ partes", "agua + blancos + tanque", suma_partes)
     ri += 1
     _fila_resumen(ws, ri, "diferencia 1a", "∑ partes − banco crudo", dif_1a, estado=True)
+    ri += 1
+    _fila_resumen(ws, ri, "  devueltos (informativo)", "Devueltos al remitente — reconciliado en Nivel 1b, no en 1a", devueltos_tot)
     ri += 1
 
     # ── Nivel 1b: PAGASTE ──────────────────────────────────────
@@ -467,12 +561,12 @@ def _hoja_resumen(wb, crudo_tepago, crudo_pagaste,
     # ── Nivel 2: agua vs planilla yape ────────────────────────
     _gh_resumen(ws, ri, "Nivel 2 — Agua procesada  vs  planilla cobrada Yape", "FEF9E7", "7D6608")
     ri += 1
-    _fila_resumen(ws, ri, "agua procesada", "pagos_yape_tepago CONCEPTO=vacío", agua)
+    _fila_resumen(ws, ri, "agua procesada (neto)", "pagos_yape_tepago CONCEPTO=vacío − devoluciones", agua_neto)
     ri += 1
     _fila_resumen(ws, ri, "planilla yape",  "planilla_cobrado.MONTO_YAPE", cob_yape_total)
     ri += 1
-    dif_2 = round(cob_yape_total - agua, 2)
-    _fila_resumen(ws, ri, "diferencia 2", "planilla − agua", dif_2, estado=True)
+    dif_2 = round(cob_yape_total - agua_neto, 2)
+    _fila_resumen(ws, ri, "diferencia 2", "planilla − agua neto", dif_2, estado=True)
     ri += 1
 
     # ── Efectivo ───────────────────────────────────────────────
@@ -499,6 +593,8 @@ def _hoja_resumen(wb, crudo_tepago, crudo_pagaste,
 #  7    ¿Qué quedó?     PLANILLA
 #  8    sep
 #  9-10 ¿Cuadra?        DIFERENCIA  ESTADO
+#  11   sep
+#  12   ¿Por qué?       REFERENCIA
 
 _GRUPOS = [
     (1, 1, "¿Qué período?",  GH_PERIODO[0],  GH_PERIODO[1]),
@@ -506,8 +602,9 @@ _GRUPOS = [
     (5, 5, "¿Qué entró?",   GH_REPORTE[0],  GH_REPORTE[1]),
     (7, 7, "¿Qué quedó?",   GH_PLANILLA[0], GH_PLANILLA[1]),
     (9,10, "¿Cuadra?",       GH_CUADRA[0],   GH_CUADRA[1]),
+    (12,12,"¿Por qué?",      GH_PORQUE[0],   GH_PORQUE[1]),
 ]
-_SEP_COLS = [2, 4, 6, 8]
+_SEP_COLS = [2, 4, 6, 8, 11]
 
 def _hoja_por_mz(wb, sheet_name, lbl_reporte, lbl_planilla, filas, periodo):
     ws = wb.create_sheet(sheet_name)
@@ -529,6 +626,7 @@ def _hoja_por_mz(wb, sheet_name, lbl_reporte, lbl_planilla, filas, periodo):
         (7,  lbl_planilla,    GH_PLANILLA[0], GH_PLANILLA[1], 16),
         (9,  "DIFERENCIA",    GH_CUADRA[0],   GH_CUADRA[1],   13),
         (10, "ESTADO",        GH_CUADRA[0],   GH_CUADRA[1],   10),
+        (12, "REFERENCIA",    GH_PORQUE[0],   GH_PORQUE[1],   55),
     ]
     for col, nombre, bg, txt, ancho in col_defs:
         _ch(ws, 2, col, nombre, bg, txt)
@@ -556,6 +654,7 @@ def _hoja_por_mz(wb, sheet_name, lbl_reporte, lbl_planilla, filas, periodo):
         c_e.fill      = PatternFill("solid", start_color=dif_bg)
         c_e.alignment = Alignment(horizontal="center", vertical="center")
         c_e.border    = _borde()
+        _c(ws, ri, 12, r.get("referencia", ""), dif_bg, dif_txt, align="left", size=8)
         ws.row_dimensions[ri].height = 17
 
     # Fila de totales
@@ -567,7 +666,7 @@ def _hoja_por_mz(wb, sheet_name, lbl_reporte, lbl_planilla, filas, periodo):
     dif_bg  = TD_OK  if ok_tot else TD_ERR
     dif_txt = "085041" if ok_tot else "991B1B"
 
-    for col in range(1, 11):
+    for col in range(1, 13):
         _c(ws, tr, col, None, bg="F3F4F6")
     _c(ws, tr, 1, "TOTAL",  "F3F4F6", "374151", bold=True)
     _c(ws, tr, 5, t_rep,    TD_REPORTE,  "185FA5", bold=True, mono=True, align="right")
@@ -586,29 +685,10 @@ def _hoja_por_mz(wb, sheet_name, lbl_reporte, lbl_planilla, filas, periodo):
 # ── MAIN ──────────────────────────────────────────────────────────────────────
 def _sellar_estado_ciclo():
     """Marca arrastre.validado=true en estado_ciclo.json para el ciclo que tiene generado=true."""
-    if not ESTADO_CICLO_PATH.exists():
-        log.warning("estado_ciclo.json no encontrado — sello omitido")
-        return
-    try:
-        data = json.loads(ESTADO_CICLO_PATH.read_text(encoding="utf-8"))
-    except Exception as e:
-        log.warning(f"No se pudo leer estado_ciclo.json: {e}")
-        return
-    ahora = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
-    sellado = []
-    for ciclo, info in data.items():
-        arr = info.get("arrastre", {})
-        if arr.get("generado") and not arr.get("validado"):
-            arr["validado"]    = True
-            arr["validado_en"] = ahora
-            info["ultima_actualizacion"] = ahora
-            sellado.append(ciclo)
+    sellado = repo_estado.sellar_validado(ruta=ESTADO_CICLO_PATH)
     if not sellado:
         log.info("estado_ciclo.json — ningún arrastre pendiente de sello")
         return
-    ESTADO_CICLO_PATH.write_text(
-        json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
     log.info(f"estado_ciclo.json → sellado validado=true · ciclos: {', '.join(sellado)}")
 
 
@@ -622,22 +702,33 @@ def main():
     _validar_inputs()
 
     print("\n[2/4] Cargando datos...")
-    yape_mz, agua_total, periodo = _cargar_yape_tepago()
-    crudo_tepago, crudo_pagaste  = _cargar_crudo_por_tipo(periodo)
-    blancos_tot                  = _cargar_blancos_total()
-    devueltos_tot                = _cargar_devueltos_total()
-    tanque_tot                   = _cargar_tanque_total()
-    pagaste_proc                 = _cargar_pagaste_total()
-    efec_mz, efec_total          = _cargar_efectivo()
-    cob_yape_mz, cob_efec_mz, cob_yape_total, cob_efec_total = _cargar_cobranza()
+    yape_mz, yape_lote, yape_detalle, agua_total, periodo  = _cargar_yape_tepago()
+    pagaste_proc, periodo_pagaste = _cargar_pagaste_total()
+    crudo_tepago, crudo_pagaste   = _cargar_crudo_por_tipo(periodo, periodo_pagaste)
+    blancos_tot                   = _cargar_blancos_total()
+    devueltos_tot                 = _cargar_devueltos_total()
+    tanque_tot                    = _cargar_tanque_total()
+    efec_mz, efec_lote, efec_detalle, efec_total = _cargar_efectivo()
+    cob_yape_mz, cob_efec_mz, cob_yape_lote, cob_efec_lote, cob_yape_total, cob_efec_total = _cargar_cobranza()
 
     print("\n[3/4] Calculando diferencias...")
-    dif_yape = _diferencias_por_mz(yape_mz, cob_yape_mz)
-    dif_efec = _diferencias_por_mz(efec_mz, cob_efec_mz)
+    # Nivel 2 compara contra planilla_cobrado, que ya netea devoluciones
+    # (MONTO_YAPE queda vacío para el lote devuelto) — agua_total de Nivel 1a
+    # NO se toca (debe quedar crudo para cuadrar contra crudo_tepago).
+    yape_mz_neto   = _netear_devoluciones(yape_mz)
+    agua_total_neto = round(sum(yape_mz_neto.values()), 2)
+    ref_yape = _referencia_por_mz(yape_lote, cob_yape_lote, yape_detalle)
+    ref_efec = _referencia_por_mz(efec_lote, cob_efec_lote, efec_detalle)
+    dif_yape = _diferencias_por_mz(yape_mz_neto, cob_yape_mz, ref_yape)
+    dif_efec = _diferencias_por_mz(efec_mz, cob_efec_mz, ref_efec)
 
-    dif_1a       = round((agua_total + blancos_tot + devueltos_tot + tanque_tot) - crudo_tepago, 2)
+    # devueltos_tot NO entra: es plata PAGASTE (salida), tiene su propia
+    # reconciliación en Nivel 1b. El pago original de Rosalina ya está
+    # contado una vez en agua_total y otra en crudo_tepago — sumar
+    # devueltos_tot aquí agregaba una tercera cantidad ajena a TE PAGÓ.
+    dif_1a       = round((agua_total + blancos_tot + tanque_tot) - crudo_tepago, 2)
     dif_1b       = round(pagaste_proc - crudo_pagaste, 2)
-    dif_2        = round(cob_yape_total - agua_total, 2)
+    dif_2        = round(cob_yape_total - agua_total_neto, 2)
     dif_efec_tot = round(cob_efec_total - efec_total, 2)
 
     ok_1a        = abs(dif_1a) < TOLERANCIA
@@ -650,7 +741,7 @@ def main():
     wb = Workbook()
     wb.remove(wb.active)
     _hoja_resumen(wb, crudo_tepago, crudo_pagaste,
-                  agua_total, blancos_tot, devueltos_tot, tanque_tot, pagaste_proc,
+                  agua_total, agua_total_neto, blancos_tot, devueltos_tot, tanque_tot, pagaste_proc,
                   cob_yape_total, efec_total, cob_efec_total, periodo)
     _hoja_por_mz(wb, "yape_por_mz",     "AGUA_PROCESADA",   "PLANILLA_YAPE",     dif_yape, periodo)
     _hoja_por_mz(wb, "efectivo_por_mz", "REPORTE_EFECTIVO", "PLANILLA_EFECTIVO", dif_efec, periodo)

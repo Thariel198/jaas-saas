@@ -2,12 +2,11 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>7_cierre — Diagrama Consolidador de Cierre</title>
+<title>7_cierre — Diagrama detallado (transición de período)</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: Arial, sans-serif; background: #F8FAFB; color: #1A1A1A; font-size: 13px; }
 
-  /* ─── Layout ─── */
   .page { max-width: 1100px; margin: 0 auto; padding: 24px 20px 60px; }
   h1 { font-size: 20px; color: #1A5276; border-bottom: 3px solid #1A5276; padding-bottom: 8px; margin-bottom: 4px; }
   .subtitle { color: #555; font-size: 12px; margin-bottom: 28px; }
@@ -16,8 +15,8 @@
   h2 { font-size: 13px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;
        color: #555; border-bottom: 1px solid #DDD; padding-bottom: 4px; margin-bottom: 14px; }
 
-  /* ─── Approach cards (top 3-column) ─── */
-  .approaches { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  /* ─── Approach cards (2-column: viejo vs nuevo) ─── */
+  .approaches { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .card { border-radius: 6px; padding: 14px; border: 2px solid transparent; }
   .card-rejected { background: #FEF2F2; border-color: #FCA5A5; }
   .card-chosen   { background: #ECFDF5; border-color: #34D399; }
@@ -32,16 +31,17 @@
   .card-rejected ul li { color: #7F1D1D; }
   .card-chosen   ul li { color: #064E3B; }
 
-  /* ─── Timeline flow ─── */
+  /* ─── Timeline flow (4 pasos internos) ─── */
   .timeline { display: flex; gap: 0; align-items: flex-start; }
   .tphase { flex: 1; }
   .tphase-header { padding: 7px 12px; border-radius: 4px 4px 0 0; font-weight: bold; font-size: 11px;
                    text-transform: uppercase; letter-spacing: 0.4px; }
+  .phase-red    { background: #C0392B; color: #FFF; }
   .phase-blue   { background: #1A5276; color: #FFF; }
   .phase-green  { background: #1E8449; color: #FFF; }
-  .phase-purple { background: #5B21B6; color: #FFF; }
-  .tphase-body  { background: #FFF; border: 1px solid #DDD; border-top: none; padding: 12px; min-height: 140px; border-radius: 0 0 4px 4px; }
-  .arrow-between { display: flex; align-items: center; padding-top: 36px; color: #999; font-size: 20px; flex: 0 0 32px; justify-content: center; }
+  .phase-yellow { background: #B7950B; color: #FFF; }
+  .tphase-body  { background: #FFF; border: 1px solid #DDD; border-top: none; padding: 12px; min-height: 150px; border-radius: 0 0 4px 4px; }
+  .arrow-between { display: flex; align-items: center; padding-top: 36px; color: #999; font-size: 20px; flex: 0 0 26px; justify-content: center; }
 
   /* ─── Script boxes ─── */
   .script-box { background: #EBF5FB; border: 1px solid #AED6F1; border-radius: 4px; padding: 8px 10px; margin-bottom: 8px; }
@@ -52,167 +52,164 @@
   .file-tag { display: inline-block; border-radius: 3px; padding: 3px 8px; font-family: Consolas, monospace;
               font-size: 10px; font-weight: bold; margin: 2px 0; }
   .file-audit   { background: #EBF5FB; color: #1A5276; border: 1px solid #AED6F1; }
-  .file-operat  { background: #E9F7EF; color: #1E5C3A; border: 1px solid #A9DFBF; }
-  .file-inter   { background: #FFF3CD; color: #7D5A00; border: 1px solid #FFDB70; }
   .file-final   { background: #D5F5E3; color: #145A32; border: 1px solid #82E0AA; }
+  .file-temp    { background: #FEF9E7; color: #7D5A00; border: 1px solid #F0C040; }
+  .file-live    { background: #E8ECF0; color: #34495E; border: 1px solid #B6C1CC; }
   .file-block   { display: block; margin-bottom: 4px; }
 
-  /* ─── Business rules table ─── */
-  .rules-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 0; border: 1px solid #DDD; border-radius: 6px; overflow: hidden; }
-  .rules-header { background: #34495E; color: #FFF; font-weight: bold; padding: 8px 10px; font-size: 11px; }
-  .rule-row-even { background: #F8F8F8; }
-  .rule-row-odd  { background: #FFF; }
-  .rules-cell { padding: 8px 10px; font-size: 11px; border-top: 1px solid #EEE; vertical-align: top; }
-  .case-cortado    { color: #7D5A00; font-weight: bold; }
-  .case-infundado  { color: #7F1D1D; font-weight: bold; }
-  .case-fundado    { color: #065F46; font-weight: bold; }
-  .case-revision   { color: #5B21B6; font-weight: bold; }
-  .outcome-ok   { color: #065F46; }
-  .outcome-warn { color: #7D5A00; }
-  .outcome-dev  { color: #1A5276; }
-  .outcome-blk  { color: #5B21B6; }
+  /* ─── Baldes table ─── */
+  .baldes-grid { display: grid; grid-template-columns: 1fr 2fr 1fr; gap: 0; border: 1px solid #DDD; border-radius: 6px; overflow: hidden; }
+  .baldes-header { background: #34495E; color: #FFF; font-weight: bold; padding: 8px 10px; font-size: 11px; }
+  .balde-row-even { background: #F8F8F8; }
+  .balde-row-odd  { background: #FFF; }
+  .balde-cell { padding: 10px 10px; font-size: 11.5px; border-top: 1px solid #EEE; vertical-align: top; }
+  .balde-name-1 { color: #34495E; font-weight: bold; }
+  .balde-name-2 { color: #145A32; font-weight: bold; }
+  .balde-name-3 { color: #7D5A00; font-weight: bold; }
 
   /* ─── 7_cierre consolidator box ─── */
   .consolidator { background: #FFF; border: 2px solid #1E8449; border-radius: 8px; padding: 16px 20px; }
   .consolidator-title { font-weight: bold; color: #1E8449; font-size: 15px; margin-bottom: 4px; }
   .consolidator-sub { color: #555; font-size: 11px; margin-bottom: 14px; }
-  .con-row { display: grid; grid-template-columns: 1fr 60px 1fr; gap: 0; align-items: center; }
-  .con-col { }
-  .con-arrow { text-align: center; color: #1E8449; font-size: 22px; }
+  .con-row { display: grid; grid-template-columns: 1fr 60px 1fr; gap: 0; align-items: start; }
+  .con-arrow { text-align: center; color: #1E8449; font-size: 22px; padding-top: 20px; }
   .con-label { font-size: 10px; font-weight: bold; text-transform: uppercase; color: #888; margin-bottom: 6px; letter-spacing: 0.4px; }
   .input-list, .output-list { list-style: none; padding: 0; }
-  .input-list li, .output-list li { margin-bottom: 5px; }
+  .input-list li, .output-list li { margin-bottom: 8px; }
 
-  /* ─── Design questions ─── */
-  .questions { background: #FFF3CD; border: 1px solid #FFC107; border-radius: 6px; padding: 14px 16px; }
-  .questions h3 { color: #7D5A00; font-size: 12px; font-weight: bold; margin-bottom: 8px; }
-  .questions ul { padding-left: 16px; }
-  .questions ul li { color: #7D5A00; font-size: 12px; margin-bottom: 5px; }
+  /* ─── Decisions table ─── */
+  .decisions-grid { display: grid; grid-template-columns: 60px 1fr 1.4fr; gap: 0; border: 1px solid #DDD; border-radius: 6px; overflow: hidden; }
+  .dec-header { background: #34495E; color: #FFF; font-weight: bold; padding: 8px 10px; font-size: 11px; }
+  .dec-row-even { background: #F8F8F8; }
+  .dec-row-odd  { background: #FFF; }
+  .dec-cell { padding: 8px 10px; font-size: 11.5px; border-top: 1px solid #EEE; vertical-align: top; }
+  .dec-id { font-weight: bold; color: #1A5276; font-family: Consolas, monospace; }
 
   /* ─── Legend ─── */
   .legend { display: flex; gap: 12px; flex-wrap: wrap; }
   .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #444; }
   .legend-dot { width: 14px; height: 14px; border-radius: 2px; flex-shrink: 0; }
 
-  /* ─── Nota de negocio ─── */
+  /* ─── Nota ─── */
   .nota { background: #F3E8FF; border-left: 3px solid #5B21B6; padding: 10px 14px; border-radius: 0 4px 4px 0; font-size: 12px; color: #5B21B6; margin-top: 12px; }
   .nota strong { color: #3B0764; }
 
-  /* ─── Divider ─── */
   .divider { border: none; border-top: 1px dashed #CCC; margin: 28px 0; }
 </style>
 </head>
 <body>
 <div class="page">
 
-  <h1>7_cierre — Diagrama Consolidador de Cierre</h1>
-  <div class="subtitle">Junio 2026 · Diseño acordado en sesión · Pendiente de aprobación antes de codificar</div>
+  <h1>7_cierre — Diagrama detallado (transición de período)</h1>
+  <div class="subtitle">Rediseño 2026-07-03 · CRAD cerrado en sesión · vista rápida: diagrama_flujo_7_cierre.html</div>
 
   <!-- ══════════════════════════════════════════════════
-       SECCIÓN 1: Los 3 enfoques — por qué se elige 7_cierre
+       SECCIÓN 1: Por qué cambió el diseño
        ══════════════════════════════════════════════════ -->
   <section>
-    <h2>¿Por qué 7_cierre? — 3 enfoques evaluados</h2>
+    <h2>Por qué el diseño original quedó obsoleto</h2>
     <div class="approaches">
 
       <div class="card card-rejected">
-        <span class="badge badge-no">✗ Descartado</span>
-        <div class="card-title">Enfoque A — Push directo</div>
+        <span class="badge badge-no">✗ Diseño viejo</span>
+        <div class="card-title">7_cierre = generador de arrastres</div>
         <ul>
-          <li>6_corte escribe la penalidad (S/40) directo en arrastre</li>
-          <li>No sabe si el reclamo fue fundado o no</li>
-          <li><strong>Problema:</strong> escribe penalidad sin conocer el resultado del reclamo</li>
-          <li>Habría que borrar / corregir después → antipatrón</li>
-        </ul>
-      </div>
-
-      <div class="card card-rejected">
-        <span class="badge badge-no">✗ Descartado</span>
-        <div class="card-title">Enfoque B — 4b como segundo writer</div>
-        <ul>
-          <li>4b_reclamos escribe también en arrastre_corte</li>
-          <li>Rompe el principio: <em>un archivo = un solo writer</em></li>
-          <li><strong>Problema:</strong> dos módulos tocan el mismo archivo con lógica distinta</li>
-          <li>Difícil de auditar, propenso a condiciones de carrera</li>
+          <li>Leía arrastre_corte_intermedio (6_corte) + resolucion_reclamos (4b)</li>
+          <li>Producía arrastre_corte_final / arrastre_deuda_final</li>
+          <li>Copiaba esos finales a 2_planilla/inputs/</li>
+          <li><strong>Problema:</strong> ese trabajo ya lo absorbió otro módulo — el diseño quedó duplicado</li>
         </ul>
       </div>
 
       <div class="card card-chosen">
-        <span class="badge badge-yes">✓ Elegido</span>
-        <div class="card-title">Enfoque C — 7_cierre Consolidador</div>
+        <span class="badge badge-yes">✓ Diseño nuevo</span>
+        <div class="card-title">7_cierre = transición de período</div>
         <ul>
-          <li>6_corte genera un arrastre <em>intermedio</em> (sin decisión final)</li>
-          <li>4b_reclamos resuelve los reclamos (archivos propios)</li>
-          <li>7_cierre lee ambos al cierre y produce el arrastre <em>final</em></li>
-          <li>Un único escritor por archivo · Auditable · Idempotente</li>
+          <li>NO genera arrastres — eso ya lo hace <code>arrastre_consolidado</code> (5_cobranza, OUTPUT 6)</li>
+          <li>NO copia a inputs/ — 2_planilla lee en vivo (Opción A, writer único)</li>
+          <li>Su trabajo real: <strong>GATE</strong> · <strong>COSECHAR</strong> (foto) · <strong>FREEZE</strong> · <strong>LIMPIAR</strong></li>
+          <li>Único módulo que marca un mes como CERRADO e inmutable</li>
         </ul>
       </div>
 
+    </div>
+    <div class="nota">
+      <strong>Qué absorbió el scope viejo:</strong> <code>arrastre_consolidado</code> (5_cobranza) ya descompone
+      el saldo por prioridad P1..P5 (agua·corte·multa·acuerdos·convenio). <code>seguimiento_pueblo</code> (ledger
+      event-sourced) ya lleva el saldo vivo de multa/acuerdos/convenio. No queda nada de "generar arrastre" para
+      que 7_cierre haga — solo falta *transicionar* el mes.
     </div>
   </section>
 
   <hr class="divider">
 
   <!-- ══════════════════════════════════════════════════
-       SECCIÓN 2: Flujo durante el mes
+       SECCIÓN 2: Los 4 pasos internos
        ══════════════════════════════════════════════════ -->
   <section>
-    <h2>Flujo durante el mes — qué genera cada módulo</h2>
+    <h2>Los 4 pasos de consolidar_cierre.py</h2>
 
     <div class="timeline">
 
-      <!-- FASE 1: 6_corte -->
+      <!-- PASO 1 -->
       <div class="tphase">
-        <div class="tphase-header phase-blue">① 6_corte · Inicio de corte</div>
+        <div class="tphase-header phase-red">① GATE</div>
+        <div class="tphase-body">
+          <div class="script-box" style="background:#FDEDEC;border-color:#F1948A;">
+            <div class="script-name" style="color:#922B21;">¿validado == true?</div>
+            <div class="script-desc">Lee estado_ciclo.json[mes].arrastre.validado<br>
+              (sellado por 5b_validacion). Si falta → <strong>aborta</strong>, no se cierra
+              un mes sin validar.</div>
+          </div>
+          <span class="file-tag file-live file-block">estado_ciclo.json<br><small>fuente del gate</small></span>
+        </div>
+      </div>
+
+      <div class="arrow-between">→</div>
+
+      <!-- PASO 2 -->
+      <div class="tphase">
+        <div class="tphase-header phase-blue">② COSECHAR</div>
         <div class="tphase-body">
           <div class="script-box">
-            <div class="script-name">generar_lista.py</div>
-            <div class="script-desc">Lee planilla_cobrado · filtra SALDO &gt; 0 AND MES_ANTERIOR ≥ 8<br>
-              Cruza con reclamos_YYYY-MM.xlsx → agrega ESTADO_RECLAMO y EJECUTAR_CORTE
-            </div>
+            <div class="script-name">copiar → archivo/YYYY-MM/</div>
+            <div class="script-desc">Canónicos derivados (BALDE 2) + fuentes de pago
+              mutables del período. Carpeta TRACKEADA en git — la foto inmutable.</div>
           </div>
-          <span class="file-tag file-audit file-block">lista_corte.xlsx — AUDITORÍA<br><small>Todos los elegibles + ESTADO_RECLAMO + EJECUTAR_CORTE</small></span>
-          <span class="file-tag file-operat file-block">corte_fisico_YYYY-MM.xlsx — OPERARIO<br><small>Solo EJECUTAR_CORTE = SI · sin reclamos bloqueados</small></span>
-          <span class="file-tag file-inter file-block">arrastre_corte_intermedio_YYYY-MM.xlsx<br><small>Todos los cortados · estado de reclamo · SIN penalidad final</small></span>
+          <span class="file-tag file-final file-block">arrastre_consolidado · planilla_cobrado · arrastre_devolucion</span>
+          <span class="file-tag file-final file-block">mesa_1..7.xlsx · correcciones_lote.xlsx</span>
         </div>
       </div>
 
       <div class="arrow-between">→</div>
 
-      <!-- FASE 2: Operario + Supervisor -->
+      <!-- PASO 3 -->
       <div class="tphase">
-        <div class="tphase-header phase-purple">② Durante el mes · Humanos deciden</div>
-        <div class="tphase-body">
-          <div class="script-box" style="background:#F3E8FF;border-color:#C4B5FD;">
-            <div class="script-name" style="color:#5B21B6;">Operario — corte físico</div>
-            <div class="script-desc">Lee <em>corte_fisico</em> · solo visita hogares con EJECUTAR=SI<br>
-              No ve los que tienen reclamo bloqueado</div>
-          </div>
-          <div class="script-box" style="background:#F3E8FF;border-color:#C4B5FD;">
-            <div class="script-name" style="color:#5B21B6;">Supervisor — resolución reclamos</div>
-            <div class="script-desc">4b_reclamos: resuelve EN_REVISION<br>
-              Marca ESTADO = RESUELTO / RECHAZADO / FUNDADO<br>
-              Escribe resolucion_reclamos_YYYY-MM.xlsx</div>
-          </div>
-          <span class="file-tag file-block" style="background:#F3E8FF;color:#5B21B6;border-color:#C4B5FD;">resolucion_reclamos_YYYY-MM.xlsx</span>
-        </div>
-      </div>
-
-      <div class="arrow-between">→</div>
-
-      <!-- FASE 3: 7_cierre -->
-      <div class="tphase">
-        <div class="tphase-header phase-green">③ Fin de mes · 7_cierre consolida</div>
+        <div class="tphase-header phase-green">③ FREEZE</div>
         <div class="tphase-body">
           <div class="script-box" style="background:#E9F7EF;border-color:#A9DFBF;">
-            <div class="script-name" style="color:#1E5C3A;">consolidar_cierre.py</div>
-            <div class="script-desc">Lee arrastre_intermedio + resolucion_reclamos<br>
-              Aplica reglas de penalidad final<br>
-              Produce arrastres <em>finales</em> para el próximo mes
-            </div>
+            <div class="script-name" style="color:#1E5C3A;">estado = CERRADO</div>
+            <div class="script-desc">Sella estado_ciclo[mes].estado = "CERRADO" +
+              cerrado_en timestamp. A partir de acá el mes es inmutable por convención.</div>
           </div>
-          <span class="file-tag file-final file-block">arrastre_corte_final_YYYY-MM.xlsx<br><small>Para 2_planilla del próximo mes</small></span>
-          <span class="file-tag file-final file-block">arrastre_deuda_final_YYYY-MM.xlsx<br><small>Para 2_planilla del próximo mes</small></span>
+          <span class="file-tag file-final file-block">estado_ciclo.json (actualizado)</span>
+        </div>
+      </div>
+
+      <div class="arrow-between">→</div>
+
+      <!-- PASO 4 -->
+      <div class="tphase">
+        <div class="tphase-header phase-yellow">④ LIMPIAR</div>
+        <div class="tphase-body">
+          <div class="script-box" style="background:#FEF9E7;border-color:#F0C040;">
+            <div class="script-name" style="color:#7D5A00;">reset + borrar basura</div>
+            <div class="script-desc">Solo lo YA cosechado en el paso ②. mesa_*/correcciones
+              vuelven a template vacío (fila-ejemplo). Borra pre_dedup/discrepancias.
+              Month-stamped se deja quieto (no colisiona).</div>
+          </div>
+          <span class="file-tag file-temp file-block">mesa_1..7.xlsx → template vacío</span>
+          <span class="file-tag file-temp file-block">*_pre_dedup_* → borrado</span>
         </div>
       </div>
 
@@ -222,40 +219,76 @@
   <hr class="divider">
 
   <!-- ══════════════════════════════════════════════════
-       SECCIÓN 3: 7_cierre — entradas y salidas detalladas
+       SECCIÓN 3: Los 3 baldes
        ══════════════════════════════════════════════════ -->
   <section>
-    <h2>7_cierre — Entradas y salidas</h2>
+    <h2>Los 3 baldes — clasificación completa de archivos en el borde de mes</h2>
+
+    <div class="baldes-grid">
+      <div class="baldes-header">Balde</div>
+      <div class="baldes-header">Qué contiene</div>
+      <div class="baldes-header">Qué hace 7_cierre</div>
+
+      <div class="balde-cell balde-row-even balde-name-1">① Permanente<br><small>(ledger/acumulador)</small></div>
+      <div class="balde-cell balde-row-even">seguimiento_pueblo · blancos_acumulados · registro_cortes ·
+        usuarios_id · data_boletas_audit · estado_ciclo.json · registro_operario_acumulado ·
+        trazabilidad_cobranza/reclamos</div>
+      <div class="balde-cell balde-row-even">Nada. Vive siempre, julio le hace <em>append</em>.
+        Se consulta vivo filtrando por período — nunca se fotografía.</div>
+
+      <div class="balde-cell balde-row-odd balde-name-2">② Arrastre del mes<br><small>(foto + input de julio)</small></div>
+      <div class="balde-cell balde-row-odd">arrastre_consolidado · planilla_cobrado · arrastre_devolucion
+        (REVISION manual) · mesa_1..7.xlsx · correcciones_lote.xlsx</div>
+      <div class="balde-cell balde-row-odd"><strong>COSECHA</strong> a archivo/YYYY-MM/ (paso ②),
+        luego <strong>RESET</strong> a template los mutables (paso ④). Julio lee el arrastre desde acá.</div>
+
+      <div class="balde-cell balde-row-even balde-name-3">③ Temporal del mes<br><small>(no cruza)</small></div>
+      <div class="balde-cell balde-row-even">discrepancias_cobranza · validacion_errores ·
+        resumen_recaudacion · trazabilidad_*_pre_dedup_* · arrastre_deuda (residuo) ·
+        lecturas_planilla_2026-06 (month-stamped)</div>
+      <div class="balde-cell balde-row-even"><strong>BORRA</strong> la basura one-time. Deja quieto
+        lo month-stamped (julio usa *_2026-07, no colisiona).</div>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- ══════════════════════════════════════════════════
+       SECCIÓN 4: Entradas y salidas del script
+       ══════════════════════════════════════════════════ -->
+  <section>
+    <h2>consolidar_cierre.py — entradas y salidas</h2>
 
     <div class="consolidator">
-      <div class="consolidator-title">7_cierre / consolidar_cierre.py</div>
-      <div class="consolidator-sub">Único módulo que escribe arrastre_corte_final. Corre una vez al cierre del período de gracia.</div>
+      <div class="consolidator-title">7_cierre / consolidar_cierre.py --mes 2026-06</div>
+      <div class="consolidator-sub">Único módulo que sella estado_ciclo → CERRADO. Corre una vez al cierre del período, idempotente.</div>
 
       <div class="con-row">
-        <!-- INPUTS -->
         <div class="con-col">
-          <div class="con-label">Lee (inputs)</div>
+          <div class="con-label">Lee</div>
           <ul class="input-list">
-            <li><span class="file-tag file-inter">arrastre_corte_intermedio_YYYY-MM.xlsx</span><br>
-                <small style="color:#888;padding-left:4px;">de 6_corte/outputs/ · todos los cortados con ESTADO_RECLAMO</small></li>
-            <li style="margin-top:8px;"><span class="file-tag" style="background:#F3E8FF;color:#5B21B6;border:1px solid #C4B5FD;">resolucion_reclamos_YYYY-MM.xlsx</span><br>
-                <small style="color:#888;padding-left:4px;">de 4b_reclamos/outputs/ · decisiones del supervisor</small></li>
-            <li style="margin-top:8px;"><span class="file-tag file-audit">planilla_cobrado_YYYY-MM.xlsx</span><br>
-                <small style="color:#888;padding-left:4px;">de 5_cobranza/outputs/ · arrastre de deuda vigente</small></li>
+            <li><span class="file-tag file-live">estado_ciclo.json</span><br>
+                <small style="color:#888;">gate: arrastre.validado</small></li>
+            <li><span class="file-tag file-audit">arrastre_consolidado_YYYY-MM.xlsx</span><br>
+                <small style="color:#888;">de 5_cobranza/outputs/</small></li>
+            <li><span class="file-tag file-audit">planilla_cobrado.xlsx · arrastre_devolucion</span><br>
+                <small style="color:#888;">de 5_cobranza/outputs/</small></li>
+            <li><span class="file-tag file-audit">mesa_1..7.xlsx · correcciones_lote.xlsx</span><br>
+                <small style="color:#888;">de 4_pagos/efectivo/inputs/ · 5_cobranza/inputs/</small></li>
           </ul>
         </div>
 
-        <!-- ARROW -->
         <div class="con-arrow">⟹</div>
 
-        <!-- OUTPUTS -->
         <div class="con-col">
-          <div class="con-label">Produce (outputs) y copia a 2_planilla/inputs/</div>
+          <div class="con-label">Produce</div>
           <ul class="output-list">
-            <li><span class="file-tag file-final">arrastre_corte_final_YYYY-MM.xlsx</span><br>
-                <small style="color:#888;padding-left:4px;">Columnas: MZ · LT · NOMBRE · CORTE_RECONEXION · PENALIDAD · ESTADO_DECISION · MES_ORIGEN</small></li>
-            <li style="margin-top:8px;"><span class="file-tag file-final">arrastre_deuda_final_YYYY-MM.xlsx</span><br>
-                <small style="color:#888;padding-left:4px;">Columnas: MZ · LT · NOMBRE · SALDO · MES_ANTERIOR · MES_ORIGEN</small></li>
+            <li><span class="file-tag file-final">archivo/YYYY-MM/*.xlsx</span><br>
+                <small style="color:#888;">foto trackeada — canónicos + fuentes de pago</small></li>
+            <li><span class="file-tag file-final">estado_ciclo.json (CERRADO)</span></li>
+            <li><span class="file-tag file-temp">mesa_*/correcciones → reset a template</span></li>
+            <li><span class="file-tag file-live">consola: comando git listo</span><br>
+                <small style="color:#888;">persistir es un paso separado, NO auto-commit</small></li>
           </ul>
         </div>
       </div>
@@ -265,113 +298,44 @@
   <hr class="divider">
 
   <!-- ══════════════════════════════════════════════════
-       SECCIÓN 4: Reglas de negocio — qué hace 7_cierre con cada caso
+       SECCIÓN 5: Decisiones de diseño cerradas
        ══════════════════════════════════════════════════ -->
   <section>
-    <h2>Reglas de negocio — qué hace 7_cierre con cada usuario</h2>
+    <h2>Decisiones de diseño — cerradas en sesión 2026-07-03</h2>
 
-    <div class="rules-grid">
-      <div class="rules-header">Caso</div>
-      <div class="rules-header">¿Va en corte_fisico?</div>
-      <div class="rules-header">¿Va en arrastre_corte_final?</div>
-      <div class="rules-header">¿Con qué monto?</div>
+    <div class="decisions-grid">
+      <div class="dec-header">#</div>
+      <div class="dec-header">Decisión</div>
+      <div class="dec-header">Por qué</div>
 
-      <!-- Fila 1 -->
-      <div class="rules-cell rule-row-even"><span class="case-cortado">Cortado · sin reclamo</span></div>
-      <div class="rules-cell rule-row-even outcome-ok">✓ Sí — operario lo visita</div>
-      <div class="rules-cell rule-row-even outcome-ok">✓ Sí</div>
-      <div class="rules-cell rule-row-even outcome-ok">S/40 total<br><small>(S/20 penalidad + S/20 reconexión)</small></div>
+      <div class="dec-cell dec-row-even dec-id">A1</div>
+      <div class="dec-cell dec-row-even">Limpiar = reset a template (no borrar)</div>
+      <div class="dec-cell dec-row-even">Julio necesita mesa_* vacíos con fila-ejemplo, no ausentes</div>
 
-      <!-- Fila 2 -->
-      <div class="rules-cell rule-row-odd"><span class="case-infundado">Cortado · reclamo RECHAZADO</span><br><small>(supervisor rechazó el reclamo)</small></div>
-      <div class="rules-cell rule-row-odd outcome-warn">✓ Sí — igual se corta</div>
-      <div class="rules-cell rule-row-odd outcome-warn">✓ Sí</div>
-      <div class="rules-cell rule-row-odd outcome-warn">S/40 total<br><small>(S/20 penalidad que ya tenía + S/20 reconexión retroactiva)</small></div>
+      <div class="dec-cell dec-row-odd dec-id">A2</div>
+      <div class="dec-cell dec-row-odd">archivo/ guarda también las fuentes de pago mutables (mesa, correcciones)</div>
+      <div class="dec-cell dec-row-odd">git-history versiona código, no datos. Un slot mutable destruye el dato
+        del período al reusarse. archivo/YYYY-MM/ = ancestro file-era de la partición por período (Postgres futuro)</div>
 
-      <!-- Fila 3 -->
-      <div class="rules-cell rule-row-even"><span class="case-fundado">Cortado · reclamo FUNDADO</span><br><small>(supervisor aprobó, el reclamo era válido)</small></div>
-      <div class="rules-cell rule-row-even" style="color:#7F1D1D;">✗ No — bloqueado<br><small>(retroactivo: no se debió cortar)</small></div>
-      <div class="rules-cell rule-row-even" style="color:#7F1D1D;">✗ No va en arrastre</div>
-      <div class="rules-cell rule-row-even outcome-dev">S/0 — sin cargo<br><small>Devolución si ya pagó S/20 de penalidad</small></div>
+      <div class="dec-cell dec-row-even dec-id">A3</div>
+      <div class="dec-cell dec-row-even">arrastre_deuda = residuo · lista_multas = NO residuo</div>
+      <div class="dec-cell dec-row-even">arrastre_deuda sin consumidor (2_planilla migró al consolidado);
+        lista_multas se regenera cada ciclo dentro de 6b (concepto distinto: elegibilidad, no saldo)</div>
 
-      <!-- Fila 4 -->
-      <div class="rules-cell rule-row-odd"><span class="case-revision">EN_REVISION o PENDIENTE</span><br><small>(aún no resuelta al cierre)</small></div>
-      <div class="rules-cell rule-row-odd outcome-blk">✗ No — bloqueado<br><small>No se corta físicamente este mes</small></div>
-      <div class="rules-cell rule-row-odd outcome-blk">⏳ Se arrastra SIN penalidad<br><small>Queda como MES_ANTERIOR aumentado para el próximo mes</small></div>
-      <div class="rules-cell rule-row-odd outcome-blk">Sin S/20 de penalidad ahora<br><small>Si el próximo mes no paga → entra como deuda acumulada</small></div>
-    </div>
+      <div class="dec-cell dec-row-odd dec-id">Q1</div>
+      <div class="dec-cell dec-row-odd">NO auto-commit — el script sella + imprime el comando git</div>
+      <div class="dec-cell dec-row-odd">Cerrar ≠ persistir. El backend (git hoy, DB mañana) es pluggable —
+        un agente hace cerrar() → persistir() sin tocar 7_cierre</div>
 
-    <div class="nota">
-      <strong>Regla de negocio especial — Ciclo junio 2026:</strong>
-      Los reclamos EN_REVISION no se cortan físicamente este mes porque el sistema aún está en rodaje y
-      hay muchos reclamos pendientes. En ciclos futuros esto puede cambiar a: "si no resuelve en período
-      de gracia → el corte procede de todos modos". Esta regla temporal debe documentarse en README del módulo.
-    </div>
-  </section>
+      <div class="dec-cell dec-row-even dec-id">Q2</div>
+      <div class="dec-cell dec-row-even">NO snapshot de ledgers — se consultan vivos con filtro por período</div>
+      <div class="dec-cell dec-row-even">Ledger append-only → cualquier estado pasado es reconstruible
+        (get_saldo(mes)). Fotografiarlo = segunda copia = riesgo de desync (anti-patrón B7)</div>
 
-  <hr class="divider">
-
-  <!-- ══════════════════════════════════════════════════
-       SECCIÓN 5: Dos archivos de 6_corte — auditoría vs operación
-       ══════════════════════════════════════════════════ -->
-  <section>
-    <h2>Dos archivos de 6_corte — ¿por qué dos?</h2>
-
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-
-      <div style="border:1px solid #AED6F1;border-radius:6px;padding:14px;background:#EBF5FB;">
-        <div style="font-weight:bold;color:#1A5276;margin-bottom:6px;">lista_corte.xlsx — AUDITORÍA</div>
-        <ul style="padding-left:16px;font-size:12px;color:#1A5276;">
-          <li>Contiene <strong>todos los elegibles</strong> sin excepción</li>
-          <li>Columna ESTADO_RECLAMO: SIN_RECLAMO / EN_REVISION / PENDIENTE</li>
-          <li>Columna EJECUTAR_CORTE: SI / NO + MOTIVO</li>
-          <li>Para auditoría y revisión del supervisor</li>
-          <li>No se filtra nunca · es la fuente de verdad</li>
-        </ul>
-        <div style="margin-top:8px;font-size:11px;color:#555;">
-          Pregunta que responde: <em>"¿quién era elegible para corte y por qué o por qué no se ejecutó?"</em>
-        </div>
-      </div>
-
-      <div style="border:1px solid #A9DFBF;border-radius:6px;padding:14px;background:#E9F7EF;">
-        <div style="font-weight:bold;color:#1E5C3A;margin-bottom:6px;">corte_fisico_YYYY-MM.xlsx — OPERARIO</div>
-        <ul style="padding-left:16px;font-size:12px;color:#1E5C3A;">
-          <li>Solo los usuarios con <strong>EJECUTAR_CORTE = SI</strong></li>
-          <li>Sin columna de reclamos (no confunde al operario)</li>
-          <li>Lista limpia de visitas a realizar</li>
-          <li>Se puede regenerar desde lista_corte en cualquier momento</li>
-        </ul>
-        <div style="margin-top:8px;font-size:11px;color:#555;">
-          Pregunta que responde: <em>"¿a quién voy hoy a hacer el corte físico?"</em>
-        </div>
-      </div>
-
-    </div>
-  </section>
-
-  <hr class="divider">
-
-  <!-- ══════════════════════════════════════════════════
-       SECCIÓN 6: Preguntas de diseño abiertas (a confirmar)
-       ══════════════════════════════════════════════════ -->
-  <section>
-    <h2>Decisiones de diseño pendientes — confirmar antes de codificar</h2>
-
-    <div class="questions">
-      <h3>⚠ Preguntas abiertas</h3>
-      <ul>
-        <li><strong>¿Cuándo corre 7_cierre exactamente?</strong>
-          ¿Una sola vez al vencer el período de gracia, o puede correrse varias veces (idempotente)
-          mientras los reclamos siguen resolviéndose?</li>
-        <li><strong>¿7_cierre copia directo a 2_planilla/inputs/?</strong>
-          ¿O solo escribe en 7_cierre/outputs/ y el usuario copia manualmente?
-          El agentic SaaS preferirá que lo copie automáticamente.</li>
-        <li><strong>Naming del arrastre de deuda final:</strong>
-          ¿5_cobranza ya emite un "arrastre_deuda" o 7_cierre lo renombra/fusiona?
-          ¿Existe ya arrastre_deuda_YYYY-MM.xlsx producido por 5_cobranza?</li>
-        <li><strong>¿El MES_ANTERIOR del próximo mes incluye el SALDO acumulado por reclamos EN_REVISION?</strong>
-          ¿Se suma al arrastre_deuda o va como campo separado SALDO_RECLAMO_PENDIENTE?</li>
-      </ul>
+      <div class="dec-cell dec-row-odd dec-id">—</div>
+      <div class="dec-cell dec-row-odd">Julio lee el arrastre del CONGELADO (archivo/), no del outputs/ vivo</div>
+      <div class="dec-cell dec-row-odd">outputs/ = churn de dev; archivo/ = contrato inmutable del período.
+        Nueva dependencia dura: 7_cierre(N) es prerequisito de 2_planilla(N+1)</div>
     </div>
   </section>
 
@@ -383,26 +347,10 @@
   <section>
     <h2>Leyenda</h2>
     <div class="legend">
-      <div class="legend-item">
-        <div class="legend-dot" style="background:#EBF5FB;border:1px solid #AED6F1;"></div>
-        Archivo de auditoría · fuente de verdad · no se filtra
-      </div>
-      <div class="legend-item">
-        <div class="legend-dot" style="background:#E9F7EF;border:1px solid #A9DFBF;"></div>
-        Archivo operacional / vista filtrada · regenerable
-      </div>
-      <div class="legend-item">
-        <div class="legend-dot" style="background:#FFF3CD;border:1px solid #FFDB70;"></div>
-        Archivo intermedio · pendiente de decisión final
-      </div>
-      <div class="legend-item">
-        <div class="legend-dot" style="background:#D5F5E3;border:1px solid #82E0AA;"></div>
-        Archivo final · listo para el próximo ciclo
-      </div>
-      <div class="legend-item">
-        <div class="legend-dot" style="background:#F3E8FF;border:1px solid #C4B5FD;"></div>
-        Acción humana · no es automática
-      </div>
+      <div class="legend-item"><div class="legend-dot" style="background:#EBF5FB;border:1px solid #AED6F1;"></div> Auditoría / canónico</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#D5F5E3;border:1px solid #82E0AA;"></div> Foto congelada (archivo/, trackeado)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#FEF9E7;border:1px solid #F0C040;"></div> Temporal (se limpia)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#E8ECF0;border:1px solid #B6C1CC;"></div> Vivo / consultado en tiempo real</div>
     </div>
   </section>
 

@@ -105,6 +105,10 @@ def _setup_paths():
     mod.YAPE_DIR     = TEST_ROOT / "inputs" / "pagos_yape"
     mod.EFEC_DIR     = TEST_ROOT / "inputs" / "pagos_efectivo"
     mod.BLANCOS_PATH = TEST_ROOT / "shared" / "blancos_acumulados.xlsx"
+    # mod.repo ES el módulo seguimiento_repo (mismo objeto, singleton en
+    # sys.modules) — redirigir su path acá also lo redirige para main.py.
+    # Sin esto, _reconciliar_pagos_pueblo escribiría en el archivo real.
+    mod.repo.SEGUIMIENTO_PATH = TEST_ROOT / "shared" / "seguimiento_pueblo.xlsx"
     return mod
 
 

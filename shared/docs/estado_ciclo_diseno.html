@@ -1,0 +1,160 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+#w{font-family:var(--font-sans);padding:4px 0 16px}
+.instruc{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-left:3px solid #7C3AED;border-radius:0 var(--border-radius-md) var(--border-radius-md) 0;padding:9px 13px;font-size:12px;color:var(--color-text-secondary);margin-bottom:12px;line-height:1.7}
+.instruc strong{color:var(--color-text-primary)}
+
+/* JSON block */
+.json-wrap{background:#1E1B2E;border-radius:var(--border-radius-md);padding:14px 18px;font-family:var(--font-mono);font-size:12px;line-height:2;margin-bottom:14px;overflow-x:auto}
+.jk {color:#CBA6F7}   /* key */
+.jv-str{color:#A6E3A1} /* string value */
+.jv-bool-t{color:#89B4FA;font-weight:600} /* true */
+.jv-bool-f{color:#F38BA8;font-weight:600} /* false */
+.jv-null{color:#6C7086;font-style:italic}  /* null */
+.jbrace{color:#CDD6F4}
+.jann{color:#6C7086;font-style:italic;font-size:11px;margin-left:10px;user-select:none}
+.jwriter{display:inline-block;font-size:9px;font-weight:600;padding:1px 5px;border-radius:3px;margin-left:6px;letter-spacing:.03em;vertical-align:middle}
+.w-cob  {background:#EAF2FF;color:#1A5276}
+.w-val  {background:#E9F7EF;color:#1E5C3A}
+.w-plan {background:#EDE9FE;color:#4C1D95}
+
+/* writer table */
+.section-title{font-size:10px;font-weight:600;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.06em;margin:14px 0 6px}
+.tw{border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:11px}
+th{padding:6px 10px;font-size:10px;font-weight:500;text-align:left;border-bottom:0.5px solid var(--color-border-tertiary);border-right:0.5px solid var(--color-border-tertiary);white-space:nowrap;background:var(--color-background-secondary);color:var(--color-text-secondary)}
+th:last-child{border-right:none}
+td{padding:5px 10px;border-bottom:0.5px solid var(--color-border-tertiary);border-right:0.5px solid var(--color-border-tertiary);vertical-align:middle;white-space:nowrap}
+td:last-child{border-right:none}
+tr:last-child td{border-bottom:none}
+.td-key{font-family:var(--font-mono);font-size:11px;color:#7C3AED;font-weight:500}
+.td-mod{font-size:11px;color:var(--color-text-primary)}
+.td-when{font-size:11px;color:var(--color-text-secondary)}
+.td-desc{font-size:11px;color:var(--color-text-secondary)}
+
+/* state machine */
+.states{display:flex;gap:8px;flex-wrap:wrap;margin-top:2px}
+.state{display:flex;flex-direction:column;gap:3px;align-items:center}
+.state-box{padding:6px 14px;border-radius:6px;font-size:11px;font-weight:600;border:1px solid}
+.s-abierto  {background:#EAF2FF;color:#1A5276;border-color:#AED6F1}
+.s-validado {background:#E9F7EF;color:#1E5C3A;border-color:#A9DFBF}
+.s-cerrado  {background:#F3E8FF;color:#5B21B6;border-color:#C4B5FD}
+.arrow{font-size:16px;color:var(--color-text-tertiary);display:flex;align-items:center;margin-top:14px}
+.state-label{font-size:9px;color:var(--color-text-tertiary);text-align:center}
+</style>
+
+<div id="w">
+  <div class="instruc">
+    <strong>estado_ciclo.json</strong> — ubicado en <strong>shared/reporte_acumulado_procesado/</strong>.<br>
+    Registro persistente del estado del ciclo mensual JASS. Cada módulo lo lee antes de correr
+    y escribe solo los campos que le corresponden.
+    Un agente puede leer este archivo para saber en qué fase está el pipeline sin abrir ningún Excel.<br>
+    Patrón: <em>Saga State</em> — el ciclo es un proceso de negocio de larga duración que sobrevive reinicios.
+  </div>
+
+  <div class="section-title">Estructura del archivo</div>
+  <div class="json-wrap">
+<span class="jbrace">{</span><br>
+&nbsp;&nbsp;<span class="jk">"2026-07"</span>: <span class="jbrace">{</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="jk">"estado"</span>: <span class="jv-str">"ABIERTO"</span>,
+    <span class="jann">← 5_cobranza escribe al iniciar el ciclo</span>
+    <span class="jwriter w-cob">5_cobranza</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="jk">"ultima_actualizacion"</span>: <span class="jv-str">"2026-07-01T08:00:00"</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="jk">"arrastre"</span>: <span class="jbrace">{</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="jk">"generado"</span>: <span class="jv-bool-f">false</span>,
+        <span class="jwriter w-cob">5_cobranza</span>
+        <span class="jann">← true al escribir arrastre_consolidado</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="jk">"generado_en"</span>: <span class="jv-null">null</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="jk">"validado"</span>: <span class="jv-bool-f">false</span>,
+        <span class="jwriter w-val">5b_validacion</span>
+        <span class="jann">← true si planilla_cobrado pasa todas las validaciones</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="jk">"validado_en"</span>: <span class="jv-null">null</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="jbrace">}</span><br>
+&nbsp;&nbsp;<span class="jbrace">}</span><br>
+<span class="jbrace">}</span>
+  </div>
+
+  <div class="section-title">Writers por campo</div>
+  <div class="tw">
+    <table>
+      <thead>
+        <tr>
+          <th>Campo</th>
+          <th>Quién escribe</th>
+          <th>Cuándo</th>
+          <th>Qué significa</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="td-key">estado</td>
+          <td class="td-mod">5_cobranza</td>
+          <td class="td-when">Al abrir el ciclo</td>
+          <td class="td-desc">ABIERTO → ciclo en curso</td>
+        </tr>
+        <tr>
+          <td class="td-key">arrastre.generado</td>
+          <td class="td-mod">5_cobranza</td>
+          <td class="td-when">Al escribir arrastre_consolidado</td>
+          <td class="td-desc">El arrastre existe pero aún no fue validado</td>
+        </tr>
+        <tr>
+          <td class="td-key">arrastre.generado_en</td>
+          <td class="td-mod">5_cobranza</td>
+          <td class="td-when">Junto con generado:true</td>
+          <td class="td-desc">Timestamp ISO para trazabilidad</td>
+        </tr>
+        <tr>
+          <td class="td-key">arrastre.validado</td>
+          <td class="td-mod">5b_validacion</td>
+          <td class="td-when">Si pasa todas las validaciones</td>
+          <td class="td-desc">El arrastre es oficial — 2_planilla puede usarlo</td>
+        </tr>
+        <tr>
+          <td class="td-key">arrastre.validado_en</td>
+          <td class="td-mod">5b_validacion</td>
+          <td class="td-when">Junto con validado:true</td>
+          <td class="td-desc">Timestamp ISO para trazabilidad</td>
+        </tr>
+        <tr>
+          <td class="td-key">ultima_actualizacion</td>
+          <td class="td-mod">Cualquier módulo</td>
+          <td class="td-when">Cada vez que escribe</td>
+          <td class="td-desc">Último módulo que tocó el archivo</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section-title">Máquina de estados del ciclo</div>
+  <div class="states">
+    <div class="state">
+      <div class="state-box s-abierto">ABIERTO</div>
+      <div class="state-label">5_cobranza inicia<br>arrastre.generado: false</div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="state">
+      <div class="state-box s-abierto">ABIERTO</div>
+      <div class="state-label">5_cobranza genera arrastre<br>arrastre.generado: true</div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="state">
+      <div class="state-box s-validado">ABIERTO</div>
+      <div class="state-label">5b_validacion aprueba<br>arrastre.validado: true</div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="state">
+      <div class="state-box s-cerrado">CERRADO</div>
+      <div class="state-label">7_cierre genera reporte<br>estado: CERRADO</div>
+    </div>
+  </div>
+
+  <div class="instruc" style="margin-top:14px;border-left-color:#1A5276">
+    <strong>Gate en 2_planilla:</strong> antes de correr, lee <em>estado_ciclo[ciclo_anterior]["arrastre"]["validado"]</em>.
+    Si es <em>false</em> o la clave no existe → error explícito, no continúa.<br>
+    <strong>Gate en 5_cobranza (generar arrastre):</strong> solo corre si <em>arrastre.generado</em> es <em>false</em>
+    — idempotencia garantizada.<br>
+    <strong>Un agente</strong> puede leer este archivo para saber qué paso ejecutar siguiente, sin abrir ningún Excel.
+  </div>
+</div>

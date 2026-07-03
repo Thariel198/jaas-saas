@@ -2,43 +2,21 @@
 # También genera pagos_efectivo_devolucion.xlsx en outputs/ — template para retornos manuales.
 # Correr una sola vez: python crear_templates.py
 # Contrato visual: docs/formato_registro.html
+# El dibujo de mesa_N vive en shared/utils_templates.py (compartido con 7_cierre,
+# que resetea mesa_N al cerrar el período — ver docs/metodologia_desarrollo.md).
 
+import sys
 from pathlib import Path
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "shared"))
+from utils_templates import crear_mesa_vacio  # noqa: E402
+
 INPUTS_DIR = Path(__file__).parent / "inputs"
 INPUTS_DIR.mkdir(exist_ok=True)
 
-# ── Secciones (del contrato formato_registro.html) ─────────────────────────
-# (texto, n_cols, bg, txt)
-GRUPOS = [
-    ("¿Quién cobró?",     2, "EFF6FF", "1D4ED8"),
-    ("¿Dónde vive?",      2, "E1F5EE", "085041"),
-    ("¿Cuánto y cuándo?", 4, "FEF9E7", "7D6608"),
-    ("¿Alguna nota?",     1, "F4ECF7", "5B21B6"),
-    ("¿Qué tipo?",        1, "FFF7ED", "9A3412"),
-]
-
-# ── Columnas (del contrato formato_registro.html) ───────────────────────────
-# (nombre, bg_header, txt_header, ancho)
-COLUMNAS = [
-    ("COBRADOR",        "EFF6FF", "1D4ED8", 20),
-    ("FECHA_REGISTRO",  "EFF6FF", "1D4ED8", 16),
-    ("MZ",              "E1F5EE", "085041",  8),
-    ("LT",              "E1F5EE", "085041",  8),
-    ("MONTO",           "FEF9E7", "7D6608", 12),
-    ("MONTO_EFECTIVO",  "FEF9E7", "7D6608", 16),
-    ("MONTO_YAPE",      "FEF9E7", "7D6608", 14),
-    ("FECHA",           "FEF9E7", "7D6608", 14),
-    ("COMENTARIO",      "F4ECF7", "5B21B6", 30),
-    ("CONCEPTO",        "FFF7ED", "9A3412", 14),
-]
-
-EJEMPLO = ["María García", "10/06/2026", "A", "8C", "38.00", "20.00", "18.00", "03/06/2026", "", ""]
-
-HOJAS   = ["registro_1", "registro_2", "registro_3"]
 N_MESAS = 7
 
 
@@ -68,49 +46,15 @@ def _celda_ejemplo(cell, valor):
     cell.alignment = Alignment(horizontal="left", vertical="center")
 
 
-# ── Construir una hoja ──────────────────────────────────────────────────────
-
-def _construir_hoja(ws):
-    # Fila 1 — cabeceras de grupo (con merge)
-    col = 1
-    for texto, n_cols, bg, txt in GRUPOS:
-        if n_cols > 1:
-            ws.merge_cells(
-                start_row=1, start_column=col,
-                end_row=1,   end_column=col + n_cols - 1,
-            )
-        _celda_grupo(ws.cell(row=1, column=col), texto, bg, txt)
-        col += n_cols
-    ws.row_dimensions[1].height = 20
-
-    # Fila 2 — nombres de columna + anchos
-    for idx, (nombre, bg, txt, ancho) in enumerate(COLUMNAS, start=1):
-        _celda_col(ws.cell(row=2, column=idx), nombre, bg, txt)
-        ws.column_dimensions[get_column_letter(idx)].width = ancho
-    ws.row_dimensions[2].height = 22
-
-    # Fila 3 — ejemplo guía en gris itálico
-    for idx, valor in enumerate(EJEMPLO, start=1):
-        _celda_ejemplo(ws.cell(row=3, column=idx), valor)
-    ws.row_dimensions[3].height = 18
-
-    ws.freeze_panes = "A3"
-
-
 # ── Crear un archivo de mesa ────────────────────────────────────────────────
+# Dibujo delegado a shared/utils_templates.py (mismo primitivo que usa 7_cierre
+# para resetear mesa_N al cerrar el período — cross-módulo va a shared, nunca
+# import directo entre módulos hermanos, ver metodologia_desarrollo.md).
 
 def crear_mesa(n: int):
-    nombre = f"mesa_{n}"
-    wb = Workbook()
-
-    for i, hoja in enumerate(HOJAS):
-        ws = wb.active if i == 0 else wb.create_sheet()
-        ws.title = hoja
-        _construir_hoja(ws)
-
-    ruta = INPUTS_DIR / f"{nombre}.xlsx"
-    wb.save(ruta)
-    print(f"  OK {nombre}.xlsx  ({len(HOJAS)} hojas)")
+    ruta = INPUTS_DIR / f"mesa_{n}.xlsx"
+    crear_mesa_vacio(ruta)
+    print(f"  OK mesa_{n}.xlsx  (3 hojas)")
 
 
 # ── Template pagos_efectivo_devolucion.xlsx ─────────────────────────────────

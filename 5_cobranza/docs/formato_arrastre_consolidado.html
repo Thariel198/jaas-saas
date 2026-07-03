@@ -1,0 +1,181 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+#w{font-family:var(--font-sans);padding:4px 0 16px}
+.instruc{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-left:3px solid #1E8449;border-radius:0 var(--border-radius-md) var(--border-radius-md) 0;padding:9px 13px;font-size:12px;color:var(--color-text-secondary);margin-bottom:12px;line-height:1.7}
+.instruc strong{color:var(--color-text-primary)}
+.tab-excel{display:inline-flex;align-items:center;gap:5px;background:#D1FAE5;border:0.5px solid #6EE7B7;border-bottom:none;border-radius:6px 6px 0 0;padding:5px 14px;font-size:12px;font-weight:500;color:#065F46;margin-bottom:-1px}
+.tw{border:0.5px solid var(--color-border-tertiary);border-radius:0 var(--border-radius-md) var(--border-radius-md) var(--border-radius-md);overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:11px;min-width:820px}
+th{padding:6px 8px;font-size:10px;font-weight:500;text-align:left;border-bottom:0.5px solid var(--color-border-tertiary);border-right:0.5px solid var(--color-border-tertiary);white-space:nowrap}
+th:last-child{border-right:none}
+td{padding:5px 8px;border-bottom:0.5px solid var(--color-border-tertiary);border-right:0.5px solid var(--color-border-tertiary);vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+td:last-child{border-right:none}
+tr:last-child td{border-bottom:none}
+.num{width:24px;background:var(--color-background-secondary);color:var(--color-text-tertiary);font-size:10px;font-family:var(--font-mono);text-align:center;border-right:0.5px solid var(--color-border-tertiary)}
+
+.th-quien{background:#E8F8F5;color:#0E6655}
+.td-quien{background:#F0FFF8;font-family:var(--font-mono);font-size:10px;color:#065F46}
+.td-nombre{background:#F0FFF8;font-size:11px;color:var(--color-text-primary)}
+
+.th-p1{background:#EAF2FF;color:#1A5276}
+.td-p1{background:#F4F9FF;font-family:var(--font-mono);font-size:11px;font-weight:600;color:#1A5276;text-align:right}
+
+.th-p2{background:#FEF3C7;color:#92400E}
+.td-p2{background:#FFFBEB;font-family:var(--font-mono);font-size:11px;font-weight:600;color:#92400E;text-align:right}
+
+.th-p3{background:#FEF2F2;color:#991B1B}
+.td-p3{background:#FFF5F5;font-family:var(--font-mono);font-size:11px;font-weight:600;color:#991B1B;text-align:right}
+
+.th-p4{background:#EDE9FE;color:#4C1D95}
+.td-p4{background:#F5F3FF;font-family:var(--font-mono);font-size:11px;font-weight:600;color:#4C1D95;text-align:right}
+
+.th-p5{background:#E0F2FE;color:#0C4A6E}
+.td-p5{background:#F0F9FF;font-family:var(--font-mono);font-size:11px;font-weight:600;color:#0369A1;text-align:right}
+
+.th-total{background:#1E8449;color:#fff;font-weight:700;text-align:center}
+.td-total{background:#D5F5E3;font-family:var(--font-mono);font-size:12px;font-weight:700;color:#1E5C3A;text-align:right}
+
+.td-zero{background:var(--color-background-secondary);color:var(--color-text-tertiary);font-style:italic;font-size:10px;text-align:center}
+
+.th-sep{width:4px;background:var(--color-background-secondary);padding:0;border-right:2px solid var(--color-border-secondary)}
+.td-sep{width:4px;background:var(--color-background-secondary);padding:0;border-right:2px solid var(--color-border-secondary)}
+
+.gh{font-size:9px;font-weight:600;text-align:center;padding:2px 0;letter-spacing:.05em;text-transform:uppercase;border-bottom:0.5px solid var(--color-border-tertiary)}
+
+.badge-p{display:inline-block;font-size:9px;font-weight:600;padding:1px 5px;border-radius:3px;letter-spacing:.03em}
+.bp1{background:#EAF2FF;color:#1A5276}
+.bp2{background:#FEF3C7;color:#92400E}
+.bp3{background:#FEF2F2;color:#991B1B}
+.bp4{background:#EDE9FE;color:#4C1D95}
+.bp5{background:#E0F2FE;color:#0369A1}
+
+.nota{margin-top:10px;font-size:11px;color:var(--color-text-secondary);line-height:1.8;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:8px 12px}
+.legend{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center}
+.leg{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--color-text-secondary)}
+.ld{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+</style>
+
+<div id="w">
+  <div class="instruc">
+    Generado por <strong>5_cobranza/main.py</strong> al cierre del ciclo — solo después de que <strong>5b_validacion</strong> sella <em>validado:true</em> en <strong>estado_ciclo.json</strong>.<br>
+    Un registro por usuario con <strong>TOTAL_ARRASTRE &gt; 0</strong>. Consolida en un solo archivo lo que antes eran tres arrastres separados
+    (<em>arrastre_deuda</em> · <em>arrastre_corte</em> · <em>lista_multas</em>).<br>
+    Los montos por columna muestran qué componente quedó <strong>sin cubrir</strong> al aplicar los pagos en orden de prioridad.<br>
+    2_planilla lo lee desde <strong>inputs/arrastre/arrastre_consolidado_YYYY-MM.xlsx</strong> —
+    rechaza el run si <em>estado_ciclo.json</em> no tiene <em>validado:true</em>.
+  </div>
+
+  <div class="tab-excel">arrastre_consolidado_2026-06</div>
+  <div class="tw">
+    <table>
+      <thead>
+        <tr>
+          <th class="num" rowspan="2"></th>
+          <th class="th-quien gh" colspan="3">¿Quién es?</th>
+          <th class="th-sep" rowspan="2"></th>
+          <th class="th-p1 gh" colspan="1">P1</th>
+          <th class="th-p2 gh" colspan="1">P2</th>
+          <th class="th-p3 gh" colspan="1">P3</th>
+          <th class="th-p4 gh" colspan="1">P4</th>
+          <th class="th-p5 gh" colspan="1">P5</th>
+          <th class="th-sep" rowspan="2"></th>
+          <th class="th-total gh" colspan="1">Cierre</th>
+        </tr>
+        <tr>
+          <th class="th-quien">MZ</th>
+          <th class="th-quien">LT</th>
+          <th class="th-quien">NOMBRE</th>
+          <th class="th-p1">DEUDA_AGUA</th>
+          <th class="th-p2">CORTE_RECONEXION</th>
+          <th class="th-p3">MULTA</th>
+          <th class="th-p4">ACUERDOS_ASAMBLEA</th>
+          <th class="th-p5">CONVENIO</th>
+          <th class="th-total">TOTAL_ARRASTRE</th>
+        </tr>
+      </thead>
+      <tbody>
+
+        <!-- solo debe agua -->
+        <tr>
+          <td class="num">1</td>
+          <td class="td-quien">B</td><td class="td-quien">5</td><td class="td-nombre">ROSA AURORA ROCA</td>
+          <td class="td-sep"></td>
+          <td class="td-p1">38</td>
+          <td class="td-zero">—</td>
+          <td class="td-zero">—</td>
+          <td class="td-zero">—</td>
+          <td class="td-zero">—</td>
+          <td class="td-sep"></td>
+          <td class="td-total">38</td>
+        </tr>
+
+        <!-- pagó parcial: cubrió agua, no alcanzó para corte -->
+        <tr>
+          <td class="num">2</td>
+          <td class="td-quien">D</td><td class="td-quien">11A</td><td class="td-nombre">ELSA CONDORI MAMANI</td>
+          <td class="td-sep"></td>
+          <td class="td-zero">—</td>
+          <td class="td-p2">30</td>
+          <td class="td-zero">—</td>
+          <td class="td-zero">—</td>
+          <td class="td-zero">—</td>
+          <td class="td-sep"></td>
+          <td class="td-total">30</td>
+        </tr>
+
+        <!-- sin pagar nada: agua + corte + multa pendientes -->
+        <tr>
+          <td class="num">3</td>
+          <td class="td-quien">F</td><td class="td-quien">9</td><td class="td-nombre">CARLOS QUISPE MAMANI</td>
+          <td class="td-sep"></td>
+          <td class="td-p1">8</td>
+          <td class="td-p2">30</td>
+          <td class="td-p3">20</td>
+          <td class="td-zero">—</td>
+          <td class="td-zero">—</td>
+          <td class="td-sep"></td>
+          <td class="td-total">58</td>
+        </tr>
+
+        <!-- caso completo: todos los componentes pendientes -->
+        <tr>
+          <td class="num">4</td>
+          <td class="td-quien">M</td><td class="td-quien">3</td><td class="td-nombre">JUAN MAMANI FLORES</td>
+          <td class="td-sep"></td>
+          <td class="td-p1">8</td>
+          <td class="td-p2">30</td>
+          <td class="td-p3">20</td>
+          <td class="td-p4">15</td>
+          <td class="td-p5">50</td>
+          <td class="td-sep"></td>
+          <td class="td-total">123</td>
+        </tr>
+
+      </tbody>
+    </table>
+  </div>
+
+  <div class="nota">
+    <strong>Orden de prioridad al aplicar pagos:</strong>&nbsp;
+    <span class="badge-p bp1">P1 · DEUDA_AGUA</span> →
+    <span class="badge-p bp2">P2 · CORTE_RECONEXION</span> →
+    <span class="badge-p bp3">P3 · MULTA</span> →
+    <span class="badge-p bp4">P4 · ACUERDOS_ASAMBLEA</span> →
+    <span class="badge-p bp5">P5 · CONVENIO</span><br>
+    Un <strong>—</strong> significa que ese componente fue cubierto por el pago o no aplicaba al usuario.
+    Solo aparecen filas con TOTAL_ARRASTRE &gt; 0.
+    El arrastre de devolución (<em>arrastre_devolucion_YYYY-MM.xlsx</em>) se mantiene separado —
+    no entra en planilla hasta que el usuario lo reclame.
+  </div>
+
+  <div class="legend">
+    <div class="leg"><div class="ld" style="background:#F0FFF8;border:0.5px solid #6EE7B7"></div>Identidad</div>
+    <div class="leg"><div class="ld" style="background:#F4F9FF;border:0.5px solid #AED6F1"></div>Deuda agua (P1)</div>
+    <div class="leg"><div class="ld" style="background:#FFFBEB;border:0.5px solid #F9E4A1"></div>Corte/reconexión (P2)</div>
+    <div class="leg"><div class="ld" style="background:#FFF5F5;border:0.5px solid #FCA5A5"></div>Multa (P3)</div>
+    <div class="leg"><div class="ld" style="background:#F5F3FF;border:0.5px solid #C4B5FD"></div>Acuerdo asamblea (P4)</div>
+    <div class="leg"><div class="ld" style="background:#F0F9FF;border:0.5px solid #BAE6FD"></div>Convenio (P5)</div>
+    <div class="leg"><div class="ld" style="background:#D5F5E3;border:0.5px solid #6EE7B7"></div>Total arrastre</div>
+  </div>
+</div>

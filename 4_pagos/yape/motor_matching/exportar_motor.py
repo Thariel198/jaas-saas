@@ -225,7 +225,8 @@ def exportar_pendientes_diseño(sin_resolver: list, ambiguos: list = None,
                                maestro_inexacto: list = None,
                                pagaste: list = None,
                                preservados: dict = None,
-                               pagos_comunitarios: list = None) -> Workbook:
+                               pagos_comunitarios: list = None,
+                               comunitarios_preservados: dict = None) -> Workbook:
     """
     Exporta pendientes.xlsx con 3 hojas siguiendo pendientes_xlsx.html:
     - Sin_identificar: sin maestro ni mensaje válido
@@ -239,7 +240,8 @@ def exportar_pendientes_diseño(sin_resolver: list, ambiguos: list = None,
     if ambiguos             is None: ambiguos             = []
     if maestro_inexacto     is None: maestro_inexacto     = []
     if pagaste              is None: pagaste              = []
-    if pagos_comunitarios   is None: pagos_comunitarios   = []
+    if pagos_comunitarios        is None: pagos_comunitarios        = []
+    if comunitarios_preservados  is None: comunitarios_preservados  = {}
 
     def _aplicar_preservado(valores: dict, reg: dict, hoja: str):
         if not preservados:
@@ -527,15 +529,15 @@ def exportar_pendientes_diseño(sin_resolver: list, ambiguos: list = None,
         # Fila 1: grupos
         grupos_com = [
             (2, 5, "← banco — no editar",        C_BAN_H, C_BAN_T),
-            (7,10, "← tú completas (una fila por lote)", C_MAN_H, C_MAN_T),
-            (12,12,"✓",                           C_VAL_H, C_VAL_T),
+            (7,11, "← tú completas (una fila por lote)", C_MAN_H, C_MAN_T),
+            (13,13,"✓",                           C_VAL_H, C_VAL_T),
         ]
         for cs, ce, texto, bg, txt in grupos_com:
             ws5.merge_cells(start_row=1, start_column=cs, end_row=1, end_column=ce)
             c = ws5.cell(row=1, column=cs, value=texto)
             _cel(c, bg, txt, bold=True, align="center", size=8)
         ws5.column_dimensions[get_column_letter(6)].width  = 1
-        ws5.column_dimensions[get_column_letter(11)].width = 1
+        ws5.column_dimensions[get_column_letter(12)].width = 1
         ws5.row_dimensions[1].height = 16
 
         # Fila 2: columnas
@@ -548,7 +550,8 @@ def exportar_pendientes_diseño(sin_resolver: list, ambiguos: list = None,
             (8,  "LOTE",          C_MAN_H, C_MAN_T,  7),
             (9,  "MONTO_PARCIAL", C_MAN_H, C_MAN_T, 14),
             (10, "MOTIVO",        C_MAN_H, C_MAN_T, 28),
-            (12, "OK",            C_VAL_H, C_VAL_T,  7),
+            (11, "CONCEPTO",      C_MAN_H, C_MAN_T, 12),
+            (13, "OK",            C_VAL_H, C_VAL_T,  7),
         ]
         for col, nombre, bg, txt, ancho in cols_com:
             c = ws5.cell(row=2, column=col, value=nombre)
@@ -556,23 +559,53 @@ def exportar_pendientes_diseño(sin_resolver: list, ambiguos: list = None,
             ws5.column_dimensions[get_column_letter(col)].width = ancho
         ws5.row_dimensions[2].height = 18
 
-        # Datos — una fila por depósito (lotes vacíos para que operador llene)
-        for ri, dep in enumerate(pagos_comunitarios, 3):
-            vals = {
-                "ORIGEN":       dep.get("origen",   ""),
-                "MENSAJE":      dep.get("mensaje",  ""),
-                "FECHA":        dep.get("fecha",    ""),
-                "MONTO_TOTAL":  dep.get("monto_total", ""),
-                "MZ": "", "LOTE": "", "MONTO_PARCIAL": "", "MOTIVO": "", "OK": "",
-            }
-            for col, nombre, bg, txt, _ in cols_com:
-                es_banco = nombre in ("ORIGEN", "FECHA", "MONTO_TOTAL")
-                c = ws5.cell(row=ri, column=col, value=vals[nombre])
-                _cel(c, C_BAN_C if es_banco else C_MAN_C,
-                     C_BAN_T if es_banco else C_MAN_T,
-                     mono=nombre in ("ORIGEN", "FECHA", "MONTO_TOTAL", "MZ", "LOTE", "MONTO_PARCIAL"),
-                     align="right" if nombre in ("MONTO_TOTAL", "MONTO_PARCIAL") else "left")
-            ws5.row_dimensions[ri].height = 17
+        # Datos — filas preservadas del run anterior, o una fila en blanco si es nuevo
+        ri = 3
+        for dep in pagos_comunitarios:
+            clave = f"{str(dep.get('origen','')).upper().strip()}|{str(dep.get('fecha','')).strip()}"
+            filas_dep = comunitarios_preservados.get(clave)
+            if filas_dep:
+                # Reusar filas que el usuario ya llenó
+                for prow in filas_dep:
+                    vals = {
+                        "ORIGEN":        dep.get("origen", ""),
+                        "MENSAJE":       dep.get("mensaje", ""),
+                        "FECHA":         dep.get("fecha", ""),
+                        "MONTO_TOTAL":   dep.get("monto_total", ""),
+                        "MZ":            prow.get("mz", ""),
+                        "LOTE":          prow.get("lote", ""),
+                        "MONTO_PARCIAL": prow.get("monto_parcial", ""),
+                        "MOTIVO":        prow.get("motivo", ""),
+                        "CONCEPTO":      prow.get("concepto", ""),
+                        "OK":            "",
+                    }
+                    for col, nombre, bg, txt, _ in cols_com:
+                        es_banco = nombre in ("ORIGEN", "FECHA", "MONTO_TOTAL")
+                        c = ws5.cell(row=ri, column=col, value=vals[nombre])
+                        _cel(c, C_BAN_C if es_banco else C_MAN_C,
+                             C_BAN_T if es_banco else C_MAN_T,
+                             mono=nombre in ("ORIGEN", "FECHA", "MONTO_TOTAL", "MZ", "LOTE", "MONTO_PARCIAL"),
+                             align="right" if nombre in ("MONTO_TOTAL", "MONTO_PARCIAL") else "left")
+                    ws5.row_dimensions[ri].height = 17
+                    ri += 1
+            else:
+                # Depósito nuevo — una fila en blanco para que el operador llene
+                vals = {
+                    "ORIGEN":       dep.get("origen",   ""),
+                    "MENSAJE":      dep.get("mensaje",  ""),
+                    "FECHA":        dep.get("fecha",    ""),
+                    "MONTO_TOTAL":  dep.get("monto_total", ""),
+                    "MZ": "", "LOTE": "", "MONTO_PARCIAL": "", "MOTIVO": "", "CONCEPTO": "", "OK": "",
+                }
+                for col, nombre, bg, txt, _ in cols_com:
+                    es_banco = nombre in ("ORIGEN", "FECHA", "MONTO_TOTAL")
+                    c = ws5.cell(row=ri, column=col, value=vals[nombre])
+                    _cel(c, C_BAN_C if es_banco else C_MAN_C,
+                         C_BAN_T if es_banco else C_MAN_T,
+                         mono=nombre in ("ORIGEN", "FECHA", "MONTO_TOTAL", "MZ", "LOTE", "MONTO_PARCIAL"),
+                         align="right" if nombre in ("MONTO_TOTAL", "MONTO_PARCIAL") else "left")
+                ws5.row_dimensions[ri].height = 17
+                ri += 1
 
     return wb
 
@@ -1276,6 +1309,7 @@ def exportar_trazabilidad(ruta, corr_simples: dict, validados_ambiguos: list,
         ("MZ_FINAL",         C_RES_C, C_RES_T, True,  "center"),
         ("LOTE_FINAL",       C_RES_C, C_RES_T, True,  "center"),
         ("CONCEPTO",         C_RES_C, C_RES_T, False, "left"),
+        ("ESTADO_REGISTRO",  C_RES_C, C_RES_T, True,  "center"),
         "__SEP__",
         ("CICLO",            C_CUA_C, C_CUA_T, True,  "center"),
         ("FECHA_CORRECCION", C_CUA_C, C_CUA_T, True,  "left"),
@@ -1288,7 +1322,7 @@ def exportar_trazabilidad(ruta, corr_simples: dict, validados_ambiguos: list,
         None,
         ("CANDIDATOS",          1, C_CAN_H, C_CAN_T),
         None,
-        ("¿CÓMO SE RESOLVIÓ?",  3, C_RES_H, C_RES_T),
+        ("¿CÓMO SE RESOLVIÓ?",  4, C_RES_H, C_RES_T),
         None,
         ("¿CUÁNDO?",            2, C_CUA_H, C_CUA_T),
     ]
@@ -1299,7 +1333,7 @@ def exportar_trazabilidad(ruta, corr_simples: dict, validados_ambiguos: list,
         "USER_ID":10, "NOMBRE":26,
         "ORIGEN":30, "MONTO":12, "MENSAJE":28, "FECHA":20,
         "CANDIDATOS":35,
-        "MZ_FINAL":10, "LOTE_FINAL":10, "CONCEPTO":24,
+        "MZ_FINAL":10, "LOTE_FINAL":10, "CONCEPTO":24, "ESTADO_REGISTRO":16,
         "CICLO":7, "FECHA_CORRECCION":16,
     }
 
@@ -1316,6 +1350,7 @@ def exportar_trazabilidad(ruta, corr_simples: dict, validados_ambiguos: list,
             "MZ_FINAL":         reg.get("mz_final", ""),
             "LOTE_FINAL":       reg.get("lote_final", ""),
             "CONCEPTO":         reg.get("concepto", ""),
+            "ESTADO_REGISTRO":  reg.get("estado_registro", "REGISTRO_NORMAL"),
             "CICLO":            ciclo,
             "FECHA_CORRECCION": fecha_hoy,
         }
@@ -1511,6 +1546,9 @@ def exportar_trazabilidad(ruta, corr_simples: dict, validados_ambiguos: list,
             ("LOTE",           C_UBI_C, C_UBI_T, True,  "center"),
             ("MONTO_PARCIAL",  C_UBI_C, MONTO_T, True,  "right"),
             ("MOTIVO",         C_UBI_C, C_UBI_T, False, "left"),
+            ("CONCEPTO",       C_UBI_C, C_UBI_T, False, "left"),
+            ("ESTADO_REGISTRO",C_UBI_C, C_UBI_T, True,  "center"),
+            ("ID_PADRE",       C_UBI_C, C_UBI_T, True,  "left"),
             "__SEP__",
             ("CICLO",            C_CUA_C, C_CUA_T, True, "center"),
             ("FECHA_CORRECCION", C_CUA_C, C_CUA_T, True, "left"),
@@ -1520,7 +1558,7 @@ def exportar_trazabilidad(ruta, corr_simples: dict, validados_ambiguos: list,
             None,
             ("¿QUÉ HIZO EL BANCO?", 3, C_BAN_H, C_BAN_T),
             None,
-            ("DESGLOSE COMUNITARIO",4, C_COM_H, C_COM_T),
+            ("DESGLOSE COMUNITARIO",7, C_COM_H, C_COM_T),
             None,
             ("¿CUÁNDO?",            2, C_CUA_H, C_CUA_T),
         ]
@@ -1529,7 +1567,8 @@ def exportar_trazabilidad(ruta, corr_simples: dict, validados_ambiguos: list,
         anchos_com_traz = {
             "USER_ID":10, "NOMBRE":26,
             "ORIGEN":28, "FECHA":20, "MONTO_TOTAL":13,
-            "MZ":6, "LOTE":7, "MONTO_PARCIAL":14, "MOTIVO":28,
+            "MZ":6, "LOTE":7, "MONTO_PARCIAL":14, "MOTIVO":28, "CONCEPTO":12,
+            "ESTADO_REGISTRO":16, "ID_PADRE":28,
             "CICLO":7, "FECHA_CORRECCION":16,
         }
 
@@ -1545,6 +1584,9 @@ def exportar_trazabilidad(ruta, corr_simples: dict, validados_ambiguos: list,
                 "LOTE":              reg.get("lote", ""),
                 "MONTO_PARCIAL":     reg.get("monto_parcial", ""),
                 "MOTIVO":            reg.get("motivo", ""),
+                "CONCEPTO":          reg.get("concepto", ""),
+                "ESTADO_REGISTRO":   reg.get("estado_registro", "HIJO_SEGREGADO"),
+                "ID_PADRE":          reg.get("id_padre", ""),
                 "CICLO":             ciclo,
                 "FECHA_CORRECCION":  fecha_hoy,
             }

@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Glosario por Nivel — jass_system</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f4f6f9; color: #1a1a2e; font-size: 13px; }
+
+  /* ── Portada ── */
+  .portada {
+    background: linear-gradient(160deg, #0d1b2a 0%, #1b2838 40%, #0f3460 100%);
+    color: white; padding: 52px 64px 44px; page-break-after: always;
+  }
+  .portada .eyebrow { font-size: 10px; letter-spacing: 4px; text-transform: uppercase; color: #90a4ae; margin-bottom: 20px; }
+  .portada h1 { font-size: 42px; font-weight: 800; line-height: 1.15; margin-bottom: 14px; }
+  .portada .subtitle { font-size: 17px; color: #90a4ae; margin-bottom: 36px; line-height: 1.5; }
+  .level-pills { display: flex; gap: 16px; margin-top: 28px; }
+  .level-pill { padding: 8px 20px; border-radius: 20px; font-size: 12px; font-weight: 700; letter-spacing: 1px; }
+  .pill-junior { background: #1b5e20; color: #a5d6a7; }
+  .pill-medior { background: #0d47a1; color: #90caf9; }
+  .pill-senior { background: #4a148c; color: #ce93d8; }
+  .portada .nota { margin-top: 36px; padding: 16px 20px; background: rgba(255,255,255,0.07); border-left: 3px solid #90a4ae; border-radius: 4px; font-size: 12px; color: #b0bec5; line-height: 1.7; }
+  .portada .nota strong { color: white; }
+
+  /* ── Sección de nivel ── */
+  .seccion { padding: 36px 64px; page-break-before: always; }
+  .seccion-header { display: flex; align-items: center; gap: 16px; margin-bottom: 28px; padding-bottom: 16px; border-bottom: 3px solid; }
+  .seccion-badge { font-size: 11px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; padding: 6px 14px; border-radius: 16px; }
+  .seccion-info h2 { font-size: 26px; font-weight: 700; }
+  .seccion-info p { font-size: 13px; color: #666; margin-top: 4px; line-height: 1.5; }
+
+  /* Junior */
+  .junior .seccion-header { border-color: #2e7d32; }
+  .junior .seccion-badge { background: #e8f5e9; color: #1b5e20; }
+  .junior .seccion-info h2 { color: #1b5e20; }
+
+  /* Medior */
+  .medior .seccion-header { border-color: #1565c0; }
+  .medior .seccion-badge { background: #e3f2fd; color: #0d47a1; }
+  .medior .seccion-info h2 { color: #0d47a1; }
+
+  /* Senior */
+  .senior .seccion-header { border-color: #6a1b9a; }
+  .senior .seccion-badge { background: #f3e5f5; color: #4a148c; }
+  .senior .seccion-info h2 { color: #4a148c; }
+
+  /* ── Grid de conceptos ── */
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+
+  /* ── Tarjeta ── */
+  .card { background: white; border-radius: 10px; padding: 18px 20px; box-shadow: 0 1px 8px rgba(0,0,0,0.07); page-break-inside: avoid; border-top: 3px solid; }
+  .card.junior-c { border-top-color: #66bb6a; }
+  .card.medior-c { border-top-color: #42a5f5; }
+  .card.senior-c { border-top-color: #ab47bc; }
+  .card h3 { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+  .card .def { font-size: 12px; line-height: 1.65; color: #333; margin-bottom: 10px; }
+  .card-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+  .mini-section { }
+  .mini-label { font-size: 10px; letter-spacing: 1.2px; text-transform: uppercase; font-weight: 700; color: #999; margin-bottom: 4px; }
+  .mini-content { font-size: 11px; color: #555; line-height: 1.55; }
+  .chip { display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 10px; margin-top: 6px; font-weight: 600; }
+  .chip.junior-c { background: #e8f5e9; color: #2e7d32; }
+  .chip.medior-c { background: #e3f2fd; color: #1565c0; }
+  .chip.senior-c { background: #f3e5f5; color: #6a1b9a; }
+  .chip.day1 { background: #fff3e0; color: #e65100; }
+  .chip.pending { background: #f5f5f5; color: #757575; }
+
+  /* ── Tarjeta ancha ── */
+  .card-full { grid-column: 1 / -1; }
+  .card-full .card-row { grid-template-columns: 1fr 1fr 1fr; }
+
+  /* ── Separador de categoría ── */
+  .cat-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; font-weight: 700; color: #aaa; margin: 24px 0 12px; grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; }
+  .cat-label::after { content: ''; flex: 1; height: 1px; background: #e0e0e0; }
+
+  /* ── Tabla resumen al final ── */
+  .resumen { padding: 36px 64px 52px; background: #1a1a2e; }
+  .resumen h2 { font-size: 14px; letter-spacing: 2px; text-transform: uppercase; color: #90a4ae; margin-bottom: 20px; }
+  .resumen table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .resumen th { background: rgba(255,255,255,0.08); color: #90a4ae; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; padding: 10px 14px; text-align: left; }
+  .resumen td { padding: 9px 14px; border-bottom: 1px solid rgba(255,255,255,0.05); color: #ccc; vertical-align: top; }
+  .resumen td:first-child { font-weight: 600; color: white; width: 22%; }
+  .badge-j { background: #1b5e20; color: #a5d6a7; padding: 2px 8px; border-radius: 8px; font-size: 10px; font-weight: 700; }
+  .badge-m { background: #0d47a1; color: #90caf9; padding: 2px 8px; border-radius: 8px; font-size: 10px; font-weight: 700; }
+  .badge-s { background: #4a148c; color: #ce93d8; padding: 2px 8px; border-radius: 8px; font-size: 10px; font-weight: 700; }
+
+  @media print {
+    body { background: white; }
+    .card { box-shadow: none; border: 1px solid #e8e8e8; border-top-width: 3px; }
+    @page { margin: 1.2cm; size: A4; }
+    .portada { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .resumen { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .seccion { page-break-before: always; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════ PORTADA ══════════════════════ -->
+<div class="portada">
+  <div class="eyebrow">jass_system · Ingeniería de Software · 2026</div>
+  <h1>Glosario de Conceptos<br>por Nivel Profesional</h1>
+  <div class="subtitle">
+    Todos los conceptos aprendidos durante el desarrollo de jass_system,<br>
+    organizados por el nivel donde se domina y aplica cada uno.
+  </div>
+  <div class="level-pills">
+    <div class="level-pill pill-junior">Junior</div>
+    <div class="level-pill pill-medior">Medior / Mid-level</div>
+    <div class="level-pill pill-senior">Senior</div>
+  </div>
+  <div class="nota">
+    <strong>Sobre "Medior":</strong> No lo inventaste — es un término real de la industria.
+    Es especialmente común en los Países Bajos, Bélgica, España y Latinoamérica.
+    Muchas empresas tienen el cargo oficial <em>Medior Developer</em> o <em>Medior Engineer</em> entre Junior y Senior.
+    En inglés anglosajón se llama <em>mid-level</em>. La escala clásica es:
+    <strong>Intern → Junior → Medior → Senior → Staff → Principal → Distinguished Engineer</strong>.
+    Lo que sí hiciste fue usarlo para crear un marco de aprendizaje — eso es más valioso que conocer el nombre.
+  </div>
+</div>
+
+<!-- ══════════════════════ JUNIOR ══════════════════════ -->
+<div class="seccion junior">
+  <div class="seccion-header">
+    <div class="seccion-badge">Junior</div>
+    <div class="seccion-info">
+      <h2>Fundamentos — hace con supervisión</h2>
+      <p>Conceptos que un junior domina para ser productivo en el equipo. Con ayuda puede aplicarlos; solo, todavía comete errores.</p>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="cat-label">Código y estructura</div>
+
+    <div class="card junior-c">
+      <h3>Naming conventions</h3>
+      <p class="def">Una sola regla para carpetas, archivos, Python y columnas Excel. El nombre dice qué es, no cómo se calcula ni de dónde viene.</p>
+      <div class="card-row">
+        <div class="mini-section"><div class="mini-label">En la industria</div><div class="mini-content">Guías de estilo (PEP 8, Google Style Guide). Equipos definen sus convenciones y las documentan.</div></div>
+        <div class="mini-section"><div class="mini-label">En jass_system</div><div class="mini-content">UPPER_SNAKE_CASE en Excel · lower_snake_case en Python · NN_nombre en módulos.</div></div>
+      </div>
+      <span class="chip junior-c">Base</span>
+    </div>
+
+    <div class="card junior-c">
+      <h3>Conventional Commits</h3>
+      <p class="def">Formato estándar para mensajes de git: <code>tipo: descripción</code>. El git log se lee como la historia del proyecto, no como notas del programador.</p>
+      <div class="card-row">
+        <div class="mini-section"><div class="mini-label">En la industria</div><div class="mini-content">Estándar en proyectos open source y equipos medianos. Permite changelog automático y semantic versioning.</div></div>
+        <div class="mini-section"><div class="mini-label">En jass_system</div><div class="mini-content"><code>feat: generar_lista_multas con pago parcial rule</code> · <code>fix: cascada DEUDA_MULTA excluye CONVENIO</code></div></div>
+      </div>
+      <span class="chip junior-c">Base</span>
+    </div>
+
+    <div class="card junior-c">
+      <h3>Logging a archivo</h3>
+      <p class="def">Cada módulo escribe un <code>run.log</code> con timestamp, no solo <code>print()</code> a consola. El log queda en disco junto al Excel que generó.</p>
+      <div class="card-row">
+        <div class="mini-section"><div class="mini-label">En la industria</div><div class="mini-content">Observabilidad básica. Sin log, no hay forma de auditar qué pasó después del hecho.</div></div>
+        <div class="mini-section"><div class="mini-label">Truco clave</div><div class="mini-content"><code>force=True</code> en <code>basicConfig()</code> y configurar dentro de <code>main()</code>, no a nivel de módulo.</div></div>
+      </div>
+      <span class="chip junior-c">Base</span>
+    </div>
+
+    <div class="card junior-c">
+      <h3>Validación de inputs</h3>
+      <p class="def">El primer bloque de código verifica que los archivos de entrada existen y tienen las columnas requeridas. Si algo falta, el error dice exactamente qué y dónde.</p>
+      <div class="card-row">
+        <div class="mini-section"><div class="mini-label">En la industria</div><div class="mini-content">Fail fast: mejor fallar al inicio con mensaje claro que fallar a mitad con error críptico.</div></div>
+        <div class="mini-section"><div class="mini-label">En jass_system</div><div class="mini-content">Cada script verifica existencia del xlsx + columnas requeridas antes de procesar una sola fila.</div></div>
+      </div>
+      <span class="chip junior-c">Base</span>
+    </div>
+
+    <div class="card junior-c">
+      <h3>Diseño antes de código</h3>
+      <p class="def">Nunca escribir código sin README y arquitectura completos. El costo de cambiar un diseño es una línea de texto. El costo de cambiar código es horas.</p>
+      <div class="card-row">
+        <div class="mini-section"><div class="mini-label">En la industria</div><div class="mini-content">RFC (Request for Comments) · Design Docs · ADR. Los equipos serios diseñan en papel antes de codificar.</div></div>
+        <div class="mini-section"><div class="mini-label">En jass_system</div><div class="mini-content">README → arquitectura.html → formato_*.html → código. En ese orden, siempre.</div></div>
+      </div>
+      <span class="chip junior-c">Base</span>
+    </div>
+
+    <div class="card junior-c">
+      <h3>Separación de responsabilidades</h3>
+      <p class="def">Cada módulo hace una sola cosa. Si necesitas "y" en la descripción del módulo, probablemente son dos módulos.</p>
+      <div class="card-row">
+        <div class="mini-section"><div class="mini-label">En la industria</div><div class="mini-content">Single Responsibility Principle (SRP) · "Do one thing, do it well" (Unix philosophy).</div></div>
+        <div class="mini-section"><div class="mini-label">En jass_system</div><div class="mini-content">generar_lista / aplicar_penalidad / seguimiento — cada uno con una responsabilidad clara, un solo output.</div></div>
+      </div>
+      <span class="chip junior-c">Base</span>
+    </div>
+
+    <div class="card junior-c">
+      <h3>Lo manual es el ancla</h3>
+      <p class="def">Ante cualquier problema de diseño, preguntarse: ¿cómo lo resolvería una persona con papel y lápiz? El código que imita ese proceso es más fácil de auditar y corregir.</p>
+      <div class="card-row">
+        <div class="mini-section"><div class="mini-label">En la industria</div><div class="mini-content">"Make it work, make it right, make it fast" (Kent Beck). Empezar por el proceso manual no es limitante — es la base.</div></div>
+        <div class="mini-section"><div class="mini-label">En jass_system</div><div class="mini-content">La tesorera cobró en papel antes de que el sistema existiera. El sistema imita ese proceso exacto.</div></div>
+      </div>
+      <span class="chip junior-c">Mentalidad</span>
+    </div>
+
+    <div class="card junior-c">
+      <h3>Una sola fuente de verdad</h3>
+      <p class="def">Si un archivo es usado por varios módulos, vive en <code>shared/</code>. Si una regla está documentada en dos lugares, solo debe estar en uno.</p>
+      <div class="card-row">
+        <div class="mini-section"><div class="mini-label">En la industria</div><div class="mini-content">Single Source of Truth (SSoT) · DRY (Don't Repeat Yourself). El duplicado diverge — siempre.</div></div>
+        <div class="mini-section"><div class="mini-label">En jass_system</div><div class="mini-content">registro_cortes.xlsx vive en shared/ — tanto 6_corte como 6b_corte_multas lo leen del mismo lugar.</div></div>
+      </div>
+      <span class="chip junior-c">Arquitectura</span>
+    </div>
+
+  </div><!-- /grid junior -->
+</div>
+
+<!-- ══════════════════════ MEDIOR ══════════════════════ -->
+<div class="seccion medior">
+  <div class="seccion-header">
+    <div class="seccion-badge">Medior / Mid-level</div>
+    <div class="seccion-info">
+      <h2>Módulos completos — trabaja solo</h2>
+      <p>Un medior toma un módulo de cero y lo lleva a producción sin supervisión. Entiende los trade-offs y elige entre opciones con criterio.</p>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="cat-label">Proceso de diseño</div>
+
+    <div class="card medior-c">
+      <h3>Documentation-Driven Design</h3>
+      <p class="def">El README se escribe <em>antes</em> que la arquitectura visual y el código. Si no puedes explicar el módulo en texto claro, no puedes diseñarlo bien. La arquitectura es el resumen del README — no al revés.</p>
+      <div class="card-row">
+        <div class="mini-section"><div class="mini-label">En la industria</div><div class="mini-content">Readme Driven Development (TDD for docs) · "Write the README first" (GitHub culture). Fuerza claridad antes de comprometerse con código.</div></div>
+        <div class="mini-section"><div class="mini-label">En jass_system</div><div class="mini-content">README → arquitectura.html → formato_*.html → código. Si README y arquitectura se contradicen → el README manda.</div></div>
+      </div>
+      <span class="chip medior-c">Proceso</span>
+    </div>
+
+    <div class="card medior-c">
+      <h3>HTML como contrato de diseño</h3>
+      <p class="def">Un HTML aprobado en conversación es una especificación visual que el código debe replicar exactamente. No se codifica sin el contrato. No se modifica el contrato sin aprobación.</p>
+      <div class="card-row">
+        <div class="mini-section"><div class="mini-label">En la industria</div><div class="mini-content">Wireframes · Figma mockups · Storybook components. El principio es el mismo: diseño visual antes de implementación.</div></div>
+        <div class="mini-section"><div class="mini-label">En jass_system</div><div class="mini-content">formato_lista_corte.html define las 15 columnas, colores y anchos. openpyxl los replica. Un cambio en el Excel requiere actualizar el HTML primero.</div></div>
+      </div>
+      <span class="chip medior-c">Proceso</span>
+    </div>
+
+    <div class="card medior-c">
+      <h3>Evaluar 3+ enfoques antes de elegir</h3>
+      <p class="def">Nunca codificar la primera idea. Explorar al menos 3 soluciones distintas, definir criterios de éxito, y elegir con evidencia. El costo de explorar es cero; el costo de cambiar enfoque con código escrito es empezar desde cero.</p>
+      <div class="card-row">
+        <div class="mini-section"><div class="mini-label">En la industria</div><div class="mini-content">DORA, ADR (Architecture Decision Record). Los equipos maduros documentan qué descartaron y por qué — no solo qué eligieron.</div></div>
+        <div class="mini-section"><div class="mini-label">Caso real</div><div class="mini-content">motor_matching v1 implementó la primera idea (enfoque de reportes). La versión correcta nació de "¿cómo lo haría manual?". Semanas perdidas.</div></div>
+      </div>
+      <span class="chip medior-c">Proceso</span>
+    </div>
+
+    <div class="card medior-c">
+      <h3>Método CRAD</h3>
+      <p class="def">Antes de escribir el prompt al LLM: Contexto (qué archivos, qué columnas), Realidad actual (qué datos fluyen hoy), Ambigüedades (casos borde no resueltos), Decisiones (qué archivos genera, quién los consume).</p>
+      <div class="card-row">
+        <div class="mini-section"><div class="mini-label">En la industria</div><div class="mini-content">Problem framing antes de solution finding. Un problema bien formulado es 50% de la solución.</div></div>
+        <div class="mini-section"><div class="mini-label">Cuándo aplicar</div><div class="mini-content">Cualquier módulo nuevo o feature importante. Lo que queda en blanco en A y D son exactamente las preguntas que hay que resolver antes de diseñar.</div></div>
+      </div>
+      <span class="chip medior-c">Proceso</span>
+    </div>
+
+    <div class="cat-label">Calidad y confiabilidad</div>
+
+    <div class="card medior-c">
+      <h3>Idempotencia</h3>
+      <p class="def">Diseñar operaciones que producen el mismo resultado al re-correr. No acumular (+=), sino asignar (=) condicionalmente. Permite re-correr sin miedo cuando algo falla.</p>
+      <div class="card-row">
+        <div class="mini-section"><div class="mini-label">En la industria</div><div class="mini-content">HTTP PUT vs PATCH · REST idempotency · Database upserts. Cualquier API que se pueda reintentar debe ser idempotente.</div></div>
+        <div class="mini-section"><div class="mini-label">En jass_system</div><div class="mini-content">Todos los módulos usan SET (asignación), no ADD. Re-correr generar_lista_multas 5 veces produce el mismo lista_multas.xlsx.</div></div>
+      </div>
+      <span class="chip medior-c">Calidad</span>
+    </div>
+
+    <div class="card medior-c">
+      <h3>Test de integración con fixtures sintéticos</h3>
+      <p class="def">Test que corre el módulo completo con datos de prueba que activan cada regla, sin tocar producción. Monkey-patch de config antes de importar main para redirigir paths a carpeta temporal.</p>
+      <div class="card-row">
+        <div class="mini-section"><div class="mini-label">En la industria</div><div class="mini-content">Integration testing con test databases · Docker containers para aislar estado · pytest fixtures. El principio: nunca verificar editando archivos reales.</div></div>
+        <div class="mini-section"><div class="mini-label">En jass_system</div><div class="mini-content">test_6_corte_integracion.py: 1 caso por regla (SALVADO, CORTADO, EXONERADO, reclamo) · _tmp_test/ se borra al inicio → idempotente.</div></div>
+      </div>
+      <span class="chip medior-c">Calidad</span>
+    </div>
+
+    <div class="card medior-c">
+      <h3>Lifecycle de archivos</h3>
+      <p class="def">Documentar qué se borra (temporales), qué permanece (outputs del mes), qué se reemplaza (estado persistente), y qué es sagrado (inputs manuales que el operario llenó).</p>
+      <div class="card-row">
+        <div class="mini-section"><div class="mini-label">En la industria</div><div class="mini-content">Data retention policies · Artifact lifecycle management · "What can I delete without breaking anything?"</div></div>
+        <div class="mini-section"><div class="mini-label">En jass_system</div><div class="mini-content">Temporales: _tmp_*/ · Outputs del mes: outputs/lista_multas.xlsx · Sagrado: registro_cortes.xlsx, planilla_mes/.</div></div>
+      </div>
+      <span class="chip medior-c">Arquitectura</span>
+    </div>
+
+    <div class="card medior-c">
+      <h3>Registro de auditoría vs vista operacional</h3>
+      <p class="def">La fuente de verdad (audit) solo crece y nunca se filtra. La vista operacional es una proyección filtrada para un consumidor específico, regenerable desde el audit cuando cambian los criterios.</p>
+      <div class="card-row">
+        <div class="mini-section"><div class="mini-label">En la industria</div><div class="mini-content">Bronze/Silver/Gold layers en data lakes · OLTP (fuente) vs OLAP (vista) · Event store vs read models en CQRS.</div></div>
+        <div class="mini-section"><div class="mini-label">En jass_system</div><div class="mini-content">pagos_yape_pagaste.xlsx = auditoría (todos los egresos JASS). pagos_yape_devolucion.xlsx = vista (solo devoluciones para 5_cobranza).</div></div>
+      </div>
+      <span class="chip medior-c">Arquitectura</span>
+    </div>
+
+    <div class="card medior-c">
+      <h3>Preservación en 3 capas</h3>
+      <p class="def">En sistemas donde humanos y automatización comparten archivos: (1) backup antes de regenerar, (2) leer decisiones humanas antes de sobreescribir, (3) set de ya-procesados para no revertir trabajo confirmado.</p>
+      <div class="card-row">
+        <div class="mini-section"><div class="mini-label">En la industria</div><div class="mini-content">Optimistic locking · Versioning de datos · "Sagrado vs regenerable". El trabajo humano tiene costo real — el sistema debe protegerlo.</div></div>
+        <div class="mini-section"><div class="mini-label">En jass_system</div><div class="mini-content">Módulo 4_pagos: backup_con_timestamp() + leer_decisiones_humanas() + set ya_confirmados. Re-correr 10 veces: el trabajo del operario sobrevive.</div></div>
+      </div>
+      <span class="chip medior-c">Calidad</span>
+    </div>
+
+    <div class="card medior-c">
+      <h3>Migración segura de schema</h3>
+      <p class="def">Cambiar las columnas de un archivo sin perder datos manuales. Protocolo de 7 pasos: backup primero, guard en el script, idempotente (detecta si ya migrado), leer por nombre de columna (no por posición), probar en 1 archivo antes de N.</p>
+      <div class="card-row">
+        <div class="mini-section"><div class="mini-label">En la industria</div><div class="mini-content">Database migrations (Alembic, Flyway) · Zero-downtime deployments · Blue-green deployments. El riesgo más alto: datos que los usuarios ya llenaron.</div></div>
+        <div class="mini-section"><div class="mini-label">Caso real</div><div class="mini-content">módulo efectivo junio 2026: import con side effects sobreescribió 7 archivos con datos manuales. output consolidado como plan B los recuperó.</div></div>
+      </div>
+      <span class="chip medior-c">Calidad</span>
+    </div>
+
+    <div class="card medior-c">
+      <h3>Thin layer of shared primitives</h3>
+      <p class="def">shared/utils_*.py solo contiene funciones puras sin lógica de negocio. La orquestación (orden de pasos, qué columnas, cuándo aplicar) vive en cada main.py. Regla del Tres: no abstraer hasta tener 3+ usos genuinamente idénticos.</p>
+      <div class="card-row">
+        <div class="mini-section"><div class="mini-label">En la industria</div><div class="mini-content">Standard library design · Lodash vs Ramda · "Make the common case easy, the hard case possible". Una abstracción con if modulo=="X" ya no es una abstracción.</div></div>
+        <div class="mini-section"><div class="mini-label">En jass_system</div><div class="mini-content">shared/utils_*.py: backup_con_timestamp(), normalize(). Orquestación: en cada main.py por separado. El test: ¿necesita if modulo == "X"? → no compartir.</div></div>
+      </div>
+      <span class="chip medior-c">Arquitectura</span>
+    </div>
+
+    <div class="card medior-c">
+      <h3>Pipeline order = business reality</h3>
+      <p class="def">El orden de los módulos debe coincidir con el flujo real del negocio, no con la conveniencia técnica. Si en la realidad el cliente recibe la boleta antes de pagar, 3_boletas va antes que 4_pagos.</p>
+      <div class="card-row">
+        <div class="mini-section"><div class="mini-label">En la industria</div><div class="mini-content">Domain-Driven Design (DDD) · "Make the implicit explicit" (Eric Evans). El código que contradice el negocio es técnicamente correcto pero semánticamente roto.</div></div>
+        <div class="mini-section"><div class="mini-label">En jass_system</div><div class="mini-content">0_padron → 1_lecturas → 2_planilla → 3_boletas → 4_pagos → 5_cobranza → 6_corte → 6b_corte_multas → 7_cierre.</div></div>
+      </div>
+      <span class="chip medior-c">Arquitectura</span>
+    </div>
+
+  </div><!-- /grid medior -->
+</div>
+
+<!-- ══════════════════════ SENIOR ══════════════════════ -->
+<div class="seccion senior">
+  <div class="seccion-header">
+    <div class="seccion-badge">Senior</div>
+    <div class="seccion-info">
+      <h2>Arquitectura del sistema — protege el negocio</h2>
+      <p>Un senior diseña los invariantes que hacen que el sistema sea confiable cuando las cosas salen mal, cuando escala, o cuando el operador comete un error.</p>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="cat-label">Patrones de resiliencia</div>
+
+    <div class="card senior-c">
+      <h3>Guard / Phase Gate</h3>
+      <p class="def">Centinela que bloquea la ejecución con sys.exit(1) si una precondición falla. El phase gate es un guard específico: bloquea re-ejecución de un script después de que el ciclo fue comprometido (commit point).</p>
+      <div class="card-row">
+        <div class="mini-section"><div class="mini-label">En la industria</div><div class="mini-content">CI/CD gates · Database transaction guards · Saga pattern checkpoints · "Don't let broken state propagate".</div></div>
+        <div class="mini-section"><div class="mini-label">En jass_system</div><div class="mini-content">audit_penalidad APLICADO = sentinel del phase gate · auto-libera al cambiar MES_ANO · F1-4: sin gate, el pago post-commit habría sido revertido silenciosamente.</div></div>
+      </div>
+      <span class="chip senior-c">Resiliencia</span> <span class="chip day1">Día 1</span>
+    </div>
+
+    <div class="card senior-c">
+      <h3>Journal (Log append-only)</h3>
+      <p class="def">Registro de operaciones que solo crece. Nunca se edita. Los eventos son primarios; el estado actual es derivado (APLICADO − REVERTIDO = SET_TIENE). Permite reconstruir cualquier estado pasado y auditar exactamente qué ocurrió.</p>
+      <div class="card-row">
+        <div class="mini-section"><div class="mini-label">En la industria</div><div class="mini-content">WAL (PostgreSQL) · Kafka topics · Event Sourcing · Libro diario contable · Blockchain. El principio invariante: nunca mutar el pasado.</div></div>
+        <div class="mini-section"><div class="mini-label">En jass_system</div><div class="mini-content">audit_penalidad.xlsx con columna ACCION. La reconciliación bidireccional lo usa para calcular quién realmente tiene el cargo aplicado vs quién debería tenerlo.</div></div>
+      </div>
+      <span class="chip senior-c">Resiliencia</span> <span class="chip day1">Día 1</span>
+    </div>
+
+    <div class="card senior-c">
+      <h3>Reconciliación bidireccional</h3>
+      <p class="def">En scripts que modifican archivos compartidos: comparar SET_DEBE (quién debería tener el cambio) vs SET_TIENE (journal: quién ya lo tiene). Aplica nuevos, revierte sobrantes, skipea correctos. Siempre converge al estado correcto.</p>
+      <div class="card-row">
+        <div class="mini-section"><div class="mini-label">En la industria</div><div class="mini-content">Reconciliation en contabilidad · Eventual consistency en sistemas distribuidos · "Desired state vs current state" (Kubernetes).</div></div>
+        <div class="mini-section"><div class="mini-label">En jass_system</div><div class="mini-content">aplicar_penalidad.py v2: 10 cargos erróneos (4 CORTADOS + 4 EXONERADOS + 2 con reclamo) se revirtieron automáticamente al re-correr — sin intervención manual.</div></div>
+      </div>
+      <span class="chip senior-c">Resiliencia</span>
+    </div>
+
+    <div class="card senior-c">
+      <h3>Sidecar (change detection)</h3>
+      <p class="def">Archivo pequeño junto al archivo de datos que responde "¿cambió?" sin abrir el archivo grande. Contiene: hash de contenido, n_filas, timestamp. El guard lee primero el sidecar (O(1)); solo si cambió abre el xlsx (O(n)).</p>
+      <div class="card-row">
+        <div class="mini-section"><div class="mini-label">En la industria</div><div class="mini-content">Kubernetes sidecar containers · HTTP ETags · Archivos .sha256 en ETL · Rsync checksums. El patrón es universal: metadata separada de los datos.</div></div>
+        <div class="mini-section"><div class="mini-label">En jass_system</div><div class="mini-content">Pendiente. Implementar cuando guards deban detectar cambios en planilla_mes sin abrirla. No implementar prematuramente.</div></div>
+      </div>
+      <span class="chip senior-c">Hardening</span> <span class="chip pending">Pendiente</span>
+    </div>
+
+    <div class="card senior-c">
+      <h3>Incremental Processing</h3>
+      <p class="def">Solo procesar el delta: registros nuevos o cambiados desde la última corrida. Combina sidecar (¿cambió el input?) y journal (¿qué ya procesé?) para saltear lo que no cambió.</p>
+      <div class="card-row">
+        <div class="mini-section"><div class="mini-label">En la industria</div><div class="mini-content">Kafka consumer offsets · Spark checkpoints · CDC (Change Data Capture) · "Only the delta" = la diferencia entre escalar y no escalar.</div></div>
+        <div class="mini-section"><div class="mini-label">En jass_system</div><div class="mini-content">Pendiente. Aplicar cuando haya multi-JASS o >10k predios. Requiere sidecar implementado primero. Hoy con 239 predios el re-procesamiento completo es aceptable.</div></div>
+      </div>
+      <span class="chip senior-c">Hardening</span> <span class="chip pending">Pendiente</span>
+    </div>
+
+    <div class="cat-label">Diseño de sistemas</div>
+
+    <div class="card senior-c">
+      <h3>Estado persistente con semántica de negocio</h3>
+      <p class="def">Cada valor en una columna de estado tiene una razón de negocio, no solo un valor binario. CORTADO ≠ EXONERADO aunque ambos excluyan. En 6 meses, alguien leerá el historial y necesita entender <em>por qué</em>, no solo <em>si</em>.</p>
+      <div class="card-row">
+        <div class="mini-section"><div class="mini-label">En la industria</div><div class="mini-content">State machines con semántica explícita · DDD aggregates con invariantes · "Make the implicit explicit". Los estados son lenguaje — el lenguaje impreciso acumula ambigüedad.</div></div>
+        <div class="mini-section"><div class="mini-label">En jass_system</div><div class="mini-content">registro_cortes.xlsx: CORTADO (deuda impaga) · EXONERADO (local comunal o especial) · REACTIVADO (volvió al flujo). El supervisor ya cargó EXONERADO antes de que el código lo soportara.</div></div>
+      </div>
+      <span class="chip senior-c">Diseño</span>
+    </div>
+
+    <div class="card senior-c">
+      <h3>Ciclo de vida de 3 fases</h3>
+      <p class="def">BORRADOR → PUBLICADA → COMPROMETIDA. Cada fase tiene permisos distintos sobre la lista. El commit point es el momento donde los efectos externos se vuelven irreversibles — después de ese punto, el sistema bloquea re-ejecución automáticamente.</p>
+      <div class="card-row">
+        <div class="mini-section"><div class="mini-label">En la industria</div><div class="mini-content">Order lifecycle (DRAFT → CONFIRMED → FULFILLED) · Git branches por entorno · Blue-green deployment phases. El commit point es cuando el dinero real cambia de manos.</div></div>
+        <div class="mini-section"><div class="mini-label">En jass_system</div><div class="mini-content">6_corte: BORRADOR (generar) → PUBLICADA (secretaria anuncia) → COMPROMETIDA (aplicar_penalidad corrió). Después del commit: phase gate bloquea generar_lista.</div></div>
+      </div>
+      <span class="chip senior-c">Diseño</span>
+    </div>
+
+    <div class="card senior-c">
+      <h3>Blast radius contenido</h3>
+      <p class="def">Un constraint en un módulo no cascadea a otros módulos que no lo necesitan. El phase gate en 6_corte no afecta 5_cobranza ni 2_planilla. Alta cohesión dentro del módulo, bajo acoplamiento entre módulos.</p>
+      <div class="card-row">
+        <div class="mini-section"><div class="mini-label">En la industria</div><div class="mini-content">Bulkhead pattern (Circuit Breaker) · Microservices isolation · "Fail locally, don't cascade". La catástrofe contenida es manejable; la catástrofe en cascada no lo es.</div></div>
+        <div class="mini-section"><div class="mini-label">En jass_system</div><div class="mini-content">6_corte y 6b_corte_multas tienen phase gates independientes. Un ciclo comprometido en uno no bloquea al otro. Los módulos upstream (2_planilla, 5_cobranza) no ven el gate.</div></div>
+      </div>
+      <span class="chip senior-c">Diseño</span>
+    </div>
+
+    <div class="card senior-c card-full">
+      <h3>El sistema recuerda, no el humano</h3>
+      <p class="def">Cada restricción de negocio que no está en código es un bug esperando ocurrir. Si el operador debe recordar no re-correr el script después del commit, eventualmente lo olvidará. El phase gate elimina esa posibilidad para siempre.</p>
+      <div class="card-row">
+        <div class="mini-section"><div class="mini-label">En la industria</div><div class="mini-content">Poka-yoke (error-proofing en manufactura japonesa) · "Make illegal states unrepresentable" (Elm/Haskell) · Defensive design. La memoria humana no escala; las restricciones en código sí.</div></div>
+        <div class="mini-section"><div class="mini-label">Caso real</div><div class="mini-content">El operador pasó 2 horas en el ciclo de junio tratando de no cometer el error F1-4 manualmente (re-correr generar_lista después del commit). El phase gate lo elimina para siempre: el sistema no permite ese error, independientemente de si el operador recuerda o no.</div></div>
+        <div class="mini-section"><div class="mini-label">Build-time vs production</div><div class="mini-content">Distinción clave: disciplina de lectura del agente (build-time) ≠ sidecar/journal/incremental (production-time). El agente ahorra tokens con disciplina. El sistema ahorra costo con artefactos de código. Confundirlos lleva a implementar en el momento equivocado.</div></div>
+      </div>
+      <span class="chip senior-c">Mentalidad</span>
+    </div>
+
+  </div><!-- /grid senior -->
+</div>
+
+<!-- ══════════════════════ TABLA RESUMEN ══════════════════════ -->
+<div class="resumen">
+  <h2>Resumen — todos los conceptos por nivel</h2>
+  <table>
+    <tr><th>Concepto</th><th>Nivel</th><th>Qué resuelve</th></tr>
+    <tr><td>Naming conventions</td><td><span class="badge-j">Junior</span></td><td>Legibilidad y consistencia en todo el sistema</td></tr>
+    <tr><td>Conventional Commits</td><td><span class="badge-j">Junior</span></td><td>Git log como historia del proyecto</td></tr>
+    <tr><td>Logging a archivo</td><td><span class="badge-j">Junior</span></td><td>Trazabilidad de cada ejecución</td></tr>
+    <tr><td>Validación de inputs</td><td><span class="badge-j">Junior</span></td><td>Fail fast con mensaje claro</td></tr>
+    <tr><td>Diseño antes de código</td><td><span class="badge-j">Junior</span></td><td>El costo de cambiar diseño vs código</td></tr>
+    <tr><td>Separación de responsabilidades</td><td><span class="badge-j">Junior</span></td><td>Módulos enfocados, fáciles de entender y testear</td></tr>
+    <tr><td>Lo manual es el ancla</td><td><span class="badge-j">Junior</span></td><td>Auditabilidad natural del proceso</td></tr>
+    <tr><td>Una sola fuente de verdad</td><td><span class="badge-j">Junior</span></td><td>Elimina divergencia entre copias</td></tr>
+    <tr><td>Documentation-Driven Design</td><td><span class="badge-m">Medior</span></td><td>Diseño correcto antes de comprometerse con código</td></tr>
+    <tr><td>HTML como contrato de diseño</td><td><span class="badge-m">Medior</span></td><td>Malentendidos detectados en diseño, no en código</td></tr>
+    <tr><td>Evaluar 3+ enfoques</td><td><span class="badge-m">Medior</span></td><td>Evitar el costo de cambiar enfoque con código escrito</td></tr>
+    <tr><td>Método CRAD</td><td><span class="badge-m">Medior</span></td><td>Problema bien formulado antes de buscar solución</td></tr>
+    <tr><td>Idempotencia</td><td><span class="badge-m">Medior</span></td><td>Re-correr siempre es seguro</td></tr>
+    <tr><td>Test de integración sintético</td><td><span class="badge-m">Medior</span></td><td>Verificar sin tocar producción</td></tr>
+    <tr><td>Lifecycle de archivos</td><td><span class="badge-m">Medior</span></td><td>Claridad sobre qué se borra, qué persiste, qué es sagrado</td></tr>
+    <tr><td>Auditoría vs vista operacional</td><td><span class="badge-m">Medior</span></td><td>Fuente de verdad inmutable, vistas regenerables</td></tr>
+    <tr><td>Preservación en 3 capas</td><td><span class="badge-m">Medior</span></td><td>El trabajo humano sobrevive a re-corridas</td></tr>
+    <tr><td>Migración segura de schema</td><td><span class="badge-m">Medior</span></td><td>Cambiar estructura sin perder datos manuales</td></tr>
+    <tr><td>Thin layer of shared primitives</td><td><span class="badge-m">Medior</span></td><td>Reutilización sin acoplamiento oculto</td></tr>
+    <tr><td>Pipeline order = business reality</td><td><span class="badge-m">Medior</span></td><td>El código refleja el flujo real del negocio</td></tr>
+    <tr><td>Guard / Phase Gate</td><td><span class="badge-s">Senior</span></td><td>Los errores no avanzan; los ciclos comprometidos no se re-abren</td></tr>
+    <tr><td>Journal (append-only log)</td><td><span class="badge-s">Senior</span></td><td>Historial completo de operaciones, estado reconstruible</td></tr>
+    <tr><td>Reconciliación bidireccional</td><td><span class="badge-s">Senior</span></td><td>El archivo compartido siempre converge al estado correcto</td></tr>
+    <tr><td>Sidecar (change detection)</td><td><span class="badge-s">Senior</span></td><td>Detección de cambio en O(1) sin abrir el archivo</td></tr>
+    <tr><td>Incremental Processing</td><td><span class="badge-s">Senior</span></td><td>Solo el delta: el sistema escala sin crecer en costo</td></tr>
+    <tr><td>Estado persistente con semántica</td><td><span class="badge-s">Senior</span></td><td>El historial es legible en el futuro sin consultar a nadie</td></tr>
+    <tr><td>Ciclo de vida de 3 fases</td><td><span class="badge-s">Senior</span></td><td>Permisos distintos por fase, commit point irreversible</td></tr>
+    <tr><td>Blast radius contenido</td><td><span class="badge-s">Senior</span></td><td>Una falla local no cascadea al sistema completo</td></tr>
+    <tr><td>El sistema recuerda, no el humano</td><td><span class="badge-s">Senior</span></td><td>Las restricciones de negocio en código no se olvidan</td></tr>
+  </table>
+</div>
+
+</body>
+</html>

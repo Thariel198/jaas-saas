@@ -8,7 +8,13 @@
 .tab.t2.active{color:#854F0B;border-bottom-color:#BA7517}
 .tab.t3.active{color:#185FA5;border-bottom-color:#378ADD}
 .tab.t4.active{color:#065F46;border-bottom-color:#1D9E75}
+.tab.t5.active{color:#9A3412;border-bottom-color:#FDBA74}
 .sheet{display:none}.sheet.active{display:block}
+.badge-estado{font-size:9px;font-weight:600;padding:1px 6px;border-radius:3px;font-family:var(--font-mono);white-space:nowrap;display:inline-block}
+.badge-normal{background:var(--color-background-secondary);color:var(--color-text-tertiary)}
+.badge-padre{background:#FFF7ED;color:#9A3412}
+.badge-hijo{background:#E1F5EE;color:#065F46}
+.badge-incidencia{background:#FCEBEB;color:#A32D2D}
 .instruc{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-left:3px solid #7C3AED;border-radius:0 var(--border-radius-md) var(--border-radius-md) 0;padding:9px 13px;font-size:12px;color:var(--color-text-secondary);margin-bottom:12px;line-height:1.7}
 .instruc strong{color:var(--color-text-primary)}
 .tab-excel{display:inline-flex;align-items:center;border-radius:6px 6px 0 0;padding:5px 14px;font-size:12px;font-weight:500;margin-bottom:-1px}
@@ -56,6 +62,7 @@ tr:last-child td{border-bottom:none}
     <div class="tab t2" onclick="show('amb',1)">Ambiguos</div>
     <div class="tab t3" onclick="show('mul',2)">Pagos_multiples</div>
     <div class="tab t4" onclick="show('mix',3)">Maestro_inexacto</div>
+    <div class="tab t5" onclick="show('com',4)">Pagos_comunitarios</div>
   </div>
 
   <!-- HOJA 1: SIN_IDENTIFICAR -->
@@ -139,7 +146,8 @@ tr:last-child td{border-bottom:none}
   <!-- HOJA 2: AMBIGUOS -->
   <div id="amb" class="sheet">
     <div class="instruc">
-      Una fila por pago · <strong>CANDIDATOS</strong> = todos los lotes posibles con su deuda y diff · el sistema elige el de menor diff automáticamente · si la resolución manual fue por concepto (ej. cobro de vecino), se llena <strong>CONCEPTO</strong> en vez de MZ_FINAL/LOTE_FINAL.
+      Una fila por pago · <strong>CANDIDATOS</strong> = todos los lotes posibles con su deuda y diff · el sistema elige el de menor diff automáticamente · si la resolución manual fue por concepto (ej. cobro de vecino), se llena <strong>CONCEPTO</strong> en vez de MZ_FINAL/LOTE_FINAL.<br>
+      <strong>ESTADO_REGISTRO=PADRE_SEGREGADO</strong> — CONCEPTO=comunitario · el movimiento íntegro queda trazado aquí como ancla, pero <u>no suma en ningún reporte de caja</u> · solo audita "este pago ya fue clasificado comunitario" · el desglose real vive en la hoja Pagos_comunitarios, vinculado por ID_PADRE.
     </div>
     <div class="tab-excel te-amber">Ambiguos</div>
     <div class="tw"><table style="min-width:1000px">
@@ -152,7 +160,7 @@ tr:last-child td{border-bottom:none}
           <th class="th-sep"></th>
           <th class="th-cand gh">Candidatos</th>
           <th class="th-sep"></th>
-          <th class="th-fin gh" colspan="3">¿Cómo se resolvió?</th>
+          <th class="th-fin gh" colspan="4">¿Cómo se resolvió?</th>
           <th class="th-sep"></th>
           <th class="th-cuan gh" colspan="3">¿Cuándo?</th>
         </tr>
@@ -165,7 +173,7 @@ tr:last-child td{border-bottom:none}
           <th class="th-sep"></th>
           <th class="th-cand">CANDIDATOS</th>
           <th class="th-sep"></th>
-          <th class="th-fin">MZ_FINAL</th><th class="th-fin">LOTE_FINAL</th><th class="th-fin">CONCEPTO</th>
+          <th class="th-fin">MZ_FINAL</th><th class="th-fin">LOTE_FINAL</th><th class="th-fin">CONCEPTO</th><th class="th-fin">ESTADO_REGISTRO</th>
           <th class="th-sep"></th>
           <th class="th-cuan">CICLO_CORRECCION</th><th class="th-cuan" title="la llena 5_cobranza">CICLO_COBRANZA</th><th class="th-cuan">FECHA_CORRECCION</th>
         </tr>
@@ -181,6 +189,7 @@ tr:last-child td{border-bottom:none}
           <td class="td-cand">D-1(38,0) · D-19(47,-9)</td>
           <td class="td-sep"></td>
           <td class="td-fin">D</td><td class="td-fin">1</td><td class="td-res-e">—</td>
+          <td><span class="badge-estado badge-normal">REGISTRO_NORMAL</span></td>
           <td class="td-sep"></td>
           <td class="td-cuan">1</td><td class="td-cuan" style="opacity:0.5;font-style:italic">—</td><td class="td-cuan">16/05/2026 09:43</td>
         </tr>
@@ -194,6 +203,7 @@ tr:last-child td{border-bottom:none}
           <td class="td-cand">D-1(38,-23) · D-19(47,-32)</td>
           <td class="td-sep"></td>
           <td class="td-fin">D</td><td class="td-fin">19</td><td class="td-res-e">—</td>
+          <td><span class="badge-estado badge-normal">REGISTRO_NORMAL</span></td>
           <td class="td-sep"></td>
           <td class="td-cuan">1</td><td class="td-cuan" style="opacity:0.5;font-style:italic">—</td><td class="td-cuan">16/05/2026 09:43</td>
         </tr>
@@ -208,8 +218,24 @@ tr:last-child td{border-bottom:none}
           <td class="td-sep"></td>
           <td class="td-res-e">—</td><td class="td-res-e">—</td>
           <td class="td-res" style="font-style:italic;color:#085041">cobro de agua (Yerald)</td>
+          <td><span class="badge-estado badge-normal">REGISTRO_NORMAL</span></td>
           <td class="td-sep"></td>
           <td class="td-cuan">2</td><td class="td-cuan" style="opacity:0.5;font-style:italic">—</td><td class="td-cuan">15/06/2026 06:00</td>
+        </tr>
+        <tr>
+          <td class="num">4</td>
+          <td class="td-quien">U0137</td><td class="td-nombre">DEYSI COSME GARCILAZO</td>
+          <td class="td-sep"></td>
+          <td class="td-banco">Janet Vil*</td>
+          <td class="td-monto">S/450.00</td><td class="td-msg">350#1cobro 100 # cobro maximo</td><td class="td-banco">07/06/2026 10:39:01</td>
+          <td class="td-sep"></td>
+          <td class="td-cand">G-21A(0,+9999) · G-3(0,+9999) · …</td>
+          <td class="td-sep"></td>
+          <td class="td-res-e">—</td><td class="td-res-e">—</td>
+          <td class="td-res" style="font-style:italic;color:#085041">comunitario</td>
+          <td><span class="badge-estado badge-padre">PADRE_SEGREGADO</span></td>
+          <td class="td-sep"></td>
+          <td class="td-cuan">2</td><td class="td-cuan" style="opacity:0.5;font-style:italic">—</td><td class="td-cuan">30/06/2026 14:35</td>
         </tr>
       </tbody>
     </table></div>
@@ -218,6 +244,7 @@ tr:last-child td{border-bottom:none}
       <div class="leg"><div class="ld" style="background:#F0F8FF;border:0.5px solid #AED6F1"></div>banco</div>
       <div class="leg"><div class="ld" style="background:#FFFBF0;border:0.5px solid #EF9F27"></div>candidatos MZ-LOTE(deuda,diff)</div>
       <div class="leg"><div class="ld" style="background:#F0FFF8;border:0.5px solid #9FE1CB"></div>MZ_FINAL/LOTE_FINAL elegido · o CONCEPTO si no fue lote</div>
+      <div class="leg"><span class="badge-estado badge-padre">PADRE_SEGREGADO</span> ancla de auditoría · no suma en caja</div>
     </div>
   </div>
 
@@ -297,7 +324,6 @@ tr:last-child td{border-bottom:none}
       <div class="leg"><div class="ld" style="background:#F0FFF8;border:0.5px solid #9FE1CB"></div>asignación por lote</div>
     </div>
   </div>
-</div>
 
   <!-- HOJA 4: MAESTRO_INEXACTO -->
   <div id="mix" class="sheet">
@@ -385,6 +411,76 @@ tr:last-child td{border-bottom:none}
       <div class="leg"><span style="font-family:var(--font-mono);font-size:11px;font-weight:500;color:#065F46">+8.00</span> pagó de más</div>
     </div>
   </div>
+
+  <!-- HOJA 5: PAGOS_COMUNITARIOS -->
+  <div id="com" class="sheet">
+    <div class="instruc">
+      Desglose de pagos comunitarios (dirigentes/cobradores que agregan el cobro de varios lotes en un solo movimiento) · una fila por lote · ORIGEN+FECHA identifica el depósito padre.<br>
+      <strong>ID_PADRE</strong> = ORIGEN|FECHA del registro padre en la hoja Ambiguos (ESTADO_REGISTRO=PADRE_SEGREGADO) · vincula cada hijo con su movimiento original para reconstruir la cadena en auditoría.<br>
+      <strong>ESTADO_REGISTRO=HIJO_SEGREGADO</strong> — sí suma en caja · <strong>INCIDENCIA</strong> — la suma de los hijos de un padre no cuadra con el monto original (tolerancia S/0.05), requiere revisión manual.
+    </div>
+    <div class="tab-excel" style="background:#FFF7ED;border:0.5px solid #FDBA74;border-bottom:none;color:#9A3412">Pagos_comunitarios</div>
+    <div class="tw"><table style="min-width:1200px">
+      <thead>
+        <tr>
+          <th class="num"></th>
+          <th class="th-quien gh" colspan="2">¿Quién es?</th>
+          <th class="th-sep"></th>
+          <th class="th-banco gh" colspan="3">¿Qué hizo el banco?</th>
+          <th class="th-sep"></th>
+          <th class="th-res gh" colspan="7">Desglose comunitario</th>
+          <th class="th-sep"></th>
+          <th class="th-cuan gh" colspan="2">¿Cuándo?</th>
+        </tr>
+        <tr>
+          <th class="num"></th>
+          <th class="th-quien">USER_ID</th><th class="th-quien">NOMBRE</th>
+          <th class="th-sep"></th>
+          <th class="th-banco">ORIGEN</th><th class="th-banco">FECHA</th><th class="th-banco">MONTO_TOTAL</th>
+          <th class="th-sep"></th>
+          <th class="th-res">MZ</th><th class="th-res">LOTE</th><th class="th-res">MONTO_PARCIAL</th><th class="th-res">MOTIVO</th><th class="th-res">CONCEPTO</th><th class="th-res">ESTADO_REGISTRO</th><th class="th-res">ID_PADRE</th>
+          <th class="th-sep"></th>
+          <th class="th-cuan">CICLO</th><th class="th-cuan">FECHA_CORRECCION</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="num">1</td>
+          <td class="td-quien">U0137</td><td class="td-nombre">DEYSI COSME GARCILAZO</td>
+          <td class="td-sep"></td>
+          <td class="td-banco">Janet Vil*</td><td class="td-banco">07/06/2026 10:39:01</td><td class="td-monto">S/450.00</td>
+          <td class="td-sep"></td>
+          <td class="td-res">G</td><td class="td-res">21A</td><td class="td-monto">S/350.00</td>
+          <td class="td-res-t">1er cobro</td><td class="td-res-e">—</td>
+          <td><span class="badge-estado badge-hijo">HIJO_SEGREGADO</span></td>
+          <td class="td-banco">JANET VIL*|07/06/2026 10:39:01</td>
+          <td class="td-sep"></td>
+          <td class="td-cuan">2</td><td class="td-cuan">30/06/2026 14:35</td>
+        </tr>
+        <tr>
+          <td class="num">2</td>
+          <td class="td-quien">U0046</td><td class="td-nombre">JUAN RIOS BLAS</td>
+          <td class="td-sep"></td>
+          <td class="td-banco">Janet Vil*</td><td class="td-banco">07/06/2026 10:39:01</td><td class="td-monto">S/450.00</td>
+          <td class="td-sep"></td>
+          <td class="td-res">W</td><td class="td-res">19</td><td class="td-monto">S/100.00</td>
+          <td class="td-res-t">cobro máximo</td><td class="td-res-e">—</td>
+          <td><span class="badge-estado badge-hijo">HIJO_SEGREGADO</span></td>
+          <td class="td-banco">JANET VIL*|07/06/2026 10:39:01</td>
+          <td class="td-sep"></td>
+          <td class="td-cuan">2</td><td class="td-cuan">30/06/2026 14:35</td>
+        </tr>
+      </tbody>
+    </table></div>
+    <div class="legend">
+      <div class="leg"><div class="ld" style="background:#FAF5FF;border:0.5px solid #C4B5FD"></div>¿Quién es?</div>
+      <div class="leg"><div class="ld" style="background:#F0F8FF;border:0.5px solid #AED6F1"></div>banco</div>
+      <div class="leg"><div class="ld" style="background:#F0FFF8;border:0.5px solid #9FE1CB"></div>desglose comunitario</div>
+      <div class="leg"><span class="badge-estado badge-hijo">HIJO_SEGREGADO</span> suma en caja</div>
+      <div class="leg"><span class="badge-estado badge-incidencia">INCIDENCIA</span> hijos no cuadran con el padre</div>
+    </div>
+  </div>
+</div>
 
 <script>
 function show(id,i){

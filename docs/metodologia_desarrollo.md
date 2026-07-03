@@ -690,6 +690,31 @@ luego pedir la decisión. El texto que acompaña es un resumen, no la fuente de 
 
 ---
 
+**Regla: explicar arquitectura con diagrama de cajas — no con párrafos**
+
+Cuando se explica una arquitectura nueva (capas, entidades, quién escribe qué, cómo fluye un dato de
+un módulo a otro), la explicación en texto obliga al usuario a reconstruir el diagrama en su cabeza
+mientras lee. El diagrama de cajas hace ese trabajo por él.
+
+**Regla:** toda explicación de arquitectura o flujo se hace primero con diagrama de cajas — capas
+apiladas, una caja por pieza (entidad, evento, módulo, archivo), flechas verticales entre capas. El
+texto que acompaña aclara detalle puntual, no reemplaza el diagrama ni va primero.
+
+**Por qué importa:** un párrafo bien escrito explicando 5 capas todavía exige que el lector arme el
+mapa mental mientras lee — cada frase nueva puede reordenar lo que entendió de la anterior. Con las
+cajas, el mapa ya está armado: el lector solo verifica que cada pieza esté donde esperaba.
+
+**Señal de que aplica:** la explicación tiene 3+ piezas con una relación entre ellas (capas, orden,
+quién-llama-a-quién, quién-escribe-qué). Si el usuario dice "no entendí" o pide que se re-explique
+lo mismo de otra forma, es señal de que debió ir directo a diagrama.
+
+**Caso real:** diseño de `seguimiento_pueblo` (2026-07-02) — la explicación en texto de la arquitectura
+event-sourced (entidades → eventos → repo → estado derivado → vistas) dejó al usuario en ~50% de
+comprensión. El mismo contenido en diagrama de cajas (`shared/docs/diagrama_seguimiento_pueblo.html`)
+fue la forma que el usuario pidió explícitamente para llegar al 70-80%.
+
+---
+
 **2.5 Crear rutas de carpetas del módulo**
 Crear físicamente las carpetas internas según el README.
 
@@ -1145,6 +1170,21 @@ def main():
 Este patrón no es solo para migraciones — aplica en **cada ejecución** del módulo mientras el mes está abierto.
 El módulo puede re-correrse 10 veces en el mismo ciclo: el trabajo manual siempre sobrevive.
 
+**El trigger que se olvida — agregar una columna humana a un output regenerado.** El patrón existe, pero
+la trampa es no darse cuenta de *cuándo* aplica. La regla operativa (CLAUDE.md, Regla 9): **el momento en
+que agregás una columna que llena un humano a un archivo que un `main.py` regenera, la preservación deja de
+ser opcional — es parte del mismo diseño, no un parche posterior.** Sin ella, la próxima corrida sobrescribe
+lo que el humano escribió: eso es un *lost update* del trabajo manual, la misma clase de bug que causó el
+*lost update* de un writer sobre un archivo compartido (ver "Writer único").
+
+Caso real — **bug B5** (`5_cobranza`, 2026-06): `correcciones_lote.xlsx` era un archivo mutable único que la
+regeneración pisaba, y un `git checkout`/revert lo devolvía a su estado commiteado → las correcciones
+tipeadas a mano desaparecían. Dos lecciones: (1) si podés, la decisión humana vive en un **input propio**
+(el humano lo escribe, el sistema solo lo lee) en vez de en el output regenerable; (2) si la decisión ya
+solo existe en un output, reconstruila desde la fuente derivada más durable (en B5, la trazabilidad). La
+columna `REVISION` de `arrastre_devolucion_YYYY-MM.xlsx` es la aplicación limpia de esta regla: columna
+humana sobre un output regenerado → preservación por clave (MZ-LT) cableada desde el día uno.
+
 **3.6e Patrón: thin layer of shared primitives**
 
 Cuando varios módulos implementan el mismo patrón conceptual, hay tres caminos:
@@ -1171,6 +1211,34 @@ El camino (B) parece DRY pero termina con 8 parámetros configurables y callback
 **Regla del Tres:** no abstraer hasta tener 3+ usos REALES de lógica GENUINAMENTE IDÉNTICA donde el cambio futuro afectaría a todos por igual. Si dos módulos comparten el 80% pero el 20% difiere por razones de negocio, la abstracción completa es prematura.
 
 Este patrón lo usan kernel Linux, React y pandas: primitivos compartidos estables + orquestación local en cada módulo.
+
+**Regla: cross-módulo nunca es import directo — siempre pasa por `shared/utils_*.py`**
+
+La Regla del Tres (3+ usos) gobierna cuándo abstraer lógica que se **duplica** dentro del mismo módulo o entre módulos similares. Es un eje distinto de esto: cuando un módulo B necesita invocar una función que ya vive en el módulo A (no duplicarla, *reusarla*), la solución nunca es `from A.archivo import funcion` — eso es acoplamiento cross-módulo por import, exactamente lo que la regla de agentic SaaS (sección "Acoplamiento", más arriba) ya prohíbe.
+
+```
+MAL   7_cierre importa crear_mesa() directo de 4_pagos/efectivo/crear_templates.py
+      → 7_cierre ahora depende del código interno de 4_pagos/efectivo
+      → un refactor en 4_pagos/efectivo puede romper 7_cierre sin que nadie lo note
+
+BIEN  la función se extrae a shared/utils_*.py (parametrizada, sin *_DIR hardcodeado)
+      → 4_pagos/efectivo Y 7_cierre la invocan desde ahí
+      → ninguno depende del código interno del otro
+```
+
+**Caso real (2026-07-03):** `7_cierre` necesita resetear `mesa_N.xlsx` a template vacío
+(hoy vive en `4_pagos/efectivo/crear_templates.py::crear_mesa()`, con `INPUTS_DIR`
+hardcodeado) y resetear `correcciones_lote.xlsx` (hoy vive privado en
+`5_cobranza/main.py::_escribir_correcciones_lote()`). Solución: mover ambas a
+`shared/utils_*.py` parametrizadas por `ruta: Path` — `shared/utils_lote.py` ya existe
+(hoy solo con el lector `leer_correcciones_lote()`, se le agrega el escritor al lado) y
+se crea `shared/utils_templates.py` para la lógica de `crear_mesa`.
+
+**Cómo decidir sin ambigüedad:** si la necesidad es "quiero llamar algo que YA existe en
+otro módulo" → siempre shared, aunque sean solo 2 llamadores (no hace falta esperar a 3).
+Si la necesidad es "este módulo nuevo necesita escribir lógica parecida a la de otro,
+pero es la primera vez que se repite" → ahí sí aplica la Regla del Tres (esperar el
+tercer uso real antes de abstraer).
 
 **3.6g Patrón: reconciliación bidireccional en scripts writers**
 
@@ -1652,6 +1720,7 @@ Si el código descubre algo que contradice el diseño → para y corrige el READ
 | 2.7 | Junio 2026 | Paso 3.6c: verificar comportamientos nuevos con test sintético — no con datos reales. Verificación manual (editar archivos reales, borrar output, re-correr) no es repetible, toca producción, y no detecta regresiones. La forma correcta es un `test_verificacion.py` con estado mínimo sintético, assert con mensaje claro, y carpeta temp idempotente. |
 | 2.8 | Junio 2026 | Paso 2.9: diseño de migración (obligatorio cuando el schema cambia y hay datos manuales). Protocolo de Migración completo con 7 pasos: backup primero, output consolidado como plan B, guard `if __name__ == "__main__":` obligatorio, idempotencia, lectura por nombre de columna, columnas nuevas vacías, probar en uno antes de N. Caso real documentado (módulo efectivo junio 2026). |
 | 2.9 | Junio 2026 | Tres patrones nuevos. Paso 2.6: Registro de auditoría vs vista operacional — clasificar outputs en fuente de verdad (nunca se filtra) vs proyección para downstream (regenerable). Paso 2.7: Retrocompatibilidad de lectura — try/except por nombre de columna para coexistencia de schemas durante transición, diferente a migración. Paso 3.6d: Preservación en tres capas (backup + leer decisiones humanas + set ya-procesados) — aplica en cada re-corrida del módulo, no solo en migraciones. |
+| 3.0 | Julio 2026 | Paso 3.6d + CLAUDE.md Regla 9: el *trigger* de la preservación — agregar una columna humana a un output que un `main.py` regenera obliga a cablear la preservación desde el diseño, no como parche. Caso real bug B5 (`correcciones_lote.xlsx`) documentado: archivo mutable único pisado por regeneración + revertible por git. Aplicación: columna `REVISION` de `arrastre_devolucion`. |
 | 3.3 | Junio 2026 | Paso 2.1: cada módulo lleva DOS diagramas HTML — `diagrama_flujo_MODULO.html` (cajas + flechas, vista de 5 segundos, sin reglas) y `diagrama_MODULO.html` (detallado con reglas, I/O, acoplamientos). Mezclar ambos en uno solo termina en un doc que ni explica bien ni se lee rápido. |
 | 3.2 | Junio 2026 | Regla en 2.4: el proyecto escala a agentic SaaS — diseñar estructura (scripts, naming, idempotencia, audit, repo pattern) para que cada pieza sea una tool clara que un agente pueda invocar sin leer código |
 | 3.1 | Junio 2026 | Regla en 2.4: el texto en consola no persiste — cualquier decisión con dimensión visual (flujo, schema, relación entre módulos) debe plasmarse en HTML inmediatamente; el texto en consola desaparece al cerrar la sesión |
@@ -1661,3 +1730,4 @@ Si el código descubre algo que contradice el diseño → para y corrige el READ
 | 3.7 | Junio 2026 | Paso 2.0.0: Método CRAD (Contexto, Realidad, Ambigüedades, Decisiones) — framework estructurado para definir el problema antes de diseñar. Las 8 preguntas universales para cualquier módulo de jass_system. Señales de CRAD completo vs incompleto. |
 | 3.8 | Junio 2026 | Paso 3.6g: Reconciliación bidireccional en scripts writers — patrón SET_DEBE vs SET_TIENE con columna ACCION (APLICADO/REVERTIDO) en audit. Re-correr siempre produce el estado correcto: aplica nuevos, revierte sobrantes, skipea correctos. Más potente que idempotencia unidireccional cuando la lista de beneficiarios puede cambiar entre corridas. |
 | 3.0 | Junio 2026 | Paso 3.6e: Thin layer of shared primitives — el punto medio entre duplicación pura y módulo compartido grande. Regla del Tres + test rápido (`if modulo == X` → no compartir). `shared/utils_*.py` solo para primitivos puros sin lógica de negocio; la orquestación siempre en el `main.py` del módulo. Paso 3.6f: Columna REVISADO en archivos de autorización — distingue "no vista aún" (rojo) de "vista, decidida" (neutro) de "autorizada para aplicar". Elimina ambigüedad cuando AUTORIZAR está vacío. |
+| 3.9 | Julio 2026 | Regla en 2.4: explicar arquitectura con diagrama de cajas, no con párrafos — capas apiladas, una caja por pieza, flechas verticales; el texto aclara detalle puntual, no reemplaza el diagrama. Caso real: diseño `seguimiento_pueblo` (event-sourced), la explicación en texto dejó al usuario en ~50% de comprensión hasta pasar a diagrama de cajas. |

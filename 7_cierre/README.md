@@ -1,27 +1,63 @@
-# 7_cierre — Consolidador de cierre de ciclo
+# 7_cierre — Transición de período (freeze · foto · limpieza)
 
-Consolida las decisiones del mes (reclamos resueltos + cortes ejecutados) y produce
-los arrastres **finales** listos para que `2_planilla` del próximo mes los pre-cargue.
+Cierra un ciclo mensual: **congela** el mes, **cosecha** su registro inmutable a una
+carpeta trackeada, y **limpia** los temporales para que el próximo mes arranque limpio.
 
-> **Estado:** diseñado · pendiente de implementación.
-> Los arrastres intermedios que este módulo consume aún no los genera `6_corte` — eso
-> va en la siguiente fase de desarrollo.
+> **Estado:** rediseñado 2026-07-03 · pendiente de implementación.
+> Reemplaza el diseño original (generar arrastres) — ese trabajo ya lo absorbió
+> `5_cobranza` (`arrastre_consolidado`) + `seguimiento_pueblo`. Ver "Por qué cambió".
+
+---
+
+## Qué hace — en una frase
+
+`7_cierre` **no genera** arrastres ni saldos. Solo **transiciona el período**:
+sella `estado_ciclo → CERRADO`, materializa la foto inmutable del mes en
+`7_cierre/archivo/YYYY-MM/`, y resetea los slots mutables para el mes siguiente.
+
+```
+python 7_cierre/consolidar_cierre.py --mes 2026-06
+
+  PASO 1 · GATE      ¿estado_ciclo[mes].arrastre.validado == true?  NO → aborta
+  PASO 2 · COSECHAR  copia canónicos + fuentes de pago → archivo/YYYY-MM/ (trackeado)
+  PASO 3 · FREEZE    estado_ciclo[mes].estado = CERRADO
+  PASO 4 · LIMPIAR   reset templates · borra basura · deja lo month-stamped
+
+  (persistir = paso SEPARADO — el script imprime el comando git, no auto-commitea)
+```
+
+---
+
+## Por qué cambió (el diseño viejo quedó obsoleto)
+
+El README original hacía que `7_cierre` generara `arrastre_corte_final` y
+`arrastre_deuda_final`. Ese trabajo migró:
+
+| Lo que decía el README viejo | Quién lo hace hoy |
+|---|---|
+| `arrastre_corte_final` · `arrastre_deuda_final` | `arrastre_consolidado` (5_cobranza, OUTPUT 6) |
+| copiar arrastres a `2_planilla/inputs/` | ELIMINADO — 2_planilla lee en vivo (Opción A) |
+| saldo de multa/acuerdos/convenio | `seguimiento_pueblo` (ledger event-sourced) |
+
+Todo el scope original está absorbido. Lo que **nadie** hacía todavía —y es la razón
+de existir de este módulo— es la **transición de mes**: freeze + foto + limpieza.
 
 ---
 
 ## Cuándo correr
 
-Al **cierre del período de gracia**, después de que:
-- `6_corte` ejecutó los cortes físicos y generó `arrastre_corte_intermedio`
-- `4b_reclamos` resolvió todos los reclamos posibles del mes
+Al **cierre del período**, después de que `5b_validacion` selló `validado:true` en
+`estado_ciclo.json` para el mes. Ese sello es el gate (PASO 1): sin él, `7_cierre` aborta.
 
 ```
-1_lecturas → 2_planilla → 3_boletas → 4_pagos → 5_cobranza
-→ 6_corte → [período de gracia + resolución de reclamos] → 7_cierre → (próximo mes)
+… → 5_cobranza → 5b_validacion (valida) → 7_cierre (cierra) → (próximo mes)
 ```
 
-Es idempotente: puede correrse varias veces mientras lleguen nuevas resoluciones
-de reclamos. El output final siempre refleja el estado más reciente.
+**Nueva dependencia dura:** `7_cierre` del mes N es prerequisito de `2_planilla` del mes
+N+1 — julio lee el arrastre del congelado (`archivo/2026-06/`), que solo existe si junio
+se cerró. Es el candado deseado: no se construye julio sobre un junio sin cerrar.
+
+Es idempotente: re-correrlo re-cosecha la foto y re-sella (no duplica).
 
 ---
 
@@ -31,120 +67,92 @@ de reclamos. El output final siempre refleja el estado más reciente.
 7_cierre/
 ├── README.md
 ├── config.py
-├── consolidar_cierre.py        ← script principal
+├── consolidar_cierre.py        ← script único
 ├── docs/
-│   ├── diagrama_flujo_7_cierre.html     ← vista rápida del flujo
-│   └── diagrama_consolidador_cierre.html ← diseño detallado
-├── inputs/                     ← 7_cierre lee de aquí (copiados por el módulo fuente)
-│   ├── arrastre_corte_intermedio_YYYY-MM.xlsx   ← de 6_corte/outputs/
-│   ├── resolucion_reclamos_YYYY-MM.xlsx         ← de 4b_reclamos/outputs/
-│   └── planilla_cobrado_YYYY-MM.xlsx            ← de 5_cobranza/outputs/
+│   ├── diagrama_flujo_7_cierre.html          ← vista de 5 segundos
+│   └── diagrama_consolidador_cierre.html      ← detalle de reglas
+├── archivo/                    ← TRACKEADO en git · la foto inmutable por período
+│   └── 2026-06/
+│       ├── arrastre_consolidado_2026-06.xlsx
+│       ├── planilla_cobrado.xlsx
+│       ├── arrastre_devolucion_2026-06.xlsx
+│       ├── mesa_1..7.xlsx
+│       └── correcciones_lote.xlsx
 └── outputs/
-    ├── arrastre_corte_final_YYYY-MM.xlsx
-    ├── arrastre_deuda_final_YYYY-MM.xlsx
     └── run.log
 ```
+
+`archivo/` NO cae bajo la regla `.gitignore: outputs/` → se versiona. Es la excepción
+deliberada: los outputs canónicos de un mes cerrado NO son regenerables (trabajo manual +
+historia de ledger + números validados) → se congelan como registro de auditoría.
+
+---
+
+## Los 3 baldes — qué se congela, qué se limpia, qué no se toca
+
+### BALDE 1 · Permanente por naturaleza (ledger / acumulador) — 7_cierre NO lo toca
+Vive siempre; el próximo mes le hace *append*. Se consulta vivo, filtrando por período.
+
+```
+shared/seguimiento_pueblo.xlsx (+ vista)   shared/blancos_acumulados.xlsx
+shared/registro_cortes.xlsx                shared/usuarios_id.xlsx
+shared/data_boletas_audit.xlsx             shared/…/estado_ciclo.json
+1_lecturas/inputs/registro_operario_acumulado.xlsx
+trazabilidad_cobranza.xlsx · trazabilidad_reclamos.xlsx  (append-only)
+```
+
+### BALDE 2 · Arrastre del mes — se COSECHA a `archivo/` (foto congelada)
+Canónicos derivados + fuentes de pago del período. Julio lee el arrastre de acá.
+
+```
+CANÓNICOS         arrastre_consolidado_2026-06 · planilla_cobrado · arrastre_devolucion
+FUENTES DE PAGO   mesa_1..7.xlsx · correcciones_lote.xlsx · reportes yape del mes
+```
+
+### BALDE 3 · Temporal del mes — se LIMPIA
+```
+RESET a template   mesa_1..7.xlsx · correcciones_lote.xlsx   (ya archivados → slots vacíos)
+BORRA basura       trazabilidad_*_pre_dedup_*.xlsx · discrepancias · validacion_errores
+DEJA quieto        lecturas_2026-06 · arrastre_deuda_2026-06 (residuo)  — month-stamped,
+                   julio usa *_2026-07, no colisionan
+```
+
+---
+
+## Decisiones de diseño (2026-07-03)
+
+| # | Decisión | Por qué |
+|---|---|---|
+| A1 | Limpiar = **reset a template** (no borrar) | Julio necesita los `mesa_*` vacíos con fila-ejemplo, no ausentes |
+| A2 | `archivo/` guarda **también las fuentes de pago mutables** (mesa, correcciones) | `git-history` versiona código, no datos; un slot mutable destruye el dato del período al reusarse. `archivo/YYYY-MM/` = ancestro file-era de la partición por período en Postgres |
+| A3 | `arrastre_deuda` = residuo (retirar su generación aparte) · `lista_multas` = NO residuo (working de 6b) | `arrastre_deuda` sin consumidor (2_planilla migró al consolidado); `lista_multas` se regenera cada ciclo dentro de 6b |
+| Q1 | **NO auto-commit.** El script sella + imprime el comando `git` | Cerrar ≠ persistir. El backend (git hoy, DB mañana) es pluggable — un agente hace `cerrar()` → `persistir()` sin tocar 7_cierre |
+| Q2 | **NO snapshot de ledgers.** Se consultan vivos con filtro por período | El ledger es append-only → cualquier estado pasado es reconstruible (`get_saldo(mes)`). Fotografiarlo = segunda copia = riesgo de desync (anti-patrón B7). El aporte de junio ya quedó en `arrastre_consolidado` |
+| — | Julio lee el arrastre del **congelado** (`archivo/`), no del `outputs/` vivo | `outputs/` = churn de dev; `archivo/` = contrato inmutable del período |
 
 ---
 
 ## Inputs
 
-| Archivo | Origen | Qué aporta |
-|---------|--------|------------|
-| `arrastre_corte_intermedio_YYYY-MM.xlsx` | `6_corte/outputs/` | Todos los usuarios elegibles para corte con ESTADO_RECLAMO |
-| `resolucion_reclamos_YYYY-MM.xlsx` | `4b_reclamos/outputs/` | Decisiones del supervisor: FUNDADO / RECHAZADO / EN_REVISION |
-| `planilla_cobrado_YYYY-MM.xlsx` | `5_cobranza/outputs/` | Saldos finales del mes (fuente de verdad de deuda) |
-
-### Columnas requeridas — arrastre_corte_intermedio
-
-| Columna | Tipo | Descripción |
-|---------|------|-------------|
-| MZ | str | Manzana |
-| LT | str | Lote |
-| NOMBRE | str | Nombre del usuario |
-| SALDO | float | Deuda total al momento del corte |
-| MES_ANTERIOR | float | Monto de mes anterior que originó el corte |
-| PENALIDAD | float | S/20 aplicado por corte |
-| ESTADO_RECLAMO | str | SIN_RECLAMO / EN_REVISION / PENDIENTE |
-| MES_ORIGEN | str | YYYY-MM del ciclo que generó el corte |
-
-### Columnas requeridas — resolucion_reclamos
-
-| Columna | Tipo | Valores válidos |
-|---------|------|-----------------|
-| MZ | str | |
-| LT | str | |
-| ESTADO | str | `FUNDADO` · `RECHAZADO` · `EN_REVISION` |
+| Archivo | Origen | Rol |
+|---|---|---|
+| `estado_ciclo.json` | `shared/reporte_acumulado_procesado/` | Gate (validado) + destino del freeze |
+| `arrastre_consolidado_YYYY-MM.xlsx` | `5_cobranza/outputs/` | Canónico a cosechar |
+| `planilla_cobrado.xlsx` | `5_cobranza/outputs/` | Canónico a cosechar |
+| `arrastre_devolucion_YYYY-MM.xlsx` | `5_cobranza/outputs/` | Canónico a cosechar (tiene REVISION manual) |
+| `mesa_1..7.xlsx` | `4_pagos/efectivo/inputs/` | Fuente de pago a cosechar + resetear |
+| `correcciones_lote.xlsx` | `5_cobranza/inputs/` | Fuente de corrección a cosechar + resetear |
 
 ---
 
 ## Outputs
 
-### arrastre_corte_final_YYYY-MM.xlsx
-
-Usuarios que deben pagar corte y reconexión en el próximo mes.
-`2_planilla` lo lee y pre-carga la columna `CORTE_RECONEXION`.
-
-| Columna | Tipo | Descripción |
-|---------|------|-------------|
-| MZ | str | |
-| LT | str | |
-| NOMBRE | str | |
-| PENALIDAD | float | S/20 por corte |
-| RECONEXION | float | S/20 por reconexión |
-| TOTAL_CORTE | float | S/40 (penalidad + reconexión) |
-| ESTADO_DECISION | str | CORTADO / RECHAZADO / DIFERIDO |
-| MES_ORIGEN | str | YYYY-MM del ciclo de corte |
-
-### arrastre_deuda_final_YYYY-MM.xlsx
-
-Usuarios con saldo pendiente que pasa como `MES_ANTERIOR` al próximo ciclo.
-`2_planilla` lo lee y pre-carga la columna `MES_ANTERIOR`.
-
-| Columna | Tipo | Descripción |
-|---------|------|-------------|
-| MZ | str | |
-| LT | str | |
-| NOMBRE | str | |
-| SALDO | float | Saldo total pendiente al cierre |
-| MES_ANTERIOR | float | Monto que va en MES_ANTERIOR del próximo mes |
-| MES_ORIGEN | str | YYYY-MM del ciclo de origen |
-
----
-
-## Reglas de negocio
-
-### Cómo se procesa cada usuario de arrastre_corte_intermedio
-
-| ESTADO_RECLAMO en intermedio | Resolución en resolucion_reclamos | Acción en 7_cierre | Va en arrastre_corte_final |
-|------------------------------|-----------------------------------|-------------------|---------------------------|
-| SIN_RECLAMO | — | Corte confirmado | Sí · TOTAL_CORTE = S/40 |
-| EN_REVISION o PENDIENTE | RECHAZADO | Corte confirmado retroactivo | Sí · TOTAL_CORTE = S/40 |
-| EN_REVISION o PENDIENTE | FUNDADO | Corte anulado | No · sin cargo |
-| EN_REVISION o PENDIENTE | EN_REVISION (sin resolver) | Diferido al próximo mes | No este mes (ver regla especial) |
-
-### Cálculo de TOTAL_CORTE
-
-```
-PENALIDAD  = S/20  (corte aplicado)
-RECONEXION = S/20  (reconexión al pagar)
-TOTAL_CORTE = S/40
-```
-
-### Regla especial — Ciclo junio 2026
-
-Los reclamos con ESTADO `EN_REVISION` al cierre **no reciben corte físico ni penalidad**
-en este ciclo. Su deuda (`SALDO`) pasa como `MES_ANTERIOR` en `arrastre_deuda_final`
-para que el próximo mes el sistema los detecte nuevamente como elegibles.
-
-> Esta regla es temporal: el sistema está en rodaje y hay muchos reclamos sin resolver.
-> En ciclos futuros evaluar si el corte procede de todos modos al vencer el período de gracia.
-
-### Devolución por reclamo FUNDADO
-
-Si el usuario ya pagó S/20 de penalidad antes de que se resolviera el reclamo:
-- 7_cierre registra el caso en la columna `DEVOLUCION_PENDIENTE` del arrastre_corte_final
-- `4b_reclamos` gestiona la devolución efectiva (fuera del alcance de 7_cierre)
+| Archivo | Descripción |
+|---|---|
+| `archivo/YYYY-MM/*.xlsx` | La foto inmutable del período (trackeada en git) |
+| `estado_ciclo.json` (actualizado) | `estado: CERRADO` para el mes |
+| `outputs/run.log` | Log del cierre |
+| (consola) | El comando `git add … && git commit …` listo para copiar/pegar |
 
 ---
 
@@ -154,43 +162,28 @@ Si el usuario ya pagó S/20 de penalidad antes de que se resolviera el reclamo:
 python 7_cierre/consolidar_cierre.py --mes 2026-06
 ```
 
-1. Validar que existen los 3 inputs del mes
-2. Leer `arrastre_corte_intermedio` — todos los elegibles para corte
-3. Leer `resolucion_reclamos` — cruzar por MZ+LT con los elegibles
-4. Aplicar reglas de negocio → clasificar cada usuario
-5. Escribir `arrastre_corte_final_YYYY-MM.xlsx`
-6. Leer `planilla_cobrado` — extraer saldos pendientes (SALDO > 0)
-7. Escribir `arrastre_deuda_final_YYYY-MM.xlsx`
-8. Copiar ambos finales a `2_planilla/inputs/arrastres/` para el próximo mes
-9. Escribir `run.log`
+1. **GATE** — leer `estado_ciclo.json`; si `[mes].arrastre.validado != true` → abortar
+2. **COSECHAR** — crear `archivo/2026-06/`, copiar canónicos + fuentes de pago del BALDE 2
+3. **FREEZE** — `estado_ciclo["2026-06"].estado = "CERRADO"` + `cerrado_en` timestamp
+4. **LIMPIAR** — reset `mesa_*`/`correcciones_lote` a template · borrar basura del BALDE 3
+5. **run.log** + imprimir el comando git de persistencia (paso manual/agente separado)
 
 ---
 
 ## Lo que NO hace este módulo
 
-- No calcula quién tiene saldo (lo hace `5_cobranza`)
-- No decide quién es elegible para corte (lo hace `6_corte`)
-- No aplica correcciones a `DATA_boletas` (lo hace `4b_reclamos`)
-- No genera la planilla del próximo mes (lo hace `2_planilla`)
-- No gestiona devoluciones de dinero (las registra pero las ejecuta `4b_reclamos`)
+- No genera arrastres ni saldos (lo hace `5_cobranza`)
+- No regenera un mes cerrado (un mes cerrado se fotografía, no se re-deriva)
+- No hace `git commit` (lo emite; persistir es un paso separado, pluggable)
+- No fotografía los ledgers (se consultan vivos con filtro por período)
+- No toca el BALDE 1 (acumuladores/ledgers viven; el próximo mes les hace append)
 
 ---
 
 ## Errores comunes
 
 | Error | Causa | Solución |
-|-------|-------|----------|
-| `arrastre_corte_intermedio no encontrado` | `6_corte` aún no genera este archivo | Pendiente de implementar en `6_corte` |
-| Usuario en intermedio sin match en resolucion | Reclamo no registrado en `4b_reclamos` | Verificar que el reclamo se cargó en `reclamos_YYYY-MM.xlsx` |
-| ESTADO desconocido en resolucion_reclamos | Valor distinto a FUNDADO/RECHAZADO/EN_REVISION | Corregir el valor en el archivo y re-correr |
-
----
-
-## Dependencias de implementación
-
-Antes de implementar `7_cierre`, se requiere que `6_corte` genere:
-- `lista_corte.xlsx` — auditoría (todos los elegibles + ESTADO_RECLAMO + EJECUTAR_CORTE)
-- `corte_fisico_YYYY-MM.xlsx` — vista operacional (solo EJECUTAR_CORTE = SI)
-- `arrastre_corte_intermedio_YYYY-MM.xlsx` — todos los cortados sin decisión final de penalidad
-
-Ver `6_corte/README.md` para el estado de implementación de estos outputs.
+|---|---|---|
+| `Ciclo no validado — aborta` | `5b_validacion` no selló `validado:true` | Correr `5b_validacion` primero |
+| `2_planilla no encuentra el consolidado del mes anterior` | `7_cierre` del mes previo no corrió | Cerrar el mes anterior antes de generar la planilla |
+| `mesa_N.xlsx tiene datos de dos meses` | Se corrió `4_pagos` de julio sin cerrar junio | El reset del PASO 4 evita esto — correr el cierre entre ciclos |
