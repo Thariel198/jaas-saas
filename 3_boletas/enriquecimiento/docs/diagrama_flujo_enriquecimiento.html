@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>enriquecimiento — Flujo planilla → DATA_boletas</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Arial, sans-serif; background: #F0F4F8; color: #1A1A1A; }
+.page { padding: 32px 28px 60px; max-width: 1160px; margin: 0 auto; }
+
+h1 { font-size: 17px; color: #1A5276; margin-bottom: 4px; }
+.sub { font-size: 11px; color: #888; margin-bottom: 36px; }
+
+.timeline-bar { display: flex; align-items: stretch; gap: 0; position: relative; }
+
+.phase { flex: 1; display: flex; flex-direction: column; align-items: center; }
+
+.phase-label {
+  font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.6px;
+  padding: 5px 12px; border-radius: 20px; margin-bottom: 12px; white-space: nowrap;
+}
+.lbl-blue   { background: #1A5276; color: #FFF; }
+.lbl-purple { background: #5B21B6; color: #FFF; }
+.lbl-green  { background: #1E8449; color: #FFF; }
+.lbl-gray   { background: #34495E; color: #FFF; }
+
+.file-pill {
+  border-radius: 5px; padding: 8px 10px; font-size: 10.5px; font-family: Consolas, monospace;
+  font-weight: bold; text-align: center; width: 100%; margin-bottom: 5px; line-height: 1.5;
+}
+.fp-blue  { background: #D6EAF8; color: #1A5276; border: 1px solid #AED6F1; }
+.fp-purple{ background: #EDE9FE; color: #5B21B6; border: 1px solid #C4B5FD; }
+.fp-green { background: #D5F5E3; color: #145A32; border: 1px solid #52BE80; }
+.fp-gray  { background: #E8ECF0; color: #34495E; border: 1px solid #B6C1CC; }
+
+.script-box {
+  width: 100%; border-radius: 8px; padding: 10px 12px; text-align: center; font-size: 11px;
+  font-weight: bold; font-family: Consolas, monospace; border: 2px solid transparent;
+  min-height: 40px; display: flex; align-items: center; justify-content: center;
+}
+.sb-purple { background: #EDE9FE; border-color: #5B21B6; color: #5B21B6; }
+.sb-green  { background: #D5F5E3; border-color: #1E8449; color: #1E5C3A; }
+.sb-gray   { background: #E8ECF0; border-color: #34495E; color: #34495E; }
+
+.down-arrow { font-size: 18px; color: #BBB; line-height: 1; margin: 3px 0; }
+
+.step-pill {
+  border-radius: 5px; padding: 6px 9px; font-size: 9.5px; font-family: Consolas, monospace;
+  font-weight: bold; text-align: left; width: 100%; margin-bottom: 5px; line-height: 1.4;
+}
+.step-note { font-weight: normal; font-size: 8.5px; font-family: Arial, sans-serif; display: block; margin-top: 1px; }
+.sp-rename { background: #FEF9E7; color: #7D5A00; border: 1px solid #F0C040; }
+.sp-fijo   { background: #FADBD8; color: #7B241C; border: 1px solid #F1948A; }
+.sp-config { background: #EBF5FB; color: #1A5276; border: 1px solid #AED6F1; }
+
+.h-arrow {
+  display: flex; align-items: center; padding: 0 4px; padding-top: 56px;
+  flex: 0 0 30px; flex-direction: column; gap: 4px;
+}
+.h-arrow-line { width: 100%; border-top: 2px dashed #AAA; position: relative; }
+.h-arrow-head { color: #AAA; font-size: 16px; line-height: 1; margin-top: -2px; }
+
+.legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 36px; padding-top: 14px; border-top: 1px dashed #CCC; justify-content: center; }
+.leg { display: flex; align-items: center; gap: 5px; font-size: 10px; color: #555; }
+.leg-dot { width: 12px; height: 12px; border-radius: 2px; }
+
+.mapa-title { text-align: center; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: #888; margin-top: 40px; margin-bottom: 12px; }
+table.mapa { width: 100%; border-collapse: collapse; font-size: 10.5px; }
+table.mapa th, table.mapa td { border: 1px solid #D6DEE6; padding: 6px 10px; text-align: left; }
+table.mapa th { background: #1A5276; color: #FFF; font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.4px; }
+table.mapa td.col-a { font-family: Consolas, monospace; color: #1A5276; }
+table.mapa td.col-b { font-family: Consolas, monospace; color: #1E5C3A; }
+table.mapa tr.cambia td.col-a, table.mapa tr.cambia td.col-b { background: #FEF9E7; }
+table.mapa td.nota { color: #888; font-size: 9.5px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <h1>3_boletas/enriquecimiento — planilla_2026-07 → DATA_boletas.xlsx</h1>
+  <div class="sub">Vista de 5 segundos · 2026-07-03 · reemplaza la ruta muerta vía 5_cobranza/planilla_base</div>
+
+  <div class="timeline-bar">
+
+    <div class="phase">
+      <div class="phase-label lbl-blue">① Fuente</div>
+      <div class="file-pill fp-blue">2_planilla/outputs/<br>planilla_2026-07.xlsx<br><span style="font-weight:normal;font-size:9px;">499 usuarios · ya generada</span></div>
+    </div>
+
+    <div class="h-arrow"><div class="h-arrow-line"></div><div class="h-arrow-head">›</div></div>
+
+    <div class="phase">
+      <div class="phase-label lbl-purple">② Config manual</div>
+      <div class="script-box sb-purple">crear_config.py</div>
+      <div class="down-arrow">↓</div>
+      <div class="file-pill fp-purple">config_mes.xlsx<br><span style="font-weight:normal;font-size:9px;">llenar a mano: fechas, recibo inicial</span></div>
+    </div>
+
+    <div class="h-arrow"><div class="h-arrow-line"></div><div class="h-arrow-head">›</div></div>
+
+    <div class="phase" style="flex: 1.5;">
+      <div class="phase-label lbl-green">③ enriquecimiento/main.py</div>
+      <div class="script-box sb-green">_cargar_planilla() + _enriquecer()</div>
+      <div class="down-arrow">↓</div>
+      <div class="step-pill sp-rename">RENOMBRA 4 CAMPOS<span class="step-note">ARRASTRE→MES_ANTERIOR · MANT→MANTENIMIENTO · REUNION_FAENA→MULTA · TECHADO→ACUERDOS_ASAMBLEA</span></div>
+      <div class="step-pill sp-fijo">DEVOLUCION = 0 fijo<span class="step-note">no se lee de planilla — lo llena el ciclo vivo (pagos/cobranza)</span></div>
+      <div class="step-pill sp-config">PLANILLA_PATH<span class="step-note">apunta directo a 2_planilla/outputs/, ya no a 5_cobranza/planilla_base (ruta muerta)</span></div>
+    </div>
+
+    <div class="h-arrow"><div class="h-arrow-line"></div><div class="h-arrow-head">›</div></div>
+
+    <div class="phase">
+      <div class="phase-label lbl-gray">④ Output</div>
+      <div class="file-pill fp-gray">DATA_boletas.xlsx<br><span style="font-weight:normal;font-size:9px;">3_boletas/inputs/</span></div>
+    </div>
+
+    <div class="h-arrow"><div class="h-arrow-line"></div><div class="h-arrow-head">›</div></div>
+
+    <div class="phase">
+      <div class="phase-label lbl-gray">⑤ Próximo paso</div>
+      <div class="script-box sb-gray" style="flex-direction:column;gap:4px;">
+        <div>3_boletas/main.py</div>
+        <div style="font-size:9px;font-weight:normal;font-family:Arial;">sin cambios</div>
+      </div>
+      <div class="down-arrow">↓</div>
+      <div class="file-pill fp-gray">boletas .docx<br><span style="font-weight:normal;font-size:9px;">una por predio</span></div>
+    </div>
+
+  </div>
+
+  <div class="mapa-title">Mapeo de columnas — planilla_2026-07.xlsx → DATA_boletas.xlsx</div>
+  <table class="mapa">
+    <tr><th>planilla (2_planilla)</th><th>DATA_boletas</th><th>nota</th></tr>
+    <tr><td class="col-a">MZ</td><td class="col-b">MZ</td><td class="nota">directo</td></tr>
+    <tr><td class="col-a">LT</td><td class="col-b">LT</td><td class="nota">directo</td></tr>
+    <tr><td class="col-a">NOMBRE</td><td class="col-b">NOMBRES</td><td class="nota">directo</td></tr>
+    <tr><td class="col-a">MARC_ANT</td><td class="col-b">Marcación anterior</td><td class="nota">directo</td></tr>
+    <tr><td class="col-a">MARC_ACT</td><td class="col-b">Marcacion altual</td><td class="nota">directo</td></tr>
+    <tr><td class="col-a">M3</td><td class="col-b">M3</td><td class="nota">directo</td></tr>
+    <tr><td class="col-a">MES_ACTUAL</td><td class="col-b">Total mes actual</td><td class="nota">directo</td></tr>
+    <tr class="cambia"><td class="col-a">MES_ANTERIOR</td><td class="col-b">MES ANTERIOR</td><td class="nota">antes leía ARRASTRE (columna vieja)</td></tr>
+    <tr><td class="col-a">CORTE_RECONEXION</td><td class="col-b">Corte y reconexion</td><td class="nota">directo</td></tr>
+    <tr><td class="col-a">CONVENIO</td><td class="col-b">Convenio</td><td class="nota">directo</td></tr>
+    <tr class="cambia"><td class="col-a">MANTENIMIENTO</td><td class="col-b">Mantenimiento</td><td class="nota">antes leía MANT (columna vieja)</td></tr>
+    <tr><td class="col-a">TOTAL_A_PAGAR</td><td class="col-b">Total / Importe a pagar</td><td class="nota">directo</td></tr>
+    <tr><td class="col-a">ESTADO</td><td class="col-b">Estado</td><td class="nota">directo</td></tr>
+    <tr><td class="col-a">FECHA_PAGO</td><td class="col-b">fecha pago</td><td class="nota">directo</td></tr>
+    <tr class="cambia"><td class="col-a">MULTA</td><td class="col-b">Multa (faena + reunión)</td><td class="nota">antes leía REUNION_FAENA (columna vieja) — decisión del usuario</td></tr>
+    <tr class="cambia"><td class="col-a">ACUERDOS_ASAMBLEA</td><td class="col-b">Cuota directa</td><td class="nota">antes leía TECHADO (columna vieja) — decisión del usuario</td></tr>
+    <tr><td class="col-a">BLANCO</td><td class="col-b">— (no existe)</td><td class="nota">no se usa acá</td></tr>
+    <tr><td class="col-a">DEVOLUCION</td><td class="col-b">— (fijo en 0)</td><td class="nota">no se lee de planilla, aunque exista la columna</td></tr>
+    <tr><td class="nota" colspan="2">— (config_mes.xlsx)</td><td class="nota">NUMERO DE RECIBO · PERIODO · FECHA DE VENCIMIENTO · FECHA DE EMISIÓN · LECTURA ANTERIOR/ACTUAL</td></tr>
+  </table>
+
+  <div class="legend">
+    <div class="leg"><div class="leg-dot" style="background:#D6EAF8;border:1px solid #1A5276;"></div> Archivo fuente</div>
+    <div class="leg"><div class="leg-dot" style="background:#EDE9FE;border:1px solid #5B21B6;"></div> Paso manual</div>
+    <div class="leg"><div class="leg-dot" style="background:#FEF9E7;border:1px solid #F0C040;"></div> Renombre de columna (cambia vs. código actual)</div>
+    <div class="leg"><div class="leg-dot" style="background:#FADBD8;border:1px solid #F1948A;"></div> Valor fijo / no leído de planilla</div>
+    <div class="leg"><div class="leg-dot" style="background:#E8ECF0;border:1px solid #B6C1CC;"></div> Output / próximo paso</div>
+  </div>
+
+</div>
+</body>
+</html>

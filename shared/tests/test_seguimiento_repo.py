@@ -71,14 +71,18 @@ try:
 except ValueError:
     check(True, "rechaza concepto inválido AGUA")
 
-# 10) generar_vista — 3 hojas, doble header, dash para mes sin evento
+# 10) generar_vista — 3 hojas por concepto (+ CONVENIO_HISTORIAL si existe el
+# snapshot de génesis), doble header, dash para mes sin evento
 VISTA_TMP = ROOT / "shared" / "_tmp_test_vista.xlsx"
 repo.generar_vista(VISTA_TMP)
 check(VISTA_TMP.exists(), "generar_vista crea el archivo")
 
 import openpyxl
 wb = openpyxl.load_workbook(VISTA_TMP)
-check(set(wb.sheetnames) == {"MULTA", "ACUERDOS", "CONVENIO"}, f"3 hojas exactas, obtuve {wb.sheetnames}")
+esperadas = {"MULTA", "ACUERDOS", "CONVENIO"}
+if repo._MEDIDOR_SALDO_PATH_VISTA.exists():
+    esperadas.add("CONVENIO_HISTORIAL")
+check(set(wb.sheetnames) == esperadas, f"hojas = {sorted(esperadas)}, obtuve {wb.sheetnames}")
 
 ws = wb["CONVENIO"]
 check(ws["A2"].value == "MZ" and ws["B2"].value == "LT" and ws["C2"].value == "NOMBRE", "fila 2 = MZ/LT/NOMBRE")

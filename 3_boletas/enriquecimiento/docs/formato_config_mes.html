@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Contrato de formato — config_mes.xlsx</title>
+<style>
+  body { font-family: Arial, sans-serif; font-size: 13px; margin: 30px; color: #1f2937; }
+  h1   { font-size: 18px; color: #1A5276; border-bottom: 2px solid #1A5276; padding-bottom: 6px; }
+  h2   { font-size: 14px; color: #374151; margin-top: 28px; border-left: 4px solid #6b7280; padding-left: 8px; }
+  p    { margin: 6px 0; }
+  .meta { background:#f3f4f6; border:1px solid #d1d5db; border-radius:4px; padding:10px 14px; margin-bottom:18px; }
+  .meta span { font-weight:bold; }
+
+  table { border-collapse: collapse; margin: 0 0 20px; font-size: 11.5px; width: 100%; }
+  th, td { border: 1px solid #fff; padding: 4px 9px; }
+
+  .col { font-weight:bold; font-size:10px; text-align:center; }
+  .desc { font-size:10px; font-style: italic; }
+  .ejmp { font-size:10px; }
+
+  .r-head { background:#1E3A5F; color:#FFF; }
+  .r-desc { background:#EFF6FF; color:#666; }
+  .r-ejmp { background:#FAFAFA; color:#999; }
+
+  .tag { display:inline-block; font-size:11px; font-weight:bold; padding:1px 8px; border-radius:10px; }
+  .tag.manual { background:#EDE9FE; color:#5B21B6; }
+  .tag.once   { background:#DBEAFE; color:#1E3A8A; }
+
+  .nota { background:#fffbeb; border:1px solid #fcd34d; border-radius:4px;
+          padding:8px 12px; margin:12px 0; font-size:12px; }
+  .warn-box { background:#FEE2E2; border:1px solid #FCA5A5; border-radius:4px;
+              padding:10px 14px; margin:12px 0; font-size:12px; }
+  .warn-box b { color:#991B1B; }
+  code { background:#f3f4f6; padding:1px 5px; border-radius:3px; font-size:11px; }
+</style>
+</head>
+<body>
+
+<h1>Contrato de formato — config_mes.xlsx
+    <span class="tag manual" style="font-size:11px; margin-left:8px;">manual, por ciclo</span>
+    <span class="tag once" style="font-size:11px;">template: crear_config.py</span>
+</h1>
+
+<div class="meta">
+  <span>Owner:</span> 3_boletas/enriquecimiento/crear_config.py (crea) · main.py (lee) &nbsp;|&nbsp;
+  <span>Ruta:</span> 3_boletas/enriquecimiento/inputs/config_mes.xlsx &nbsp;|&nbsp;
+  <span>Lifecycle:</span> un archivo vive todo el ciclo — se pisa/actualiza a mano el mes siguiente &nbsp;|&nbsp;
+  <span>Hojas:</span> 1 (config)
+</div>
+
+<h2>Propósito</h2>
+<p>
+  Datos del ciclo de facturación que <b>no existen en <code>planilla_2026-07.xlsx</code></b> (2_planilla no
+  los conoce: son de emisión de boleta, no de cálculo de deuda) pero que <code>enriquecimiento/main.py</code>
+  necesita para completar cada fila de <code>DATA_boletas.xlsx</code>: fechas del recibo, rango de lectura,
+  datos de cobro presencial/Yape, y el número de recibo inicial del mes.
+</p>
+
+<div class="warn-box">
+  <b>No se regenera solo.</b> Correr <code>crear_config.py</code> únicamente si el archivo no existe
+  (primera vez o se borró). Si ya existe de un mes anterior, abrirlo directo y actualizar los valores —
+  volver a correr el template pisaría los datos ya cargados.
+</div>
+
+<h2>Hoja: config</h2>
+
+<table>
+  <tr class="r-head">
+    <th class="col">PERIODO</th><th class="col">FECHA_VENCIMIENTO</th><th class="col">FECHA_EMISION</th>
+    <th class="col">LECTURA_ANT_FECHA</th><th class="col">LECTURA_ACT_FECHA</th><th class="col">FECHA_PAGO</th>
+    <th class="col">HORA_PAGO</th><th class="col">LUGAR_PAGO</th><th class="col">TELEFONO</th>
+    <th class="col">NUMERO_RECIBO_INICIO</th>
+  </tr>
+  <tr class="r-desc">
+    <td class="desc">Período del recibo</td>
+    <td class="desc">Fecha límite de pago</td>
+    <td class="desc">Fecha de emisión del recibo</td>
+    <td class="desc">Fecha de lectura anterior</td>
+    <td class="desc">Fecha de lectura actual</td>
+    <td class="desc">Día y mes de cobro</td>
+    <td class="desc">Hora de cobro</td>
+    <td class="desc">Lugar de cobro presencial</td>
+    <td class="desc">Número Yape para pagos</td>
+    <td class="desc">Número del primer recibo del mes</td>
+  </tr>
+  <tr class="r-ejmp">
+    <td class="ejmp">11/06/2026 al 10/07/2026</td>
+    <td class="ejmp">2026-08-02</td>
+    <td class="ejmp">2026-07-26</td>
+    <td class="ejmp">2026-06-10</td>
+    <td class="ejmp">2026-07-10</td>
+    <td class="ejmp">02/08</td>
+    <td class="ejmp">4-6 pm</td>
+    <td class="ejmp">LOCAL DEL PUEBLO</td>
+    <td class="ejmp">948 227 636</td>
+    <td class="ejmp">17400</td>
+  </tr>
+  <tr>
+    <td colspan="10" style="font-size:10px; color:#aaa; font-style:italic; padding:6px 9px;">
+      ← fila 4: COMPLETAR con los datos reales del mes. Las filas 2 y 3 (descripción y ejemplo)
+      <b>quedan como guía permanente — no se borran.</b> <code>main.py</code> siempre lee la fila 1 como
+      header y la fila 4 como datos (<code>df.iloc[2]</code>, tercera fila tras el header).
+    </td>
+  </tr>
+</table>
+
+<h2>Reglas de lectura (<code>main.py</code> / <code>_cargar_config()</code>)</h2>
+<table>
+  <tr style="background:#f9fafb;">
+    <th style="padding:4px 10px;">Regla</th>
+    <th style="padding:4px 10px;">Detalle</th>
+  </tr>
+  <tr>
+    <td>Todas las columnas son obligatorias</td>
+    <td><code>_validar_inputs()</code> aborta con <code>ValueError</code> listando las que falten si el header no trae las 10 columnas exactas (mayúsculas, sin espacios extra).</td>
+  </tr>
+  <tr>
+    <td>Siempre lee <code>df.iloc[2]</code> (fila 4 en Excel)</td>
+    <td>Las filas 2 y 3 (descripción/ejemplo) quedan como guía permanente — <code>_validar_inputs()</code> exige al menos 3 filas de datos y que <code>PERIODO</code> en la fila 4 no esté vacío, para no confundir el ejemplo con datos reales.</td>
+  </tr>
+  <tr>
+    <td><code>NUMERO_RECIBO_INICIO</code> se castea a <code>int</code></td>
+    <td>Vía <code>_float()</code> primero — acepta texto con coma decimal, pero el valor final siempre es entero.</td>
+  </tr>
+  <tr>
+    <td><code>FECHA_PAGO</code> + <code>HORA_PAGO</code> + <code>LUGAR_PAGO</code> + <code>TELEFONO</code></td>
+    <td>Se combinan en un solo string por <code>_fecha_pago_str()</code>: <code>"PAGO PRESENCIAL: {FECHA_PAGO} de {HORA_PAGO} ({LUGAR_PAGO}), PAGO YAPE: {TELEFONO}"</code> — va literal a la columna <code>fecha pago</code> de <code>DATA_boletas.xlsx</code>.</td>
+  </tr>
+</table>
+
+<h2>Invariantes del archivo</h2>
+<table>
+  <tr style="background:#f9fafb;">
+    <th style="padding:4px 10px;">Invariante</th>
+    <th style="padding:4px 10px;">Garantía</th>
+  </tr>
+  <tr>
+    <td>Un valor por ciclo, no histórico</td>
+    <td>El archivo no acumula filas — cada corrida de <code>main.py</code> aplica los mismos 10 valores a todas las filas de <code>DATA_boletas.xlsx</code> de ese ciclo.</td>
+  </tr>
+  <tr>
+    <td>No trackeado como dato permanente</td>
+    <td>A diferencia de <code>seguimiento_pueblo</code> o <code>trazabilidad_*</code>, este archivo no es un ledger — es un formulario de una sola fila que se reescribe cada mes.</td>
+  </tr>
+</table>
+
+<h2>Señales de alerta</h2>
+<table>
+  <tr style="background:#f9fafb;">
+    <th style="padding:4px 10px;">Señal</th>
+    <th style="padding:4px 10px;">Interpretación</th>
+  </tr>
+  <tr>
+    <td><code>PERIODO</code> con el mes equivocado</td>
+    <td>Se copió el archivo de un mes anterior sin actualizar — revisar las 10 columnas, no solo la que se sabe que cambió.</td>
+  </tr>
+  <tr>
+    <td><code>NUMERO_RECIBO_INICIO</code> se solapa con el rango del mes anterior</td>
+    <td>Boletas duplicadas con el mismo número de recibo — confirmar el último recibo emitido antes de fijar el inicio de este ciclo.</td>
+  </tr>
+</table>
+
+<hr style="margin-top:30px; border-color:#e5e7eb;">
+<p style="font-size:11px; color:#9ca3af;">
+  Contrato visual aprobado — el código en crear_config.py / main.py debe replicar exactamente este formato.<br>
+  Owner: 3_boletas/enriquecimiento &nbsp;|&nbsp; Versión: 1.0 &nbsp;|&nbsp; Fecha: 2026-07-03
+</p>
+
+</body>
+</html>

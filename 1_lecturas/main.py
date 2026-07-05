@@ -4,6 +4,7 @@ Lee:
     inputs/registro_operario_mes.xlsx       — operario llena MARC_ACT, M3, obs_operario
     inputs/registro_operario_acumulado.xlsx — historial con doble header (MARCACION, M3)
     outputs/correcciones_YYYY-MM.xlsx       — solo en ciclo 2+ (cola de maquillaje)
+    outputs/correcciones_historicas.xlsx    — ajustes a ciclos pasados (append-only, manual)
 
 Detecta 11 anomalías (7 bloqueantes + 4 informativas) y genera:
     outputs/correcciones_YYYY-MM.xlsx     — bloqueantes pendientes (si quedan)
@@ -18,6 +19,7 @@ La detección de ciclo se basa en la existencia de correcciones_YYYY-MM.xlsx:
 from __future__ import annotations
 
 import logging
+import shutil
 import statistics
 import sys
 from collections import Counter, defaultdict
@@ -99,6 +101,24 @@ def _init_logging() -> None:
         ],
         force=True,
     )
+
+
+# ── BACKUP DE TRABAJO MANUAL ───────────────────────────────────────────────────
+def _backup_registro_mes() -> None:
+    """Respalda registro_operario_mes.xlsx al inicio de cada corrida.
+
+    main.py solo LEE este archivo (nunca lo muta) — el riesgo no viene de acá,
+    sino de fuerzas externas (git checkout/reset, re-correr crear_template.py).
+    Este backup es el checkpoint que permite recuperar el trabajo de campo si
+    el archivo se pierde entre una corrida y la siguiente.
+    """
+    if not config.REGISTRO_MES_PATH.exists():
+        return
+    config.BACKUPS_DIR.mkdir(parents=True, exist_ok=True)
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    destino = config.BACKUPS_DIR / f"registro_operario_mes_{ts}.xlsx"
+    shutil.copy2(config.REGISTRO_MES_PATH, destino)
+    log.info(f"Backup de registro_operario_mes.xlsx: {destino.name}")
 
 
 # ── HELPERS DE PARSING ────────────────────────────────────────────────────────
@@ -257,6 +277,66 @@ def _cargar_acumulado() -> tuple[dict, list[str]]:
     return historial, meses_orden
 
 
+# ── CORRECCIONES HISTÓRICAS (ledger append-only, manual) ─────────────────────
+def _asegurar_correcciones_historicas() -> None:
+    """Crea correcciones_historicas.xlsx vacío (solo headers) si todavía no existe.
+
+    Nunca lo sobreescribe si ya existe — es append-only, el supervisor agrega
+    filas a mano. Ver docs/contrato_correcciones_historicas.html.
+    """
+    path = config.CORRECCIONES_HISTORICAS_PATH
+    if path.exists():
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "CorreccionesHistoricas"
+    fe.escribir_con_grupos(ws, fe.GRUPOS_CORRECCIONES_HISTORICAS, [])
+    wb.save(path)
+    log.info("correcciones_historicas.xlsx creado (vacío) — el supervisor lo edita a mano")
+
+
+def _cargar_correcciones_historicas() -> dict:
+    """Lee correcciones_historicas.xlsx → {(mz, lt, ciclo_corregido, campo): valor_corregido}.
+
+    Solo considera filas ESTADO=activo. Si 2+ filas activas compiten por la misma
+    clave, gana la última leída — comportamiento no definido a propósito, no ha
+    pasado un caso real (ver docs/decisiones/01_lecturas.md, Decisión 10).
+    """
+    path = config.CORRECCIONES_HISTORICAS_PATH
+    if not path.exists():
+        return {}
+    mapa: dict = {}
+    for r in fe.leer_filas_existentes(path, fe.GRUPOS_CORRECCIONES_HISTORICAS):
+        if _str_clean(r.get("ESTADO")).lower() != "activo":
+            continue
+        mz = str(r.get("MZ") or "").strip().upper()
+        lt = _norm_lt(r.get("LT"))
+        ciclo_corr = _str_clean(r.get("CICLO_CORREGIDO"))
+        campo = _str_clean(r.get("CAMPO")).upper()
+        valor = _try_float(_str_clean(r.get("VALOR_CORREGIDO")))
+        if not mz or not lt or not ciclo_corr or not campo or valor is None:
+            continue
+        mapa[(mz, lt, ciclo_corr, campo)] = valor
+    if mapa:
+        log.info(f"correcciones_historicas.xlsx: {len(mapa)} ajuste(s) activo(s)")
+    return mapa
+
+
+def _marc_ant_efectivo(ciclos: dict, mes_ano: str, mz: str, lt: str, historicas: dict) -> float | None:
+    """Resuelve MARC_ANT (último ciclo previo a mes_ano), aplicando corrección histórica si existe.
+
+    Nunca lee el acumulado como fuente final — pasa siempre por acá para que una
+    corrección en correcciones_historicas.xlsx tenga efecto sin editar el acumulado.
+    """
+    meses_prev = [m for m in ciclos if m < mes_ano] if mes_ano else list(ciclos)
+    if not meses_prev:
+        return None
+    ultimo = max(meses_prev)
+    raw = ciclos[ultimo]["marc"]
+    return historicas.get((mz, lt, ultimo, "MARCACION"), raw)
+
+
 # ── CICLO ─────────────────────────────────────────────────────────────────────
 def _detectar_ciclo(mes_ano: str) -> int:
     """Devuelve el número de ciclo actual.
@@ -282,41 +362,92 @@ def _detectar_ciclo(mes_ano: str) -> int:
 
 
 # ── APLICAR CORRECCIONES (Ciclo 2+) ───────────────────────────────────────────
-def _aplicar_correcciones(filas: list[dict], mes_ano: str) -> tuple[list[dict], list[dict], dict]:
-    """Si existe correcciones_YYYY-MM.xlsx, lee los maquillajes resueltos y los aplica
-    sobre 'filas' (sustituyendo MARC_ACT y M3). Devuelve la lista de filas modificadas,
-    la lista de cerradas para trazabilidad, y un mapa (mz,lt) → resuelto_por para que
-    _detectar_anomalias sepa qué casos bypassear (ej: acepta_original).
+def _cargar_resoluciones_trazabilidad(mes_ano: str) -> dict:
+    """Lee trazabilidad_YYYY-MM.xlsx y devuelve las resoluciones de bloqueantes ya
+    aplicadas en ciclos anteriores: {(mz, lt): {...mismos campos que correcciones_map}}.
+
+    Por qué hace falta: una vez que una fila se resuelve, sale de
+    correcciones_YYYY-MM.xlsx y se mueve a trazabilidad — pero el dato fuente
+    (registro_operario_mes.xlsx) nunca se corrige. Si main.py se vuelve a correr
+    (re-abrir un ciclo, recuperar datos, etc.) sin esto, la misma anomalía se
+    detecta de cero porque nadie le avisa que ya se resolvió antes. trazabilidad
+    es la memoria permanente del ciclo — hay que consultarla siempre, no solo
+    el archivo de correcciones del momento.
     """
-    path = config.correcciones_path(mes_ano)
+    path = config.trazabilidad_path(mes_ano)
     if not path.exists():
-        return filas, [], {}
-
-    # Leer con el helper que entiende el formato de grupos (headers en fila 2, datos desde fila 3)
-    existentes = fe.leer_filas_existentes(path, fe.GRUPOS_CORRECCIONES)
-
-    # Map (mz, lt) -> fila completa con campos relevantes
-    correcciones_map = {}
-    for r in existentes:
+        return {}
+    mapa: dict = {}
+    for r in fe.leer_filas_existentes(path, fe.GRUPOS_TRAZABILIDAD):
+        if str(r.get("categoria") or "").strip() != "bloqueante":
+            continue
         mz = str(r.get("MZ") or "").strip().upper()
         lt = _norm_lt(r.get("LT"))
-        if not mz or not lt:
+        resuelto = _str_clean(r.get("resuelto_por"))
+        if not mz or not lt or not resuelto:
             continue
-        correcciones_map[(mz, lt)] = {
-            "resuelto":   _str_clean(r.get("resuelto_por")),
-            "marc_corr":  _try_float(_str_clean(r.get("MARC_ACT_corregido"))),
-            "m3_corr":    _try_float(_str_clean(r.get("M3_corregido"))),
-            "motivo":     _str_clean(r.get("motivo_correccion")),
-            "tipo":       _str_clean(r.get("tipo_anomalia")),
-            "ciclo":      _str_clean(r.get("ciclo")),
-            "fecha":      _str_clean(r.get("fecha_correccion")),
-            "mes_ano":    _str_clean(r.get("MES_ANO")),
-            "marc_ant":   _str_clean(r.get("MARC_ANT")),
-            "marc_orig":  _str_clean(r.get("MARC_ACT_original")),
-            "m3_orig":    _str_clean(r.get("M3_original")),
-            "obs_orig":   _str_clean(r.get("obs_operario_original")),
-            "nombre":     _str_clean(r.get("NOMBRE")),
+        mapa[(mz, lt)] = {
+            "resuelto":  resuelto,
+            "marc_corr": _try_float(_str_clean(r.get("MARC_ACT_final"))),
+            "m3_corr":   _try_float(_str_clean(r.get("M3_final"))),
+            "motivo":    _str_clean(r.get("motivo_correccion")),
+            "tipo":      _str_clean(r.get("tipo_anomalia")),
+            "ciclo":     _str_clean(r.get("ciclo")),
+            "fecha":     _str_clean(r.get("fecha_correccion")),
+            "mes_ano":   _str_clean(r.get("MES_ANO")),
+            "marc_ant":  _str_clean(r.get("MARC_ANT")),
+            "marc_orig": _str_clean(r.get("MARC_ACT_original")),
+            "m3_orig":   _str_clean(r.get("M3_original")),
+            "obs_orig":  _str_clean(r.get("obs_operario_original")),
+            "nombre":    _str_clean(r.get("NOMBRE")),
         }
+    return mapa
+
+
+def _aplicar_correcciones(filas: list[dict], mes_ano: str) -> tuple[list[dict], list[dict], dict]:
+    """Lee los maquillajes ya resueltos (trazabilidad, memoria permanente + el
+    correcciones_YYYY-MM.xlsx del ciclo actual, que manda si hay conflicto) y los
+    aplica sobre 'filas' (sustituyendo MARC_ACT y M3). Devuelve la lista de filas
+    modificadas, la lista de cerradas para trazabilidad, y un mapa (mz,lt) →
+    resuelto_por para que _detectar_anomalias sepa qué casos bypassear (ej:
+    acepta_original).
+    """
+    # Empieza con lo ya resuelto en ciclos previos — nunca se pierde entre corridas.
+    correcciones_map = _cargar_resoluciones_trazabilidad(mes_ano)
+
+    path = config.correcciones_path(mes_ano)
+    if path.exists():
+        # Leer con el helper que entiende el formato de grupos (headers en fila 2, datos desde fila 3)
+        existentes = fe.leer_filas_existentes(path, fe.GRUPOS_CORRECCIONES)
+        for r in existentes:
+            mz = str(r.get("MZ") or "").strip().upper()
+            lt = _norm_lt(r.get("LT"))
+            if not mz or not lt:
+                continue
+            resuelto = _str_clean(r.get("resuelto_por"))
+            if not resuelto:
+                # Fila todavía pendiente este ciclo — no pisar una resolución
+                # ya buena que viniera de trazabilidad (ver docstring arriba).
+                continue
+            # El ciclo actual manda solo cuando SÍ trae una resolución nueva.
+            correcciones_map[(mz, lt)] = {
+                "resuelto":   resuelto,
+                "marc_corr":  _try_float(_str_clean(r.get("MARC_ACT_corregido"))),
+                "m3_corr":    _try_float(_str_clean(r.get("M3_corregido"))),
+                "motivo":     _str_clean(r.get("motivo_correccion")),
+                "tipo":       _str_clean(r.get("tipo_anomalia")),
+                "ciclo":      _str_clean(r.get("ciclo")),
+                "fecha":      _str_clean(r.get("fecha_correccion")),
+                "mes_ano":    _str_clean(r.get("MES_ANO")),
+                "marc_ant":   _str_clean(r.get("MARC_ANT")),
+                "marc_orig":  _str_clean(r.get("MARC_ACT_original")),
+                "m3_orig":    _str_clean(r.get("M3_original")),
+                "obs_orig":   _str_clean(r.get("obs_operario_original")),
+                "nombre":     _str_clean(r.get("NOMBRE")),
+            }
+
+    if not correcciones_map:
+        return filas, [], {}
 
     # Aplicar maquillaje a filas del mes
     cerradas = []
@@ -369,6 +500,7 @@ def _detectar_anomalias(
     meses_orden: list[str],
     resoluciones: dict | None = None,
     lista_sin_servicio: dict | None = None,
+    historicas: dict | None = None,
 ) -> tuple[list[dict], list[dict], list[dict]]:
     """Devuelve (confirmados, bloqueantes, informativas).
 
@@ -378,9 +510,12 @@ def _detectar_anomalias(
     a confirmados (con origen='corregido') aunque sigan disparando reglas.
     `lista_sin_servicio` (resultado de sin_servicio.cargar_lista) permite filtrar
     SIN_LECTURA y USUARIO_FANTASMA cuando el usuario está catalogado SIN_MEDIDOR.
+    `historicas` (resultado de _cargar_correcciones_historicas) permite corregir
+    MARC_ANT de un ciclo pasado sin editar el acumulado — ver _marc_ant_efectivo.
     """
     resoluciones = resoluciones or {}
     lista_sin_servicio = lista_sin_servicio or {}
+    historicas = historicas or {}
     confirmados, bloqueantes, informativas = [], [], []
 
     # Regla DUPLICADO: detectar (MZ, LT) que aparecen 2+ veces
@@ -417,8 +552,7 @@ def _detectar_anomalias(
         resuelto = resoluciones.get(key)
         if resuelto in ("acepta_original", "maquillaje", "campo", "corrige_dato"):
             ciclos_h = historial.get(key, {}).get("ciclos", {})
-            meses_prev = [m for m in ciclos_h if m < f["mes_ano"]] if f["mes_ano"] else list(ciclos_h)
-            marc_ant_hist = ciclos_h[max(meses_prev)]["marc"] if meses_prev else None
+            marc_ant_hist = _marc_ant_efectivo(ciclos_h, f["mes_ano"], f["mz"], f["lt"], historicas)
             confirmados.append({
                 **f, "marc_ant_hist": marc_ant_hist,
                 "marc_act_val": _try_float(f["marc_act"]),
@@ -437,13 +571,11 @@ def _detectar_anomalias(
             })
             continue
 
-        # Resolver MARC_ANT del historial (último ciclo previo al actual)
+        # Resolver MARC_ANT del historial (último ciclo previo al actual),
+        # aplicando corrección histórica si existe para ese ciclo (sin editar el acumulado)
         ciclos = historial.get(key, {}).get("ciclos", {})
         meses_prev = [m for m in ciclos if m < f["mes_ano"]] if f["mes_ano"] else list(ciclos)
-        marc_ant_hist = None
-        if meses_prev:
-            ultimo = max(meses_prev)
-            marc_ant_hist = ciclos[ultimo]["marc"]
+        marc_ant_hist = _marc_ant_efectivo(ciclos, f["mes_ano"], f["mz"], f["lt"], historicas)
 
         # MARC_ACT_NO_NUMERICO: hay string pero no parsea
         if f["marc_act"] and _try_float(f["marc_act"]) is None:
@@ -890,6 +1022,7 @@ def main():
     print("  1_lecturas — procesamiento de lecturas del ciclo")
     print("═" * 65)
     _init_logging()
+    _backup_registro_mes()
 
     # 1. Validar inputs
     print("\n[1/7] Validando inputs...")
@@ -900,14 +1033,17 @@ def main():
         )
 
     # 2. Cargar
-    print("[2/7] Cargando registro_operario_mes, acumulado y lista_sin_servicio...")
+    print("[2/7] Cargando registro_operario_mes, acumulado, lista_sin_servicio y correcciones_historicas...")
     filas = _cargar_registro_mes()
     historial, meses_orden = _cargar_acumulado()
     lista_ss = _cargar_lista_sin_servicio()
+    _asegurar_correcciones_historicas()
+    historicas = _cargar_correcciones_historicas()
 
     mes_ano = filas[0]["mes_ano"] if filas else datetime.now().strftime("%Y-%m")
     ciclo = _detectar_ciclo(mes_ano)
-    print(f"       Mes: {mes_ano} · Ciclo: {ciclo} · lista_sin_servicio: {len(lista_ss)} usuarios")
+    print(f"       Mes: {mes_ano} · Ciclo: {ciclo} · lista_sin_servicio: {len(lista_ss)} usuarios · "
+          f"correcciones_historicas: {len(historicas)} activa(s)")
 
     # 3. Aplicar correcciones del ciclo previo (si las hay)
     print("[3/7] Aplicando correcciones del ciclo previo (si las hay)...")
@@ -916,7 +1052,7 @@ def main():
     # 4. Detectar anomalías
     print("[4/7] Detectando anomalías (11 reglas)...")
     confirmados, bloqueantes, informativas = _detectar_anomalias(
-        filas, historial, meses_orden, resoluciones, lista_ss
+        filas, historial, meses_orden, resoluciones, lista_ss, historicas
     )
 
     # 5. Validar ausencias contra lista_sin_servicio

@@ -74,7 +74,6 @@
 |---|---|---|---|
 | DE3 | `7_cierre` arrastre de reclamos EN_REVISION: el README define la regla especial de junio 2026 (diferir deuda, no cortar). ¿Esta regla aplica también a julio 2026 o se normaliza? | `7_cierre` | Decisión de negocio — Media |
 | DE4 | `3_boletas`: ¿refactor completo para seguir convenciones del sistema (M3) o mantener como herramienta manual independiente? Afecta si `DATA_boletas_repo` integra con `3_boletas` | `3_boletas` | Diseño — Alta |
-| DE5 | **Arrastre consolidado (Opción B — APROBADA):** `5_cobranza` debe generar UN solo arrastre con todos los componentes (agua + corte + multa) en orden de prioridad, reemplazando los 3 arrastres separados (5/6/6b). La descomposición por prioridad vive en `5_cobranza`, no en `6b`. Diseño pendiente de especificar antes de implementar | `5_cobranza`, `6_corte`, `6b_corte_multas` | Diseño — Alta |
 
 ---
 
@@ -119,7 +118,7 @@ B3 resuelto, S1 corrida (efectivo OK, yape por-MZ OK), S4 re-corrida OK (CANCELA
 2. **[DE2]** Decidir qué hacer con `6b_corte_multas` ciclo 2026-06: ¿aplicar penalidad ahora o cerrar el ciclo sin ella? (verificar `compromisos.xlsx` primero)
 3. **[DE3]** Definir si la regla de reclamos EN_REVISION de junio 2026 se normaliza en julio o continúa
 4. **[DE4]** Decidir si `3_boletas` se refactoriza o permanece como herramienta manual independiente
-5. **[DE5]** Especificar el diseño del arrastre consolidado (Opción B): schema exacto, orden de prioridad, qué reemplaza
+5. ~~**[DE5]**~~ ✅ (2026-07-02) arrastre_consolidado codificado — 5_cobranza genera, 2_planilla lee (Opción A)
 6. ~~**[DE6]** Diseño~~ ✅ (2026-06-28) — ~~**[DE6-CODE]**~~ ✅ (2026-06-29) split en `motor_matching` + loader `_cargar_devueltos_yape` + columna DEVUELTO en `planilla_cobrado` y `trazabilidad`
 
 ---
@@ -179,6 +178,7 @@ B3 resuelto, S1 corrida (efectivo OK, yape por-MZ OK), S4 re-corrida OK (CANCELA
 - **`docs/trazabilidad_2026_06.xlsx`**: hay un xlsx dentro de `docs/`. Parece estar en el lugar equivocado — debería estar en un módulo o en `shared/`.
 - **`H2` `3_boletas/docs/`**: bloqueado por DE4 (decisión de refactor) — no crear HTMLs si el módulo va a cambiar de estructura.
 - **Skill tracker** (baja urgencia): documentar "por qué" en código, manejo de errores descriptivo, thin layer en `0_padron`, enriquecimiento `3_boletas` (sub-módulos 3.1/3.2).
+- **Retiro de los 3 arrastres viejos** (residuo de DE5): `arrastre_consolidado` ya subsume `arrastre_deuda` + `arrastre_corte` + `lista_multas`, pero los 3 siguen generándose. 2_planilla ya NO los lee (lee el consolidado). Antes de retirarlos, confirmar que 6_corte/6b no dependan de `arrastre_corte`/`lista_multas`. Cleanup, no bloquea julio.
 
 ---
 

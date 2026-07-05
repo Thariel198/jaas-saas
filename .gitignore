@@ -28,3 +28,13 @@ _tmp_integracion/
 
 # Scripts temporales de exploración
 tmp_*.py
+
+# Backups auto-generados (timestamped)
+**/backups/
+
+# Temporales de tests/scripts
+_tmp_*
+**/.tmp/
+
+# Repo independiente (Thariel198/-00_padron)
+0_padron/

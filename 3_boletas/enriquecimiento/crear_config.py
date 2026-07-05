@@ -14,7 +14,7 @@ COLS = [
     ("FECHA_EMISION",        "Fecha de emisión del recibo",            "2026-04-26",               16),
     ("LECTURA_ANT_FECHA",    "Fecha de lectura anterior (día/mes/año)","2026-03-10",               18),
     ("LECTURA_ACT_FECHA",    "Fecha de lectura actual (día/mes/año)",  "2026-04-10",               18),
-    ("FECHA_PAGO",           "Día y mes de cobro (ej: 02/05)",         "02/05",                    12),
+    ("FECHA_PAGO",           "Día(s) y mes de cobro (ej: 02/05 o 04-05/07/2026)", "02/05",           16),
     ("HORA_PAGO",            "Hora de cobro",                          "4-6 pm",                   12),
     ("LUGAR_PAGO",           "Lugar de cobro presencial",              "LOCAL DEL PUEBLO",         20),
     ("TELEFONO",             "Número Yape para pagos",                 "948 227 636",              14),
@@ -63,12 +63,19 @@ def main():
     ws.row_dimensions[3].height = 18
 
     nota = ws.cell(row=4, column=1,
-                   value="← COMPLETAR ESTA FILA con los datos del mes. Eliminar filas 2 y 3.")
+                   value="← COMPLETAR ESTA FILA con los datos del mes. Filas 2 y 3 quedan como guía, no se borran.")
     nota.font = Font(name="Arial", color="AAAAAA", italic=True, size=8)
+
+    # FECHA_PAGO admite texto libre (puede ser un rango "04-05/07/2026") — se
+    # preformatea la columna como Texto en filas 2-4 para que Excel no la
+    # reconvierta en fecha ni bloquee el cambio de formato al escribir.
+    col_fecha_pago = next(ci for ci, (nombre, *_r) in enumerate(COLS, 1) if nombre == "FECHA_PAGO")
+    for row in (2, 3, 4):
+        ws.cell(row=row, column=col_fecha_pago).number_format = "@"
 
     wb.save(DESTINO)
     print(f"Template creado: {DESTINO}")
-    print("Completar fila 4. Eliminar filas 2 y 3 antes de correr main.py.")
+    print("Completar fila 4 (main.py siempre lee la fila 4 — filas 2 y 3 quedan de guía).")
 
 
 if __name__ == "__main__":

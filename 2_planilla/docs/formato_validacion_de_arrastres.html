@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Contrato de formato — validacion_de_arrastres.xlsx</title>
+<style>
+  body { font-family: Arial, sans-serif; font-size: 13px; margin: 30px; color: #1f2937; }
+  h1   { font-size: 18px; color: #1E5C3A; border-bottom: 2px solid #1E5C3A; padding-bottom: 6px; }
+  h2   { font-size: 14px; color: #374151; margin-top: 28px; border-left: 4px solid #6b7280; padding-left: 8px; }
+  p    { margin: 6px 0; }
+  .meta { background:#f3f4f6; border:1px solid #d1d5db; border-radius:4px; padding:10px 14px; margin-bottom:18px; }
+  .meta span { font-weight:bold; }
+
+  table { border-collapse: collapse; margin: 0 0 20px; font-size: 11.5px; width: 100%; }
+  th, td { border: 1px solid #fff; padding: 4px 9px; }
+  .col { font-weight:bold; font-size:10px; text-align:center; }
+  .dat { font-size:10.5px; }
+
+  .r-head { background:#1E5C3A; color:#FFF; }
+  .r-ok    { background:#E9F7EF; color:#1E5C3A; }
+  .r-bad   { background:#FEE2E2; color:#991B1B; font-weight:bold; }
+
+  .tag { display:inline-block; font-size:11px; font-weight:bold; padding:1px 8px; border-radius:10px; }
+  .tag.postbuild { background:#DBEAFE; color:#1E3A8A; }
+  .tag.readonly  { background:#E9F7EF; color:#1E5C3A; }
+
+  .nota { background:#fffbeb; border:1px solid #fcd34d; border-radius:4px;
+          padding:8px 12px; margin:12px 0; font-size:12px; }
+  .warn-box { background:#FEE2E2; border:1px solid #FCA5A5; border-radius:4px;
+              padding:10px 14px; margin:12px 0; font-size:12px; }
+  .warn-box b { color:#991B1B; }
+  code { background:#f3f4f6; padding:1px 5px; border-radius:3px; font-size:11px; }
+</style>
+</head>
+<body>
+
+<h1>Contrato de formato — validacion_de_arrastres_{mes}.xlsx
+    <span class="tag postbuild" style="font-size:11px; margin-left:8px;">post-build</span>
+    <span class="tag readonly" style="font-size:11px;">solo lectura — no corrige nada</span>
+</h1>
+
+<div class="meta">
+  <span>Owner:</span> 2_planilla/validar_arrastres.py &nbsp;|&nbsp;
+  <span>Ruta:</span> 2_planilla/outputs/validacion_de_arrastres_{mes}.xlsx &nbsp;|&nbsp;
+  <span>Cuándo correr:</span> después de <code>main.py</code> (necesita <code>planilla_{mes}.xlsx</code> ya generada) &nbsp;|&nbsp;
+  <span>Hojas:</span> 2 (Resumen, Discrepancias)
+</div>
+
+<h2>Propósito</h2>
+<div class="nota">
+  <code>2_planilla/main.py</code> arma 3 de sus columnas por <b>join en vivo</b> contra otros módulos
+  (no son cálculo propio de 2_planilla): <code>MES_ANTERIOR</code>+<code>CORTE_RECONEXION</code> vienen de
+  <code>arrastre_consolidado</code> (5_cobranza), y <code>MULTA</code>/<code>CONVENIO</code>/<code>ACUERDOS_ASAMBLEA</code>
+  vienen de <code>seguimiento_repo</code> (shared). Un bug de join (columna mal mapeada, fila sin match)
+  deja el valor equivocado en <code>planilla_{mes}.xlsx</code> sin que nada lo note — <code>validar_arrastres.py</code>
+  vuelve a leer las 3 fuentes y compara, predio por predio, contra lo que quedó escrito en la planilla.
+</div>
+
+<div class="warn-box">
+  <b>No corrige nada.</b> Es un reporte de solo lectura. Si hay discrepancias, el fix va en
+  <code>2_planilla/main.py</code> (el join) o en la fuente — nunca editando <code>validacion_de_arrastres.xlsx</code>
+  ni la planilla a mano.
+</div>
+
+<h2>Las 4 fuentes comparadas</h2>
+<table>
+  <tr style="background:#f9fafb;">
+    <th style="padding:4px 10px;">Columna en planilla</th>
+    <th style="padding:4px 10px;">Fuente</th>
+    <th style="padding:4px 10px;">Columna en fuente</th>
+  </tr>
+  <tr><td><code>NOMBRE</code></td><td>1_lecturas/outputs/lecturas_planilla_{mes}.xlsx (origen, no la copia en inputs/)</td><td><code>NOMBRE</code> (texto exacto)</td></tr>
+  <tr><td><code>MARC_ANT</code></td><td>1_lecturas/outputs/lecturas_planilla_{mes}.xlsx</td><td><code>MARC_ANT</code></td></tr>
+  <tr><td><code>MARC_ACT</code></td><td>1_lecturas/outputs/lecturas_planilla_{mes}.xlsx</td><td><code>MARC_ACT</code></td></tr>
+  <tr><td><code>M3</code></td><td>1_lecturas/outputs/lecturas_planilla_{mes}.xlsx</td><td><code>M3</code></td></tr>
+  <tr><td><code>MES_ANTERIOR</code></td><td>5_cobranza/outputs/arrastre_consolidado_{mes_anterior}.xlsx</td><td><code>DEUDA_AGUA</code></td></tr>
+  <tr><td><code>CORTE_RECONEXION</code></td><td>5_cobranza/outputs/arrastre_consolidado_{mes_anterior}.xlsx</td><td><code>CORTE_RECONEXION</code></td></tr>
+  <tr><td><code>MULTA</code></td><td>shared/seguimiento_repo.get_saldos_bulk("MULTA", mes_anterior)</td><td>saldo por (MZ,LT)</td></tr>
+  <tr><td><code>CONVENIO</code></td><td>shared/seguimiento_repo.get_saldos_bulk("CONVENIO", mes_anterior)</td><td>saldo por (MZ,LT)</td></tr>
+  <tr><td><code>ACUERDOS_ASAMBLEA</code></td><td>shared/seguimiento_repo.get_saldos_bulk("ACUERDOS", mes_anterior)</td><td>saldo por (MZ,LT)</td></tr>
+</table>
+<p style="font-size:11px; color:#888;">Las columnas de lecturas se comparan contra el <b>origen</b> en 1_lecturas/outputs — así una copia manual mal hecha hacia 2_planilla/inputs/ queda expuesta. NOMBRE compara texto exacto (discrepancia = <code>TEXTO_DISTINTO</code>). Además se chequea <b>cobertura</b>: todo predio del origen debe estar en planilla y viceversa (<code>FALTA_EN_PLANILLA</code> / <code>SOBRA_EN_PLANILLA</code>). Ampliado 2026-07-03 a pedido del usuario.</p>
+
+<h2>Hoja: Resumen</h2>
+<table>
+  <tr class="r-head"><th class="col">CONCEPTO</th><th class="col">FUENTE</th><th class="col">TOTAL_PREDIOS</th><th class="col">COINCIDEN</th><th class="col">DISCREPANCIAS</th></tr>
+  <tr><td class="dat">MES_ANTERIOR</td><td class="dat">arrastre_consolidado.DEUDA_AGUA</td><td class="dat">499</td><td class="dat r-ok">497</td><td class="dat r-bad">2</td></tr>
+  <tr><td class="dat">CORTE_RECONEXION</td><td class="dat">arrastre_consolidado.CORTE_RECONEXION</td><td class="dat">499</td><td class="dat r-ok">499</td><td class="dat">0</td></tr>
+  <tr><td class="dat">MULTA</td><td class="dat">seguimiento_repo</td><td class="dat">499</td><td class="dat r-ok">499</td><td class="dat">0</td></tr>
+  <tr><td class="dat">CONVENIO</td><td class="dat">seguimiento_repo</td><td class="dat">499</td><td class="dat r-ok">495</td><td class="dat r-bad">4</td></tr>
+  <tr><td class="dat">ACUERDOS_ASAMBLEA</td><td class="dat">seguimiento_repo</td><td class="dat">499</td><td class="dat r-ok">499</td><td class="dat">0</td></tr>
+</table>
+
+<h2>Hoja: Discrepancias</h2>
+<p>Solo filas donde <code>VALOR_FUENTE ≠ VALOR_PLANILLA</code> (tolerancia 0.005, redondeo de moneda). Si un concepto no tiene discrepancias, no aparece ninguna fila suya acá.</p>
+<table>
+  <tr class="r-head">
+    <th class="col">MZ</th><th class="col">LT</th><th class="col">CONCEPTO</th>
+    <th class="col">VALOR_FUENTE</th><th class="col">VALOR_PLANILLA</th><th class="col">DIFERENCIA</th>
+  </tr>
+  <tr>
+    <td class="dat">C</td><td class="dat">36</td><td class="dat">MES_ANTERIOR</td>
+    <td class="dat" style="text-align:right;">45.00</td><td class="dat" style="text-align:right;">0.00</td>
+    <td class="dat r-bad" style="text-align:right;">-45.00</td>
+  </tr>
+  <tr>
+    <td class="dat">D</td><td class="dat">8</td><td class="dat">CONVENIO</td>
+    <td class="dat" style="text-align:right;">25.00</td><td class="dat" style="text-align:right;">50.00</td>
+    <td class="dat r-bad" style="text-align:right;">+25.00</td>
+  </tr>
+</table>
+
+<h2>Casos borde</h2>
+<table>
+  <tr style="background:#f9fafb;">
+    <th style="padding:4px 10px;">Caso</th>
+    <th style="padding:4px 10px;">Tratamiento</th>
+  </tr>
+  <tr>
+    <td>Predio existe en planilla pero no en la fuente</td>
+    <td>Valor fuente = 0 (mismo default que usa <code>main.py</code> al hacer join) — si planilla tiene un valor ≠ 0, es discrepancia.</td>
+  </tr>
+  <tr>
+    <td>Predio existe en la fuente pero no en planilla</td>
+    <td>No genera fila — no puede haber "columna en planilla" para un predio que no está en planilla. Sí se cuenta aparte en Resumen como advertencia si el número es grande.</td>
+  </tr>
+  <tr>
+    <td><code>arrastre_consolidado</code> no existe (mes de génesis)</td>
+    <td><code>MES_ANTERIOR</code>/<code>CORTE_RECONEXION</code> se saltan con nota en Resumen — no es una discrepancia, es la ausencia esperada de arrastre.</td>
+  </tr>
+  <tr>
+    <td><code>lecturas_planilla</code> no existe en 1_lecturas/outputs</td>
+    <td><code>NOMBRE</code>/<code>MARC_ANT</code>/<code>MARC_ACT</code>/<code>M3</code> y la cobertura se saltan con nota en Resumen.</td>
+  </tr>
+</table>
+
+<hr style="margin-top:30px; border-color:#e5e7eb;">
+<p style="font-size:11px; color:#9ca3af;">
+  Contrato visual aprobado — el código en 2_planilla/validar_arrastres.py debe replicar exactamente este formato.<br>
+  Owner: 2_planilla &nbsp;|&nbsp; Versión: 1.0 &nbsp;|&nbsp; Fecha: 2026-07-03
+</p>
+
+</body>
+</html>

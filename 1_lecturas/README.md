@@ -8,6 +8,7 @@ Módulo que sincroniza el registro del operario con el padrón reconciliado y pr
 2. **Genera el template del operario** (`crear_template.py`): produce `registro_operario_mes.xlsx` con todos los usuarios pre-cargados desde el acumulado ya sincronizado.
 3. **Procesa las lecturas** (`main.py`): valida lecturas contra el historial usando 13 reglas de anomalía, gestiona ciclos de corrección y emite `lecturas_planilla_YYYY-MM.xlsx`.
 4. **Genera la orden de campo** (`pdf_orden.py`): produce `orden_verificacion_YYYY-MM.pdf` para que el operario resuelva casos bloqueantes en campo.
+5. **Corrige errores históricos del acumulado** (`correcciones_historicas.xlsx` + `valor_efectivo()`): cuando una anomalía del ciclo actual revela que un dato de un ciclo **pasado** estaba mal cargado, el supervisor registra el ajuste en un ledger aparte — el acumulado nunca se edita.
 
 ## Cuándo se corre
 
@@ -38,6 +39,7 @@ Módulo que sincroniza el registro del operario con el padrón reconciliado y pr
 │   ├── lecturas_planilla_YYYY-MM.xlsx      # PERMANECE — input para 2_planilla
 │   ├── trazabilidad_YYYY-MM.xlsx           # PERMANECE — auditoría mensual
 │   ├── correcciones_YYYY-MM.xlsx           # Cola de maquillaje · se borra al cerrar
+│   ├── correcciones_historicas.xlsx        # PERMANECE — append-only · ajustes a ciclos pasados
 │   ├── orden_verificacion_YYYY-MM.pdf      # Se regenera cada ciclo
 │   ├── run.log
 │   └── sync/
@@ -87,6 +89,21 @@ Las 13 anomalías (8 bloqueantes + 4 informativas + 1 legitimada) están documen
 - **Códigos obs_operario:** `M` (medidor cambiado), `F` (fuga), `P` (predio cerrado).
 - **Ciclos:** Ciclo 1 = primer pass; Ciclo 2+ = procesa `correcciones_YYYY-MM.xlsx` y mueve resueltas a trazabilidad.
 
+## Reglas clave de corrección histórica
+
+El acumulado (`registro_operario_acumulado.xlsx`) es la única fuente de `MARC_ANT` para calcular anomalías. Cuando el supervisor determina que el valor de un ciclo **pasado** estaba mal cargado (típicamente un dígito perdido/agregado en la lectura del operario), la corrección **no se escribe en el acumulado**:
+
+1. Se agrega una fila en `outputs/correcciones_historicas.xlsx` (append-only, PERMANECE): `MZ · LT · NOMBRE · CICLO_CORREGIDO · CAMPO · VALOR_ORIGINAL · VALOR_CORREGIDO · MOTIVO · DETECTADO_EN_CICLO · FECHA · ESTADO`.
+2. `main.py` calcula `MARC_ANT` siempre a través de `valor_efectivo(mz, lt, ciclo, campo)` — nunca lee el acumulado crudo directo. Si existe una corrección `ESTADO=activo` para esa clave, `valor_efectivo` devuelve `VALOR_CORREGIDO`; si no, devuelve el valor del acumulado tal cual.
+3. El acumulado queda intacto — conserva la verdad de lo que se registró en su momento. La corrección es auditable por separado, con motivo y ciclo de detección.
+4. Si la corrección misma resulta estar mal, no se edita ni se borra la fila — se agrega otra con `ESTADO=anulado` y, si corresponde, una fila nueva con el valor correcto.
+
+Mismo patrón que el evento `AJUSTE` de `shared/seguimiento_repo.py`, aplicado dentro de `1_lecturas` (no vive en `shared/` porque solo este módulo lo usa).
+
+**Fuera de alcance a propósito (Regla del Tres):** 2+ correcciones `activo` compitiendo por la misma clave, flujo de aprobación/autorización, campo `CAMPO` distinto de `MARCACION`. Se diseña recién si aparece un caso real.
+
+Contrato del archivo: `docs/contrato_correcciones_historicas.html`. Diagrama completo del flujo: `docs/diagrama_correccion_historica.html`.
+
 ## Flujo mensual
 
 ```
@@ -128,6 +145,11 @@ python main.py
 
 # PASO 4 — Ciclo de corrección (si aplica)
 # Repetir hasta correcciones_YYYY-MM.xlsx = 0 filas.
+#
+# Si el supervisor determina que el error es de un ciclo ANTERIOR (no de julio):
+#   → agrega una fila en outputs/correcciones_historicas.xlsx (no edita el acumulado)
+#   → vuelve a correr python main.py — valor_efectivo() aplica la corrección
+#   → si eso resuelve el diff, la fila sale sola de correcciones_YYYY-MM.xlsx
 
 # PASO 5 — Listo → 2_planilla
 ```
@@ -143,6 +165,7 @@ python main.py
 | `outputs/lecturas_planilla_YYYY-MM.xlsx` | **PERMANECE** · uno por mes · fuente de verdad para 2_planilla |
 | `outputs/trazabilidad_YYYY-MM.xlsx` | **PERMANECE** · uno por mes · auditoría de anomalías |
 | `outputs/correcciones_YYYY-MM.xlsx` | Se elimina al cerrar el mes (bloqueantes=0) |
+| `outputs/correcciones_historicas.xlsx` | **PERMANECE** · append-only · ajustes a ciclos pasados |
 | `outputs/orden_verificacion_YYYY-MM.pdf` | Se regenera cada ciclo |
 | `outputs/run.log` | Se sobreescribe cada run |
 
@@ -154,6 +177,7 @@ python main.py
 - **No mantiene tarifas** — viven en `shared/tarifas.xlsx` y las lee `2_planilla`.
 - **No corrige lecturas ya facturadas** — para eso existe `6b_override`.
 - **No elimina filas del acumulado** — SIN_SERVICIO marca, no borra; las lecturas históricas se conservan siempre.
+- **No edita el acumulado para corregir errores pasados** — la corrección vive en `correcciones_historicas.xlsx`, aparte. Ver "Reglas clave de corrección histórica".
 
 ## Errores comunes
 
@@ -196,5 +220,6 @@ python main.py
 
 - **Detalle de anomalías y ciclos:** `docs/manual_uso.md`
 - **Diseño del sync:** `docs/diagrama_flujo_sincronizacion.html` y `docs/diagrama_sincronizacion.html`
-- **Contratos de cada archivo:** `docs/contrato_*.html`
+- **Diseño de corrección histórica:** `docs/diagrama_correccion_historica.html`
+- **Contratos de cada archivo:** `docs/contrato_*.html` (incluye `contrato_correcciones_historicas.html`)
 - **Decisiones arquitectónicas:** `docs/decisiones/1_lecturas.md`

@@ -2221,6 +2221,8 @@ def main():
     _exportar_arrastre_devolucion(resultado, mes_ano)
     _marcar_generado(mes_ano)                          # 5b lo lee para sellar validado
     _exportar_arrastre_consolidado(resultado, mes_ano)  # gate: validado:true
+    repo.generar_vista()       # lista consultable de la mesa (multa/acuerdos/convenio)
+    repo.exportar_vista_pdf()  # y su PDF imprimible
 
     print("\n[6/6] Retroescritura y blancos...")
     filas_yape_nuevas = [p["row"] for p in pagos_yape

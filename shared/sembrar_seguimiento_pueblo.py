@@ -51,8 +51,15 @@ SOURCE      = "sembrar_seguimiento_pueblo"
 PREDIOS_INSTALACION_EXCLUIDOS = repo.PREDIOS_INSTALACION_EXCLUIDOS
 
 
+# str(nan) = 'NAN' es truthy y pasaba el filtro `if mz and lt` — las filas de
+# TOTALES de las hojas de génesis (MZ/LT vacíos) se sembraban como predio
+# fantasma NAN-NAN (visto 2026-07-04: cargo CONVENIO de S/1,334).
+_INVALIDOS = {"", "NAN", "NONE", "NAT"}
+
+
 def _norm_mz(v) -> str:
-    return str(v).strip().upper()
+    s = str(v).strip().upper()
+    return "" if s in _INVALIDOS else s
 
 
 def _norm_lt(v) -> str:
@@ -63,7 +70,8 @@ def _norm_lt(v) -> str:
             return str(int(f))
     except ValueError:
         pass
-    return s.upper()
+    s = s.upper()
+    return "" if s in _INVALIDOS else s
 
 
 # ── Validación de inputs ─────────────────────────────────────────────────────

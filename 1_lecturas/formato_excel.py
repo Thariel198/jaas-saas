@@ -70,6 +70,19 @@ GRUPOS_LECTURAS_PLANILLA = [
      "cols": ["origen", "ciclo"]},
 ]
 
+# Ledger append-only — ajustes a valores de ciclos pasados en el acumulado.
+# Espeja docs/contrato_correcciones_historicas.html. Nunca se sobreescribe con
+# escribir_con_grupos salvo para crearlo vacío la primera vez — el supervisor
+# agrega filas a mano después.
+GRUPOS_CORRECCIONES_HISTORICAS = [
+    {"nombre": "¿Quién es?", "tipo": "quien",
+     "cols": ["MZ", "LT", "NOMBRE"]},
+    {"nombre": "¿Qué se corrige? — supervisor llena todo", "tipo": "fix",
+     "cols": ["CICLO_CORREGIDO", "CAMPO", "VALOR_ORIGINAL", "VALOR_CORREGIDO", "MOTIVO"]},
+    {"nombre": "¿Cuándo y estado?", "tipo": "cuando",
+     "cols": ["DETECTADO_EN_CICLO", "FECHA", "ESTADO"]},
+]
+
 
 # ── Función principal de escritura ────────────────────────────────────────────
 def escribir_con_grupos(ws, grupos: list[dict], filas: list[dict]) -> list[str]:

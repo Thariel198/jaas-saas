@@ -53,6 +53,10 @@ def lecturas_planilla_path(mes_ano: str) -> Path:
 def orden_verificacion_path(mes_ano: str) -> Path:
     return OUTPUTS_DIR / f"orden_verificacion_{mes_ano}.pdf"
 
+# Ledger append-only de correcciones a ciclos pasados (nunca se borra, sin YYYY-MM
+# porque no es de un ciclo — ver docs/contrato_correcciones_historicas.html)
+CORRECCIONES_HISTORICAS_PATH = OUTPUTS_DIR / "correcciones_historicas.xlsx"
+
 LOG_PATH = OUTPUTS_DIR / "run.log"
 
 # ── Schema del acumulado ──────────────────────────────────────────────────────

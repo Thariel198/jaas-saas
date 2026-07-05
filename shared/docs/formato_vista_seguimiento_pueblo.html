@@ -64,8 +64,8 @@
   <span>Owner:</span> shared/seguimiento_repo.py (función <code>generar_vista()</code>) &nbsp;|&nbsp;
   <span>Ruta:</span> shared/vista_seguimiento_pueblo.xlsx &nbsp;|&nbsp;
   <span>Lifecycle:</span> se regenera completa en cada corrida — nunca se edita a mano, es un pivot del registro &nbsp;|&nbsp;
-  <span>Hojas:</span> 3 (MULTA, ACUERDOS, CONVENIO) &nbsp;|&nbsp;
-  <span>Fuente:</span> <code>shared/seguimiento_pueblo.xlsx</code> (el registro de eventos, nunca este archivo)
+  <span>Hojas:</span> 4 (MULTA, ACUERDOS, CONVENIO + CONVENIO_HISTORIAL) &nbsp;|&nbsp;
+  <span>Fuente:</span> <code>shared/seguimiento_pueblo.xlsx</code> (el registro de eventos, nunca este archivo) · CONVENIO_HISTORIAL lee <code>shared/genesis_inputs/medidor_saldo.xlsx</code>
 </div>
 
 <h2>Propósito</h2>
@@ -160,6 +160,63 @@
   <tr><td>Filas</td><td>todo predio que tenga al menos 1 evento para ese CONCEPTO en el registro — ordenado por MZ, LT</td></tr>
 </table>
 
+<h2>Hoja: CONVENIO_HISTORIAL (consulta — historia completa del medidor, cuota por cuota)</h2>
+
+<div class="logica-box">
+  <b>Por qué existe:</b> el ledger arrancó en 2026-06 y colapsó toda la historia previa del convenio de
+  medidor en un solo CARGO de génesis. El detalle cuota por cuota (dic-2025 → may-2026) vive únicamente en
+  el snapshot <code>shared/genesis_inputs/medidor_saldo.xlsx</code> (hoja "Cobro medidores"). Esta hoja
+  une las dos fuentes en una sola fila por predio: <b>cuotas pre-ledger (snapshot) + pagos de jun-2026 en
+  adelante (ledger, una columna por mes que crece sola) + SALDO ACTUAL</b> — la consulta "yo ya pagué esa
+  cuota" se responde acá sin cruzar hojas. <b>MULTA y ACUERDOS no tienen hoja de historial</b>: entraron
+  como monto total agregado, sin detalle reconstruible.
+</div>
+
+<table>
+  <tr>
+    <th class="sec s-predio" colspan="3">Predio</th>
+    <th class="sec s-mes1" colspan="7">Cuotas antes del ledger (snapshot génesis)</th>
+    <th class="sec s-mes2" colspan="2">Pagos en el ledger (jun-2026 →) y saldo vigente</th>
+  </tr>
+  <tr>
+    <th class="col s-predio">MZ</th>
+    <th class="col s-predio">LT</th>
+    <th class="col s-predio">NOMBRE</th>
+    <th class="col s-mes1">DEUDA</th>
+    <th class="col s-mes1">DIC-25</th>
+    <th class="col s-mes1">ENE-26</th>
+    <th class="col s-mes1">FEB-26</th>
+    <th class="col s-mes1">MAR-26</th>
+    <th class="col s-mes1">ABR-26</th>
+    <th class="col s-mes1">MAY-26</th>
+    <th class="col s-mes2">PAGO JUN-26</th>
+    <th class="col s-mes2">SALDO ACTUAL</th>
+  </tr>
+  <tr>
+    <td class="dat d-predio">F</td>
+    <td class="dat d-predio">3A</td>
+    <td class="dat d-predio">Abigail Sonia Gaspar Vega</td>
+    <td class="dat d-mes1-deuda">100.00</td>
+    <td class="dat d-mes1-pago"></td>
+    <td class="dat d-mes1-pago"></td>
+    <td class="dat d-mes1-pago"></td>
+    <td class="dat d-mes1-pago">25.00</td>
+    <td class="dat d-mes1-pago">25.00</td>
+    <td class="dat d-mes1-pago">25.00</td>
+    <td class="dat d-mes2-pago">25.00</td>
+    <td class="dat d-mes2-saldo">0.00</td>
+  </tr>
+</table>
+
+<table>
+  <tr style="background:#f9fafb;"><th style="padding:4px 10px;">Regla</th><th style="padding:4px 10px;">Detalle</th></tr>
+  <tr><td>Filas</td><td>todo predio de "Cobro medidores" con <code>Deuda &gt; 0</code> — ordenado por MZ, LT</td></tr>
+  <tr><td>Cuotas pre-ledger</td><td>congeladas — vienen del snapshot y no cambian más</td></tr>
+  <tr><td>PAGO por mes (ledger)</td><td><code>Σ PAGO</code> de CONVENIO en ese mes — una columna nueva por cada mes que exista en el registro (jun-2026 →)</td></tr>
+  <tr><td>SALDO ACTUAL</td><td>último saldo del ledger para el predio (incluye ajustes); si el predio no tiene eventos, cae al Saldo del snapshot. Puede diferir de Deuda−Σcuotas−Σpagos si hubo ajuste (ej. sobrepago clampeado a 0)</td></tr>
+  <tr><td>Hoja opcional</td><td>solo se genera si existe <code>medidor_saldo.xlsx</code> — la vista de conceptos nunca depende de él</td></tr>
+</table>
+
 <h2>Anchos de columna</h2>
 <table>
   <tr style="background:#f9fafb;"><th style="padding:4px 10px;">Columna</th><th style="padding:4px 10px;">Ancho</th><th style="padding:4px 10px;">Formato</th></tr>
@@ -175,7 +232,7 @@
 <hr style="margin-top:30px; border-color:#e5e7eb;">
 <p style="font-size:11px; color:#9ca3af;">
   Contrato visual aprobado — <code>seguimiento_repo.generar_vista()</code> debe replicar exactamente este formato.<br>
-  Owner: shared/seguimiento_repo.py &nbsp;|&nbsp; Versión: 1.0 &nbsp;|&nbsp; Fecha: 02/07/2026
+  Owner: shared/seguimiento_repo.py &nbsp;|&nbsp; Versión: 1.2 (CONVENIO_HISTORIAL con pagos del ledger + saldo actual) &nbsp;|&nbsp; Fecha: 04/07/2026
 </p>
 
 </body>

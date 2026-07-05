@@ -48,6 +48,7 @@ def _setup_paths():
 
     config.INPUTS_DIR = inputs
     config.OUTPUTS_DIR = outputs
+    config.BACKUPS_DIR = inputs / "backups"
     config.REGISTRO_MES_PATH = inputs / "registro_operario_mes.xlsx"
     config.REGISTRO_ACUMULADO_PATH = inputs / "registro_operario_acumulado.xlsx"
     config.LOG_PATH = outputs / "run.log"
@@ -55,6 +56,7 @@ def _setup_paths():
     config.trazabilidad_path = lambda m: outputs / f"trazabilidad_{m}.xlsx"
     config.lecturas_planilla_path = lambda m: outputs / f"lecturas_planilla_{m}.xlsx"
     config.orden_verificacion_path = lambda m: outputs / f"orden_verificacion_{m}.pdf"
+    config.CORRECCIONES_HISTORICAS_PATH = outputs / "correcciones_historicas.xlsx"
 
 
 # ── Construcción de fixtures ──────────────────────────────────────────────────

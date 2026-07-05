@@ -58,9 +58,24 @@ SHEET_DATA_BOLETAS = "Data"
 # ══════════════════════════════════════════════════════════════
 #  EDITAR AQUI — pares (MZ, LT) a reimprimir
 # ══════════════════════════════════════════════════════════════
+# 109 boletas con convenio corregido (formula Saldo de genesis omitia pagos de abril)
 RECIBOS_A_REIMPRIMIR = [
-    ("W",  "1"),    # NELLY MORENO LICITO - nombre corregido
-    ("C1", "16"),   # NELLY MORENO LICITO - lote nuevo con deudas
+    ('A', '1'), ('A', '5'), ('A', '6'), ('A', '8'), ('B', '2'), ('B', '6'), ('B', '8'),
+    ('C', '13'), ('C', '18'), ('C', '19'), ('C', '2'), ('C', '20'), ('C', '25'), ('C', '32'),
+    ('C', '4'), ('C', '5'), ('C', '7'), ('D', '1'), ('D', '19'), ('D', '3'), ('D', '6'),
+    ('D', '8'), ('E', '12'), ('E', '2'), ('E', '9'), ('F1', '8'), ('F', '12'), ('F', '14'),
+    ('F', '3A'), ('F', '7'), ('F', '8'), ('F', '9'), ('G1', '5'), ('G', '11'), ('G', '12'),
+    ('G', '14'), ('G', '17'), ('G', '19'), ('G', '2'), ('G', '20'), ('G', '3'), ('H', '1'),
+    ('H', '11'), ('H', '12'), ('H', '18'), ('H', '19'), ('H', '5'), ('H', '8'), ('H', '9'),
+    ('I', '1'), ('I', '11'), ('I', '12'), ('I', '13'), ('I', '14'), ('I', '15'), ('I', '17'),
+    ('J', '4'), ('J', '5'), ('J', '7'), ('J', '8'), ('J', '9'), ('K', '1'), ('K', '17'),
+    ('K', '2'), ('K', '4'), ('K', '6'), ('K', '8'), ('L', '1'), ('L', '10'), ('L', '11'),
+    ('L', '12'), ('L', '14'), ('L', '2'), ('L', '3'), ('L', '4'), ('L', '6'), ('L', '7'),
+    ('L', '8'), ('M', '14'), ('M', '19'), ('M', '22'), ('M', '9'), ('N', '1'), ('N', '2'),
+    ('N', '3'), ('O', '1'), ('O', '12'), ('O', '17'), ('O', '19'), ('O', '22'), ('O', '25'),
+    ('O', '26'), ('O', '28'), ('O', '4'), ('O', '6'), ('O', '8'), ('O', '9'), ('P', '12'),
+    ('P', '13'), ('P', '3'), ('Q', '5'), ('Q', '8'), ('R', '2'), ('S', '3'), ('S', '4'),
+    ('T', '8'), ('W', '3'), ('W', '4'), ('W', '5'),
 ]
 # ══════════════════════════════════════════════════════════════
 
@@ -165,13 +180,15 @@ def generar_recibo(row):
         return str(v).strip()
 
     def _rn(col):
+        # 77.0 → 77 (igual que _num en main.py); 77.5 queda 77.5
         v = row.get(col, 0)
         if pd.isna(v) or str(v).strip() in ("", "nan", "None"):
             return 0
         try:
-            return float(v)
+            v = float(v)
         except (ValueError, TypeError):
             return 0
+        return int(v) if v == int(v) else v
 
     context = {
         "nu_reci": recibo,
@@ -199,7 +216,7 @@ def generar_recibo(row):
         "fv": _rv("FECHA DE VENCIMIENTO", FECHA_VENCIMIENTO),
         "fe": _rv("FECHA DE EMISIÓN", FECHA_EMISION),
         "fecha_pago": _rv("FECHA_PAGO", FECHA_PAGO),
-        "hora_pago": HORA_PAGO,
+        "hora_pago": _rv("HORA_PAGO", HORA_PAGO),
         "telefono": TELEFONO,
         "logo_jaas": logo_jaas,
     }

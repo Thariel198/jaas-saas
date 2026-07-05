@@ -48,8 +48,11 @@ def _add_key(df: pd.DataFrame) -> pd.DataFrame:
 # ── Carga de inputs ───────────────────────────────────────────────────────
 
 def _load_lecturas(mes: str) -> pd.DataFrame:
+    """lecturas_planilla_YYYY-MM.xlsx (1_lecturas) trae la fila de grupos en la 1
+    y los nombres de columna en la 2 → header=1 (mismo formato que arrastre_consolidado,
+    ver _load_consolidado)."""
     path = config.lecturas_path(mes)
-    df = pd.read_excel(path, dtype=str)
+    df = pd.read_excel(path, header=1, dtype=str)
     missing = [c for c in config.COLS_LECTURAS if c not in df.columns]
     if missing:
         raise ValueError(f"lecturas_planilla: columnas faltantes: {missing}")

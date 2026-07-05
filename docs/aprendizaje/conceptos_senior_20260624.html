@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Patrones de Resiliencia — Nivel Senior | jass_system</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f8f9fa; color: #1a1a2e; font-size: 14px; }
+
+  /* ── Portada ── */
+  .portada {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%);
+    color: white; padding: 48px 60px 36px; page-break-after: always;
+  }
+  .portada .eyebrow { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: #a8b2d8; margin-bottom: 16px; }
+  .portada h1 { font-size: 36px; font-weight: 700; line-height: 1.2; margin-bottom: 12px; }
+  .portada h1 span { color: #e94560; }
+  .portada .subtitle { font-size: 16px; color: #a8b2d8; margin-bottom: 32px; }
+  .portada .meta { display: flex; gap: 40px; margin-top: 32px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.1); }
+  .portada .meta-item label { display: block; font-size: 10px; letter-spacing: 2px; color: #a8b2d8; text-transform: uppercase; margin-bottom: 4px; }
+  .portada .meta-item span { font-size: 13px; color: white; font-weight: 500; }
+
+  /* ── Sección intro ── */
+  .intro { padding: 36px 60px; background: white; border-bottom: 3px solid #e8eaf0; }
+  .intro h2 { font-size: 20px; color: #0f3460; margin-bottom: 12px; }
+  .intro p { color: #444; line-height: 1.7; max-width: 800px; }
+
+  /* ── Relación entre conceptos ── */
+  .relacion { padding: 28px 60px; background: #f0f4ff; border-bottom: 2px solid #d4dcf5; }
+  .relacion h2 { font-size: 14px; letter-spacing: 2px; text-transform: uppercase; color: #5a6a9a; margin-bottom: 16px; }
+  .flujo { display: flex; align-items: center; gap: 0; flex-wrap: wrap; }
+  .flujo-item { background: #1a1a2e; color: white; padding: 8px 16px; border-radius: 6px; font-size: 12px; font-weight: 600; }
+  .flujo-arrow { color: #5a6a9a; font-size: 20px; padding: 0 8px; }
+  .flujo-note { font-size: 11px; color: #5a6a9a; margin-top: 12px; line-height: 1.6; }
+
+  /* ── Grid de conceptos ── */
+  .conceptos { padding: 36px 60px; }
+  .conceptos h2 { font-size: 14px; letter-spacing: 2px; text-transform: uppercase; color: #5a6a9a; margin-bottom: 24px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+  /* ── Tarjeta de concepto ── */
+  .card { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.08); page-break-inside: avoid; }
+  .card-header { padding: 16px 20px; display: flex; align-items: center; gap: 12px; }
+  .card-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+  .card-title h3 { font-size: 16px; font-weight: 700; }
+  .card-title .tagline { font-size: 11px; opacity: 0.8; margin-top: 2px; }
+  .card-body { padding: 0 20px 20px; }
+  .card-def { font-size: 13px; line-height: 1.65; color: #333; margin-bottom: 14px; }
+  .card-section { margin-bottom: 12px; }
+  .card-section-label { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; font-weight: 700; margin-bottom: 6px; }
+  .card-section p { font-size: 12px; line-height: 1.6; color: #555; }
+  .code-block { background: #1e2a3a; color: #a8d8a8; font-family: 'Cascadia Code', 'Courier New', monospace; font-size: 11px; padding: 10px 14px; border-radius: 6px; line-height: 1.6; overflow-x: auto; }
+  .code-block .comment { color: #6a9a6a; }
+  .code-block .keyword { color: #569cd6; }
+  .code-block .string { color: #ce9178; }
+  .badge { display: inline-block; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 12px; margin-bottom: 10px; }
+
+  /* Colores por concepto */
+  .guard .card-header { background: linear-gradient(135deg, #c0392b, #e74c3c); color: white; }
+  .guard .card-icon { background: rgba(255,255,255,0.2); }
+  .guard .card-section-label { color: #c0392b; }
+  .guard .badge { background: #fde8e8; color: #c0392b; }
+
+  .journal .card-header { background: linear-gradient(135deg, #1565c0, #1976d2); color: white; }
+  .journal .card-icon { background: rgba(255,255,255,0.2); }
+  .journal .card-section-label { color: #1565c0; }
+  .journal .badge { background: #e3f2fd; color: #1565c0; }
+
+  .sidecar .card-header { background: linear-gradient(135deg, #2e7d32, #388e3c); color: white; }
+  .sidecar .card-icon { background: rgba(255,255,255,0.2); }
+  .sidecar .card-section-label { color: #2e7d32; }
+  .sidecar .badge { background: #e8f5e9; color: #2e7d32; }
+
+  .incremental .card-header { background: linear-gradient(135deg, #6a1b9a, #7b1fa2); color: white; }
+  .incremental .card-icon { background: rgba(255,255,255,0.2); }
+  .incremental .card-section-label { color: #6a1b9a; }
+  .incremental .badge { background: #f3e5f5; color: #6a1b9a; }
+
+  .idempotencia .card-header { background: linear-gradient(135deg, #e65100, #f57c00); color: white; }
+  .idempotencia .card-icon { background: rgba(255,255,255,0.2); }
+  .idempotencia .card-section-label { color: #e65100; }
+  .idempotencia .badge { background: #fff3e0; color: #e65100; }
+
+  /* ── Card ancho completo ── */
+  .card-full { grid-column: 1 / -1; }
+
+  /* ── Tabla de cuándo ── */
+  .cuando { padding: 28px 60px 40px; background: #1a1a2e; }
+  .cuando h2 { font-size: 14px; letter-spacing: 2px; text-transform: uppercase; color: #a8b2d8; margin-bottom: 20px; }
+  .cuando table { width: 100%; border-collapse: collapse; }
+  .cuando th { background: rgba(255,255,255,0.08); color: #a8b2d8; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; padding: 10px 14px; text-align: left; }
+  .cuando td { padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.06); font-size: 12px; color: #cdd; }
+  .cuando .tag-si { background: #1b5e20; color: #a5d6a7; padding: 2px 10px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+  .cuando .tag-pending { background: #37474f; color: #90a4ae; padding: 2px 10px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+
+  /* ── Distinción key ── */
+  .distincion { padding: 28px 60px; background: #fffde7; border-top: 4px solid #f9a825; border-bottom: 4px solid #f9a825; }
+  .distincion h2 { font-size: 14px; letter-spacing: 1px; text-transform: uppercase; color: #f57f17; margin-bottom: 16px; }
+  .distincion-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .distincion-box { background: white; border-radius: 8px; padding: 16px 20px; border-left: 4px solid; }
+  .distincion-box.build { border-color: #1976d2; }
+  .distincion-box.prod { border-color: #6a1b9a; }
+  .distincion-box h3 { font-size: 13px; font-weight: 700; margin-bottom: 8px; }
+  .distincion-box.build h3 { color: #1976d2; }
+  .distincion-box.prod h3 { color: #6a1b9a; }
+  .distincion-box ul { list-style: none; padding: 0; }
+  .distincion-box li { font-size: 12px; color: #444; padding: 3px 0; }
+  .distincion-box li::before { content: "→ "; color: #888; }
+
+  /* ── Print ── */
+  @media print {
+    body { background: white; }
+    .card { box-shadow: none; border: 1px solid #e0e0e0; }
+    @page { margin: 1.5cm; }
+    .portada { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .cuando { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .distincion { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .card-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════ PORTADA ══════════════════════ -->
+<div class="portada">
+  <div class="eyebrow">jass_system · Ingeniería de Software</div>
+  <h1>Patrones de <span>Resiliencia</span><br>Nivel Senior</h1>
+  <div class="subtitle">Guard · Journal · Sidecar · Incremental Processing · Idempotencia</div>
+  <div class="meta">
+    <div class="meta-item"><label>Fecha</label><span>24 Junio 2026</span></div>
+    <div class="meta-item"><label>Contexto</label><span>Diseño de 6b_corte_multas + arquitectura de producción</span></div>
+    <div class="meta-item"><label>Nivel</label><span>Senior — decisiones de arquitectura</span></div>
+  </div>
+</div>
+
+<!-- ══════════════════════ INTRO ══════════════════════ -->
+<div class="intro">
+  <h2>¿Por qué estos conceptos son de nivel senior?</h2>
+  <p>
+    Un junior escribe código que funciona hoy. Un medior escribe código que funciona la semana que viene.
+    Un senior escribe código que funciona cuando algo falla, cuando la lista de beneficiarios cambia,
+    cuando el sistema se corre dos veces, cuando nadie recuerda qué pasó hace 3 meses.
+    Estos cinco patrones son las herramientas que hacen posible eso. No son conceptos teóricos —
+    todos están implementados o en camino en <strong>jass_system</strong>, un sistema mensual de cobros
+    de agua que no puede permitirse errores silenciosos.
+  </p>
+</div>
+
+<!-- ══════════════════════ RELACIÓN ══════════════════════ -->
+<div class="relacion">
+  <h2>Cómo se relacionan los cinco conceptos</h2>
+  <div class="flujo">
+    <div class="flujo-item">GUARD</div>
+    <div class="flujo-arrow">→</div>
+    <div class="flujo-item">bloquea antes de actuar</div>
+    <div class="flujo-arrow">&nbsp;&nbsp;</div>
+    <div class="flujo-item">JOURNAL</div>
+    <div class="flujo-arrow">→</div>
+    <div class="flujo-item">registra lo que se hizo</div>
+    <div class="flujo-arrow">&nbsp;&nbsp;</div>
+    <div class="flujo-item">SIDECAR</div>
+    <div class="flujo-arrow">→</div>
+    <div class="flujo-item">detecta si algo cambió</div>
+  </div>
+  <div style="margin-top:12px" class="flujo">
+    <div class="flujo-item">INCREMENTAL</div>
+    <div class="flujo-arrow">→</div>
+    <div class="flujo-item">usa JOURNAL + SIDECAR para procesar solo el delta</div>
+    <div class="flujo-arrow">&nbsp;&nbsp;</div>
+    <div class="flujo-item">IDEMPOTENCIA</div>
+    <div class="flujo-arrow">→</div>
+    <div class="flujo-item">garantía que todos presuponen</div>
+  </div>
+  <div class="flujo-note">
+    <strong>Prerequisito:</strong> Idempotencia es la base — sin ella ningún otro patrón funciona correctamente.<br>
+    <strong>Foundational (Día 1):</strong> Guard + Journal siempre desde el primer módulo.<br>
+    <strong>Hardening (cuando el volumen lo justifica):</strong> Sidecar + Incremental cuando haya multi-JASS o >10k registros.
+  </div>
+</div>
+
+<!-- ══════════════════════ CONCEPTOS ══════════════════════ -->
+<div class="conceptos">
+  <h2>Los cinco patrones</h2>
+  <div class="grid">
+
+    <!-- GUARD -->
+    <div class="card guard">
+      <div class="card-header">
+        <div class="card-icon">🛡️</div>
+        <div class="card-title">
+          <h3>Guard</h3>
+          <div class="tagline">Centinela de precondición</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <span class="badge">Foundational · Día 1</span>
+        <p class="card-def">
+          Bloquea la ejecución con <code>sys.exit(1)</code> si una precondición falla.
+          No es una advertencia — es un bloqueo completo. No existe la opción de "continuar de todos modos".
+        </p>
+        <div class="card-section">
+          <div class="card-section-label">Diferencia con validación normal</div>
+          <p>Una validación avisa del problema. Un guard <em>impide que el problema avance</em>.
+          El guard no confía en que el operador leyó el aviso.</p>
+        </div>
+        <div class="card-section">
+          <div class="card-section-label">En la industria</div>
+          <p>Pre-flight check · Precondition gate · CI/CD gate (test fallido bloquea deploy) ·
+          Guard clauses en programación funcional.</p>
+        </div>
+        <div class="card-section">
+          <div class="card-section-label">En jass_system</div>
+          <div class="code-block"><span class="comment"># aplicar_penalidad.py — phase gate</span>
+<span class="keyword">if</span> aplicados > 0:
+    log.error(<span class="string">"PHASE GATE: ciclo comprometido"</span>)
+    sys.exit(1)  <span class="comment"># bloqueo total</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- JOURNAL -->
+    <div class="card journal">
+      <div class="card-header">
+        <div class="card-icon">📓</div>
+        <div class="card-title">
+          <h3>Journal</h3>
+          <div class="tagline">Libro de actas de operaciones</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <span class="badge">Foundational · Día 1</span>
+        <p class="card-def">
+          Log append-only de operaciones. Registra <em>qué hice, cuándo, sobre qué registro</em>.
+          Nunca se edita — solo crece. El estado actual se reconstruye leyendo el journal de atrás hacia adelante.
+        </p>
+        <div class="card-section">
+          <div class="card-section-label">Propiedad clave</div>
+          <p>Los <strong>eventos</strong> son primarios. El <strong>estado</strong> es derivado.
+          Esto permite reconstruir cualquier estado pasado y auditar exactamente qué ocurrió.</p>
+        </div>
+        <div class="card-section">
+          <div class="card-section-label">En la industria</div>
+          <p>WAL (PostgreSQL) · Kafka topics · Libro diario contable (entrada doble) · Event Sourcing.
+          El principio es idéntico en todos: nunca mutés el pasado.</p>
+        </div>
+        <div class="card-section">
+          <div class="card-section-label">En jass_system</div>
+          <div class="code-block"><span class="comment"># audit_penalidad.xlsx — el journal de 6_corte</span>
+MZ | LT | OPERACION  | MES_ANO | ACCION    |
+A  |  5 | SET_DEBE   | 2026-06 | APLICADO  |
+A  |  5 | REVERTIDO  | 2026-06 | REVERTIDO |
+<span class="comment"># SET_TIENE = APLICADO - REVERTIDO</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SIDECAR -->
+    <div class="card sidecar">
+      <div class="card-header">
+        <div class="card-icon">📎</div>
+        <div class="card-title">
+          <h3>Sidecar</h3>
+          <div class="tagline">Detector de cambio barato</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <span class="badge">Hardening · Cuando el volumen lo justifica</span>
+        <p class="card-def">
+          Archivo pequeño junto al archivo de datos que responde una sola pregunta:
+          <em>¿cambió este archivo desde la última vez?</em> — sin abrir el archivo grande.
+        </p>
+        <div class="card-section">
+          <div class="card-section-label">Por qué importa</div>
+          <p>Leer el sidecar cuesta O(1) — 80 bytes, sin parsear. Leer el archivo de datos cuesta O(n) —
+          575 filas, Excel, memoria. El sidecar elimina el 99% del costo cuando el archivo no cambió.</p>
+        </div>
+        <div class="card-section">
+          <div class="card-section-label">En la industria</div>
+          <p>Kubernetes sidecar containers · Archivos <code>.crc</code>, <code>.sha256</code> en ETL ·
+          HTTP ETag headers (mismo concepto, en red). El término nació en Kubernetes pero el patrón es universal.</p>
+        </div>
+        <div class="card-section">
+          <div class="card-section-label">Implementación típica</div>
+          <div class="code-block"><span class="comment"># planilla_2026-06.sidecar.json</span>
+{
+  <span class="string">"hash"</span>: <span class="string">"a3f9b2c1..."</span>,
+  <span class="string">"n_filas"</span>: 575,
+  <span class="string">"ts_modificado"</span>: <span class="string">"2026-06-24T09:15"</span>,
+  <span class="string">"generado_por"</span>: <span class="string">"2_planilla"</span>
+}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- INCREMENTAL -->
+    <div class="card incremental">
+      <div class="card-header">
+        <div class="card-icon">⚡</div>
+        <div class="card-title">
+          <h3>Incremental Processing</h3>
+          <div class="tagline">Solo el delta, siempre</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <span class="badge">Hardening · Cuando el volumen lo justifica</span>
+        <p class="card-def">
+          Solo procesar los registros nuevos o cambiados desde la última corrida.
+          Combina sidecar (¿cambió el archivo?) y journal (¿qué registros ya procesé?) para calcular el delta.
+        </p>
+        <div class="card-section">
+          <div class="card-section-label">Cómo funciona</div>
+          <p><strong>1.</strong> Lee sidecar → si hash no cambió, sale limpio.<br>
+          <strong>2.</strong> Lee journal → identifica qué registros ya están procesados.<br>
+          <strong>3.</strong> Procesa solo los nuevos (delta).<br>
+          <strong>4.</strong> Actualiza journal y sidecar.</p>
+        </div>
+        <div class="card-section">
+          <div class="card-section-label">En la industria</div>
+          <p>Kafka consumer offsets · Spark checkpoints · CDC (Change Data Capture) ·
+          ETL incremental loads. "Solo el delta" es la diferencia entre escalar y no escalar.</p>
+        </div>
+        <div class="card-section">
+          <div class="card-section-label">Cuándo agregar en jass_system</div>
+          <p>Hoy con 239 predios el costo de re-procesar todo es bajo. Aplicar cuando haya múltiples
+          JASS en el mismo sistema o >10k registros por ciclo.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- IDEMPOTENCIA — ancho completo -->
+    <div class="card idempotencia card-full">
+      <div class="card-header">
+        <div class="card-icon">🔄</div>
+        <div class="card-title">
+          <h3>Idempotencia — el prerequisito de todo</h3>
+          <div class="tagline">La misma operación N veces = el mismo resultado que 1 vez</div>
+        </div>
+      </div>
+      <div class="card-body" style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+        <div>
+          <span class="badge">Foundational · Día 1</span>
+          <p class="card-def">
+            Una operación es idempotente si ejecutarla dos veces produce el mismo resultado que ejecutarla una vez.
+            Es el prerequisito sin el cual ningún Guard, Journal, Sidecar ni Incremental funciona correctamente —
+            porque todos ellos presuponen que re-ejecutar es seguro.
+          </p>
+          <div class="card-section">
+            <div class="card-section-label">Idempotencia vs Reconciliación Bidireccional</div>
+            <p>La idempotencia evita duplicar. La reconciliación bidireccional garantiza que el archivo compartido
+            <em>siempre converja</em> al estado correcto, aunque la lista de beneficiarios cambie entre corridas.
+            La segunda es la evolución de la primera.</p>
+          </div>
+        </div>
+        <div>
+          <div class="card-section">
+            <div class="card-section-label">No idempotente vs Idempotente</div>
+            <div class="code-block"><span class="comment"># ❌ No idempotente — duplica al re-correr</span>
+CORTE_RECONEXION <span class="keyword">+=</span> 40.0
+
+<span class="comment"># ✓ Idempotente — igual N veces</span>
+<span class="keyword">if</span> ejecutar == <span class="string">"SI"</span>:
+    ws[f<span class="string">"M{row}"</span>] = 40.0  <span class="comment"># SET, no ADD</span></div>
+          </div>
+          <div class="card-section" style="margin-top:12px">
+            <div class="card-section-label">En jass_system</div>
+            <p>La reconciliación bidireccional (SET_DEBE vs SET_TIENE) hace que <code>aplicar_penalidad.py</code>
+            sea idempotente Y convergente: si la lista cambia, la próxima corrida lo corrige automáticamente.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /grid -->
+</div><!-- /conceptos -->
+
+<!-- ══════════════════════ CUÁNDO ══════════════════════ -->
+<div class="cuando">
+  <h2>Cuándo agregar cada patrón en jass_system</h2>
+  <table>
+    <tr>
+      <th>Patrón</th>
+      <th>Estado actual</th>
+      <th>Cuándo agregar / notas</th>
+    </tr>
+    <tr>
+      <td><strong>Idempotencia</strong></td>
+      <td><span class="tag-si">✓ Implementado</span></td>
+      <td>Todos los módulos operan con SET, no con ADD. Base del sistema.</td>
+    </tr>
+    <tr>
+      <td><strong>Guard</strong></td>
+      <td><span class="tag-si">✓ Implementado</span></td>
+      <td>Phase gate en 6_corte y 6b. Validación de inputs en todos los módulos.</td>
+    </tr>
+    <tr>
+      <td><strong>Journal</strong></td>
+      <td><span class="tag-si">✓ Implementado</span></td>
+      <td>audit_penalidad.xlsx (6_corte) · audit_penalidad_multas.xlsx (6b). Columna ACCION bidireccional.</td>
+    </tr>
+    <tr>
+      <td><strong>Sidecar</strong></td>
+      <td><span class="tag-pending">Pendiente</span></td>
+      <td>Agregar cuando guards lean planilla_mes frecuentemente. Empieza por el guard más costoso.</td>
+    </tr>
+    <tr>
+      <td><strong>Incremental</strong></td>
+      <td><span class="tag-pending">Pendiente</span></td>
+      <td>Agregar cuando haya multi-JASS o >10k predios. Requiere sidecar implementado primero.</td>
+    </tr>
+  </table>
+</div>
+
+<!-- ══════════════════════ DISTINCIÓN KEY ══════════════════════ -->
+<div class="distincion">
+  <h2>⚠️ Distinción crítica: build-time vs production-time</h2>
+  <div class="distincion-grid">
+    <div class="distincion-box build">
+      <h3>Build-time (construcción — ahora)</h3>
+      <ul>
+        <li>Audiencia: el agente de desarrollo (Claude Code)</li>
+        <li>Problema: tokens gastados en releer archivos que no cambiaron</li>
+        <li>Solución: disciplina de lectura — nrows, head(), no releer fuentes estáticas</li>
+        <li>Implementación: comportamiento del agente, no código</li>
+        <li>Costo si se ignora: sesiones más caras, contexto acumulado</li>
+      </ul>
+    </div>
+    <div class="distincion-box prod">
+      <h3>Production-time (el sistema corriendo solo)</h3>
+      <ul>
+        <li>Audiencia: el agente de producción (SaaS), el pipeline mensual</li>
+        <li>Problema: costo de procesar archivos completos en cada ciclo</li>
+        <li>Solución: Sidecar + Journal + Incremental Processing</li>
+        <li>Implementación: código en el sistema — features permanentes</li>
+        <li>Costo si se ignora: sistema lento o costoso cuando escale</li>
+      </ul>
+    </div>
+  </div>
+  <p style="margin-top:16px; font-size:12px; color:#7a6000; line-height:1.6;">
+    <strong>Conclusión:</strong> El sidecar no es un andamio de construcción que se tira cuando el sistema esté listo.
+    Es una feature de producción cuyo beneficio secundario es también abaratar las verificaciones durante construcción.
+    El mismo artefacto sirve a las dos audiencias — pero pertenece al código de producción.
+    No implementar para ahorrar tokens ahora — implementar cuando la escala lo justifique.
+  </p>
+</div>
+
+</body>
+</html>

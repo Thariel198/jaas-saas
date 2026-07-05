@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Contrato de formato — validacion_enriquecimiento.xlsx</title>
+<style>
+  body { font-family: Arial, sans-serif; font-size: 13px; margin: 30px; color: #1f2937; }
+  h1   { font-size: 18px; color: #1E5C3A; border-bottom: 2px solid #1E5C3A; padding-bottom: 6px; }
+  h2   { font-size: 14px; color: #374151; margin-top: 28px; border-left: 4px solid #6b7280; padding-left: 8px; }
+  p    { margin: 6px 0; }
+  .meta { background:#f3f4f6; border:1px solid #d1d5db; border-radius:4px; padding:10px 14px; margin-bottom:18px; }
+  .meta span { font-weight:bold; }
+
+  table { border-collapse: collapse; margin: 0 0 20px; font-size: 11.5px; width: 100%; }
+  th, td { border: 1px solid #fff; padding: 4px 9px; }
+  .col { font-weight:bold; font-size:10px; text-align:center; }
+  .dat { font-size:10.5px; }
+
+  .r-head { background:#1E5C3A; color:#FFF; }
+  .r-ok   { background:#E9F7EF; color:#1E5C3A; }
+  .r-bad  { background:#FEE2E2; color:#991B1B; font-weight:bold; }
+
+  .tag { display:inline-block; font-size:11px; font-weight:bold; padding:1px 8px; border-radius:10px; }
+  .tag.postbuild { background:#DBEAFE; color:#1E3A8A; }
+  .tag.readonly  { background:#E9F7EF; color:#1E5C3A; }
+
+  .nota { background:#fffbeb; border:1px solid #fcd34d; border-radius:4px;
+          padding:8px 12px; margin:12px 0; font-size:12px; }
+  .warn-box { background:#FEE2E2; border:1px solid #FCA5A5; border-radius:4px;
+              padding:10px 14px; margin:12px 0; font-size:12px; }
+  .warn-box b { color:#991B1B; }
+  code { background:#f3f4f6; padding:1px 5px; border-radius:3px; font-size:11px; }
+</style>
+</head>
+<body>
+
+<h1>Contrato de formato — validacion_enriquecimiento_{mes}.xlsx
+    <span class="tag postbuild" style="font-size:11px; margin-left:8px;">post-enriquecimiento</span>
+    <span class="tag readonly" style="font-size:11px;">solo lectura — no corrige nada</span>
+</h1>
+
+<div class="meta">
+  <span>Owner:</span> 3_boletas/enriquecimiento/validar_enriquecimiento.py &nbsp;|&nbsp;
+  <span>Ruta:</span> 3_boletas/enriquecimiento/outputs/validacion_enriquecimiento_{mes}.xlsx &nbsp;|&nbsp;
+  <span>Cuándo correr:</span> después de <code>enriquecimiento/main.py</code>, antes de <code>3_boletas/main.py</code> &nbsp;|&nbsp;
+  <span>Hojas:</span> 3 (Resumen, Discrepancias, Consistencia_Config)
+</div>
+
+<h2>Propósito</h2>
+<div class="nota">
+  <code>enriquecimiento/main.py</code> copia y transforma columnas de <code>planilla_{mes}.xlsx</code> hacia
+  <code>DATA_boletas.xlsx</code>. Este validador relee ambos archivos y compara <b>predio por predio, columna
+  por columna</b> — detecta mapeos rotos, columnas corridas y fórmulas mal calculadas antes de que las
+  boletas lleguen a imprimirse. Mismo patrón que <code>2_planilla/validar_arrastres.py</code>.
+</div>
+
+<div class="warn-box">
+  <b>No corrige nada.</b> Si hay discrepancias, el fix va en <code>enriquecimiento/main.py</code> —
+  nunca editando <code>DATA_boletas.xlsx</code> a mano.
+</div>
+
+<h2>Chequeo 1 — Columnas 1:1 (copia directa de planilla)</h2>
+<table>
+  <tr style="background:#f9fafb;">
+    <th style="padding:4px 10px;">Columna en DATA_boletas</th>
+    <th style="padding:4px 10px;">Columna en planilla</th>
+    <th style="padding:4px 10px;">Tipo de comparación</th>
+  </tr>
+  <tr><td><code>NOMBRES</code></td><td><code>NOMBRE</code></td><td>texto exacto (trim)</td></tr>
+  <tr><td><code>Marcación anterior</code></td><td><code>MARC_ANT</code></td><td>numérica</td></tr>
+  <tr><td><code>Marcacion altual</code></td><td><code>MARC_ACT</code></td><td>numérica</td></tr>
+  <tr><td><code>M3</code></td><td><code>M3</code></td><td>numérica</td></tr>
+  <tr><td><code>Total mes actual</code></td><td><code>MES_ACTUAL</code></td><td>numérica</td></tr>
+  <tr><td><code>MES ANTERIOR</code></td><td><code>MES_ANTERIOR</code></td><td>numérica</td></tr>
+  <tr><td><code>Corte y reconexion</code></td><td><code>CORTE_RECONEXION</code></td><td>numérica</td></tr>
+  <tr><td><code>Convenio</code></td><td><code>CONVENIO</code></td><td>numérica</td></tr>
+  <tr><td><code>Mantenimiento</code></td><td><code>MANTENIMIENTO</code></td><td>numérica</td></tr>
+  <tr><td><code>Multa (faena + reunión)</code></td><td><code>MULTA</code></td><td>numérica</td></tr>
+  <tr><td><code>Cuota directa</code></td><td><code>ACUERDOS_ASAMBLEA</code></td><td>numérica</td></tr>
+</table>
+<p style="font-size:11px; color:#888;">Tolerancia numérica 0.005 (redondeo de moneda). Fuera de alcance a propósito:
+<code>Estado</code> — no tiene par en planilla (decisión del usuario 2026-07-03).</p>
+
+<h2>Chequeo 2 — Fórmulas recalculadas</h2>
+<table>
+  <tr style="background:#f9fafb;">
+    <th style="padding:4px 10px;">Columna en DATA_boletas</th>
+    <th style="padding:4px 10px;">Valor esperado (recalculado desde planilla)</th>
+  </tr>
+  <tr>
+    <td><code>Total</code></td>
+    <td><code>MES_ACTUAL + MES_ANTERIOR + CORTE_RECONEXION + CONVENIO + MANTENIMIENTO + MULTA + ACUERDOS_ASAMBLEA</code> (con piso en 0 — la boleta nunca muestra negativo)</td>
+  </tr>
+  <tr>
+    <td><code>Importe a pagar</code></td>
+    <td>Idéntico a <code>Total</code> (misma fórmula, misma fila)</td>
+  </tr>
+</table>
+
+<h2>Chequeo 3 — Cobertura de predios</h2>
+<table>
+  <tr style="background:#f9fafb;">
+    <th style="padding:4px 10px;">Caso</th>
+    <th style="padding:4px 10px;">Tratamiento</th>
+  </tr>
+  <tr><td>Predio en planilla sin fila en DATA_boletas</td><td>Discrepancia <code>FALTA_EN_BOLETAS</code> — ese usuario se quedaría sin boleta.</td></tr>
+  <tr><td>Fila en DATA_boletas sin predio en planilla</td><td>Discrepancia <code>SOBRA_EN_BOLETAS</code> — boleta huérfana, ¿de qué mes es?</td></tr>
+  <tr><td>Clave (MZ, LT) duplicada en DATA_boletas</td><td>Discrepancia <code>DUPLICADO</code> — dos boletas al mismo predio.</td></tr>
+</table>
+
+<h2>Chequeo 4 — Consistencia de columnas de config (hoja propia)</h2>
+<table>
+  <tr style="background:#f9fafb;">
+    <th style="padding:4px 10px;">Columna</th>
+    <th style="padding:4px 10px;">Regla</th>
+  </tr>
+  <tr><td><code>PERIODO</code> · <code>FECHA DE VENCIMIENTO</code> · <code>FECHA DE EMISIÓN</code> · <code>LECTURA ANTERIOR</code> · <code>LECTURA ACTUAL</code> · <code>fecha pago</code></td>
+      <td>Valor idéntico en las 499 filas <b>y</b> coincide con lo que dice <code>config_mes.xlsx</code> (fila 4) — detecta corridas a medias o mezcla de meses.</td></tr>
+  <tr><td><code>NUMERO DE RECIBO</code></td>
+      <td>Correlativo estricto desde <code>NUMERO_RECIBO_INICIO</code>: fila <i>i</i> = inicio + <i>i</i> — sin saltos ni repetidos.</td></tr>
+</table>
+
+<h2>Hoja: Resumen</h2>
+<table>
+  <tr class="r-head"><th class="col">CHEQUEO</th><th class="col">COLUMNA</th><th class="col">TOTAL_FILAS</th><th class="col">COINCIDEN</th><th class="col">DISCREPANCIAS</th></tr>
+  <tr><td class="dat">1:1</td><td class="dat">Total mes actual</td><td class="dat">499</td><td class="dat r-ok">499</td><td class="dat">0</td></tr>
+  <tr><td class="dat">FORMULA</td><td class="dat">Total</td><td class="dat">499</td><td class="dat r-ok">497</td><td class="dat r-bad">2</td></tr>
+  <tr><td class="dat">COBERTURA</td><td class="dat">(MZ, LT)</td><td class="dat">499</td><td class="dat r-ok">499</td><td class="dat">0</td></tr>
+  <tr><td class="dat">CONFIG</td><td class="dat">NUMERO DE RECIBO</td><td class="dat">499</td><td class="dat r-ok">499</td><td class="dat">0</td></tr>
+</table>
+
+<h2>Hoja: Discrepancias</h2>
+<p>Solo filas con diferencia (chequeos 1, 2 y 3). Igual que en <code>validacion_de_arrastres</code>.</p>
+<table>
+  <tr class="r-head">
+    <th class="col">MZ</th><th class="col">LT</th><th class="col">COLUMNA</th>
+    <th class="col">VALOR_PLANILLA</th><th class="col">VALOR_BOLETAS</th><th class="col">DIFERENCIA / TIPO</th>
+  </tr>
+  <tr>
+    <td class="dat">A</td><td class="dat">3</td><td class="dat">Total</td>
+    <td class="dat" style="text-align:right;">48.00</td><td class="dat" style="text-align:right;">43.00</td>
+    <td class="dat r-bad" style="text-align:right;">-5.00</td>
+  </tr>
+  <tr>
+    <td class="dat">F</td><td class="dat">9</td><td class="dat">(MZ, LT)</td>
+    <td class="dat" style="text-align:center;">presente</td><td class="dat" style="text-align:center;">ausente</td>
+    <td class="dat r-bad" style="text-align:center;">FALTA_EN_BOLETAS</td>
+  </tr>
+</table>
+
+<h2>Hoja: Consistencia_Config</h2>
+<table>
+  <tr class="r-head"><th class="col">COLUMNA</th><th class="col">VALOR_CONFIG</th><th class="col">VALORES_DISTINTOS_EN_BOLETAS</th><th class="col">FILAS_QUE_NO_COINCIDEN</th><th class="col">OK</th></tr>
+  <tr><td class="dat">PERIODO</td><td class="dat">11/05/2026 al 10/06/2026</td><td class="dat">1</td><td class="dat">0</td><td class="dat r-ok">SÍ</td></tr>
+  <tr><td class="dat">NUMERO DE RECIBO</td><td class="dat">inicio 17471</td><td class="dat">correlativo</td><td class="dat">0</td><td class="dat r-ok">SÍ</td></tr>
+</table>
+
+<hr style="margin-top:30px; border-color:#e5e7eb;">
+<p style="font-size:11px; color:#9ca3af;">
+  Contrato visual aprobado — el código en validar_enriquecimiento.py debe replicar exactamente este formato.<br>
+  Owner: 3_boletas/enriquecimiento &nbsp;|&nbsp; Versión: 1.0 &nbsp;|&nbsp; Fecha: 2026-07-03
+</p>
+
+</body>
+</html>

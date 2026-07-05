@@ -70,7 +70,9 @@ _CONSOLIDADO = pd.DataFrame([
 
 
 def _crear_fixtures() -> None:
-    _LECTURAS.to_excel(config.lecturas_path(MES), index=False)
+    # lecturas_planilla real (1_lecturas) también trae grupos en la fila 1 y
+    # nombres de columna en la 2 → header=1. Mismo layout que el consolidado.
+    _LECTURAS.to_excel(config.lecturas_path(MES), index=False, startrow=1)
     # El consolidado real trae grupos en la fila 1 y nombres de columna en la 2
     # → header=1. Reproducimos ese layout con startrow=1 (fila 1 en blanco).
     _CONSOLIDADO.to_excel(config.consolidado_path(MES_ANT), index=False, startrow=1)

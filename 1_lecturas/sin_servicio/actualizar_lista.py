@@ -261,6 +261,19 @@ def _backup_lista() -> Path | None:
     return bk
 
 
+def _backup_audit() -> Path | None:
+    """audit_lista.xlsx se reescribe completo en cada corrida (_append_audit) — respaldar
+    antes, igual que la lista. Sin esto, un bug futuro en _leer_audit_existente volvería
+    a perder el historial sin dejar rastro (ver el bug de header 'FECHA' vs 'MZ')."""
+    if not AUDIT_LISTA_PATH.exists():
+        return None
+    BACKUPS_DIR.mkdir(parents=True, exist_ok=True)
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    bk = BACKUPS_DIR / f"{AUDIT_LISTA_PATH.stem}_{ts}{AUDIT_LISTA_PATH.suffix}"
+    shutil.copy2(AUDIT_LISTA_PATH, bk)
+    return bk
+
+
 def _escribir_lista(lista: dict) -> None:
     LISTA_PATH.parent.mkdir(parents=True, exist_ok=True)
     wb = Workbook()
@@ -355,7 +368,7 @@ def _leer_audit_existente() -> list[dict]:
     if not rows:
         return []
 
-    header_row = _detectar_header_row(rows, "FECHA")
+    header_row = _detectar_header_row(rows, "MZ")
     if header_row < 0:
         log.warning(f"{AUDIT_LISTA_PATH.name}: header no detectado — se ignoran filas previas")
         return []
@@ -385,6 +398,9 @@ def _append_audit(plan: list[dict], mes_ano: str) -> None:
     fecha = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     existentes = _leer_audit_existente()
+    bk = _backup_audit()
+    if bk:
+        log.info(f"Backup: backups/{bk.name}")
     nuevas = [
         {
             "FECHA":            fecha,

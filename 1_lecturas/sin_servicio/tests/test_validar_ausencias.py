@@ -251,14 +251,16 @@ class TestValidarAusenciasIntegration:
             "2026-07", 1, casos, lista, historial_sample, ["2026-06"],
         )
         # Supervisor llena DECISIÓN.
+        # escribir_con_grupos usa header de 2 filas: fila 1 = grupos, fila 2 =
+        # nombres de columna, datos desde fila 3 (ver formato_excel.py).
         path = tmp_paths["outputs"] / "validacion_ausencias_2026-07.xlsx"
         wb = load_workbook(path)
         ws = wb.active
-        header = [c.value for c in ws[1]]
+        header = [c.value for c in ws[2]]
         i_dec = header.index("DECISIÓN") + 1
         i_not = header.index("NOTAS") + 1
-        ws.cell(row=2, column=i_dec).value = "investigar"
-        ws.cell(row=2, column=i_not).value = "nota del supervisor"
+        ws.cell(row=3, column=i_dec).value = "investigar"
+        ws.cell(row=3, column=i_not).value = "nota del supervisor"
         wb.save(path)
         # Run 2 — debe preservar DECISIÓN.
         justif, revisar = validar_ausencias(

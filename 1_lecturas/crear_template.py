@@ -10,7 +10,8 @@ que el operario la tenga visible.
 Correr una sola vez al inicio del ciclo: python crear_template.py [YYYY-MM]
 Si no se pasa el mes, usa la fecha del sistema.
 """
-from datetime import date
+import shutil
+from datetime import date, datetime
 from pathlib import Path
 import sys
 
@@ -113,6 +114,58 @@ def _cargar_usuarios_base() -> list[dict]:
     return usuarios
 
 
+def _leer_datos_existentes() -> dict[tuple[str, str], tuple]:
+    """Preserva MARC_ACT/M3/obs_operario ya cargados por el operario.
+
+    Si crear_template.py se re-corre a mitad de mes (por error o a propósito),
+    sin esto se pierde todo el trabajo de campo — el archivo se regenera
+    siempre desde cero. Devuelve {(mz, lt): (marc_act, m3, obs)} solo para
+    las filas que ya tenían MARC_ACT cargado.
+    """
+    if not config.REGISTRO_MES_PATH.exists():
+        return {}
+    wb = load_workbook(config.REGISTRO_MES_PATH, data_only=True)
+    ws = wb.active
+
+    header_row = None
+    for ri in range(1, min(ws.max_row, 15) + 1):
+        if str(ws.cell(ri, 1).value or "").strip().upper() == "MZ":
+            header_row = ri
+            break
+    if header_row is None:
+        return {}
+
+    headers = [str(ws.cell(header_row, c).value or "").strip().upper()
+               for c in range(1, ws.max_column + 1)]
+    idx = {h: i + 1 for i, h in enumerate(headers)}
+    if not {"MZ", "LT", "MARC_ACT", "M3"}.issubset(idx):
+        return {}
+
+    datos: dict = {}
+    for ri in range(header_row + 1, ws.max_row + 1):
+        mz = str(ws.cell(ri, idx["MZ"]).value or "").strip().upper()
+        lt = str(ws.cell(ri, idx["LT"]).value or "").strip()
+        if not mz or not lt:
+            continue
+        act = ws.cell(ri, idx["MARC_ACT"]).value
+        if act in (None, ""):
+            continue
+        m3 = ws.cell(ri, idx["M3"]).value
+        obs = ws.cell(ri, idx["OBS_OPERARIO"]).value if "OBS_OPERARIO" in idx else ""
+        datos[(mz, lt)] = (act, m3, obs or "")
+    return datos
+
+
+def _backup_si_existe() -> None:
+    if not config.REGISTRO_MES_PATH.exists():
+        return
+    config.BACKUPS_DIR.mkdir(parents=True, exist_ok=True)
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    destino = config.BACKUPS_DIR / f"registro_operario_mes_pre_regenerar_{ts}.xlsx"
+    shutil.copy2(config.REGISTRO_MES_PATH, destino)
+    print(f"   Backup antes de regenerar: {destino.name}")
+
+
 def _escribir_leyenda(ws, fila_inicio: int = 1) -> int:
     """Escribe la leyenda M/F/P en las filas superiores y devuelve la fila siguiente libre."""
     title = ws.cell(row=fila_inicio, column=1, value="LEYENDA — códigos válidos en obs_operario")
@@ -157,6 +210,11 @@ def main():
     mes_ano = sys.argv[1] if len(sys.argv) > 1 else date.today().strftime("%Y-%m")
     usuarios = _cargar_usuarios_base()
 
+    preservados = _leer_datos_existentes()
+    if preservados:
+        _backup_si_existe()
+        print(f"   {len(preservados)} lectura(s) ya cargada(s) se preservan (no se pisan)")
+
     wb = Workbook()
     ws = wb.active
     ws.title = "Lecturas"
@@ -179,15 +237,16 @@ def main():
     if usuarios:
         for offset, u in enumerate(usuarios):
             ri = fila_tabla + 1 + offset
+            prev = preservados.get((u["mz"], u["lt"]))
             vals = {
                 "MZ":           u["mz"],
                 "LT":           u["lt"],
                 "NOMBRE":       u["nombre"],
                 "MES_ANO":      mes_ano,
                 "MARC_ANT":     u["marc_ant"],
-                "MARC_ACT":     "",
-                "M3":           "",
-                "obs_operario": "",
+                "MARC_ACT":     prev[0] if prev else "",
+                "M3":           prev[1] if prev else "",
+                "obs_operario": prev[2] if prev else "",
             }
             for ci, (key, _, _, tipo) in enumerate(COLS, 1):
                 value = vals[key]

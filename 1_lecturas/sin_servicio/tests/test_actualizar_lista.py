@@ -9,9 +9,12 @@ Cubre:
 import pytest
 
 from sin_servicio import config
+import sin_servicio.actualizar_lista as al
 from sin_servicio.actualizar_lista import (
     _aplicar_a_lista,
+    _append_audit,
     _detectar_origen,
+    _leer_audit_existente,
     _planificar,
     _validar_decisiones,
 )
@@ -201,3 +204,46 @@ class TestAplicarALista:
             [_plan_insert("A", "1", "SIN_MEDIDOR")], lista, "2026-07-01"
         )
         assert lista == {}
+
+
+# ── _append_audit / _leer_audit_existente — append-only real ──────────────────
+# Bug real (2026-07-03): _leer_audit_existente buscaba el header con "FECHA"
+# como primera columna, pero GRUPOS_AUDIT tiene "MZ" primero (FECHA está al
+# final, grupo "¿Cuándo?"). Nunca detectaba el header → cada corrida de
+# actualizar_lista.py descartaba TODO el historial de audit_lista.xlsx antes
+# de escribir la fila nueva. Este test fuerza 2 corridas y verifica que la
+# primera sobrevive a la segunda.
+
+@pytest.fixture
+def audit_tmp_path(tmp_path, monkeypatch):
+    outputs = tmp_path / "outputs"
+    outputs.mkdir()
+    audit_path = outputs / "audit_lista.xlsx"
+    backups = tmp_path / "backups"
+    monkeypatch.setattr(al, "AUDIT_LISTA_PATH", audit_path)
+    monkeypatch.setattr(al, "OUTPUTS_DIR", outputs)
+    monkeypatch.setattr(al, "BACKUPS_DIR", backups)
+    return audit_path
+
+
+class TestAppendAuditEsRealmenteAppendOnly:
+    def test_segunda_corrida_preserva_filas_de_la_primera(self, audit_tmp_path):
+        plan1 = [_plan_insert("A", "1", "SIN_MEDIDOR")]
+        _append_audit(plan1, "2026-06")
+
+        plan2 = [_plan_insert("B", "2", "EN_INVESTIGACIÓN")]
+        _append_audit(plan2, "2026-07")
+
+        filas = _leer_audit_existente()
+        claves = {(f["MZ"], f["LT"]) for f in filas}
+        assert claves == {("A", "1"), ("B", "2")}, (
+            "la fila de la primera corrida se perdió — regresión del bug de header"
+        )
+
+    def test_tercera_corrida_sigue_acumulando(self, audit_tmp_path):
+        _append_audit([_plan_insert("A", "1", "SIN_MEDIDOR")], "2026-06")
+        _append_audit([_plan_insert("B", "2", "EN_INVESTIGACIÓN")], "2026-07")
+        _append_audit([_plan_insert("C", "3", "SIN_MEDIDOR")], "2026-08")
+
+        filas = _leer_audit_existente()
+        assert len(filas) == 3

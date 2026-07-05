@@ -34,6 +34,7 @@ Corre en ciclos hasta que no queden anomalías bloqueantes.
 │
 ├── outputs/                              → temporal del ciclo + permanentes
 │   ├── correcciones_YYYY-MM.xlsx         → cola de maquillaje · se borra al cerrar
+│   ├── correcciones_historicas.xlsx      → PERMANECE · append-only · ajustes a ciclos pasados
 │   ├── trazabilidad_YYYY-MM.xlsx         → auditoría permanente · uno por mes
 │   ├── lecturas_planilla_YYYY-MM.xlsx    → input limpio para 2_planilla · PERMANECE
 │   ├── orden_verificacion_YYYY-MM.pdf    → para el operario en campo · se regenera
@@ -47,6 +48,8 @@ Corre en ciclos hasta que no queden anomalías bloqueantes.
 │   ├── contrato_trazabilidad.html
 │   ├── contrato_lecturas_planilla.html
 │   ├── contrato_orden_verificacion.html
+│   ├── contrato_correcciones_historicas.html
+│   ├── diagrama_correccion_historica.html
 │   ├── flujo_modulo_1_lecturas.svg
 │   ├── manual_uso.md                     → este archivo
 │   └── decisiones/
@@ -104,6 +107,21 @@ UMBRAL_INVERSION = 50.0   # separa MEDIDOR_INVERTIDO (≤) de POSIBLE_CAMBIO_MED
 SALTO_MESES      = 4      # ciclos previos para promedio
 SALTO_FACTOR     = 3.0    # multiplicador para SALTO_HISTORICO
 ```
+
+---
+
+## Corrección de errores históricos del acumulado
+
+`registro_operario_acumulado.xlsx` **nunca se edita** para corregir un valor mal cargado en un ciclo pasado. Cuando una anomalía del ciclo actual revela que `MARC_ANT` viene mal desde un mes anterior (típico: dígito de más o de menos al tipear), la corrección va aparte:
+
+1. El supervisor agrega una fila en `outputs/correcciones_historicas.xlsx` (append-only, PERMANECE): `MZ · LT · NOMBRE · CICLO_CORREGIDO · CAMPO · VALOR_ORIGINAL · VALOR_CORREGIDO · MOTIVO · DETECTADO_EN_CICLO · FECHA · ESTADO`.
+2. `main.py` obtiene `MARC_ANT` siempre vía `valor_efectivo(mz, lt, ciclo, campo)` — nunca lee el acumulado crudo directo. Si hay una fila `ESTADO=activo` para esa clave, devuelve `VALOR_CORREGIDO`; si no, el valor del acumulado tal cual.
+3. Volver a correr `python main.py` — si la corrección resuelve el diff, la fila sale sola de `correcciones_YYYY-MM.xlsx`.
+4. Si la corrección misma resulta estar mal, no se edita ni se borra la fila — se agrega otra con `ESTADO=anulado`.
+
+Mismo patrón que el evento `AJUSTE` de `shared/seguimiento_repo.py`, aplicado dentro de este módulo (no vive en `shared/` porque solo `1_lecturas` lo usa). Fuera de alcance a propósito: 2+ correcciones `activo` para la misma clave, campo distinto de `MARCACION` — se diseña si aparece un caso real (Regla del Tres).
+
+Detalle: `docs/contrato_correcciones_historicas.html` y `docs/diagrama_correccion_historica.html`.
 
 ---
 
@@ -165,8 +183,9 @@ El sistema valida, separa confirmados de anomalías, y según el ciclo:
    - `MARC_ACT_corregido` y `M3_corregido`
    - `motivo_correccion` (texto libre)
    - `resuelto_por` (campo / maquillaje / acepta_original / corrige_dato / borra_duplicado / marca_baja)
-3. Volver a correr `python main.py`. Las filas con `resuelto_por` lleno se mueven a trazabilidad. Las que faltan regeneran el archivo.
-4. Repetir hasta que `correcciones_YYYY-MM.xlsx` quede en 0 filas y desaparezca.
+3. Si la causa es un valor mal cargado en un ciclo **anterior** (no de este mes): agregar una fila en `outputs/correcciones_historicas.xlsx` en vez de editar el acumulado — ver "Corrección de errores históricos del acumulado" más arriba
+4. Volver a correr `python main.py`. Las filas con `resuelto_por` lleno se mueven a trazabilidad. Las que faltan regeneran el archivo. Las corregidas vía `correcciones_historicas.xlsx` salen solas si el diff queda plausible.
+5. Repetir hasta que `correcciones_YYYY-MM.xlsx` quede en 0 filas y desaparezca.
 
 ### Paso 5 — Cierre
 
@@ -193,6 +212,7 @@ python ../2_planilla/main.py
 | `outputs/lecturas_planilla_YYYY-MM.xlsx` | **PERMANECE** · uno por mes | fuente de verdad para 2_planilla |
 | `outputs/orden_verificacion_YYYY-MM.pdf` | Se regenera cada ciclo | refleja anomalías del ciclo actual |
 | `outputs/correcciones_YYYY-MM.xlsx` | Se elimina al cerrar | datos volcados a trazabilidad antes de eliminar |
+| `outputs/correcciones_historicas.xlsx` | **PERMANECE** · append-only | ajustes a valores de ciclos pasados · nunca se borra ni se sobreescribe |
 | `outputs/run.log` | Se sobreescribe cada run | log del último run |
 
 ---
@@ -255,6 +275,18 @@ Lecturas facturables. Una hoja `LecturasPlanilla`.
 ### orden_verificacion_YYYY-MM.pdf
 
 Documento para el operario en campo. Solo incluye `SIN_LECTURA`, `MEDIDOR_INVERTIDO`, `POSIBLE_CAMBIO_MEDIDOR`, `EXCESIVO`. Una tarjeta por caso con espacios en blanco para escribir a mano. Detalle en `docs/contrato_orden_verificacion.html`.
+
+### correcciones_historicas.xlsx
+
+Ledger append-only de ajustes a valores de ciclos pasados. Una hoja `CorreccionesHistoricas`. PERMANECE — nunca se borra ni se regenera.
+
+| Grupo | Columnas |
+|---|---|
+| ¿Quién es? | MZ · LT · NOMBRE |
+| ¿Qué se corrige? (supervisor llena todo) | CICLO_CORREGIDO · CAMPO · VALOR_ORIGINAL · VALOR_CORREGIDO · MOTIVO |
+| ¿Cuándo y estado? | DETECTADO_EN_CICLO · FECHA · ESTADO |
+
+`CAMPO` hoy solo acepta `MARCACION`. `ESTADO` ∈ {activo, anulado} — una corrección mal hecha no se edita ni se borra, se anula con una fila nueva. `main.py` lee este archivo en cada corrida vía `valor_efectivo(mz, lt, ciclo, campo)`, nunca lo modifica. Detalle en `docs/contrato_correcciones_historicas.html`.
 
 ---
 

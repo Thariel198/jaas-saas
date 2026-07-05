@@ -1,0 +1,130 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+#w{font-family:var(--font-sans);padding:4px 0 16px}
+.instruc{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-left:3px solid #5B21B6;border-radius:0 var(--border-radius-md) var(--border-radius-md) 0;padding:9px 13px;font-size:12px;color:var(--color-text-secondary);margin-bottom:12px;line-height:1.7}
+.instruc strong{color:var(--color-text-primary)}
+.tab-excel{display:inline-flex;align-items:center;border-radius:6px 6px 0 0;padding:5px 14px;font-size:12px;font-weight:500;margin-bottom:-1px;background:#F4ECF7;border:0.5px solid #C9A8E0;border-bottom:none;color:#5B21B6}
+.tw{border:0.5px solid var(--color-border-tertiary);border-radius:0 var(--border-radius-md) var(--border-radius-md) var(--border-radius-md);overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:11px}
+th{padding:6px 8px;font-size:10px;font-weight:500;text-align:left;border-bottom:0.5px solid var(--color-border-tertiary);border-right:0.5px solid var(--color-border-tertiary);white-space:nowrap}
+th:last-child{border-right:none}
+td{padding:5px 8px;border-bottom:0.5px solid var(--color-border-tertiary);border-right:0.5px solid var(--color-border-tertiary);vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+td:last-child{border-right:none}
+tr:last-child td{border-bottom:none}
+.num{width:24px;background:var(--color-background-secondary);color:var(--color-text-tertiary);font-size:10px;font-family:var(--font-mono);text-align:center;border-right:0.5px solid var(--color-border-tertiary)}
+.th-quien{background:#F4ECF7;color:#5B21B6}
+.th-fix  {background:#E1F5EE;color:#085041}
+.th-cuan {background:#FEF3E8;color:#7C3003}
+.th-sep  {width:4px;background:var(--color-background-secondary);padding:0;border-right:2px solid var(--color-border-secondary)}
+.td-quien{background:#FAF5FF;font-family:var(--font-mono);font-size:10px;color:#5B21B6}
+.td-nombre{background:#FAF5FF;font-size:11px;color:var(--color-text-primary)}
+.td-fix  {background:#F0FFF8;font-family:var(--font-mono);font-size:11px;font-weight:500;color:#065F46;text-align:center}
+.td-fix-t{background:#F0FFF8;font-size:10px;color:var(--color-text-secondary);white-space:normal}
+.td-cuan {background:#FEF3E8;font-family:var(--font-mono);font-size:10px;color:#7C3003;text-align:center}
+.td-sep  {width:4px;background:var(--color-background-secondary);padding:0;border-right:2px solid var(--color-border-secondary)}
+.gh{font-size:9px;font-weight:600;text-align:center;padding:3px 0;letter-spacing:.05em;text-transform:uppercase;border-bottom:0.5px solid var(--color-border-tertiary)}
+.campotag{font-size:10px;font-weight:600;padding:1px 6px;border-radius:3px;font-family:var(--font-mono);display:inline-block;background:#DDD6FE;color:#4C1D95}
+.estado{font-size:10px;font-weight:600;padding:1px 6px;border-radius:3px;display:inline-block}
+.est-act{background:#D1FAE5;color:#065F46}
+.est-anu{background:#FEE2E2;color:#7F1D1D}
+.legend{display:flex;gap:14px;margin-top:12px;flex-wrap:wrap;align-items:center}
+.leg{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--color-text-secondary)}
+.ld{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+.values{margin-top:14px;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:10px 14px;font-size:11px;color:var(--color-text-secondary)}
+.values strong{color:var(--color-text-primary)}
+.values code{font-family:var(--font-mono);background:#fff;padding:1px 5px;border-radius:3px;color:#065F46;font-size:10.5px}
+.values .row{margin-bottom:4px}
+</style>
+<div id="w">
+  <div class="instruc">
+    <strong>correcciones_historicas.xlsx</strong> · ledger append-only de ajustes a valores de ciclos <strong>pasados</strong> en <code>registro_operario_acumulado.xlsx</code> · 1 sola hoja · vive en <code>1_lecturas/outputs/</code>, <strong>PERMANECE</strong> (nunca se borra, nunca se regenera).<br>
+    El supervisor llena toda la fila cuando descubre — investigando una anomalía del ciclo actual — que un valor de un ciclo anterior estaba mal cargado.<br>
+    <strong>El acumulado NUNCA se edita.</strong> Esta fila es la única fuente de la corrección — <code>main.py</code> la lee vía <code>valor_efectivo(mz, lt, ciclo, campo)</code> en cada corrida, nunca la aplica "una vez" y la descarta.<br>
+    <strong>ESTADO:</strong> <code>activo</code> por defecto. Si el supervisor descubre que la corrección misma estaba mal, la fila no se borra ni se edita — se agrega otra fila con <code>ESTADO=anulado</code> referida a la misma clave, y una fila nueva con el valor bueno.
+  </div>
+
+  <div class="tab-excel">CorreccionesHistoricas</div>
+  <div class="tw"><table style="min-width:1200px">
+    <thead>
+      <tr>
+        <th class="th-quien gh" colspan="3">¿Quién es?</th>
+        <th class="th-sep" rowspan="2"></th>
+        <th class="th-fix gh" colspan="5">¿Qué se corrige? <span style="font-weight:400;text-transform:none;letter-spacing:0">— supervisor llena todo</span></th>
+        <th class="th-sep" rowspan="2"></th>
+        <th class="th-cuan gh" colspan="3">¿Cuándo y estado?</th>
+      </tr>
+      <tr>
+        <th class="th-quien">MZ</th><th class="th-quien">LT</th><th class="th-quien">NOMBRE</th>
+        <th class="th-fix">CICLO_CORREGIDO</th><th class="th-fix">CAMPO</th><th class="th-fix">VALOR_ORIGINAL</th><th class="th-fix">VALOR_CORREGIDO</th><th class="th-fix">MOTIVO</th>
+        <th class="th-cuan">DETECTADO_EN_CICLO</th><th class="th-cuan">FECHA</th><th class="th-cuan">ESTADO</th>
+      </tr>
+    </thead>
+    <tbody>
+
+      <!-- Caso real: B-7, dígito faltante en junio -->
+      <tr>
+        <td class="td-quien">B</td><td class="td-quien">7</td><td class="td-nombre">LIRIA PARIAMACHI DE PAZ</td>
+        <td class="td-sep"></td>
+        <td class="td-fix">2026-06</td>
+        <td class="td-fix"><span class="campotag">MARCACION</span></td>
+        <td class="td-fix">49</td>
+        <td class="td-fix">9949</td>
+        <td class="td-fix-t">dígito faltante al tipear en junio · confirmado con el operario en campo</td>
+        <td class="td-sep"></td>
+        <td class="td-cuan">2026-07</td>
+        <td class="td-cuan">03/07/2026 09:10</td>
+        <td class="td-cuan"><span class="estado est-act">activo</span></td>
+      </tr>
+
+      <!-- Caso real: M-13, dígitos invertidos en junio -->
+      <tr>
+        <td class="td-quien">M</td><td class="td-quien">13</td><td class="td-nombre">ROSA JUANA MINAYA VILLANUEVA DE VASQUEZ</td>
+        <td class="td-sep"></td>
+        <td class="td-fix">2026-06</td>
+        <td class="td-fix"><span class="campotag">MARCACION</span></td>
+        <td class="td-fix">99993</td>
+        <td class="td-fix">9993</td>
+        <td class="td-fix-t">operario tipeó un 9 de más · medidor no fue cambiado, confirmado en campo</td>
+        <td class="td-sep"></td>
+        <td class="td-cuan">2026-07</td>
+        <td class="td-cuan">03/07/2026 09:15</td>
+        <td class="td-cuan"><span class="estado est-act">activo</span></td>
+      </tr>
+
+      <!-- Ejemplo de fila anulada: la corrección misma estaba mal -->
+      <tr>
+        <td class="td-quien">S</td><td class="td-quien">10</td><td class="td-nombre">MAXIMO FELIPE MORENO ROSALES</td>
+        <td class="td-sep"></td>
+        <td class="td-fix">2026-05</td>
+        <td class="td-fix"><span class="campotag">MARCACION</span></td>
+        <td class="td-fix">1825</td>
+        <td class="td-fix">1925</td>
+        <td class="td-fix-t">se creyó dígito faltante, pero el operario confirmó que 1825 era correcto</td>
+        <td class="td-sep"></td>
+        <td class="td-cuan">2026-06</td>
+        <td class="td-cuan">20/06/2026 11:00</td>
+        <td class="td-cuan"><span class="estado est-anu">anulado</span></td>
+      </tr>
+
+    </tbody>
+  </table></div>
+
+  <div class="legend">
+    <div class="leg"><span class="ld" style="background:#F4ECF7"></span> ¿Quién es?</div>
+    <div class="leg"><span class="ld" style="background:#E1F5EE"></span> ¿Qué se corrige? (editar)</div>
+    <div class="leg"><span class="ld" style="background:#FEF3E8"></span> ¿Cuándo y estado?</div>
+  </div>
+
+  <div class="values">
+    <div class="row"><strong>CAMPO</strong> — hoy solo existe <code>MARCACION</code> (equivalente a MARC_ANT). Se agrega <code>M3</code> el día que aparezca un caso real que lo necesite — no antes.</div>
+    <div class="row"><strong>VALOR_ORIGINAL</strong> — se copia tal cual aparece en <code>registro_operario_acumulado.xlsx</code> para ese ciclo · solo referencia, no dispara nada por sí solo.</div>
+    <div class="row"><strong>VALOR_CORREGIDO</strong> — el valor que <code>valor_efectivo()</code> devuelve en vez del crudo del acumulado, mientras <code>ESTADO=activo</code>.</div>
+    <div style="margin-top:8px"><strong>Estados:</strong>
+      <span class="estado est-act">activo</span> valor_efectivo() la aplica
+      ·
+      <span class="estado est-anu">anulado</span> se ignora — la corrección misma resultó estar mal
+    </div>
+    <div class="row" style="margin-top:8px"><strong>Fuera de alcance a propósito:</strong> si dos filas <code>activo</code> compiten por la misma clave (MZ, LT, CICLO_CORREGIDO, CAMPO), el comportamiento no está definido todavía — no ha pasado. Se resuelve cuando aparezca (Regla del Tres).</div>
+  </div>
+</div>

@@ -1,6 +1,7 @@
 # =========================IMPORTS===========================
 import os
 import re
+import sys
 import unicodedata
 import pandas as pd
 import shutil
@@ -131,12 +132,24 @@ def generate_boletas(grouped, limit=None):
         if limit is not None and i >= limit:
             break
 
+        # Tomamos la primera fila del grupo
+        row = data.iloc[0]
+
+        mz = str(row["MZ"]).strip().replace(" ", "")
+        lt = str(row["LT"]).strip().replace(" ", "")
+        base_name = f"RECIBO_{recibo}_{mz}_{lt}"
+        output_docx = OUTPUT_DIR / f"{base_name}.docx"
+        output_pdf = OUTPUT_DIR / f"{base_name}.pdf"
+
+        # Reanudación: si el PDF ya existe de una corrida anterior, no se regenera.
+        # Para regenerar todo desde cero: py main.py --desde-cero
+        if output_pdf.exists():
+            print(f"[{i+1}/{total}] Recibo {recibo} ya generado — se saltea")
+            continue
+
         print(f"[{i+1}/{total}] Generando recibo {recibo}...")
 
         doc = DocxTemplate(PLANTILLA_BOLETAS_PATH)
-
-        # Tomamos la primera fila del grupo
-        row = data.iloc[0]
 
         # LOGO JAAS
         logo_jaas = InlineImage(doc, str(IMG_LOGO_JAAS_PATH), width=Mm(31))
@@ -160,21 +173,28 @@ def generate_boletas(grouped, limit=None):
                 return v.strftime("%d/%m/%Y")
             return str(v).strip()
 
+        def _num(col):
+            # 77.0 → 77 (como salían en junio); 77.5 queda 77.5
+            v = row[col]
+            if isinstance(v, float) and v == int(v):
+                return int(v)
+            return v
+
         context = {
             "nu_reci": recibo,
             "nombre_usuario": row["NOMBRES"],
             "direccion_usuario": "Mz." + " " + str(row["MZ"]) + " " + "Lt." + " " + str(row["LT"]),
-            "an": row["Marcación anterior"],
-            "ac": row["Marcacion altual"],
-            "c": row["M3"],
-            "tmac": row["Total mes actual"],
-            "tman": row["MES ANTERIOR"],
-            "c_rec": row["Corte y reconexion"],
-            "con": row["Convenio"],
-            "man": row["Mantenimiento"],
-            "mul": row["Multa (faena + reunión)"],
-            "cd": row["Cuota directa"],
-            "ip": row["Importe a pagar"],
+            "an": _num("Marcación anterior"),
+            "ac": _num("Marcacion altual"),
+            "c": _num("M3"),
+            "tmac": _num("Total mes actual"),
+            "tman": _num("MES ANTERIOR"),
+            "c_rec": _num("Corte y reconexion"),
+            "con": _num("Convenio"),
+            "man": _num("Mantenimiento"),
+            "mul": _num("Multa (faena + reunión)"),
+            "cd": _num("Cuota directa"),
+            "ip": _num("Importe a pagar"),
             "ep": row["Estado"],
             "icono_estado": carita,
             "imagen_qr": imagen_qr,
@@ -188,21 +208,13 @@ def generate_boletas(grouped, limit=None):
             "fv":               _rv("FECHA DE VENCIMIENTO", FECHA_VENCIMIENTO),
             "fe":               _rv("FECHA DE EMISIÓN",  FECHA_EMISION),
             "fecha_pago":       _rv("FECHA_PAGO",        FECHA_PAGO),
-            "hora_pago":        HORA_PAGO,
+            "hora_pago":        _rv("HORA_PAGO",         HORA_PAGO),
             "telefono": TELEFONO,
             "logo_jaas": logo_jaas,
         }
 
         doc.render(context)
-
-        mz = str(row["MZ"]).strip().replace(" ", "")
-        lt = str(row["LT"]).strip().replace(" ", "")
-        base_name = f"RECIBO_{recibo}_{mz}_{lt}"
-
-        output_docx = OUTPUT_DIR / f"{base_name}.docx"
         doc.save(output_docx)
-
-        output_pdf = OUTPUT_DIR / f"{base_name}.pdf"
 
         try:
             convert(str(output_docx), str(output_pdf))
@@ -221,24 +233,39 @@ def generate_boletas(grouped, limit=None):
 
     print("[OK] Boletas generadas en PDF correctamente")
 #========================CONSOLIDACION DE DOCUMENTOS==========================
-def merge_pdfs(output_dir: Path, output_name="CONSOLIDADO.pdf"):
-    merger = PdfMerger()
+def _es_mz_compuesta(pdf: Path) -> bool:
+    # RECIBO_{recibo}_{mz}_{lt}.pdf → mz en la posición 2
+    mz = pdf.stem.split("_")[2]
+    return bool(re.fullmatch(r"[A-Z]+\d+", mz))
 
+
+def merge_pdfs(output_dir: Path):
+    # Dos bloques de impresión: MZ simples (A…Z) y compuestas (A1…H1).
+    # Archivos más chicos → abren y se imprimen por tandas sin colgarse.
     pdf_files = sorted(output_dir.glob("RECIBO_*.pdf"))
-
-    for pdf in pdf_files:
-        merger.append(str(pdf))
-
-    merger.write(str(output_dir / output_name))
-    merger.close()
-
-    print("[OK] Consolidado generado")
+    bloques = {
+        "CONSOLIDADO_SIMPLES.pdf":    [p for p in pdf_files if not _es_mz_compuesta(p)],
+        "CONSOLIDADO_COMPUESTAS.pdf": [p for p in pdf_files if _es_mz_compuesta(p)],
+    }
+    for nombre, pdfs in bloques.items():
+        if not pdfs:
+            print(f"[AVISO] {nombre}: sin boletas — no se genera")
+            continue
+        merger = PdfMerger()
+        for pdf in pdfs:
+            merger.append(str(pdf))
+        merger.write(str(output_dir / nombre))
+        merger.close()
+        print(f"[OK] {nombre}: {len(pdfs)} boletas")
 
 #======================FUNCION PRINCIPAL====================
 def main():
-    # 1. Resetear carpeta de salida
-    reset_output_folder(OUTPUT_DIR)
-    IMAGES_DIR.mkdir()
+    # 1. Carpeta de salida — solo se borra con --desde-cero (permite reanudar
+    #    una corrida colgada sin perder las boletas ya generadas)
+    if "--desde-cero" in sys.argv:
+        reset_output_folder(OUTPUT_DIR)
+    OUTPUT_DIR.mkdir(exist_ok=True)
+    IMAGES_DIR.mkdir(exist_ok=True)
 
     # 2. Cargar datos
     df = load_data()

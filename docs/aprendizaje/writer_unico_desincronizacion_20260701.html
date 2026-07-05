@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Writer único y desincronización de planillas | jass_system</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f8f9fa; color: #1a1a2e; font-size: 14px; }
+
+  /* ── Portada ── */
+  .portada { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%);
+             color: white; padding: 48px 60px 36px; }
+  .portada .eyebrow { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: #a8b2d8; margin-bottom: 16px; }
+  .portada h1 { font-size: 34px; font-weight: 700; line-height: 1.2; margin-bottom: 12px; }
+  .portada h1 span { color: #e94560; }
+  .portada .subtitle { font-size: 16px; color: #a8b2d8; max-width: 760px; line-height: 1.6; }
+  .portada .meta { display: flex; gap: 40px; margin-top: 28px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); }
+  .portada .meta-item label { display: block; font-size: 10px; letter-spacing: 2px; color: #a8b2d8; text-transform: uppercase; margin-bottom: 4px; }
+  .portada .meta-item span { font-size: 13px; color: white; font-weight: 500; }
+
+  /* ── Secciones ── */
+  .sec { padding: 34px 60px; }
+  .sec h2 { font-size: 20px; margin-bottom: 14px; }
+  .sec p { color: #444; line-height: 1.75; max-width: 820px; margin-bottom: 12px; }
+  .sec p .term { font-weight: 700; color: #0f3460; }
+
+  .principio { background: #f0f4ff; border-top: 2px solid #d4dcf5; border-bottom: 2px solid #d4dcf5; }
+  .principio .box-principio { background: #1a1a2e; color: white; border-radius: 10px; padding: 22px 26px; max-width: 820px; margin-top: 8px; }
+  .principio .box-principio b { color: #7ee0b8; }
+
+  .error-sec { background: #fff5f5; border-top: 3px solid #e74c3c; }
+  .error-sec h2 { color: #c0392b; }
+  .sol-sec   { background: #f2fbf4; border-top: 3px solid #2e7d32; }
+  .sol-sec h2 { color: #1b5e20; }
+
+  /* ── Diagrama de cajas ── */
+  .diag { display: flex; flex-direction: column; align-items: center; gap: 4px; margin: 24px 0 8px; }
+  .row { display: flex; align-items: stretch; justify-content: center; gap: 26px; flex-wrap: wrap; }
+  .box { border-radius: 10px; padding: 12px 16px; min-width: 190px; text-align: center;
+         box-shadow: 0 2px 8px rgba(0,0,0,0.10); position: relative; }
+  .box .mod  { font-size: 13px; font-weight: 700; }
+  .box .file { font-family: 'Cascadia Code','Courier New',monospace; font-size: 11px; margin-top: 4px; opacity: 0.92; }
+  .box .tag  { font-size: 10px; letter-spacing: .5px; text-transform: uppercase; margin-top: 6px; opacity: .8; }
+
+  .b-mod   { background: #1976d2; color: white; }
+  .b-file  { background: white; color: #1a1a2e; border: 2px solid #cfd8e6; }
+  .b-shared{ background: #fff8e1; color: #7a5c00; border: 2px dashed #e0a800; }
+  .b-ledger{ background: #ede7f6; color: #4527a0; border: 2px solid #b39ddb; }
+  .b-result{ background: #e8f5e9; color: #1b5e20; border: 2px solid #81c784; }
+
+  /* Flechas */
+  .arrow { display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 11px; color: #555; padding: 2px 0; }
+  .arrow .line { font-size: 20px; line-height: 1; }
+  .arrow.write .line { color: #c0392b; }
+  .arrow.read  .line { color: #2e7d32; }
+  .arrow .lbl { font-size: 10px; letter-spacing: .3px; }
+  .arrow.write .lbl { color: #c0392b; font-weight: 700; }
+  .arrow.read  .lbl { color: #2e7d32; font-weight: 700; }
+
+  .clash { background: #ffebee; border: 2px solid #e74c3c; color: #c0392b; border-radius: 10px;
+           padding: 10px 16px; font-size: 12px; font-weight: 700; text-align: center; margin-top: 6px; }
+
+  /* ── Cajas explicativas ── */
+  .why { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 22px; max-width: 900px; }
+  .why-box { background: white; border-radius: 8px; padding: 16px 18px; border-left: 4px solid; }
+  .why-box h4 { font-size: 12px; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
+  .why-box p { font-size: 12.5px; line-height: 1.6; color: #444; margin: 0; }
+  .why-cause h4 { color: #c0392b; } .why-cause { border-color: #e74c3c; }
+  .why-fix   h4 { color: #1b5e20; } .why-fix   { border-color: #2e7d32; }
+
+  /* ── Línea de tiempo del bug ── */
+  .timeline { background: #1a1a2e; border-radius: 10px; padding: 20px 24px; margin-top: 20px; max-width: 860px; }
+  .timeline .step { display: flex; align-items: baseline; gap: 14px; padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,.07); }
+  .timeline .step:last-child { border-bottom: none; }
+  .timeline .t { font-family: 'Cascadia Code',monospace; font-size: 11px; color: #7ea6e0; min-width: 118px; }
+  .timeline .d { font-size: 12.5px; color: #dde; line-height: 1.5; }
+  .timeline .d b { color: #ffd166; }
+  .timeline .bad  { color: #ff6b6b; font-weight: 700; }
+  .timeline .good { color: #7ee0b8; font-weight: 700; }
+
+  /* ── Distinción escribir/leer ── */
+  .dist { background: #fffde7; border-top: 4px solid #f9a825; border-bottom: 4px solid #f9a825; }
+  .dist-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 900px; margin-top: 8px; }
+  .dist-box { background: white; border-radius: 8px; padding: 16px 20px; border-left: 5px solid; }
+  .dist-box h4 { font-size: 14px; margin-bottom: 6px; }
+  .dist-box p { font-size: 12.5px; line-height: 1.6; color: #444; margin: 0; }
+  .dist-w { border-color: #c0392b; } .dist-w h4 { color: #c0392b; }
+  .dist-r { border-color: #2e7d32; } .dist-r h4 { color: #2e7d32; }
+
+  .cierre { background: #1a1a2e; color: #cdd; padding: 30px 60px; }
+  .cierre h2 { color: white; font-size: 16px; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 14px; }
+  .cierre .regla { background: rgba(255,255,255,.05); border-left: 4px solid #7ee0b8; padding: 14px 18px; border-radius: 4px; margin-bottom: 10px; font-size: 13px; line-height: 1.7; }
+  .cierre .regla b { color: #7ee0b8; }
+</style>
+</head>
+<body>
+
+<div class="portada">
+  <div class="eyebrow">Aprendizaje de arquitectura · jass_system</div>
+  <h1>Writer único: <span>por qué un módulo nunca debe escribir en la casa de otro</span></h1>
+  <div class="subtitle">Cuando dos módulos escriben el mismo archivo, las planillas se desincronizan.
+    Este documento explica el error con un caso real (la penalidad de corte que aparecía como exceso falso)
+    y la solución: cada módulo escribe solo en su propia casa y lee en vivo la de los demás.</div>
+  <div class="meta">
+    <div class="meta-item"><label>Fecha</label><span>2026-07-01</span></div>
+    <div class="meta-item"><label>Principio</label><span>Single Writer</span></div>
+    <div class="meta-item"><label>Caso real</label><span>CORTE_RECONEXION = −20 falso</span></div>
+  </div>
+</div>
+
+<!-- ── EL PRINCIPIO ── -->
+<div class="sec principio">
+  <h2>El principio en una frase</h2>
+  <p>Cada archivo del sistema tiene <span class="term">un solo dueño</span>: el módulo que lo genera.
+     Ningún otro módulo debe escribir dentro de ese archivo. Si necesita un dato que vive ahí,
+     lo <span class="term">lee en vivo</span> — nunca escribe sobre él ni guarda una copia.</p>
+  <div class="box-principio">
+    <b>ESCRIBIR</b> → siempre en tu propia casa (tu carpeta <code>outputs/</code>).<br>
+    <b>LEER</b> → sí podés entrar a la casa de otro (leer su <code>outputs/</code> en vivo).<br>
+    El principio "writer único" gobierna la <b>escritura</b>, no la lectura.
+  </div>
+</div>
+
+<!-- ══════════ DIAGRAMA 1 · EL ERROR ══════════ -->
+<div class="sec error-sec">
+  <h2>① El error — dos módulos escriben el mismo archivo</h2>
+  <p>En el ciclo 2026-06, <span class="term">2_planilla</span> publicaba la planilla del mes en
+     <code>shared/planilla_mes/</code>, y <span class="term">6_corte</span> escribía ahí también
+     (le sumaba <code>+20</code> de penalidad a la columna <code>CORTE_RECONEXION</code>).
+     Dos escritores sobre el mismo archivo.</p>
+
+  <div class="diag">
+    <div class="row">
+      <div class="box b-mod"><div class="mod">2_planilla</div><div class="tag">calcula la planilla</div></div>
+      <div class="box b-mod"><div class="mod">6_corte</div><div class="tag">aplica penalidad</div></div>
+    </div>
+    <div class="row">
+      <div class="arrow write"><span class="line">↓</span><span class="lbl">ESCRIBE (copy2 · pisa todo)</span></div>
+      <div class="arrow write"><span class="line">↓</span><span class="lbl">ESCRIBE (+20 CORTE_RECON)</span></div>
+    </div>
+    <div class="row">
+      <div class="box b-shared" style="min-width:340px;">
+        <div class="mod">shared/planilla_mes/planilla_2026-06.xlsx</div>
+        <div class="tag">⚠ un archivo · DOS dueños</div>
+      </div>
+    </div>
+    <div class="row"><div class="arrow read"><span class="line">↓</span><span class="lbl">LEEN</span></div></div>
+    <div class="row">
+      <div class="box b-file"><div class="mod">4_pagos</div></div>
+      <div class="box b-file"><div class="mod">5_cobranza</div></div>
+      <div class="box b-file"><div class="mod">6_corte (lee su propia base)</div></div>
+    </div>
+    <div class="clash">Al re-correr 2_planilla, su copy2 PISA el +20 que 6_corte ya había escrito → dato perdido</div>
+  </div>
+
+  <p style="margin-top:22px;"><b>Qué pasó exactamente, paso a paso (caso C-7):</b></p>
+  <div class="timeline">
+    <div class="step"><span class="t">16/06 10:01</span><span class="d">2_planilla publica → <b>CORTE_RECON = 0</b> (base original)</span></div>
+    <div class="step"><span class="t">16/06 14:28</span><span class="d">6_corte suma +20 → <b>CORTE_RECON = 20</b> <span class="good">✔ correcto</span> (C-7 entró a lista_corte)</span></div>
+    <div class="step"><span class="t">17/06 12:22</span><span class="d">2_planilla se RE-CORRE → copy2 pisa todo → <b>CORTE_RECON = 0</b> <span class="bad">✘ se perdió el +20</span> (pero audit_penalidad sigue diciendo "APLICADO")</span></div>
+    <div class="step"><span class="t">17/06 12:30</span><span class="d">6_corte reconcilia (C-7 ya no está en lista) → resta 20 sobre una base que ya era 0 → <b>CORTE_RECON = −20</b> <span class="bad">✘ MAL</span></span></div>
+    <div class="step"><span class="t">hoy</span><span class="d">5_cobranza lee −20 → deuda negativa → C-7 aparece como <b>EXCESO S/20 falso</b> en arrastre_devolucion</span></div>
+  </div>
+
+  <div class="why">
+    <div class="why-box why-cause">
+      <h4>Causa raíz</h4>
+      <p>El archivo publicado cumplía <b>dos roles incompatibles</b> a la vez: era la <b>foto inmutable</b>
+         de lo que calculó 2_planilla (escribir una vez, leer muchas) y también un <b>libro mutable</b>
+         donde 6_corte acumulaba la penalidad. Con dos escritores y uno que pisa todo (copy2),
+         la escritura de 6_corte se pierde cada vez que 2_planilla vuelve a publicar. Es el clásico
+         "lost update" — y desincroniza: la penalidad vive en <code>audit_penalidad</code> pero
+         desaparece de la planilla, y nadie se entera.</p>
+    </div>
+    <div class="why-box why-cause">
+      <h4>Por qué mover el +20 a otra carpeta NO lo arregla</h4>
+      <p>Da igual dónde escriba 6_corte. Si escribe en <code>2_planilla/outputs/</code>, cuando 2_planilla
+         re-corre reconstruye la planilla desde cero (desde las lecturas) y la pisa igual. El problema no
+         es el <b>lugar</b>: es que la penalidad nace <b>downstream</b> (en 6_corte) pero se materializaba
+         en un archivo que un módulo <b>upstream</b> regenera. Cualquier archivo que 2_planilla reconstruya,
+         borra lo que le metan desde afuera.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ DIAGRAMA 2 · LA SOLUCIÓN ══════════ -->
+<div class="sec sol-sec">
+  <h2>② La solución — cada módulo escribe solo en su casa, lee en vivo la de los demás</h2>
+  <p><span class="term">shared/planilla_mes</span> vuelve a ser una base solo-lectura que escribe
+     <b>únicamente</b> 2_planilla. La penalidad vive en un solo lugar: <code>6_corte/outputs/audit_penalidad.xlsx</code>,
+     la casa de 6_corte. Y <span class="term">5_cobranza</span> — que necesita el corte con penalidad para
+     calcular la deuda — <b>lee ambas en vivo</b> y suma (overlay), materializando el resultado en su propio
+     <code>planilla_cobrado.xlsx</code>.</p>
+
+  <div class="diag">
+    <div class="row">
+      <div class="box b-mod"><div class="mod">2_planilla</div><div class="tag">dueño de la base</div></div>
+      <div class="box b-mod"><div class="mod">6_corte</div><div class="tag">dueño de la penalidad</div></div>
+    </div>
+    <div class="row">
+      <div class="arrow write"><span class="line">↓</span><span class="lbl">ESCRIBE (único writer)</span></div>
+      <div class="arrow write"><span class="line">↓</span><span class="lbl">ESCRIBE (único writer)</span></div>
+    </div>
+    <div class="row">
+      <div class="box b-shared"><div class="mod">shared/planilla_mes/…xlsx</div><div class="file">CORTE_RECON = 0 (base)</div><div class="tag">solo lectura</div></div>
+      <div class="box b-ledger"><div class="mod">6_corte/outputs/audit_penalidad.xlsx</div><div class="file">neto = +20</div><div class="tag">ledger propio</div></div>
+    </div>
+    <div class="row">
+      <div class="arrow read"><span class="line">↘</span><span class="lbl">LEE en vivo</span></div>
+      <div class="arrow read"><span class="line">↙</span><span class="lbl">LEE en vivo</span></div>
+    </div>
+    <div class="row">
+      <div class="box b-mod" style="background:#00695c;">
+        <div class="mod">5_cobranza</div>
+        <div class="file">CORTE_efectivo = base(0) + neto(+20)</div>
+        <div class="tag">overlay: suma al leer</div>
+      </div>
+    </div>
+    <div class="row"><div class="arrow write"><span class="line">↓</span><span class="lbl">ESCRIBE en SU casa</span></div></div>
+    <div class="row">
+      <div class="box b-result"><div class="mod">5_cobranza/outputs/planilla_cobrado.xlsx</div><div class="file">CORTE_RECONEXION = 20 · SALDO con penalidad</div><div class="tag">resultado materializado</div></div>
+    </div>
+    <div class="row"><div class="arrow read"><span class="line">↓</span><span class="lbl">LEEN el valor ya calculado</span></div></div>
+    <div class="row">
+      <div class="box b-file"><div class="mod">6_corte/seguimiento</div></div>
+      <div class="box b-file"><div class="mod">7_cierre</div></div>
+    </div>
+  </div>
+
+  <div class="why">
+    <div class="why-box why-fix">
+      <h4>Cuál es la solución</h4>
+      <p>Un dato = un dueño = un archivo. La base la escribe solo 2_planilla; la penalidad solo 6_corte
+         (en su propio <code>audit_penalidad</code>); el resultado con penalidad solo 5_cobranza
+         (en su propio <code>planilla_cobrado</code>). Nadie escribe en la casa de nadie. Quien necesita
+         un dato ajeno lo <b>lee en vivo</b> y lo suma.</p>
+    </div>
+    <div class="why-box why-fix">
+      <h4>Por qué funciona</h4>
+      <p>Como cada archivo tiene un solo escritor, ninguna corrida puede pisar el trabajo de otro módulo:
+         desaparece el "lost update". Y como los datos ajenos se <b>leen en vivo</b> (nunca por copia),
+         siempre se lee el estado actual — nunca una copia vieja que quedó desfasada. No hay desincronización
+         posible. Es el mismo patrón que 5_cobranza ya usa hoy para leer los pagos de 4_pagos en vivo.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ── DISTINCIÓN CLAVE ── -->
+<div class="sec dist">
+  <h2>La distinción que resuelve todo</h2>
+  <p>La confusión de origen fue creer que "no tocar la casa ajena" obligaba a 6_corte a escribir en
+     <code>shared</code> (tierra supuestamente neutral). Pero <code>shared</code> también era territorio
+     de 2_planilla. El principio no era "escribir en shared" — era separar <b>escribir</b> de <b>leer</b>.</p>
+  <div class="dist-grid">
+    <div class="dist-box dist-w">
+      <h4>✍ ESCRIBIR</h4>
+      <p>Solo en tu propia carpeta <code>outputs/</code>. Es una acción <b>exclusiva</b> del dueño.
+         Escribir en el archivo de otro (o en uno compartido con otro writer) desincroniza. Prohibido.</p>
+    </div>
+    <div class="dist-box dist-r">
+      <h4>👁 LEER</h4>
+      <p>Podés leer el <code>outputs/</code> de cualquier módulo, en vivo, cuando lo necesites como input.
+         Leer es <b>seguro y no exclusivo</b>: no modifica nada, y al ser en vivo siempre trae el estado actual.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ── CIERRE ── -->
+<div class="cierre">
+  <h2>Reglas para recordar</h2>
+  <div class="regla"><b>1.</b> Cada archivo tiene <b>un solo módulo que lo escribe</b> (su dueño). Ningún otro escribe dentro.</div>
+  <div class="regla"><b>2.</b> Si un módulo necesita un dato de otro, lo <b>lee en vivo</b> desde el <code>outputs/</code> del dueño — nunca lo copia a su <code>inputs/</code> ni lo sobreescribe.</div>
+  <div class="regla"><b>3.</b> Un dato que se necesita combinado (base + penalidad) se calcula con <b>overlay al leer</b> y se materializa en la casa de quien lo calcula (5_cobranza → <code>planilla_cobrado</code>), no en la casa de otro.</div>
+  <div class="regla"><b>4.</b> Un archivo no puede ser "foto inmutable" y "libro mutable" a la vez. Si dos módulos necesitan aportar datos, cada aporte va a un archivo propio, no a uno compartido.</div>
+</div>
+
+</body>
+</html>

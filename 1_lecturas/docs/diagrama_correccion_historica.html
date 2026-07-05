@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>1_lecturas — Corrección de errores históricos en el acumulado</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Arial, sans-serif; background: #F0F4F8; font-size: 13px; }
+.page { padding: 28px 24px 60px; max-width: 1080px; margin: 0 auto; }
+h1   { font-size: 17px; color: #1A5276; margin-bottom: 4px; }
+.sub { font-size: 11px; color: #888; margin-bottom: 36px; }
+
+.flow { display: flex; align-items: flex-start; gap: 0; }
+.step { display: flex; flex-direction: column; align-items: center; flex: 1; }
+
+.harr {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; flex: 0 0 32px; padding-top: 34px;
+}
+.harr-line { border-top: 2px dashed #BBB; width: 100%; }
+.harr-tip  { color: #AAA; font-size: 14px; line-height: 1; margin-top: -2px; }
+.varr { color: #AAA; font-size: 20px; margin: 5px 0; line-height: 1; }
+
+.script {
+  width: 100%; border-radius: 8px; padding: 10px 12px;
+  text-align: center; border: 2px solid transparent;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+}
+.sc-name { font-family: Consolas, monospace; font-size: 11px; font-weight: bold; }
+.sc-note { font-size: 10px; opacity: 0.85; }
+.sc-blue   { background: #D6EAF8; border-color: #1A5276; color: #1A5276; }
+.sc-purple { background: #EDE9FE; border-color: #5B21B6; color: #5B21B6; }
+
+.file-wrap { width: 100%; display: flex; flex-direction: column; gap: 4px; margin-top: 2px; }
+.file {
+  border-radius: 5px; padding: 5px 8px; font-size: 10px;
+  font-family: Consolas, monospace; font-weight: bold;
+  text-align: left; width: 100%; line-height: 1.5;
+  border-left: 3px solid transparent;
+}
+.file small { font-weight: normal; font-family: Arial, sans-serif; display: block; color: inherit; opacity: 0.8; }
+
+.fa { background: #EBF5FB; color: #1A5276; border-left-color: #1A5276; }   /* auditoría / historial que nunca se toca */
+.ff { background: #D5F5E3; color: #145A32; border-left-color: #1E8449; }   /* output final del ciclo */
+.ft { background: #F3E8FF; color: #5B21B6; border-left-color: #5B21B6; }   /* ledger nuevo, append-only */
+.fp { background: #FADBD8; color: #7B241C; border-left-color: #E74C3C; }   /* intocable */
+
+.tag { font-size: 9px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 3px; color: #888; }
+.tag-green { color: #1E8449; }
+.tag-blue  { color: #1A5276; }
+
+.connector {
+  text-align: center; font-size: 10px; background: #E8ECF0;
+  border-radius: 4px; padding: 5px 8px; width: 100%; color: #444; font-weight: bold;
+}
+
+.lock {
+  width: 100%; background: #FADBD8; border: 2px dashed #E74C3C;
+  border-radius: 8px; padding: 8px 10px; text-align: center;
+  font-size: 10px; color: #7B241C; font-weight: bold; margin: 6px 0;
+}
+
+.legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 28px;
+          padding-top: 14px; border-top: 1px dashed #CCC; justify-content: center; }
+.leg { display: flex; align-items: center; gap: 5px; font-size: 10px; color: #555; }
+.leg-dot { width: 12px; height: 12px; border-radius: 2px; flex-shrink: 0; }
+
+.decisiones { margin-top: 32px; background: #fff; border-radius: 8px; padding: 14px 18px; border: 1px solid #DDE3E8; }
+.decisiones h2 { font-size: 12px; color: #1A5276; margin-bottom: 8px; }
+.decisiones ol { padding-left: 18px; font-size: 11px; color: #333; line-height: 1.7; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <h1>1_lecturas — Corrección de errores históricos en registro_operario_acumulado</h1>
+  <div class="sub">caso real B-7 (LIRIA PARIAMACHI) · julio 2026 detecta un dato mal cargado en junio 2026 · 03/07/2026</div>
+
+  <div class="flow">
+
+    <!-- ══ PASO 1: main.py detecta ══ -->
+    <div class="step">
+
+      <div class="tag tag-blue">Lee</div>
+      <div class="file-wrap">
+        <div class="file fp">registro_operario_acumulado.xlsx<small>2026-06.MARCACION[B-7] = 49 — nunca cuestionado en junio</small></div>
+        <div class="file fa">registro_operario_mes.xlsx<small>MARC_ACT julio = 99935</small></div>
+      </div>
+      <div class="varr">↓</div>
+
+      <div class="script sc-blue">
+        <div class="sc-name">① main.py — ciclo julio</div>
+        <div class="sc-note">diff imposible: 99935 − 49<br>tipo_anomalia = EXCESIVO</div>
+      </div>
+      <div class="varr">↓</div>
+
+      <div class="tag tag-green">Genera</div>
+      <div class="file-wrap">
+        <div class="file ff">correcciones_2026-07.xlsx<small>fila B-7 · MARC_ANT=49 (heredado, sin editar)</small></div>
+      </div>
+
+    </div>
+
+    <div class="harr"><div class="harr-line"></div><div class="harr-tip">›</div></div>
+
+    <!-- ══ PASO 2: SUPERVISOR ══ -->
+    <div class="step">
+
+      <div class="tag tag-blue">Investiga</div>
+      <div class="file-wrap">
+        <div class="file ff">correcciones_2026-07.xlsx<small>ve MARC_ANT=49 · consulta con el operario</small></div>
+      </div>
+      <div class="varr">↓</div>
+
+      <div class="script sc-purple">
+        <div class="sc-name">② SUPERVISOR decide</div>
+        <div class="sc-note">"en junio faltó un dígito —<br>era 9949, no 49" (confirmado en campo)</div>
+      </div>
+      <div class="varr">↓</div>
+
+      <div class="tag tag-green">Escribe — nunca en el acumulado</div>
+      <div class="file-wrap">
+        <div class="file ft">
+          correcciones_historicas.xlsx — NUEVO<br>
+          <small>MZ=B · LT=7 · CICLO_CORREGIDO=2026-06 · CAMPO=MARCACION<br>
+          VALOR_ORIGINAL=49 · VALOR_CORREGIDO=9949<br>
+          MOTIVO="dígito faltante, confirmado en campo" · DETECTADO_EN=2026-07</small>
+        </div>
+      </div>
+
+      <div class="lock">🔒 registro_operario_acumulado.xlsx NO se toca — la corrección vive aparte</div>
+
+    </div>
+
+    <div class="harr"><div class="harr-line"></div><div class="harr-tip">›</div></div>
+
+    <!-- ══ PASO 3: re-corrida ══ -->
+    <div class="step">
+
+      <div class="tag tag-blue">Lee</div>
+      <div class="file-wrap">
+        <div class="file fp">registro_operario_acumulado.xlsx<small>2026-06.MARCACION[B-7] sigue en 49 — verdad de lo registrado</small></div>
+        <div class="file ft">correcciones_historicas.xlsx<small>hay un ajuste para (B,7,2026-06,MARCACION)</small></div>
+      </div>
+      <div class="varr">↓</div>
+
+      <div class="script sc-blue">
+        <div class="sc-name">③ python main.py (re-corrida)</div>
+        <div class="sc-note">valor_efectivo(B,7,"2026-06","MARCACION")<br>→ devuelve 9949, no el 49 crudo<br>nuevo diff = plausible</div>
+      </div>
+      <div class="varr">↓</div>
+
+      <div class="tag tag-green">Resultado</div>
+      <div class="file-wrap">
+        <div class="file ff">correcciones_2026-07.xlsx<small>fila B-7 sale sola — ya no es anomalía</small></div>
+        <div class="file fa">lecturas_planilla_2026-07.xlsx<small>MARC_ANT=9949 · origen=corregido</small></div>
+      </div>
+      <div class="varr">↓</div>
+
+      <div class="connector">2_planilla lee lecturas_planilla ya limpio</div>
+
+    </div>
+
+  </div><!-- end flow -->
+
+  <div class="legend">
+    <div class="leg"><div class="leg-dot" style="background:#FADBD8;border:1px solid #E74C3C;"></div>Intocable — nunca se edita</div>
+    <div class="leg"><div class="leg-dot" style="background:#EBF5FB;border:1px solid #1A5276;"></div>Historial / auditoría</div>
+    <div class="leg"><div class="leg-dot" style="background:#D5F5E3;border:1px solid #1E8449;"></div>Archivo del ciclo actual</div>
+    <div class="leg"><div class="leg-dot" style="background:#F3E8FF;border:1px solid #5B21B6;"></div>Ledger nuevo — append-only</div>
+    <div class="leg"><div class="leg-dot" style="background:#EDE9FE;border:1px solid #5B21B6;"></div>Acción humana</div>
+  </div>
+
+  <div class="decisiones">
+    <h2>Decisiones fijadas (confirmadas 03/07/2026)</h2>
+    <ol>
+      <li><strong>El acumulado nunca se edita.</strong> El valor histórico erróneo queda visible para siempre — es la verdad de lo que se registró en su momento.</li>
+      <li><strong>La corrección vive en un ledger aparte, append-only</strong> (<code>correcciones_historicas.xlsx</code>), dentro de <code>1_lecturas</code> — no en <code>shared/</code>, porque solo este módulo la usa. Mismo patrón que el evento <code>AJUSTE</code> de <code>shared/seguimiento_repo.py</code>.</li>
+      <li><strong>main.py nunca lee el acumulado crudo para MARC_ANT</strong> — siempre pasa por <code>valor_efectivo()</code>, que aplica la corrección si existe.</li>
+    </ol>
+    <p style="margin-top:10px;font-size:10px;color:#888;">Fuera de alcance a propósito (Regla del Tres): manejo de 2+ correcciones para la misma clave, flujo de autorización/aprobación. Se diseña si aparece un caso real — no antes.</p>
+  </div>
+
+</div>
+</body>
+</html>

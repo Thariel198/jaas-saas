@@ -1,4 +1,5 @@
 import logging
+import re
 from datetime import datetime
 from pathlib import Path
 
@@ -9,15 +10,14 @@ from openpyxl.utils import get_column_letter
 
 # ── CONFIG ────────────────────────────────────────────────────────────────────
 ROOT          = Path(__file__).parent
-COBRANZA_DIR  = ROOT.parent / "5_cobranza"
-BOLETAS_DIR   = ROOT.parent / "3_boletas"
+PLANILLA_DIR  = ROOT.parent.parent / "2_planilla"
+BOLETAS_DIR   = ROOT.parent
 
 CONFIG_PATH   = ROOT / "inputs" / "config_mes.xlsx"
-PLANILLA_PATH = COBRANZA_DIR / "inputs" / "planilla_base" / "planilla_base.xlsx"
-OUTPUT_PATH   = BOLETAS_DIR / "inputs" / "data_boletas.xlsx"
+PLANILLA_PATH = PLANILLA_DIR / "outputs" / "planilla_2026-07.xlsx"
+OUTPUT_PATH   = BOLETAS_DIR / "inputs" / "DATA_boletas.xlsx"
 LOG_PATH      = ROOT / "inputs" / "run.log"
 
-COSTO_M3 = 1.0   # S/ por m3 — debe coincidir con 5_cobranza
 
 CONFIG_REQUERIDOS = [
     "PERIODO", "FECHA_VENCIMIENTO", "FECHA_EMISION",
@@ -72,7 +72,7 @@ def _fecha_pago_str(config: dict) -> str:
 def _validar_inputs():
     for ruta, desc in [
         (CONFIG_PATH,   "crear con crear_config.py y completar"),
-        (PLANILLA_PATH, "asegurar que planilla_base.xlsx está lista para este mes"),
+        (PLANILLA_PATH, "correr 2_planilla/main.py para este mes antes de enriquecer"),
     ]:
         if not ruta.exists():
             raise FileNotFoundError(f"Falta: {ruta}\n  → {desc}")
@@ -82,23 +82,44 @@ def _validar_inputs():
     faltantes = set(CONFIG_REQUERIDOS) - set(df.columns)
     if faltantes:
         raise ValueError(f"config_mes.xlsx — columnas faltantes: {faltantes}")
-    if df.shape[0] == 0:
-        raise ValueError("config_mes.xlsx está vacío — completar con los datos del mes")
+    if df.shape[0] < 3:
+        raise ValueError(
+            "config_mes.xlsx — falta la fila 4 (datos del mes). "
+            "Filas 2 y 3 son guía (descripción/ejemplo), no se borran."
+        )
+    if _str(df.iloc[2].get("PERIODO", "")) == "":
+        raise ValueError("config_mes.xlsx — fila 4 (PERIODO) está vacía, completar los datos del mes")
     log.info("Inputs validados correctamente")
+
+# Campos fecha que van impresos en la boleta — se normalizan a DD/MM/YYYY
+# (Excel suele guardarlos como datetime y dtype=str los vuelve "2026-07-05 00:00:00")
+CONFIG_CAMPOS_FECHA = ["FECHA_VENCIMIENTO", "FECHA_EMISION", "LECTURA_ANT_FECHA", "LECTURA_ACT_FECHA"]
+
+def _fecha_ddmmyyyy(v: str) -> str:
+    s = str(v).strip()
+    # ISO (2026-07-05...) se parsea año-mes-día; texto manual (05/07/2026) día-mes-año.
+    # dayfirst=True sobre un ISO lo corrompe a año-día-mes — por eso se distingue.
+    es_iso = bool(re.match(r"^\d{4}-", s))
+    parsed = pd.to_datetime(s, dayfirst=not es_iso, errors="coerce")
+    return v if pd.isna(parsed) else parsed.strftime("%d/%m/%Y")
 
 # ── CARGA CONFIG ──────────────────────────────────────────────────────────────
 def _cargar_config() -> dict:
     df = pd.read_excel(CONFIG_PATH, dtype=str)
     df.columns = [str(c).strip().upper() for c in df.columns]
-    fila = df.iloc[0]
+    fila = df.iloc[2]  # fila 4 en Excel: fila 1=header, 2=descripción, 3=ejemplo, 4=datos reales
     config = {col: _str(fila.get(col, "")) for col in CONFIG_REQUERIDOS}
+    for col in CONFIG_CAMPOS_FECHA:
+        config[col] = _fecha_ddmmyyyy(config[col])
     config["NUMERO_RECIBO_INICIO"] = int(_float(fila.get("NUMERO_RECIBO_INICIO", 1)))
     log.info(f"Config cargada: {config['PERIODO']} — recibo inicio {config['NUMERO_RECIBO_INICIO']}")
     return config
 
 # ── CARGA PLANILLA ────────────────────────────────────────────────────────────
 def _cargar_planilla() -> list[dict]:
-    df = pd.read_excel(PLANILLA_PATH, dtype=str)
+    # planilla_YYYY-MM.xlsx trae grupos en fila 1, columnas en fila 2 → header=1
+    # (mismo formato que lecturas_planilla / arrastre_consolidado).
+    df = pd.read_excel(PLANILLA_PATH, header=1, dtype=str)
     df.columns = [str(c).strip().upper() for c in df.columns]
     usuarios = []
     for _, f in df.iterrows():
@@ -108,14 +129,17 @@ def _cargar_planilla() -> list[dict]:
             continue
         marc_ant = _float(f.get("MARC_ANT", 0))
         marc_act = _float(f.get("MARC_ACT", 0))
-        m3       = round(marc_act - marc_ant, 3)
-        arrastre       = _float(f.get("ARRASTRE",       0))
+        # M3 y MES_ACTUAL vienen directo de planilla (fuente de verdad) — no se
+        # recalculan acá: planilla ya aplicó tarifa mínima y casos sin medidor.
+        m3         = _float(f.get("M3", 0))
+        mes_actual = _float(f.get("MES_ACTUAL", 0))
+        arrastre       = _float(f.get("MES_ANTERIOR",   0))
         convenio       = _float(f.get("CONVENIO",       0))
-        mant           = _float(f.get("MANT",           3))
+        mant           = _float(f.get("MANTENIMIENTO",  3))
         corte_reconex  = _float(f.get("CORTE_RECONEXION", 0))
-        reunion_faena  = _float(f.get("REUNION_FAENA",  0))
-        techado        = _float(f.get("TECHADO",        0))
-        devolucion     = _float(f.get("DEVOLUCION",     0))
+        reunion_faena  = _float(f.get("MULTA",          0))
+        techado        = _float(f.get("ACUERDOS_ASAMBLEA", 0))
+        devolucion     = 0.0  # no se lee de planilla — lo llena el ciclo vivo (pagos/cobranza)
         ajuste         = _float(f.get("AJUSTE",         0))
         usuarios.append({
             "mz":             mz,
@@ -124,7 +148,7 @@ def _cargar_planilla() -> list[dict]:
             "marc_ant":       marc_ant,
             "marc_act":       marc_act,
             "m3":             m3,
-            "total_mes":      round(m3 * COSTO_M3, 2),
+            "total_mes":      mes_actual,
             "arrastre":       arrastre,
             "convenio":       convenio,
             "mant":           mant,
@@ -134,8 +158,22 @@ def _cargar_planilla() -> list[dict]:
             "devolucion":     devolucion,
             "ajuste":         ajuste,
         })
-    log.info(f"Planilla base: {len(usuarios)} usuarios cargados")
+    usuarios.sort(key=_clave_orden)
+    log.info(f"Planilla base: {len(usuarios)} usuarios cargados (orden MZ simples → compuestas, particiones juntas)")
     return usuarios
+
+
+# ── ORDEN DE BOLETAS (pedido del operario 2026-07-03) ─────────────────────────
+# 1. MZ simples primero (A-1 … Z-9), después las compuestas (A1-3 … H1-5).
+# 2. Dentro de cada MZ, lotes numéricos ascendentes con las particiones juntas
+#    inmediatamente después de su base: C-1, C-2, C-2A, C-2B, C-3 …
+def _clave_orden(u: dict) -> tuple:
+    m = re.match(r"^([A-Z]+)(\d*)$", u["mz"])
+    letras, num = (m.group(1), m.group(2)) if m else (u["mz"], "")
+    mz_key = (1 if num else 0, letras, int(num) if num else 0)
+    ml = re.match(r"^(\d+)\s*([A-Z]*)$", u["lt"])
+    lt_key = (0, int(ml.group(1)), ml.group(2)) if ml else (1, 0, u["lt"])
+    return mz_key + lt_key
 
 # ── ENRIQUECER ────────────────────────────────────────────────────────────────
 def _enriquecer(usuarios: list[dict], config: dict) -> list[dict]:

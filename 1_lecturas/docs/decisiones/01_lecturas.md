@@ -195,6 +195,25 @@ El operario que recibía "RETROCESO" no sabía a priori qué buscar; las causas 
 
 ---
 
+## Decisión 10 — Corrección de errores históricos: ledger aparte, acumulado intocable
+
+**Problema:** `registro_operario_acumulado.xlsx` es append-only pero nunca corregible. Un error de tipeo del operario en un ciclo pasado (ej. junio) queda enterrado para siempre — cada ciclo futuro hereda `MARC_ANT` corrupto sin que quede rastro de que "se creyó X, después se supo que era Y". Caso real: `correcciones_2026-07.xlsx` fila B-7 (LIRIA PARIAMACHI), `MARC_ANT=49` heredado de junio, diff con julio (`MARC_ACT=99935`) imposible — el 49 era un dígito de menos.
+
+**Criterios:**
+- El acumulado nunca miente sobre lo que se registró en su momento (auditoría real)
+- La corrección debe ser una tool explícita e invocable, no editar una celda a mano (agentic SaaS)
+- No rediseñar para casos que no pasaron (Regla del Tres) — solo resolver 1 corrección activa por clave
+
+**Enfoque elegido:** ledger append-only `correcciones_historicas.xlsx` (vive en `outputs/` de `1_lecturas`, no en `shared/` — solo este módulo lo usa). Columnas: `MZ · LT · NOMBRE · CICLO_CORREGIDO · CAMPO · VALOR_ORIGINAL · VALOR_CORREGIDO · MOTIVO · DETECTADO_EN_CICLO · FECHA · ESTADO` (contrato: `docs/contrato_correcciones_historicas.html`). `main.py` nunca lee el acumulado crudo para `MARC_ANT` — siempre pasa por `valor_efectivo(mz, lt, ciclo, campo)`, que devuelve `VALOR_CORREGIDO` si hay una fila `ESTADO=activo` para esa clave, o el crudo si no. Mismo patrón que el evento `AJUSTE` de `shared/seguimiento_repo.py` (de `seguimiento_pueblo`), adaptado a este módulo.
+
+**Alternativas descartadas:**
+- *Editar la celda del acumulado directamente* — rompe la propiedad append-only, pierde el rastro de qué se creyó antes, y potencialmente reabre un ciclo ya cerrado por `7_cierre`. Descartado.
+- *Columna `MARC_ANT_corregido` dentro de `correcciones_YYYY-MM.xlsx`* — mezcla la corrección de un ciclo pasado con la cola de maquillaje del ciclo actual (que se borra al cerrar el mes); la corrección histórica necesita vivir en algo que PERMANEZCA. Descartado.
+
+**Señal de alerta:** si aparece una segunda corrección activa para la misma clave `(MZ, LT, CICLO, CAMPO)` — ahí sí se diseña el manejo de conflicto, no antes.
+
+---
+
 ## Historial de cambios
 
 | Fecha | Cambio |
@@ -202,3 +221,4 @@ El operario que recibía "RETROCESO" no sabía a priori qué buscar; las causas 
 | 2026-06-04 | Versión inicial — registro de las 6 decisiones de diseño del módulo 01 |
 | 2026-06-05 | Decisiones 7 y 8 — separación de RETROCESO + test de integración |
 | 2026-06-20 | Decisión 9 — sincronización con padrón · Enfoque C · estructura plana |
+| 2026-07-03 | Decisión 10 — corrección de errores históricos: ledger `correcciones_historicas.xlsx` aparte, acumulado nunca se edita |
