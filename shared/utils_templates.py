@@ -90,6 +90,7 @@ def _construir_hoja(ws) -> None:
     ws.row_dimensions[3].height = 18
 
     agregar_dropdown_categoria(ws)
+    aplicar_wrap_comentario(ws)
 
     ws.freeze_panes = "A3"
 
@@ -108,6 +109,18 @@ def agregar_dropdown_categoria(ws) -> None:
     ws.add_data_validation(dv)
     col = get_column_letter(len(_COLUMNAS))
     dv.add(f"{col}4:{col}500")
+
+
+def aplicar_wrap_comentario(ws) -> None:
+    """COMENTARIO (col 9) filas 4-500: wrap_text + altura fija 18 = el texto
+    largo queda en UNA línea recortada, sin desbordar sobre CONCEPTO/CATEGORIA;
+    el contenido completo se ve al hacer click en la celda (barra de fórmulas)."""
+    col_comentario = next(i for i, (n, *_r) in enumerate(_COLUMNAS, start=1) if n == "COMENTARIO")
+    for fila in range(4, 501):
+        c = ws.cell(row=fila, column=col_comentario)
+        c.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
+        # altura manual (customHeight) desactiva el auto-fit → la fila no crece
+        ws.row_dimensions[fila].height = 18
 
 
 def crear_mesa_vacio(ruta: Path) -> None:
