@@ -35,6 +35,7 @@ PE = {
     "est":  ("F3E8FF", "5B21B6", "FAF5FF"),   # ESTADO
     "who":  ("EBF5FB", "1A5276", "F4FAFF"),   # COBRADOR
     "tipo": ("FFF7ED", "9A3412", "FFFBF7"),   # CONCEPTO
+    "cat":  ("FCE4EC", "880E4F", "FDF2F8"),   # CATEGORIA
     "com":  ("F4ECF7", "5B21B6", "FAF5FF"),   # COMENTARIO
     "meta": ("F3E8FF", "5B21B6", "FAF5FF"),   # CICLO_CORRECCION (trazabilidad)
 }
@@ -312,6 +313,15 @@ def _mes_de_datos(rows: list) -> str:
 
 # ── Leer inputs ──────────────────────────────────────────────────────────────
 
+def _es_reclamo(categoria: str, comentario: str) -> bool:
+    """CATEGORIA manda (dropdown en mesa_N v3). Fallback de transición jul-2026:
+    filas sin CATEGORIA que marcaban el reclamo con la palabra en COMENTARIO —
+    retirar el fallback en agosto."""
+    if categoria:
+        return categoria == "reclamo"
+    return "reclamo" in comentario.lower()
+
+
 def leer_hoja(path: Path, hoja: str) -> list:
     """Lee una hoja de mesa_N.xlsx. Devuelve lista de registros válidos."""
     wb = load_workbook(path, read_only=True, data_only=True)
@@ -338,12 +348,18 @@ def leer_hoja(path: Path, hoja: str) -> list:
         lt         = _norm(row.get("LT"))
         monto_efec = _monto(row.get("MONTO_EFECTIVO"))
         coment     = str(row.get("COMENTARIO") or "").strip()
+        categoria  = str(row.get("CATEGORIA") or "").strip().lower()
         if not mz or not lt:
             continue
-        # Reclamos sin pago (MONTO_EFECTIVO=0 + COMENTARIO contiene "reclamo") pasan
+        # Reclamos sin pago (MONTO_EFECTIVO=0 + CATEGORIA=reclamo) pasan
         # para que 4b_reclamos los detecte vía pagos_efectivo.xlsx.
-        if monto_efec <= 0 and "reclamo" not in coment.lower():
+        if monto_efec <= 0 and not _es_reclamo(categoria, coment):
             continue
+        if not categoria and "reclamo" in coment.lower():
+            logging.warning(
+                f"  [{path.name}/{hoja}] MZ={mz} LT={lt}: reclamo detectado por "
+                f"COMENTARIO (fallback) — marcar CATEGORIA=reclamo en la mesa"
+            )
         monto_total = _monto(row.get("MONTO"))
         monto_yape  = _monto(row.get("MONTO_YAPE"))
         if monto_efec > 0 and abs(monto_efec + monto_yape - monto_total) > 0.01:
@@ -366,6 +382,7 @@ def leer_hoja(path: Path, hoja: str) -> list:
             "fecha":      fecha,
             "cobrador":   cobrador,
             "concepto":   concepto,
+            "categoria":  categoria,
             "comentario": coment,
         })
 
@@ -534,7 +551,8 @@ def detectar_multi_mesa(confirmados: list) -> tuple:
         if r.get("_ya_resuelto"):
             limpios_ya_resueltos.append(r)
             continue
-        if r.get("monto", 0) <= 0 and "reclamo" in str(r.get("comentario") or "").lower():
+        if r.get("monto", 0) <= 0 and _es_reclamo(
+                str(r.get("categoria") or ""), str(r.get("comentario") or "")):
             reclamos_sin_pago.append(r)
             continue
         procesables.append(r)
@@ -807,6 +825,7 @@ def exportar_pagos_efectivo(rows: list, mapa_ciclo_orig: dict = None):
         ("¿Es confiable?", 1, "est"),
         ("¿Quién cobró?",  1, "who"),
         ("¿Qué tipo?",     1, "tipo"),
+        ("¿Qué pasó?",     1, "cat"),
         ("¿Alguna nota?",  1, "com"),
         ("Trazabilidad",   1, "meta"),
     ]
@@ -829,6 +848,7 @@ def exportar_pagos_efectivo(rows: list, mapa_ciclo_orig: dict = None):
         ("ESTADO",           "est",  20, "center"),
         ("COBRADOR",         "who",  22, "left"),
         ("CONCEPTO",         "tipo", 14, "center"),
+        ("CATEGORIA",        "cat",  14, "center"),
         ("COMENTARIO",       "com",  30, "left"),
         ("CICLO_CORRECCION", "meta", 10, "center"),
     ]
@@ -856,13 +876,14 @@ def exportar_pagos_efectivo(rows: list, mapa_ciclo_orig: dict = None):
             r.get("estado",     ""),
             r.get("cobrador",   ""),
             r.get("concepto",   ""),
+            r.get("categoria",  ""),
             r.get("comentario", ""),
             ciclo_fila,
         ]
         formatos = [None, None, '"S/ "#,##0.00', "DD/MM/YYYY",
-                    None, None, None, None, None, None]
+                    None, None, None, None, None, None, None]
         aligns   = ["center", "center", "right", "center",
-                    "center", "center", "left",  "center", "left", "center"]
+                    "center", "center", "left",  "center", "center", "left", "center"]
         for ci, (nombre, sec, _, _align) in enumerate(cols, start=1):
             _, txt, bg_data = PE[sec]
             val = valores[ci - 1]
@@ -871,6 +892,9 @@ def exportar_pagos_efectivo(rows: list, mapa_ciclo_orig: dict = None):
                      _CONCEPTO_BG.get(val, "FFF7ED"),
                      _CONCEPTO_TXT.get(val, "9A3412"),
                      align="center", bold=True)
+            elif nombre == "CATEGORIA" and val:
+                _dat(ws.cell(row=ri, column=ci), val,
+                     "FCE4EC", "880E4F", align="center", bold=True)
             else:
                 _dat(ws.cell(row=ri, column=ci), val, bg_data, txt,
                      align=aligns[ci - 1], fmt=formatos[ci - 1])

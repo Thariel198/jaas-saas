@@ -53,7 +53,7 @@ de nuevo hasta que `discrepancias.xlsx` desaparezca.
 Cada archivo representa una mesa física de cobranza. Puede tener 1, 2 o 3 hojas
 nombradas `registro_1`, `registro_2`, `registro_3`.
 
-Columnas de cada hoja (todas requeridas salvo COMENTARIO):
+Columnas de cada hoja — schema v3 (todas requeridas salvo COMENTARIO, CONCEPTO y CATEGORIA):
 
 | Columna          | Tipo    | Descripción                              |
 |------------------|---------|------------------------------------------|
@@ -61,9 +61,19 @@ Columnas de cada hoja (todas requeridas salvo COMENTARIO):
 | FECHA_REGISTRO   | fecha   | Día en que se llenó el registro          |
 | MZ               | texto   | Manzana del predio                       |
 | LT               | texto   | Lote del predio                          |
-| MONTO            | decimal | Monto cobrado en soles                   |
+| MONTO            | decimal | Monto total cobrado en soles             |
+| MONTO_EFECTIVO   | decimal | Parte en billetes/monedas (0 si todo Yape) |
+| MONTO_YAPE       | decimal | Parte por Yape (0 si todo efectivo)      |
 | FECHA            | fecha   | Fecha del pago (puede diferir del cobro) |
-| COMENTARIO       | texto   | Nota libre, opcional                     |
+| COMENTARIO       | texto   | Nota libre, opcional — no clasifica nada |
+| CONCEPTO         | texto   | Qué es la plata: vacío=agua · tanque · honorario · gasto · comunitario |
+| CATEGORIA        | texto   | Qué pasó en mesa (dropdown): vacío=pago normal · reclamo · compromiso · otros |
+
+`CONCEPTO` rutea el dinero (5_cobranza excluye del cálculo de agua todo pago con
+CONCEPTO no vacío). `CATEGORIA` marca eventos de mesa y no afecta montos:
+`reclamo` lo detecta `4b_reclamos`; `compromiso`/`otros` quedan registrados y
+filtrables en `pagos_efectivo.xlsx`. Contrato visual: `docs/formato_registro.html`.
+Migración v2→v3: `migrar_formato_v3.py` (backup en `backup/migracion_2026-07/`).
 
 ---
 
@@ -144,9 +154,11 @@ python main.py
 
 ## Reclamos
 
-Los cobradores anotan "reclamo" (u otras variantes) en la columna `COMENTARIO` de los registros
-de mesa cuando un usuario cuestiona su cobro. El sub-módulo `reclamos.py` convierte esas notas
-sueltas en un sistema de seguimiento auditable.
+Los cobradores marcan `CATEGORIA = reclamo` (dropdown, schema v3) cuando un usuario
+cuestiona su cobro; el detalle va en `COMENTARIO` (texto libre). Fallback de transición
+jul-2026: filas con CATEGORIA vacía cuyo COMENTARIO contiene "reclamo" también se
+detectan (con warning en el log) — retirar en agosto. El módulo `4b_reclamos` convierte
+esas marcas en un sistema de seguimiento auditable.
 
 ### Cómo funciona
 
@@ -155,8 +167,9 @@ sueltas en un sistema de seguimiento auditable.
 python reclamos.py --mes 2026-06
 ```
 
-1. **Detecta** todas las filas de `pagos_efectivo.xlsx` donde `COMENTARIO` contiene "reclamo"
-   (sin distinción de mayúsculas/minúsculas).
+1. **Detecta** todas las filas de `pagos_efectivo.xlsx` con `CATEGORIA = reclamo`
+   (fallback jul-2026: CATEGORIA vacía + `COMENTARIO` contiene "reclamo", sin distinción
+   de mayúsculas/minúsculas).
 2. **Preserva** el trabajo manual del supervisor: si ya existe `reclamos_YYYY-MM.xlsx`, copia
    las columnas `RECLAMO`, `ESTADO` y `FECHA_RESOLUCION` usando la clave `(MESA, MZ, LT, FECHA_COBRO)`.
 3. **Arrastra** reclamos PENDIENTE o EN_REVISION del mes anterior que no tienen match en el

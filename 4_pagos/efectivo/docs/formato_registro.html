@@ -88,6 +88,16 @@
   .th-com { background: #F4ECF7; color: #5B21B6; }
   .td-com { background: #FAF5FF; color: #888; font-style: italic; }
 
+  /* ── SECCIÓN 5: ¿Qué tipo? (naranja) ── */
+  .gh-tipo { background: #FFF7ED; color: #9A3412; }
+  .th-tipo { background: #FFF7ED; color: #9A3412; }
+  .td-tipo { background: #FFFBF7; color: #9A3412; font-family: var(--font-mono); text-align: center; font-size: 9px; font-weight: 600; }
+
+  /* ── SECCIÓN 6: ¿Qué pasó? (rosa) ── */
+  .gh-cat { background: #FCE4EC; color: #880E4F; }
+  .th-cat { background: #FCE4EC; color: #880E4F; }
+  .td-cat { background: #FDF2F8; color: #880E4F; font-family: var(--font-mono); text-align: center; font-size: 9px; font-weight: 600; }
+
   /* ── LEYENDA ── */
   .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; align-items: center; }
   .ld-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #555; }
@@ -116,7 +126,11 @@
 
 <p class="historia">
   <strong>Historia (izquierda → derecha):</strong>
-  ¿Quién cobró y cuándo lo registró? → ¿Dónde vive el usuario? → ¿Cuánto cobró en total, de ese total cuánto fue en efectivo y cuánto por Yape, y en qué fecha pagó? → ¿Alguna nota?<br><br>
+  ¿Quién cobró y cuándo lo registró? → ¿Dónde vive el usuario? → ¿Cuánto cobró en total, de ese total cuánto fue en efectivo y cuánto por Yape, y en qué fecha pagó? → ¿Alguna nota? → ¿Qué tipo de pago? → ¿Qué pasó en mesa?<br><br>
+  <strong>COMENTARIO</strong> es texto 100% libre — ya no clasifica nada.
+  <strong>CONCEPTO</strong> dice qué es la plata (vacío = agua). <strong>CATEGORIA</strong>
+  dice qué evento ocurrió en mesa (<code>reclamo</code> / <code>compromiso</code> / <code>otros</code> / vacío = pago normal) —
+  <code>4b_reclamos</code> detecta reclamos por esta columna, no por palabras en el comentario.<br><br>
   Cada archivo representa una mesa física. Las hojas <code>registro_2</code> y <code>registro_3</code>
   son opcionales — aparecen solo si hay 2.° o 3.° cobrador en esa mesa.
   La fila 3 es un ejemplo en gris para guiar al cobrador — se borra antes de llenar.
@@ -128,6 +142,8 @@
   <div class="ld-item"><div class="ld" style="background:#E1F5EE;border-color:#6EE7B7"></div>¿Dónde vive?</div>
   <div class="ld-item"><div class="ld" style="background:#FEF9E7;border-color:#F9E79F"></div>¿Cuánto y cuándo?</div>
   <div class="ld-item"><div class="ld" style="background:#F4ECF7;border-color:#D8B4FE"></div>¿Alguna nota?</div>
+  <div class="ld-item"><div class="ld" style="background:#FFF7ED;border-color:#FDBA74"></div>¿Qué tipo?</div>
+  <div class="ld-item"><div class="ld" style="background:#FCE4EC;border-color:#F9A8D4"></div>¿Qué pasó?</div>
 </div>
 
 <!-- ── TABS ── -->
@@ -150,6 +166,10 @@
     <th class="gh gh-cobro" colspan="4">¿Cuánto y cuándo?</th>
     <th class="th-sep" rowspan="2"></th>
     <th class="gh gh-com"   colspan="1">¿Alguna nota?</th>
+    <th class="th-sep" rowspan="2"></th>
+    <th class="gh gh-tipo"  colspan="1">¿Qué tipo?</th>
+    <th class="th-sep" rowspan="2"></th>
+    <th class="gh gh-cat"   colspan="1">¿Qué pasó?</th>
   </tr>
 
   <!-- FILA 2: COLUMNAS -->
@@ -166,6 +186,10 @@
     <th class="col th-cobro">FECHA</th>
 
     <th class="col th-com">COMENTARIO</th>
+
+    <th class="col th-tipo">CONCEPTO</th>
+
+    <th class="col th-cat">CATEGORIA</th>
   </tr>
 
   <!-- FILA 3: ejemplo guía (en gris itálico, el cobrador la borra) -->
@@ -181,6 +205,10 @@
     <td class="example-row" style="text-align:right">20.00</td>
     <td class="example-row" style="text-align:right">18.00</td>
     <td class="example-row">03/06/2026</td>
+    <td class="td-sep"></td>
+    <td class="example-row"></td>
+    <td class="td-sep"></td>
+    <td class="example-row"></td>
     <td class="td-sep"></td>
     <td class="example-row"></td>
   </tr>
@@ -200,6 +228,10 @@
     <td class="td-cobro">03/06/2026</td>
     <td class="td-sep"></td>
     <td class="td-com"></td>
+    <td class="td-sep"></td>
+    <td class="td-tipo"></td>
+    <td class="td-sep"></td>
+    <td class="td-cat"></td>
   </tr>
 
   <!-- FILA 5: pago íntegro en efectivo -->
@@ -217,6 +249,31 @@
     <td class="td-cobro">03/06/2026</td>
     <td class="td-sep"></td>
     <td class="td-com">Pagó con billete de 50</td>
+    <td class="td-sep"></td>
+    <td class="td-tipo"></td>
+    <td class="td-sep"></td>
+    <td class="td-cat"></td>
+  </tr>
+
+  <!-- FILA 6: reclamo sin pago — MONTO 0 + CATEGORIA=reclamo -->
+  <tr>
+    <td class="num">6</td>
+    <td class="td-quien">María García</td>
+    <td class="td-quien" style="font-family:var(--font-mono)">10/06/2026</td>
+    <td class="td-sep"></td>
+    <td class="td-lote">C1</td>
+    <td class="td-lote">17</td>
+    <td class="td-sep"></td>
+    <td class="td-cobro" style="text-align:right">0.00</td>
+    <td class="td-cobro" style="text-align:right">0.00</td>
+    <td class="td-cobro" style="text-align:right">0.00</td>
+    <td class="td-cobro">03/06/2026</td>
+    <td class="td-sep"></td>
+    <td class="td-com">Dice que su medidor marca de más</td>
+    <td class="td-sep"></td>
+    <td class="td-tipo"></td>
+    <td class="td-sep"></td>
+    <td class="td-cat">reclamo</td>
   </tr>
 
 </table>
@@ -256,6 +313,24 @@
     Parte del cobro recibida por transferencia Yape. Poner <code>0</code> si el usuario
     pagó íntegramente en efectivo.
   </div>
+  <div class="rule-card">
+    <strong>COMENTARIO — texto libre</strong>
+    Cualquier nota del cobrador, sin palabras clave obligatorias.
+    El sistema <em>no</em> clasifica nada desde esta columna.
+  </div>
+  <div class="rule-card">
+    <strong>CONCEPTO — qué es la plata</strong>
+    Vacío = agua (mayoría). Valores: <code>tanque</code> · <code>honorario</code> ·
+    <code>gasto</code> · <code>comunitario</code>. Un pago con CONCEPTO no vacío
+    sale del cálculo de agua en <code>5_cobranza</code>.
+  </div>
+  <div class="rule-card">
+    <strong>CATEGORIA — qué pasó en mesa</strong>
+    Dropdown: <code>reclamo</code> · <code>compromiso</code> · <code>otros</code> · vacío = pago normal.
+    <code>reclamo</code> lo detecta <code>4b_reclamos</code> (con o sin pago; sin pago → MONTO 0).
+    <code>compromiso</code>/<code>otros</code> quedan registrados en <code>pagos_efectivo.xlsx</code>.
+    No afecta el cálculo de plata.
+  </div>
 </div>
 
 <!-- ── ANCHOS OPENPYXL ── -->
@@ -271,6 +346,8 @@
   <tr><td><code>MONTO_YAPE</code></td><td>14</td><td>¿Cuánto y cuándo? — <code>FEF9E7 / 7D6608</code></td></tr>
   <tr><td><code>FECHA</code></td><td>14</td><td>¿Cuánto y cuándo? — <code>FEF9E7 / 7D6608</code></td></tr>
   <tr><td><code>COMENTARIO</code></td><td>30</td><td>¿Alguna nota? — <code>F4ECF7 / 5B21B6</code></td></tr>
+  <tr><td><code>CONCEPTO</code></td><td>14</td><td>¿Qué tipo? — <code>FFF7ED / 9A3412</code></td></tr>
+  <tr><td><code>CATEGORIA</code></td><td>14</td><td>¿Qué pasó? — <code>FCE4EC / 880E4F</code> · dropdown <code>reclamo,compromiso,otros</code></td></tr>
 </table>
 <p style="font-size:11px; color:#888; margin-top:8px;">
   Fila 1 (secciones): altura 20px · negrita · texto centrado.<br>

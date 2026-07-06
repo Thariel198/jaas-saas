@@ -5,7 +5,8 @@ USO:
     python main.py --mes 2026-06
 
 LOGICA:
-    1. Lee 4_pagos/efectivo/outputs/pagos_efectivo.xlsx → filtra COMENTARIO ≈ "reclamo".
+    1. Lee 4_pagos/efectivo/outputs/pagos_efectivo.xlsx → filtra CATEGORIA="reclamo"
+       (fallback jul-2026: CATEGORIA vacía + COMENTARIO ≈ "reclamo").
     2. Lee outputs/reclamos_YYYY-MM.xlsx existente → preserva RECLAMO/TIPO_RECLAMO/
        RESOLUCION/ESTADO/FECHA_RESOLUCION por clave (MESA, MZ, LT, FECHA_COBRO).
     3. Arrastra PENDIENTE/EN_REVISION sin match del mes actual.
@@ -182,7 +183,21 @@ def _cargar_detectados(mes: str) -> pd.DataFrame:
         log.warning("pagos_efectivo.xlsx no tiene columna COMENTARIO -> 0 reclamos detectados")
         return pd.DataFrame()
 
-    mask = df["COMENTARIO"].str.contains("reclamo", case=False, na=False)
+    # Detección por CATEGORIA=reclamo (schema v3 de mesa_N). Fallback de
+    # transición jul-2026: CATEGORIA vacía + COMENTARIO contiene "reclamo"
+    # (mesas llenadas antes de la migración) — retirar el fallback en agosto.
+    mask_coment = df["COMENTARIO"].str.contains("reclamo", case=False, na=False)
+    if "CATEGORIA" in df.columns:
+        cat = df["CATEGORIA"].fillna("").astype(str).str.strip().str.lower()
+        mask_fallback = (cat == "") & mask_coment
+        if mask_fallback.any():
+            log.warning(f"{int(mask_fallback.sum())} reclamo(s) detectados por COMENTARIO "
+                        f"(fallback) — marcar CATEGORIA=reclamo en la mesa")
+        mask = (cat == "reclamo") | mask_fallback
+    else:
+        log.warning("pagos_efectivo.xlsx sin columna CATEGORIA (schema viejo) "
+                    "-> deteccion solo por COMENTARIO")
+        mask = mask_coment
     det = df[mask].copy()
     if det.empty:
         log.info("Ningún reclamo detectado en pagos_efectivo.xlsx")

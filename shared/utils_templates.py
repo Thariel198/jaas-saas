@@ -11,6 +11,7 @@ from pathlib import Path
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
+from openpyxl.worksheet.datavalidation import DataValidation
 
 # ── Secciones y columnas de mesa_N.xlsx (contrato formato_registro.html) ────
 _GRUPOS = [
@@ -19,6 +20,7 @@ _GRUPOS = [
     ("¿Cuánto y cuándo?", 4, "FEF9E7", "7D6608"),
     ("¿Alguna nota?",     1, "F4ECF7", "5B21B6"),
     ("¿Qué tipo?",        1, "FFF7ED", "9A3412"),
+    ("¿Qué pasó?",        1, "FCE4EC", "880E4F"),
 ]
 
 _COLUMNAS = [
@@ -32,9 +34,12 @@ _COLUMNAS = [
     ("FECHA",           "FEF9E7", "7D6608", 14),
     ("COMENTARIO",      "F4ECF7", "5B21B6", 30),
     ("CONCEPTO",        "FFF7ED", "9A3412", 14),
+    ("CATEGORIA",       "FCE4EC", "880E4F", 14),
 ]
 
-_EJEMPLO = ["María García", "10/06/2026", "A", "8C", "38.00", "20.00", "18.00", "03/06/2026", "", ""]
+_EJEMPLO = ["María García", "10/06/2026", "A", "8C", "38.00", "20.00", "18.00", "03/06/2026", "", "", ""]
+
+CATEGORIAS_VALIDAS = ["reclamo", "compromiso", "otros"]
 
 _HOJAS = ["registro_1", "registro_2", "registro_3"]
 
@@ -84,7 +89,25 @@ def _construir_hoja(ws) -> None:
         _celda_ejemplo(ws.cell(row=3, column=idx), valor)
     ws.row_dimensions[3].height = 18
 
+    agregar_dropdown_categoria(ws)
+
     ws.freeze_panes = "A3"
+
+
+def agregar_dropdown_categoria(ws) -> None:
+    """Dropdown de CATEGORIA (col 11) filas 4-500. También lo usa la migración
+    v3 para agregar la validación a mesas con datos existentes."""
+    dv = DataValidation(
+        type="list",
+        formula1='"' + ",".join(CATEGORIAS_VALIDAS) + '"',
+        allow_blank=True,
+        showErrorMessage=True,
+        errorTitle="CATEGORIA inválida",
+        error="Valores: reclamo, compromiso, otros — o dejar vacío (pago normal).",
+    )
+    ws.add_data_validation(dv)
+    col = get_column_letter(len(_COLUMNAS))
+    dv.add(f"{col}4:{col}500")
 
 
 def crear_mesa_vacio(ruta: Path) -> None:

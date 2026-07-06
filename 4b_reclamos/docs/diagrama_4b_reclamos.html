@@ -214,9 +214,11 @@
         <div class="fname">inputs/pagos_efectivo.xlsx</div>
         <div class="detail">
           fuente de detección:<br>
-          COMENTARIO contiene "reclamo"<br><br>
+          CATEGORIA = "reclamo"<br>
+          <span style="opacity:.7">(fallback jul-2026: CATEGORIA vacía +<br>
+          COMENTARIO contiene "reclamo" → warning)</span><br><br>
           columnas usadas:<br>
-          MZ · LT · NOMBRE · COMENTARIO<br>
+          MZ · LT · NOMBRE · CATEGORIA · COMENTARIO<br>
           MESA · COBRADOR · FECHA_COBRO · MONTO
         </div>
       </div>
@@ -238,7 +240,7 @@
       <p class="col-label">script</p>
       <div class="script">
         <div class="script-title">main.py</div>
-        <div class="rule"><b>1.</b> filtrar pagos con COMENTARIO "reclamo"</div>
+        <div class="rule"><b>1.</b> filtrar pagos con CATEGORIA=reclamo (fallback: COMENTARIO "reclamo")</div>
         <div class="rule"><b>2.</b> preservar manual por clave compuesta</div>
         <div class="rule"><b>3.</b> arrastrar PENDIENTE/EN_REVISION del mes anterior</div>
         <div class="rule"><b>4.</b> mover RESUELTO/RECHAZADO a trazabilidad</div>
