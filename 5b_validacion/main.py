@@ -334,6 +334,27 @@ def _cargar_tanque_total() -> float:
     return total
 
 
+def _cargar_otros_conceptos() -> float:
+    """Balde genérico para Nivel 1a: Σ TE PAGÓ Yape con CONCEPTO no vacío que NO
+    sea tanque (ese ya lo cuenta _cargar_tanque_total). Captura deuda_directiva,
+    y cualquier concepto libre futuro, sin parchar la fórmula cada vez. Sin este
+    balde, esa plata está en el crudo del banco pero en ningún componente → falso
+    descuadre 1a (caso "saldo Ronel", -62)."""
+    df = pd.read_excel(YAPE_PATH, header=1, dtype=str)
+    df.columns = _norm_cols(df)
+    total = 0.0
+    for _, f in df.iterrows():
+        if _norm_tipo(f.get("TIPO", "")) != "TE PAGO":
+            continue
+        conc = str(f.get("CONCEPTO", "")).strip().lower()
+        if conc in ("", "nan", "none", "tanque"):
+            continue
+        total += _float(f.get("MONTO_PAGO", 0))
+    total = round(total, 2)
+    log.info(f"Otros conceptos (yape, no-tanque): S/ {total:.2f}")
+    return total
+
+
 # ── CARGA: PAGASTE PROCESADO ──────────────────────────────────────────────────
 def _cargar_pagaste_total() -> tuple[float, tuple]:
     """Retorna (total, (fecha_min, fecha_max)) — PAGASTE tiene su propia ventana
@@ -505,7 +526,7 @@ def _fila_resumen(ws, row, seccion, componente, monto, estado=None):
 
 
 def _hoja_resumen(wb, crudo_tepago, crudo_pagaste,
-                  agua, agua_neto, blancos_tot, devueltos_tot, tanque_tot, pagaste_proc,
+                  agua, agua_neto, blancos_tot, devueltos_tot, tanque_tot, otros_tot, pagaste_proc,
                   cob_yape_total, efec_total, cob_efec_total, periodo):
     ws = wb.create_sheet("resumen", 0)
     ws.freeze_panes = "A2"
@@ -528,7 +549,7 @@ def _hoja_resumen(wb, crudo_tepago, crudo_pagaste,
     ri = 3
 
     # ── Nivel 1a: TE PAGÓ ──────────────────────────────────────
-    _gh_resumen(ws, ri, "Nivel 1a — Banco crudo (TE PAGÓ)  vs  agua + blancos + tanque", "E6F1FB", "0C447C")
+    _gh_resumen(ws, ri, "Nivel 1a — Banco crudo (TE PAGÓ)  vs  agua + blancos + tanque + otros", "E6F1FB", "0C447C")
     ri += 1
     _fila_resumen(ws, ri, "banco crudo", "Total TE PAGÓ en crudo del banco", crudo_tepago)
     ri += 1
@@ -538,9 +559,11 @@ def _hoja_resumen(wb, crudo_tepago, crudo_pagaste,
     ri += 1
     _fila_resumen(ws, ri, "  tanque",   "Aportes al tanque comunitario (CONCEPTO=tanque)", tanque_tot)
     ri += 1
-    suma_partes = round(agua + blancos_tot + tanque_tot, 2)
+    _fila_resumen(ws, ri, "  otros conceptos", "CONCEPTO libre ≠ tanque (deuda_directiva, etc.)", otros_tot)
+    ri += 1
+    suma_partes = round(agua + blancos_tot + tanque_tot + otros_tot, 2)
     dif_1a = round(suma_partes - crudo_tepago, 2)
-    _fila_resumen(ws, ri, "∑ partes", "agua + blancos + tanque", suma_partes)
+    _fila_resumen(ws, ri, "∑ partes", "agua + blancos + tanque + otros", suma_partes)
     ri += 1
     _fila_resumen(ws, ri, "diferencia 1a", "∑ partes − banco crudo", dif_1a, estado=True)
     ri += 1
@@ -708,6 +731,7 @@ def main():
     blancos_tot                   = _cargar_blancos_total()
     devueltos_tot                 = _cargar_devueltos_total()
     tanque_tot                    = _cargar_tanque_total()
+    otros_tot                     = _cargar_otros_conceptos()
     efec_mz, efec_lote, efec_detalle, efec_total = _cargar_efectivo()
     cob_yape_mz, cob_efec_mz, cob_yape_lote, cob_efec_lote, cob_yape_total, cob_efec_total = _cargar_cobranza()
 
@@ -726,7 +750,7 @@ def main():
     # reconciliación en Nivel 1b. El pago original de Rosalina ya está
     # contado una vez en agua_total y otra en crudo_tepago — sumar
     # devueltos_tot aquí agregaba una tercera cantidad ajena a TE PAGÓ.
-    dif_1a       = round((agua_total + blancos_tot + tanque_tot) - crudo_tepago, 2)
+    dif_1a       = round((agua_total + blancos_tot + tanque_tot + otros_tot) - crudo_tepago, 2)
     dif_1b       = round(pagaste_proc - crudo_pagaste, 2)
     dif_2        = round(cob_yape_total - agua_total_neto, 2)
     dif_efec_tot = round(cob_efec_total - efec_total, 2)
@@ -741,7 +765,7 @@ def main():
     wb = Workbook()
     wb.remove(wb.active)
     _hoja_resumen(wb, crudo_tepago, crudo_pagaste,
-                  agua_total, agua_total_neto, blancos_tot, devueltos_tot, tanque_tot, pagaste_proc,
+                  agua_total, agua_total_neto, blancos_tot, devueltos_tot, tanque_tot, otros_tot, pagaste_proc,
                   cob_yape_total, efec_total, cob_efec_total, periodo)
     _hoja_por_mz(wb, "yape_por_mz",     "AGUA_PROCESADA",   "PLANILLA_YAPE",     dif_yape, periodo)
     _hoja_por_mz(wb, "efectivo_por_mz", "REPORTE_EFECTIVO", "PLANILLA_EFECTIVO", dif_efec, periodo)

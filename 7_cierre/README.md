@@ -96,7 +96,8 @@ Vive siempre; el próximo mes le hace *append*. Se consulta vivo, filtrando por 
 ```
 shared/seguimiento_pueblo.xlsx (+ vista)   shared/blancos_acumulados.xlsx
 shared/registro_cortes.xlsx                shared/usuarios_id.xlsx
-shared/data_boletas_audit.xlsx             shared/…/estado_ciclo.json
+shared/deuda_directiva.xlsx                shared/data_boletas_audit.xlsx
+shared/…/estado_ciclo.json
 1_lecturas/inputs/registro_operario_acumulado.xlsx
 trazabilidad_cobranza.xlsx · trazabilidad_reclamos.xlsx  (append-only)
 ```

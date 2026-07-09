@@ -112,10 +112,17 @@ tr:last-child td{border-bottom:none}
           <td class="td-info">—</td>
         </tr>
         <tr>
-          <td class="td-label">  devueltos</td>
-          <td class="td-label">Pagos devueltos al remitente</td>
+          <td class="td-label">  tanque</td>
+          <td class="td-label">Aportes al tanque comunitario (CONCEPTO=tanque)</td>
           <td class="td-monto-parte">S/ xxxx</td>
-          <td class="td-src">motor_matching/outputs/pagos_yape_devolucion.xlsx · MONTO</td>
+          <td class="td-src">4_pagos/outputs/aportes_tanque.xlsx · CANAL=yape · MONTO</td>
+          <td class="td-info">—</td>
+        </tr>
+        <tr>
+          <td class="td-label">  otros conceptos</td>
+          <td class="td-label">CONCEPTO libre ≠ tanque (deuda_directiva, etc.) — balde genérico</td>
+          <td class="td-monto-parte">S/ xxxx</td>
+          <td class="td-src">motor_matching/outputs/pagos_yape_tepago.xlsx · TE PAGÓ · CONCEPTO≠∅,≠tanque · MONTO_PAGO</td>
           <td class="td-info">—</td>
         </tr>
         <!-- Suma partes -->
@@ -124,10 +131,17 @@ tr:last-child td{border-bottom:none}
         </tr>
         <tr>
           <td class="td-label-bold">suma partes</td>
-          <td class="td-label">agua + blancos + devueltos</td>
+          <td class="td-label">agua + blancos + tanque + otros conceptos</td>
           <td class="td-monto-sum">S/ xxxx</td>
           <td class="td-src">calculado</td>
           <td class="td-ok">OK</td>
+        </tr>
+        <tr>
+          <td class="td-label">  devueltos (informativo)</td>
+          <td class="td-label">Devueltos al remitente — se reconcilian en Nivel 1b, no en 1a</td>
+          <td class="td-monto-parte">S/ xxxx</td>
+          <td class="td-src">motor_matching/outputs/pagos_yape_devolucion.xlsx · MONTO</td>
+          <td class="td-info">—</td>
         </tr>
 
         <!-- PAGASTE (flujo separado) -->
@@ -310,7 +324,7 @@ tr:last-child td{border-bottom:none}
   <div class="section-title">Ecuaciones de validación</div>
   <div class="eq">
     <strong>Nivel 1a</strong> — ¿El banco cuadra con lo que el motor clasificó (ingresos)?<br>
-    <code>banco_crudo[TE PAGÓ]  ==  agua + blancos + devueltos</code><br><br>
+    <code>banco_crudo[TE PAGÓ]  ==  agua + blancos + tanque + otros conceptos</code><br><br>
     <strong>Nivel 1b</strong> — ¿Los gastos del banco cuadran con los gastos del motor (egresos)?<br>
     <code>banco_crudo[PAGASTE]  ==  pagaste procesado</code><br><br>
     <strong>Nivel 2</strong> — ¿El motor trasladó bien los pagos de agua a la planilla?<br>

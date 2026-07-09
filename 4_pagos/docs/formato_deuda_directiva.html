@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Formato — deuda_directiva.xlsx</title>
+<style>
+  body { font-family: Arial, Helvetica, sans-serif; margin: 28px; color: #1f2937; background: #fff; }
+  h1 { font-size: 20px; color: #7D6608; margin-bottom: 2px; }
+  .sub { color: #6b7280; font-size: 13px; margin-bottom: 20px; }
+  h2 { font-size: 15px; margin-top: 26px; color: #374151; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; }
+  table { border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+  th, td { border: 1px solid #d1d5db; padding: 5px 9px; text-align: left; }
+  .gh { font-weight: bold; text-align: center; font-size: 11px; }
+  code { background: #f3f4f6; padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+  .note { background: #FFFBEB; border-left: 3px solid #D97706; padding: 8px 12px; margin: 12px 0; font-size: 13px; }
+  ul { font-size: 13px; line-height: 1.6; }
+  .mono { font-family: Consolas, monospace; }
+  .leg { display: inline-block; width: 14px; height: 14px; border: 1px solid #999; vertical-align: middle; margin-right: 6px; }
+</style>
+</head>
+<body>
+  <h1>deuda_directiva.xlsx — contrato de formato</h1>
+  <div class="sub">
+    Ledger <strong>append-only</strong> de pagos por deudas institucionales de la directiva
+    (ej. saldos de ex-tesorero). NO es agua ni tanque. Vive en <code>shared/</code> · writer único:
+    <code>4_pagos/consolidar_deuda_directiva.py</code>.
+  </div>
+
+  <div class="note">
+    <strong>Por qué acumulado (no efímero).</strong> A diferencia de <code>aportes_tanque.xlsx</code>,
+    que se regenera solo desde las vistas del mes actual y pierde los meses viejos al cerrar el ciclo,
+    este ledger es <strong>append-only con dedup</strong>: cada corrida agrega los pagos nuevos y conserva
+    todos los anteriores. Por eso lleva columna <code>CICLO</code> y vive en <code>shared/</code>
+    (BALDE 1 — 7_cierre no lo resetea).
+  </div>
+
+  <h2>Columnas — la historia de izquierda a derecha</h2>
+  <table>
+    <tr>
+      <td colspan="2" class="gh" style="background:#EBF5FB;color:#1A5276">¿QUIÉN DEBÍA?</td>
+      <td colspan="2" class="gh" style="background:#FEF9E7;color:#7D6608">¿DE DÓNDE VINO?</td>
+      <td colspan="2" class="gh" style="background:#F3E8FF;color:#5B21B6">¿CUÁNTO Y CUÁNDO?</td>
+      <td class="gh" style="background:#E9F7EF;color:#1E5C3A">¿PERÍODO?</td>
+      <td class="gh" style="background:#FFF7ED;color:#9A3412">¿PARA QUÉ?</td>
+    </tr>
+    <tr>
+      <th style="background:#F4FAFF">USER_ID</th>
+      <th style="background:#F4FAFF">NOMBRE</th>
+      <th style="background:#FFFDF5">CANAL</th>
+      <th style="background:#FFFDF5">REFERENCIA</th>
+      <th style="background:#FAF5FF">MONTO_PAGO</th>
+      <th style="background:#FAF5FF">FECHA</th>
+      <th style="background:#F4FBF7">CICLO</th>
+      <th style="background:#FFFBF7">CONCEPTO</th>
+    </tr>
+    <tr>
+      <td></td><td>Ronel</td>
+      <td>yape</td><td>Paul Tru*-62</td>
+      <td class="mono">S/ 62.00</td><td>28/06/2026 17:17:42</td>
+      <td>2026-06</td><td>deuda_directiva</td>
+    </tr>
+    <tr>
+      <td>U0207</td><td>Ejemplo Deudor</td>
+      <td>efectivo</td><td>mesa_3-Wilder Trujillo</td>
+      <td class="mono">S/ 40.00</td><td>12/08/2026</td>
+      <td>2026-08</td><td>deuda_directiva</td>
+    </tr>
+  </table>
+
+  <h2>Reglas por columna</h2>
+  <ul>
+    <li><strong>USER_ID</strong> — de <code>usuarios_id.xlsx</code> si el NOMBRE matchea; si no, vacío. La deuda no es de un predio, así que no hay MZ/LOTE.</li>
+    <li><strong>NOMBRE</strong> — texto libre del <em>deudor</em> (no del que transfirió). Lo llena el operador al resolver el pago.</li>
+    <li><strong>CANAL</strong> — <code>yape</code> o <code>efectivo</code>. <strong>REFERENCIA</strong> — <span class="mono">origen-monto</span> (yape) · <span class="mono">mesa-cobrador</span> (efectivo). Igual que tanque.</li>
+    <li><strong>MONTO_PAGO</strong> — número, formato <code class="mono">"S/" #,##0.00</code>, alineado a la derecha.</li>
+    <li><strong>FECHA</strong> — verbatim de la fuente (string tal cual), NO reparsear.</li>
+    <li><strong>CICLO</strong> — <code>YYYY-MM</code> derivado de la FECHA del pago. Es lo que permite filtrar por período sin perder los meses viejos.</li>
+    <li><strong>CONCEPTO</strong> — fijo <code>deuda_directiva</code> (token canónico, no texto libre). El detalle "quién/qué deuda" vive en NOMBRE.</li>
+  </ul>
+
+  <h2>Idempotencia (append-only)</h2>
+  <ul>
+    <li>Clave de dedup: <code>(CANAL, REFERENCIA, MONTO_PAGO, FECHA)</code>. Re-correr el consolidador no duplica filas existentes; solo agrega las nuevas.</li>
+    <li>Cosecha <code>CONCEPTO=deuda_directiva</code> desde <code>pagos_yape_tepago.xlsx</code> + <code>pagos_efectivo.xlsx</code> (vistas del mes) y hace append al ledger acumulado.</li>
+  </ul>
+
+  <h2>Leyenda de color</h2>
+  <ul style="list-style:none;padding-left:0">
+    <li><span class="leg" style="background:#EBF5FB"></span>¿Quién debía? — identidad del deudor</li>
+    <li><span class="leg" style="background:#FEF9E7"></span>¿De dónde vino? — canal y referencia del pago</li>
+    <li><span class="leg" style="background:#F3E8FF"></span>¿Cuánto y cuándo? — monto y fecha</li>
+    <li><span class="leg" style="background:#E9F7EF"></span>¿Período? — ciclo mensual del pago</li>
+    <li><span class="leg" style="background:#FFF7ED"></span>¿Para qué? — concepto fijo</li>
+  </ul>
+</body>
+</html>

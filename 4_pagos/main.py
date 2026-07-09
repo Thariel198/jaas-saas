@@ -33,27 +33,32 @@ def main():
     validacion = _cargar("pagos_validacion", ROOT / "yape/validacion/main.py")
     efectivo   = _cargar("pagos_efectivo",   ROOT / "efectivo/main.py")
     tanque     = _cargar("pagos_tanque",     ROOT / "consolidar_tanque.py")
+    deuda_dir  = _cargar("pagos_deuda_dir",  ROOT / "consolidar_deuda_directiva.py")
 
     # ── Pipeline Yape ───────────────────────────────────────
-    _paso(1, 6, "Yape — Construyendo orígenes")
+    _paso(1, 7, "Yape — Construyendo orígenes")
     origenes.main()
 
-    _paso(2, 6, "Yape — Construyendo maestro")
+    _paso(2, 7, "Yape — Construyendo maestro")
     maestro.main()
 
-    _paso(3, 6, "Yape — Motor de matching")
+    _paso(3, 7, "Yape — Motor de matching")
     motor.main()
 
-    _paso(4, 6, "Yape — Validación")
+    _paso(4, 7, "Yape — Validación")
     validacion.main()
 
     # ── Pipeline Efectivo ───────────────────────────────────
-    _paso(5, 6, "Efectivo — Procesando cobros")
+    _paso(5, 7, "Efectivo — Procesando cobros")
     efectivo.main()
 
     # ── Consolidado — tanque comunitario (canal-agnóstico) ──
-    _paso(6, 6, "Tanque — Consolidando aportes (yape + efectivo)")
+    _paso(6, 7, "Tanque — Consolidando aportes (yape + efectivo)")
     tanque.main()
+
+    # ── Ledger append-only — deuda de la directiva ──────────
+    _paso(7, 7, "Deuda directiva — Append al ledger (yape + efectivo)")
+    deuda_dir.main()
 
     _banner("4_pagos completado → entregar outputs a 5_cobranza")
 
