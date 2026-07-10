@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Arquitectura — 7b_historial_pagos</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'IBM Plex Sans', sans-serif; background: #fff; padding: 24px; color: #1f2937; }
+
+  .title { font-size: 18px; font-weight: 600; color: #111; margin-bottom: 4px; }
+  .sub   { font-size: 12px; color: #888; margin-bottom: 20px; }
+
+  .meta { display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap;
+          background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 10px 14px; }
+  .meta-item { font-size: 11px; color: #6b7280; }
+  .meta-item span { font-weight: 600; color: #374151; }
+
+  h2 { font-size: 13px; font-weight: 600; color: #374151; margin: 20px 0 8px;
+       border-left: 3px solid #0E7490; padding-left: 8px; }
+
+  .cols { display: grid; grid-template-columns: 260px 1fr; gap: 16px; margin-bottom: 20px; }
+
+  .tree-box {
+    background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 8px;
+    padding: 14px 16px;
+  }
+  .tree-box h3 { font-size: 10px; font-weight: 700; color: #6b7280;
+                  text-transform: uppercase; letter-spacing: .05em; margin-bottom: 10px; }
+  .tree { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #374151; line-height: 1.9; }
+  .tree .dir    { color: #1A5276; font-weight: 600; }
+  .tree .repo   { color: #5B21B6; font-weight: 600; }
+  .tree .prod   { color: #0E7490; font-weight: 600; }
+  .tree .read   { color: #C2410C; font-weight: 600; }
+  .tree .key    { color: #1E5C3A; font-weight: 600; }
+  .tree .dim    { color: #aaa; font-size: 9px; }
+
+  .scripts-box { display: flex; flex-direction: column; gap: 10px; }
+  .script-card { border-radius: 8px; overflow: hidden; border: 1px solid; }
+  .script-card.repo { border-color: #C4B5FD; }
+  .script-card.prod { border-color: #A5F3FC; }
+  .script-card.read { border-color: #FDBA74; }
+  .script-header { padding: 8px 12px; font-size: 12px; font-weight: 700;
+                   font-family: 'IBM Plex Mono', monospace; }
+  .script-card.repo .script-header { background: #5B21B6; color: #fff; }
+  .script-card.prod .script-header { background: #0E7490; color: #fff; }
+  .script-card.read .script-header { background: #C2410C; color: #fff; }
+  .script-body { padding: 10px 12px; font-size: 11px; }
+  .script-card.repo .script-body { background: #FAF5FF; color: #5B21B6; }
+  .script-card.prod .script-body { background: #ECFEFF; color: #0E7490; }
+  .script-card.read .script-body { background: #FFF7ED; color: #9A3412; }
+  .io-row { display: flex; gap: 8px; margin: 3px 0; align-items: flex-start; }
+  .io-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
+              min-width: 36px; margin-top: 1px; opacity: .65; }
+  .io-val { font-family: 'IBM Plex Mono', monospace; font-size: 10px; line-height: 1.6; }
+  .rule-list { margin: 4px 0 0 0; padding-left: 16px; }
+  .rule-list li { font-size: 10.5px; margin: 3px 0; }
+
+  .dep-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 16px; }
+  .dep-table th { background: #F3F4F6; color: #374151; font-size: 10px; font-weight: 700;
+                  text-transform: uppercase; letter-spacing: .04em;
+                  padding: 5px 10px; text-align: left; }
+  .dep-table td { padding: 5px 10px; border-bottom: 1px solid #F3F4F6; vertical-align: top; }
+
+  .inv-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .inv-card { border-radius: 6px; padding: 10px 12px; font-size: 10.5px; line-height: 1.5; }
+  .inv-card .inv-title { font-size: 9px; font-weight: 700; text-transform: uppercase;
+                          letter-spacing: .05em; margin-bottom: 5px; display: block; }
+  .inv-card.una    { background: #D1FAE5; border: 1px solid #6EE7B7; color: #065F46; }
+  .inv-card.repo   { background: #EDE9FE; border: 1px solid #A78BFA; color: #6D28D9; }
+  .inv-card.append { background: #DCFCE7; border: 1px solid #86EFAC; color: #166534; }
+  .inv-card.crudo  { background: #ECFEFF; border: 1px solid #67E8F9; color: #0E7490; }
+  .inv-card.correc { background: #FFEDD5; border: 1px solid #FDBA74; color: #9A3412; }
+  .inv-card.no     { background: #FEE2E2; border: 1px solid #FCA5A5; color: #991B1B; }
+
+  code { font-family: 'IBM Plex Mono', monospace; font-size: 10px;
+         background: rgba(0,0,0,.06); padding: 1px 4px; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<p class="title">7b_historial_pagos — arquitectura del módulo</p>
+<p class="sub">Fase 1 — diseño cerrado, sin implementar. Ledger append-only de pagos crudos por canal.</p>
+
+<div class="meta">
+  <div class="meta-item"><span>Módulo:</span> 7b_historial_pagos</div>
+  <div class="meta-item"><span>Scripts:</span> historial_repo.py · importar_libros.py · importar_efectivo.py · importar_yape.py · consultar.py</div>
+  <div class="meta-item"><span>Store:</span> shared/reporte_acumulado_procesado/YYYY-MM_*.xlsx (compartido, no se duplica)</div>
+  <div class="meta-item"><span>Consumidor principal:</span> 4b_reclamos (analizar_reclamo)</div>
+  <div class="meta-item"><span>Versión:</span> 0.1 · diseño 10/07/2026</div>
+</div>
+
+<div class="cols">
+
+  <div class="tree-box">
+    <h3>Estructura de carpetas</h3>
+    <div class="tree">
+<span class="dir">7b_historial_pagos/</span><br>
+├── <span class="repo">historial_repo.py</span> <span class="dim">writer único</span><br>
+├── <span class="prod">importar_libros.py</span><br>
+├── <span class="prod">importar_efectivo.py</span><br>
+├── <span class="prod">importar_yape.py</span><br>
+├── <span class="read">consultar.py</span> <span class="dim">read-only</span><br>
+├── <span class="dir">inputs/</span><br>
+│&nbsp;&nbsp;&nbsp;└── <span class="dir">libros/</span><br>
+│&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── <span class="key">libro_YYYY-MM.xlsx</span><br>
+├── <span class="dir">tests/</span><br>
+└── <span class="dir">docs/</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── diagrama_flujo_7b_historial_pagos.html<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── arquitectura_7b_historial_pagos.html<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── formato_evento_pago.html
+    </div>
+  </div>
+
+  <div class="scripts-box">
+
+    <div class="script-card repo">
+      <div class="script-header">historial_repo.py ★ writer único</div>
+      <div class="script-body">
+        <div class="io-row">
+          <div class="io-label">Lee</div>
+          <div class="io-val">
+            <code>shared/reporte_acumulado_procesado/YYYY-MM_*.xlsx</code> (para verificar idempotencia)
+          </div>
+        </div>
+        <div class="io-row" style="margin-top:6px;">
+          <div class="io-label">Escribe</div>
+          <div class="io-val">
+            <code>shared/reporte_acumulado_procesado/YYYY-MM_*.xlsx</code> — append-only, único punto de escritura
+          </div>
+        </div>
+        <div class="io-row" style="margin-top:6px;">
+          <div class="io-label">Hace</div>
+          <div class="io-val">
+            <ul class="rule-list">
+              <li><code>registrar_pago(predio, mes, canal, monto, fecha, referencia, origen)</code></li>
+              <li><code>registrar_correccion(orig, dest, canal, monto, motivo, audit_ref)</code></li>
+              <li><code>identificar_blanco(evento_id, predio, audit_ref)</code></li>
+              <li>Ningún otro script del sistema escribe el store directamente</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="script-card prod">
+      <div class="script-header">importar_libros.py / importar_efectivo.py / importar_yape.py</div>
+      <div class="script-body">
+        <div class="io-row">
+          <div class="io-label">Lee</div>
+          <div class="io-val">
+            <code>inputs/libros/libro_YYYY-MM.xlsx</code> (hojas Reporte/Efectivo/Cobro medidores)<br>
+            <code>4_pagos/efectivo/outputs/pagos_efectivo.xlsx</code><br>
+            <code>shared/reporte_acumulado_procesado/</code> (yape ya procesado, se lee como adapter)
+          </div>
+        </div>
+        <div class="io-row" style="margin-top:6px;">
+          <div class="io-label">Escribe</div>
+          <div class="io-val">
+            Nada directamente — todo pasa por <code>historial_repo.registrar_pago(...)</code>
+          </div>
+        </div>
+        <div class="io-row" style="margin-top:6px;">
+          <div class="io-label">Hace</div>
+          <div class="io-val">
+            <ul class="rule-list">
+              <li>Un parser por tipo de fuente — cada uno una responsabilidad, una capability</li>
+              <li>Normaliza al esquema del evento (ver formato_evento_pago.html)</li>
+              <li>1er mes validado contra dato conocido antes de correr el batch histórico</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="script-card read">
+      <div class="script-header">consultar.py ★ read-only — tools del agente</div>
+      <div class="script-body">
+        <div class="io-row">
+          <div class="io-label">Lee</div>
+          <div class="io-val">
+            <code>shared/reporte_acumulado_procesado/YYYY-MM_*.xlsx</code> (todos los meses)
+          </div>
+        </div>
+        <div class="io-row" style="margin-top:6px;">
+          <div class="io-label">Escribe</div>
+          <div class="io-val">
+            Nada — función pura de lectura. Segura para que un agente la invoque sin supervisión.
+          </div>
+        </div>
+        <div class="io-row" style="margin-top:6px;">
+          <div class="io-label">Hace</div>
+          <div class="io-val">
+            <ul class="rule-list">
+              <li><code>analizar_reclamo(predio)</code> → todos los pagos, todos los meses, ambos canales</li>
+              <li><code>reporte_pagos(predio)</code> → vista mes a mes para explicarle al usuario</li>
+              <li>Consumido por 4b_reclamos y por validaciones futuras (planilla vs medidores)</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<h2>Dependencias externas</h2>
+<table class="dep-table">
+  <tr>
+    <th>Recurso</th>
+    <th>Tipo</th>
+    <th>Usado por</th>
+    <th>Por qué</th>
+  </tr>
+  <tr>
+    <td><code>shared/reporte_acumulado_procesado/</code></td>
+    <td>store compartido (Excel append-only)</td>
+    <td>historial_repo.py (write) · consultar.py (read)</td>
+    <td>Ya es el hogar del histórico yape — se extiende, no se duplica</td>
+  </tr>
+  <tr>
+    <td><code>4_pagos/efectivo/outputs/pagos_efectivo.xlsx</code></td>
+    <td>archivo (lectura directa)</td>
+    <td>importar_efectivo.py</td>
+    <td>Fuente del canal efectivo del ciclo en curso</td>
+  </tr>
+  <tr>
+    <td><code>4_pagos/yape/motor_matching</code></td>
+    <td>fuente (adapter, sin escritura)</td>
+    <td>importar_yape.py</td>
+    <td>El motor sigue escribiendo su salida; este módulo la lee, no la reemplaza (a futuro migra al repo)</td>
+  </tr>
+  <tr>
+    <td><code>seguimiento_pueblo.xlsx</code></td>
+    <td>módulo complementario, no dependencia directa</td>
+    <td>—</td>
+    <td>Deuda por concepto vive ahí; historial_pagos es el pago crudo por canal</td>
+  </tr>
+</table>
+
+<h2>Invariantes del módulo</h2>
+<div class="inv-grid">
+  <div class="inv-card repo">
+    <span class="inv-title">Writer único</span>
+    Solo <code>historial_repo.py</code> escribe el store. Ningún productor ni lector abre el archivo para escribir directamente.
+  </div>
+  <div class="inv-card append">
+    <span class="inv-title">Append-only</span>
+    El store solo crece. Nunca se pisa ni se borra una fila — corregir es agregar un evento nuevo con <code>FUENTE=correccion</code>.
+  </div>
+  <div class="inv-card crudo">
+    <span class="inv-title">Sin concepto</span>
+    El evento es el pago crudo por canal. El reparto por concepto (convenio/multa/consumo) es responsabilidad de <code>seguimiento_pueblo</code>, no de este módulo.
+  </div>
+  <div class="inv-card correc">
+    <span class="inv-title">Correcciones de primera clase</span>
+    Reatribución entre predios e identificación de blancos son eventos con <code>FUENTE=correccion</code> + <code>AUDIT_REF</code> — no ediciones del evento original.
+  </div>
+  <div class="inv-card una">
+    <span class="inv-title">Lectura ≠ escritura</span>
+    <code>consultar.py</code> nunca escribe. Es la superficie segura para que un agente la invoque sin riesgo de mutar el store.
+  </div>
+  <div class="inv-card no">
+    <span class="inv-title">No decide cobranza</span>
+    Este módulo no calcula saldos del mes ni decide cortes — eso es <code>5_cobranza</code> / <code>6_corte</code>. Aquí solo se registra y se consulta el pago crudo.
+  </div>
+</div>
+
+<hr style="margin-top:24px; border-color:#e5e7eb;">
+<p style="font-size:11px; color:#9ca3af; margin-top:8px;">
+  Módulo: 7b_historial_pagos &nbsp;|&nbsp; Versión: 0.1 (Fase 1 — sin implementar) &nbsp;|&nbsp; Fecha: 10/07/2026
+</p>
+
+</body>
+</html>

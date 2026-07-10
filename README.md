@@ -11,7 +11,7 @@ Sistema de gestión mensual de cobros de agua para la JASS. Automatiza el ciclo 
 → [4_pagos + 4b_reclamos]
 → [5_cobranza + 5b_validacion]
 → [6_corte + 6b_corte_multas]
-→ 7_cierre
+→ [7_cierre + 7b_historial_pagos]
 ```
 
 | Módulo | Qué hace | Estado |
@@ -27,8 +27,9 @@ Sistema de gestión mensual de cobros de agua para la JASS. Automatiza el ciclo 
 | `6_corte` | Genera la lista de usuarios en mora elegibles para corte, aplica penalidad de S/20, gestiona ventana de gracia de 2 días. Ciclo: `BORRADOR → PUBLICADA → COMPROMETIDA`. | Operativo |
 | `6b_corte_multas` | Espejo de `6_corte` para deuda de multas y acuerdos de asamblea. Penalidad de S/40. | Operativo |
 | `7_cierre` | Consolida decisiones del mes (reclamos + cortes) y produce arrastres finales para que `2_planilla` del próximo mes los pre-cargue. | Diseñado — pendiente de implementación |
+| `7b_historial_pagos` | Ledger append-only de pagos crudos por canal (efectivo/yape), acumulado en todos los meses y consultable por predio — recupera para efectivo la capacidad que yape ya tenía de responder "¿qué pagó este predio, cuándo?". Carga cada mes recién después de `7_cierre`, cuando el mes queda inmutable. | Diseñado — pendiente de implementación |
 
-Los módulos `b` son dependientes del principal: `4b` valida pagos, `5b` cuadra el dinero, `6b` gestiona multas paralelas al corte.
+Los módulos `b` son dependientes del principal: `4b` valida pagos, `5b` cuadra el dinero, `6b` gestiona multas paralelas al corte, `7b` archiva al histórico una vez cerrado el mes.
 
 ---
 

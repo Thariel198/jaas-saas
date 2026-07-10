@@ -1,4 +1,4 @@
-# 8_historial_pagos
+# 7b_historial_pagos
 
 Ledger **append-only de pagos crudos por canal**, acumulado en todos los meses y
 consultable por predio. Responde: *"¿qué pagó este predio, cuándo y por qué canal?"*
@@ -6,6 +6,36 @@ consultable por predio. Responde: *"¿qué pagó este predio, cuándo y por qué
 > Estado: **Fase 1 — diseño cerrado, sin implementar.** Este README es la fuente de
 > verdad del módulo. El código lo implementa; si algo del código contradice este
 > documento, manda el README.
+
+---
+
+## Cuándo corre — después de 7_cierre, no en caliente
+
+`7b_historial_pagos` carga el mes al histórico **recién después de que `7_cierre` lo
+consolida**, nunca durante el mes en curso.
+
+**Por qué:** mientras el mes está abierto, los reclamos generan reatribuciones entre
+predios (ej. exceso de M-15 cubre la multa de G-1), rechazos y correcciones de lote —
+el pago "verdadero" del predio todavía se está asentando. `7_cierre` es el momento en
+que esas decisiones quedan consolidadas y el mes se vuelve inmutable. Cargar antes
+fotografiaría un mes a medio corregir, el mismo problema que ya se resolvió para
+`mesa_N` (verdad que cambia bajo los pies) — el histórico terminaría con datos que
+después habría que volver a tocar, rompiendo el invariante append-only.
+
+```
+mes en curso → reclamos, reatribuciones, correcciones de lote (el pago se asienta)
+     │
+7_cierre     → consolida decisiones, produce arrastres finales, el mes queda inmutable
+     │
+7b_historial_pagos  → recién ahí importa el mes al ledger — 1 sola vez, definitivo
+```
+
+Consecuencia de diseño: `importar_efectivo.py` e `importar_yape.py` toman como fuente
+el estado **posterior** a `7_cierre` (no `pagos_efectivo.xlsx` en caliente), y las
+correcciones de reclamos que ya se aplicaron durante el mes (reatribuciones, rechazos)
+entran como parte del pago consolidado, no como eventos de corrección separados —
+la corrección post-cierre (si aparece un reclamo tardío) sí sigue usando
+`registrar_correccion`.
 
 ---
 
@@ -87,17 +117,19 @@ Sin concepto (el reparto por concepto es de `seguimiento_pueblo`).
 
 | Sección | Columnas |
 |---|---|
-| **¿Quién es?** | `MZ` · `LOTE` · `NOMBRE` |
-| **¿Qué pagó?** | `CANAL` (efectivo/yape) · `MONTO` · `FECHA` (exacta) · `MES_CICLO` (a qué ciclo se atribuye) |
-| **Referencia** (por canal, para auditar) | efectivo: `MESA` · `COBRADOR` · `MONTO` — yape: `ORIGEN` · `DESTINO` · `MENSAJE` · `MONTO` |
-| **Auditoría** | `ESTADO` (identificado/blanco) · `FUENTE` (pago/correccion) · `CICLO_CORRECCION` · `AUDIT_REF` · `ORIGEN` (libro+hoja+fila \| run) · `TIMESTAMP` |
+| **¿Quién es?** | `MZ` · `LT` · `NOMBRE` |
+| **¿Qué pagó?** | `CANAL` (efectivo/yape) · `MONTO` · `FECHA` (día para efectivo; día+hora:min:seg para yape) · `MES_CICLO` (a qué ciclo se atribuye) |
+| **Referencia** (1 columna compacta, nunca vacía) | `REFERENCIA` — efectivo: `"MESA-COBRADOR"` · yape: `ORIGEN` (junto con FECHA completa, identifica el pago de forma única) |
+| **Auditoría** | `ESTADO` (identificado/blanco) · `FUENTE` (pago/correccion) · `MOTIVO` · `AUDIT_REF` · `CICLO_CORRECCION` · `ORIGEN_ARCHIVO` (libro+hoja+fila \| run del importador) · `TIMESTAMP` |
 
 ### Reglas de negocio
 
 1. **Crudo, sin concepto.** Un pago es un evento; su reparto por concepto no vive acá.
 2. **FECHA exacta + MES_CICLO.** Los libros viejos se titulan por rango de fechas que no
    calza un mes calendario (ej. "mayo … 2026-03-11 a 2026-04-10"). La `FECHA` es la verdad;
-   `MES_CICLO` es la atribución al ciclo de boleta.
+   `MES_CICLO` es la atribución al ciclo de boleta. Para `yape` la `FECHA` se guarda con
+   hora:min:seg — junto con `REFERENCIA` (el `ORIGEN`), es lo que identifica el pago de
+   forma única (mismo criterio que ya usa motor_matching).
 3. **Yape en blanco.** Pago recibido sin predio → `PREDIO` vacío, `ESTADO=blanco`. Cuando
    se identifica, entra un **evento de identificación** que lo enlaza (no se edita el viejo).
 4. **Correcciones = eventos de primera clase.** Reatribución entre predios e identificación
@@ -134,7 +166,7 @@ reclamo pareja G-1/M-15
 ## Estructura de carpetas
 
 ```
-8_historial_pagos/
+7b_historial_pagos/
 ├── README.md                 ← fuente de verdad (este archivo)
 ├── historial_repo.py         ← writer único del store
 ├── importar_libros.py        ← productor: libros viejos (Drive)
@@ -144,8 +176,8 @@ reclamo pareja G-1/M-15
 ├── inputs/
 │   └── libros/               ← libro_YYYY-MM.xlsx (bajados de Drive)
 ├── docs/
-│   ├── diagrama_flujo_8_historial_pagos.html
-│   ├── arquitectura_8_historial_pagos.html
+│   ├── diagrama_flujo_7b_historial_pagos.html
+│   ├── arquitectura_7b_historial_pagos.html
 │   └── formato_evento_pago.html
 └── tests/
 
