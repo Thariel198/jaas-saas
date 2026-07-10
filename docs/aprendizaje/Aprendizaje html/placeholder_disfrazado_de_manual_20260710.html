@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>El placeholder disfrazado de manual | jass_system</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f8f9fa; color: #1a1a2e; font-size: 14px; }
+
+  /* ── Portada ── */
+  .portada { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%);
+             color: white; padding: 48px 60px 36px; }
+  .portada .eyebrow { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: #a8b2d8; margin-bottom: 16px; }
+  .portada h1 { font-size: 32px; font-weight: 700; line-height: 1.25; margin-bottom: 12px; }
+  .portada h1 span { color: #e94560; }
+  .portada .subtitle { font-size: 16px; color: #a8b2d8; max-width: 780px; line-height: 1.6; }
+  .portada .meta { display: flex; gap: 40px; margin-top: 28px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); flex-wrap: wrap; }
+  .portada .meta-item label { display: block; font-size: 10px; letter-spacing: 2px; color: #a8b2d8; text-transform: uppercase; margin-bottom: 4px; }
+  .portada .meta-item span { font-size: 13px; color: white; font-weight: 500; }
+
+  /* ── Secciones ── */
+  .sec { padding: 34px 60px; }
+  .sec h2 { font-size: 20px; margin-bottom: 14px; }
+  .sec p { color: #444; line-height: 1.75; max-width: 840px; margin-bottom: 12px; }
+  .sec p .term { font-weight: 700; color: #0f3460; }
+  code { font-family: 'Cascadia Code','Courier New',monospace; background: #eef1f8; padding: 1px 6px; border-radius: 4px; font-size: 12.5px; }
+
+  .principio { background: #f0f4ff; border-top: 2px solid #d4dcf5; border-bottom: 2px solid #d4dcf5; }
+  .principio .box-principio { background: #1a1a2e; color: white; border-radius: 10px; padding: 22px 26px; max-width: 840px; margin-top: 8px; line-height: 1.7; }
+  .principio .box-principio b { color: #7ee0b8; }
+
+  .error-sec { background: #fff5f5; border-top: 3px solid #e74c3c; }
+  .error-sec h2 { color: #c0392b; }
+  .sol-sec   { background: #f2fbf4; border-top: 3px solid #2e7d32; }
+  .sol-sec h2 { color: #1b5e20; }
+  .conv-sec  { background: #fdf6ff; border-top: 3px solid #8e44ad; }
+  .conv-sec h2 { color: #6c2f8e; }
+
+  /* ── Diagrama de cajas ── */
+  .diag { display: flex; flex-direction: column; align-items: center; gap: 4px; margin: 24px 0 8px; }
+  .row { display: flex; align-items: stretch; justify-content: center; gap: 26px; flex-wrap: wrap; }
+  .box { border-radius: 10px; padding: 12px 16px; min-width: 190px; text-align: center;
+         box-shadow: 0 2px 8px rgba(0,0,0,0.10); position: relative; }
+  .box .mod  { font-size: 13px; font-weight: 700; }
+  .box .file { font-family: 'Cascadia Code','Courier New',monospace; font-size: 11px; margin-top: 4px; opacity: 0.92; }
+  .box .tag  { font-size: 10px; letter-spacing: .5px; text-transform: uppercase; margin-top: 6px; opacity: .8; }
+
+  .b-mod   { background: #1976d2; color: white; }
+  .b-file  { background: white; color: #1a1a2e; border: 2px solid #cfd8e6; }
+  .b-shared{ background: #fff8e1; color: #7a5c00; border: 2px dashed #e0a800; }
+  .b-lock  { background: #ffebee; color: #c0392b; border: 2px solid #e74c3c; }
+  .b-result{ background: #e8f5e9; color: #1b5e20; border: 2px solid #81c784; }
+
+  /* Flechas */
+  .arrow { display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 11px; color: #555; padding: 2px 0; }
+  .arrow .line { font-size: 20px; line-height: 1; }
+  .arrow.write .line { color: #c0392b; }
+  .arrow.read  .line { color: #2e7d32; }
+  .arrow .lbl { font-size: 10px; letter-spacing: .3px; }
+  .arrow.write .lbl { color: #c0392b; font-weight: 700; }
+  .arrow.read  .lbl { color: #2e7d32; font-weight: 700; }
+
+  .clash { background: #ffebee; border: 2px solid #e74c3c; color: #c0392b; border-radius: 10px;
+           padding: 10px 16px; font-size: 12px; font-weight: 700; text-align: center; margin-top: 6px; }
+
+  /* ── Cajas explicativas ── */
+  .why { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 22px; max-width: 900px; }
+  .why-box { background: white; border-radius: 8px; padding: 16px 18px; border-left: 4px solid; }
+  .why-box h4 { font-size: 12px; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
+  .why-box p { font-size: 12.5px; line-height: 1.6; color: #444; margin: 0; }
+  .why-cause h4 { color: #c0392b; } .why-cause { border-color: #e74c3c; }
+  .why-fix   h4 { color: #1b5e20; } .why-fix   { border-color: #2e7d32; }
+
+  /* ── Línea de tiempo del bug ── */
+  .timeline { background: #1a1a2e; border-radius: 10px; padding: 20px 24px; margin-top: 20px; max-width: 880px; }
+  .timeline .step { display: flex; align-items: baseline; gap: 14px; padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,.07); }
+  .timeline .step:last-child { border-bottom: none; }
+  .timeline .t { font-family: 'Cascadia Code',monospace; font-size: 11px; color: #7ea6e0; min-width: 68px; }
+  .timeline .d { font-size: 12.5px; color: #dde; line-height: 1.5; }
+  .timeline .d b { color: #ffd166; }
+  .timeline .bad  { color: #ff6b6b; font-weight: 700; }
+  .timeline .good { color: #7ee0b8; font-weight: 700; }
+
+  /* ── Bloque de código ── */
+  .codebox { background: #1a1a2e; border-radius: 10px; padding: 16px 20px; margin: 18px 0; max-width: 840px;
+             font-family: 'Cascadia Code','Courier New',monospace; font-size: 12px; color: #dde; overflow-x: auto; }
+  .codebox .ln { color: #7ea6e0; margin-right: 10px; }
+  .codebox .cm { color: #7ee0b8; }
+  .codebox .hl { background: rgba(233,69,96,0.18); display: block; margin: 0 -20px; padding: 0 20px; }
+
+  /* ── Distinción clave ── */
+  .dist { background: #fffde7; border-top: 4px solid #f9a825; border-bottom: 4px solid #f9a825; }
+  .dist-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 900px; margin-top: 8px; }
+  .dist-box { background: white; border-radius: 8px; padding: 16px 20px; border-left: 5px solid; }
+  .dist-box h4 { font-size: 14px; margin-bottom: 6px; }
+  .dist-box p { font-size: 12.5px; line-height: 1.6; color: #444; margin: 0; }
+  .dist-w { border-color: #c0392b; } .dist-w h4 { color: #c0392b; }
+  .dist-r { border-color: #2e7d32; } .dist-r h4 { color: #2e7d32; }
+
+  /* ── Tabla de convención ── */
+  table.conv { border-collapse: collapse; margin-top: 16px; max-width: 880px; width: 100%; background: white;
+               border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+  table.conv th { background: #6c2f8e; color: white; text-align: left; padding: 10px 14px; font-size: 12px; letter-spacing: .5px; text-transform: uppercase; }
+  table.conv td { padding: 10px 14px; font-size: 12.5px; color: #333; border-top: 1px solid #eee; vertical-align: top; }
+  table.conv td code { background: #f3eaf7; }
+
+  .cierre { background: #1a1a2e; color: #cdd; padding: 30px 60px; }
+  .cierre h2 { color: white; font-size: 16px; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 14px; }
+  .cierre .regla { background: rgba(255,255,255,.05); border-left: 4px solid #7ee0b8; padding: 14px 18px; border-radius: 4px; margin-bottom: 10px; font-size: 13px; line-height: 1.7; }
+  .cierre .regla b { color: #7ee0b8; }
+  .cierre code { background: rgba(255,255,255,.08); color: #ffd166; }
+</style>
+</head>
+<body>
+
+<div class="portada">
+  <div class="eyebrow">Aprendizaje de arquitectura · jass_system</div>
+  <h1>El placeholder disfrazado de manual: <span>por qué RECLAMO nunca se actualizaba</span></h1>
+  <div class="subtitle">Un valor que el propio sistema auto-generó no es "trabajo manual" solo porque no
+    está vacío. Este documento explica el error con un caso real (32 reclamos que se quedaron con el texto
+    genérico "reclamo" durante un mes entero) y la regla que lo evita: preservar solo lo que un humano
+    decidió y que no se puede recalcular.</div>
+  <div class="meta">
+    <div class="meta-item"><label>Fecha</label><span>2026-07-10</span></div>
+    <div class="meta-item"><label>Principio</label><span>Manual ≠ no-vacío</span></div>
+    <div class="meta-item"><label>Caso real</label><span>RECLAMO="reclamo" congelado en reclamos_2026-07</span></div>
+    <div class="meta-item"><label>Módulo</label><span>4b_reclamos/main.py</span></div>
+  </div>
+</div>
+
+<!-- ── EL PRINCIPIO ── -->
+<div class="sec principio">
+  <h2>El principio en una frase</h2>
+  <p>Cuando un módulo <span class="term">preserva trabajo manual</span> al re-correr, la pregunta correcta
+     no es "¿este campo tiene algo escrito?" sino <span class="term">"¿lo escribió un humano y el sistema
+     no lo puede recalcular?"</span>. Un valor por defecto que el propio programa auto-generó (aunque no
+     esté vacío) no es trabajo manual — es un dato derivado, y debe poder actualizarse cada vez que su
+     fuente cambia.</p>
+  <div class="box-principio">
+    <b>Trabajo manual real</b> → nace de un juicio humano que ningún input registra. Si se pisa, se pierde
+    para siempre. <b>Sí</b> hay que protegerlo.<br>
+    <b>Auto-poblado</b> → se recalcula 100% desde otra columna con una fórmula fija. Si se pisa con el valor
+    fresco, no se pierde nada — al revés, se corrige. <b>No</b> hay que protegerlo.
+  </div>
+</div>
+
+<!-- ══════════ DIAGRAMA 1 · EL ERROR ══════════ -->
+<div class="sec error-sec">
+  <h2>① El error — un placeholder que se congeló por un mes</h2>
+  <p>En <span class="term">mesa_1.xlsx</span> el cobrador a veces escribe primero la palabra suelta
+     <code>"reclamo"</code> en <code>COMENTARIO</code> (para no perder el registro en el momento del cobro)
+     y recién después, otro día, vuelve y completa el detalle real. <span class="term">4b_reclamos</span>
+     detecta el reclamo la primera vez que ve <code>CATEGORIA=reclamo</code> y auto-puebla
+     <code>RECLAMO</code> con lo que haya en ese momento en <code>COMENTARIO</code> — así sea solo la
+     palabra "reclamo".</p>
+
+  <div class="timeline">
+    <div class="step"><span class="t">04/07</span><span class="d">Cobrador escribe <b>COMENTARIO="reclamo"</b> + <b>CATEGORIA=reclamo</b> en mesa_1.xlsx (nota rápida, sin detalle todavía)</span></div>
+    <div class="step"><span class="t">04/07</span><span class="d">4_pagos/efectivo corre → pagos_efectivo.xlsx hereda <b>COMENTARIO="reclamo"</b></span></div>
+    <div class="step"><span class="t">04/07</span><span class="d">4b_reclamos detecta el reclamo → auto-puebla <b>RECLAMO = COMENTARIO = "reclamo"</b> (línea 214) <span class="good">✔ correcto en ese momento</span></span></div>
+    <div class="step"><span class="t">05/07</span><span class="d">Cobrador vuelve a mesa_1.xlsx y reemplaza el comentario por el detalle real: <b>"Cambiar la multa de G1-M15"</b></span></div>
+    <div class="step"><span class="t">09/07</span><span class="d">4_pagos/efectivo re-corre → pagos_efectivo.xlsx ya trae el detalle real</span></div>
+    <div class="step"><span class="t">09/07</span><span class="d">4b_reclamos re-corre → <code>_aplicar_manual</code> ve que RECLAMO ya tiene algo ("reclamo") → lo trata como manual y lo <b>preserva</b> (línea 324) <span class="bad">✘ el detalle real nunca entra</span></span></div>
+    <div class="step"><span class="t">10/07</span><span class="d">reclamos_2026-07.xlsx sigue mostrando <b>"reclamo"</b> en 32 filas — un mes después, el supervisor no puede saber de qué se trata cada reclamo sin ir a revisar cada input a mano</span></div>
+  </div>
+
+  <div class="diag">
+    <div class="row">
+      <div class="box b-shared"><div class="mod">mesa_1.xlsx</div><div class="file">COMENTARIO real ya escrito</div></div>
+    </div>
+    <div class="row"><div class="arrow write"><span class="line">↓</span><span class="lbl">4_pagos/efectivo</span></div></div>
+    <div class="row">
+      <div class="box b-file"><div class="mod">pagos_efectivo.xlsx</div><div class="file">COMENTARIO = detalle real</div></div>
+    </div>
+    <div class="row"><div class="arrow write"><span class="line">↓</span><span class="lbl">4b_reclamos · _aplicar_manual</span></div></div>
+    <div class="row">
+      <div class="box b-lock"><div class="mod">🔒 "¿RECLAMO tiene algo?"</div><div class="tag">sí → preservar el valor viejo</div></div>
+    </div>
+    <div class="row">
+      <div class="box b-shared"><div class="mod">reclamos_2026-07.xlsx</div><div class="file">RECLAMO = "reclamo" (nunca cambia)</div><div class="tag">⚠ desincronizado del input</div></div>
+    </div>
+    <div class="clash">El candado no distingue "lo escribió el sistema" de "lo escribió un humano" — bloquea ambos igual</div>
+  </div>
+
+  <p style="margin-top:22px;"><b>El código exacto del problema:</b></p>
+  <div class="codebox">
+<span class="ln">214</span>det["RECLAMO"] = det["COMENTARIO"].fillna("").astype(str)  <span class="cm"># auto-poblado, puede ser solo "reclamo"</span>
+<span class="ln">   </span>
+<span class="ln">324</span><span class="hl">if m["RECLAMO"]:                        <span class="cm"># pregunta "¿hay algo?", no "¿es manual real?"</span></span>
+<span class="ln">325</span><span class="hl">    fila["RECLAMO"] = m["RECLAMO"]      <span class="cm"># preserva el placeholder para siempre</span></span>
+  </div>
+
+  <div class="why">
+    <div class="why-box why-cause">
+      <h4>Causa raíz</h4>
+      <p>La condición <code>if m["RECLAMO"]:</code> solo verifica si el campo <b>no está vacío</b>. Pero el
+         auto-poblado de la línea 214 nunca deja el campo vacío — como mínimo, escribe lo que sea que haya
+         en <code>COMENTARIO</code> en ese instante, aunque sea la palabra suelta "reclamo". Entonces la
+         condición se vuelve verdadera desde la primera corrida y bloquea cualquier actualización futura,
+         para siempre, aunque el input tenga después el detalle completo.</p>
+    </div>
+    <div class="why-box why-cause">
+      <h4>Por qué existía esta protección</h4>
+      <p>Antes de que <code>mesa_N.xlsx</code> tuviera la columna <code>CATEGORIA</code>, el flujo era
+         distinto: el cobrador solo escribía la palabra "reclamo" en el input, y el <b>supervisor</b> tipeaba
+         el detalle completo directamente en <code>reclamos_2026-07.xlsx</code> (por eso el header dice
+         "Reclamo — llenar a mano"). En ese mundo, cualquier texto en RECLAMO SÍ era trabajo humano real y
+         merecía protegerse. La protección no es el error — quedó <b>desactualizada</b> cuando cambió el
+         flujo de origen del dato.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ DIAGRAMA 2 · LA SOLUCIÓN ══════════ -->
+<div class="sec sol-sec">
+  <h2>② La solución — separar lo que se puede recalcular de lo que no</h2>
+  <p>Con <span class="term">CATEGORIA</span> ya en el input, el cobrador clasifica y escribe el detalle
+     completo directo en <code>mesa_N.xlsx</code>. El dato ya no nace en el output — nace en el input. Por
+     eso <code>RECLAMO</code> en el output debe dejar de tratarse como manual: tiene que <b>reflejar siempre</b>
+     lo último que diga <code>COMENTARIO</code>. Lo que sigue siendo decisión exclusiva del supervisor —y
+     que ningún input registra— son <code>TIPO_RECLAMO</code>, <code>RESOLUCION</code>, <code>ESTADO</code>
+     y <code>FECHA_RESOLUCION</code>. Esos sí se preservan.</p>
+
+  <div class="diag">
+    <div class="row">
+      <div class="box b-shared"><div class="mod">mesa_N.xlsx</div><div class="file">COMENTARIO (fuente de verdad)</div></div>
+    </div>
+    <div class="row"><div class="arrow read"><span class="line">↓</span><span class="lbl">se re-lee completo cada corrida</span></div></div>
+    <div class="row">
+      <div class="box b-result"><div class="mod">RECLAMO</div><div class="tag">siempre = COMENTARIO actual · nunca se congela</div></div>
+      <div class="box b-mod"><div class="mod">TIPO_RECLAMO · RESOLUCION · ESTADO · FECHA_RESOLUCION</div><div class="tag">decisión del supervisor · sí se preserva</div></div>
+    </div>
+  </div>
+
+  <div class="why">
+    <div class="why-box why-fix">
+      <h4>Cuál es la solución</h4>
+      <p>En <code>_aplicar_manual</code>, sacar <code>RECLAMO</code> de la lista de campos que se copian
+         desde <code>existente</code>. Dejar que siempre tome el valor recién calculado en <code>detectados</code>
+         (el <code>COMENTARIO</code> más fresco de <code>pagos_efectivo.xlsx</code>). El header de la columna
+         también se actualiza: ya no es "llenar a mano", es "detalle del cobrador" — de solo lectura para el
+         supervisor.</p>
+    </div>
+    <div class="why-box why-fix">
+      <h4>Por qué funciona</h4>
+      <p>Cada corrida, <code>RECLAMO</code> queda 100% derivado de una sola fuente (<code>COMENTARIO</code>),
+         así que nunca puede desincronizarse: no hay copia vieja que proteger porque no hay nada que se
+         pierda al recalcular. Los campos que sí importan proteger —las decisiones del supervisor— siguen
+         intactos porque ninguna fuente los puede recrear.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ── DISTINCIÓN CLAVE ── -->
+<div class="sec dist">
+  <h2>La distinción que resuelve todo</h2>
+  <p>Antes de escribir <code>if campo:</code> → preservar, preguntate de dónde viene el valor.</p>
+  <div class="dist-grid">
+    <div class="dist-box dist-w">
+      <h4>⚙ Auto-poblado</h4>
+      <p>Se calcula con una fórmula fija a partir de otra columna (<code>RECLAMO = COMENTARIO</code>). Si se
+         recalcula con el dato fresco, <b>no se pierde nada</b> — se gana precisión. No protejer.</p>
+    </div>
+    <div class="dist-box dist-r">
+      <h4>🧑 Trabajo manual real</h4>
+      <p>Nace de un juicio del supervisor que ningún input registra (ej. clasificar <code>TIPO_RECLAMO</code>
+         como "convenio" o "medidor"). Si se pisa, <b>se pierde para siempre</b> — nadie lo puede reconstruir.
+         Sí protejer.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ ¿QUÉ SIGNIFICA EL GUION BAJO? ══════════ -->
+<div class="sec conv-sec">
+  <h2>③ De paso: ¿qué significa el guion bajo en <code>_aplicar_manual</code>?</h2>
+  <p>En Python, un nombre que empieza con <code>_</code> (un solo guion bajo) es una <span class="term">convención
+     de lectura, no una restricción real del lenguaje</span>. Le dice a cualquiera que lea el código:
+     "esta función es un detalle interno de este archivo — no la llames desde otro módulo, no forma parte
+     de lo que este archivo ofrece hacia afuera". El intérprete de Python <b>no bloquea</b> nada: técnicamente
+     se podría importar y llamar igual. Es una señal para humanos (y para herramientas de linting), no un
+     candado.</p>
+
+  <table class="conv">
+    <tr><th>Convención</th><th>Significado</th><th>Ejemplo en 4b_reclamos/main.py</th></tr>
+    <tr><td><code>nombre</code></td><td>Público — pensado para usarse también desde otros módulos</td><td><code>leer_correcciones_lote()</code></td></tr>
+    <tr><td><code>_nombre</code></td><td>Privado por convención — implementación interna de este archivo</td><td><code>_aplicar_manual()</code>, <code>_pres_key()</code>, <code>_cargar_existente()</code></td></tr>
+    <tr><td><code>__nombre</code></td><td>Dentro de una clase: activa "name mangling" para evitar choques al heredar (estilo POO, no se usa en jass_system que es todo funciones sueltas)</td><td>—</td></tr>
+  </table>
+
+  <p style="margin-top:16px;"><code>_aplicar_manual</code> es exactamente eso: un paso interno del pipeline
+     de <code>main.py</code> — "tomá lo detectado este mes y fusionale encima las columnas que el supervisor
+     ya trabajó". Nadie más en el sistema necesita llamarla directamente, por eso lleva el guion bajo.</p>
+</div>
+
+<!-- ── CIERRE ── -->
+<div class="cierre">
+  <h2>Reglas para recordar</h2>
+  <div class="regla"><b>1.</b> "Preservar trabajo manual" solo aplica a valores que un humano decidió y que
+    el sistema <b>no puede recalcular</b> desde ninguna fuente. No a cualquier campo que no esté vacío.</div>
+  <div class="regla"><b>2.</b> Antes de escribir <code>if campo: preservar(campo)</code>, preguntate: "si lo
+    piso con el valor recién calculado, ¿pierdo una decisión humana, o gano precisión?". Si gana precisión,
+    no lo protejas — dejalo recalcularse siempre.</div>
+  <div class="regla"><b>3.</b> Un placeholder auto-generado por el propio sistema (como <code>RECLAMO="reclamo"</code>
+    desde el auto-poblado) no es trabajo manual aunque tenga texto adentro. Distinguí por <b>origen del dato</b>,
+    no por si el campo está vacío.</div>
+  <div class="regla"><b>4.</b> Si el flujo de origen de un dato cambia (ej. el detalle del reclamo pasó de
+    escribirse en el output a escribirse en el input con <code>CATEGORIA</code>), revisá si las reglas de
+    preservación que dependían del flujo viejo siguen teniendo sentido — quedan obsoletas en silencio.</div>
+  <div class="regla"><b>5.</b> <code>_nombre</code> en Python (un guion bajo al inicio) es una convención de
+    "uso interno de este archivo", no una restricción que el lenguaje haga cumplir — es una señal para quien
+    lee el código, no un candado técnico.</div>
+</div>
+
+</body>
+</html>

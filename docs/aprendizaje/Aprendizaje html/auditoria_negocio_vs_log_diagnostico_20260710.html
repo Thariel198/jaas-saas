@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Auditoría de negocio vs log de diagnóstico | jass_system</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f8f9fa; color: #1a1a2e; font-size: 14px; }
+
+  .portada { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%);
+             color: white; padding: 48px 60px 36px; }
+  .portada .eyebrow { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: #a8b2d8; margin-bottom: 16px; }
+  .portada h1 { font-size: 32px; font-weight: 700; line-height: 1.25; margin-bottom: 12px; }
+  .portada h1 span { color: #e94560; }
+  .portada .subtitle { font-size: 16px; color: #a8b2d8; max-width: 780px; line-height: 1.6; }
+  .portada .meta { display: flex; gap: 40px; margin-top: 28px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); flex-wrap: wrap; }
+  .portada .meta-item label { display: block; font-size: 10px; letter-spacing: 2px; color: #a8b2d8; text-transform: uppercase; margin-bottom: 4px; }
+  .portada .meta-item span { font-size: 13px; color: white; font-weight: 500; }
+
+  .sec { padding: 34px 60px; }
+  .sec h2 { font-size: 20px; margin-bottom: 14px; }
+  .sec p { color: #444; line-height: 1.75; max-width: 840px; margin-bottom: 12px; }
+  .sec p .term { font-weight: 700; color: #0f3460; }
+  code { font-family: 'Cascadia Code','Courier New',monospace; background: #eef1f8; padding: 1px 6px; border-radius: 4px; font-size: 12.5px; }
+
+  .principio { background: #f0f4ff; border-top: 2px solid #d4dcf5; border-bottom: 2px solid #d4dcf5; }
+  .principio .box-principio { background: #1a1a2e; color: white; border-radius: 10px; padding: 22px 26px; max-width: 840px; margin-top: 8px; line-height: 1.7; }
+  .principio .box-principio b { color: #7ee0b8; }
+
+  .caso-sec { background: #fffaf3; border-top: 3px solid #f9a825; }
+  .caso-sec h2 { color: #b8860b; }
+
+  /* timeline / decisión */
+  .timeline { background: #1a1a2e; border-radius: 10px; padding: 20px 24px; margin-top: 20px; max-width: 880px; }
+  .timeline .step { display: flex; align-items: baseline; gap: 14px; padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,.07); }
+  .timeline .step:last-child { border-bottom: none; }
+  .timeline .t { font-family: 'Cascadia Code',monospace; font-size: 11px; color: #7ea6e0; min-width: 78px; }
+  .timeline .d { font-size: 12.5px; color: #dde; line-height: 1.5; }
+  .timeline .d b { color: #ffd166; }
+  .timeline .good { color: #7ee0b8; font-weight: 700; }
+  .timeline .bad  { color: #ff6b6b; font-weight: 700; }
+
+  /* distinción clave */
+  .dist { background: #fffde7; border-top: 4px solid #f9a825; border-bottom: 4px solid #f9a825; }
+  .dist-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 920px; margin-top: 8px; }
+  .dist-box { background: white; border-radius: 8px; padding: 18px 22px; border-left: 5px solid; }
+  .dist-box h4 { font-size: 15px; margin-bottom: 10px; }
+  .dist-box ul { margin: 0 0 0 2px; padding: 0; list-style: none; }
+  .dist-box li { font-size: 12.5px; line-height: 1.5; color: #444; padding: 4px 0 4px 20px; position: relative; }
+  .dist-box li::before { content: "▸"; position: absolute; left: 2px; }
+  .dist-box .ej { margin-top: 12px; font-size: 11.5px; color: #666; border-top: 1px dashed #ddd; padding-top: 10px; }
+  .dist-box .ej code { font-size: 11px; }
+  .dist-b { border-color: #0f3460; } .dist-b h4 { color: #0f3460; } .dist-b li::before { color: #0f3460; }
+  .dist-l { border-color: #2e7d32; } .dist-l h4 { color: #1b5e20; } .dist-l li::before { color: #2e7d32; }
+
+  /* test de decisión */
+  .test-sec { background: #f2fbf4; border-top: 3px solid #2e7d32; }
+  .test-sec h2 { color: #1b5e20; }
+  .test-box { background: #1a1a2e; color: white; border-radius: 10px; padding: 22px 26px; max-width: 840px; margin-top: 10px; line-height: 1.7; }
+  .test-box .q { font-size: 15px; color: #ffd166; font-weight: 700; margin-bottom: 14px; }
+  .test-box .branch { display: flex; gap: 12px; align-items: baseline; padding: 6px 0; }
+  .test-box .branch .yn { min-width: 44px; font-weight: 700; }
+  .test-box .branch.si .yn  { color: #7ea6e0; }
+  .test-box .branch.no .yn  { color: #7ee0b8; }
+
+  /* tabla */
+  table.conv { border-collapse: collapse; margin-top: 16px; max-width: 900px; width: 100%; background: white;
+               border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+  table.conv th { background: #0f3460; color: white; text-align: left; padding: 10px 14px; font-size: 12px; letter-spacing: .5px; text-transform: uppercase; }
+  table.conv td { padding: 10px 14px; font-size: 12.5px; color: #333; border-top: 1px solid #eee; vertical-align: top; }
+  table.conv td code { background: #eef1f8; }
+  table.conv td.b { color: #0f3460; font-weight: 700; }
+  table.conv td.l { color: #1b5e20; font-weight: 700; }
+
+  .why { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 22px; max-width: 900px; }
+  .why-box { background: white; border-radius: 8px; padding: 16px 18px; border-left: 4px solid #f9a825; }
+  .why-box h4 { font-size: 12px; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; color: #b8860b; }
+  .why-box p { font-size: 12.5px; line-height: 1.6; color: #444; margin: 0; }
+
+  .cierre { background: #1a1a2e; color: #cdd; padding: 30px 60px; }
+  .cierre h2 { color: white; font-size: 16px; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 14px; }
+  .cierre .regla { background: rgba(255,255,255,.05); border-left: 4px solid #7ee0b8; padding: 14px 18px; border-radius: 4px; margin-bottom: 10px; font-size: 13px; line-height: 1.7; }
+  .cierre .regla b { color: #7ee0b8; }
+  .cierre code { background: rgba(255,255,255,.08); color: #ffd166; }
+</style>
+</head>
+<body>
+
+<div class="portada">
+  <div class="eyebrow">Aprendizaje de arquitectura · jass_system</div>
+  <h1>Auditoría de negocio vs <span>log de diagnóstico</span></h1>
+  <div class="subtitle">No todo lo que el sistema registra merece un Excel de auditoría. Un evento que afecta
+    la plata o una obligación se audita; una corrección técnica de un error de tipeo solo se loguea. Este
+    documento fija la frontera con un caso real: el borrado automático de reclamos duplicados en 4b_reclamos.</div>
+  <div class="meta">
+    <div class="meta-item"><label>Fecha</label><span>2026-07-10</span></div>
+    <div class="meta-item"><label>Principio</label><span>Auditar el negocio, loguear el sistema</span></div>
+    <div class="meta-item"><label>Caso real</label><span>dedup de reclamos duplicados</span></div>
+    <div class="meta-item"><label>Módulo</label><span>4b_reclamos</span></div>
+  </div>
+</div>
+
+<!-- PRINCIPIO -->
+<div class="sec principio">
+  <h2>El principio en una frase</h2>
+  <p>Cuando el sistema registra algo, la pregunta no es "¿lo guardo?" sino <span class="term">"¿quién va a
+     leer esto y para responder qué pregunta?"</span>. Si alguien tiene que <b>rendir cuentas de eso ante un
+     tercero</b> (la directiva, un usuario, una revisión de cuentas), es <span class="term">auditoría de
+     negocio</span> → Excel permanente. Si solo un técnico lo necesita para <b>entender qué hizo el código</b>
+     cuando algo salga raro, es <span class="term">diagnóstico</span> → log de texto.</p>
+  <div class="box-principio">
+    <b>Auditoría de negocio</b> → registra hechos que afectan plata, deuda u obligaciones. Es fuente de verdad
+    institucional: sobrevive al código y se consulta meses después. Formato que un no-técnico pueda abrir (Excel).<br>
+    <b>Log de diagnóstico</b> → registra lo que hizo el programa (auto-limpiezas, correcciones técnicas). No es
+    un hecho de negocio: nadie rinde cuentas por un error de tipeo. Formato greppable (texto append-only).
+  </div>
+</div>
+
+<!-- CASO REAL -->
+<div class="sec caso-sec">
+  <h2>① El caso — ¿el borrado de un duplicado va a Excel o a log?</h2>
+  <p>En <span class="term">4b_reclamos</span>, cada reclamo se identifica por <code>MESA+MZ+LT+FECHA_COBRO</code>.
+     Cuando el cobrador <b>corrige la fecha</b> de un pago en <code>mesa_N.xlsx</code>, la clave cambia: la fila
+     vieja queda "arrastrada" y la detección fresca entra como nueva → <b>dos filas del mismo predio</b>. El fix
+     agrupa por predio y, si el input confirma un solo pago real, borra la fila stale automáticamente.</p>
+
+  <p>La duda de diseño fue: <b>ese borrado, ¿se registra en un Excel de auditoría (como
+     <code>trazabilidad_reclamos.xlsx</code>) o basta un log?</b></p>
+
+  <div class="timeline">
+    <div class="step"><span class="t">idea 1</span><span class="d">Un Excel append-only <code>trazabilidad_duplicados.xlsx</code> junto al de reclamos <span class="bad">✘ mezcla ruido técnico con auditoría de negocio</span></span></div>
+    <div class="step"><span class="t">idea 2</span><span class="d">Unir todo en <code>trazabilidad_reclamos.xlsx</code> <span class="bad">✘ contamina la auditoría de plata con errores de tipeo</span></span></div>
+    <div class="step"><span class="t">correcta</span><span class="d">Un log <code>logs/duplicados.log</code> append-only, una línea por borrado <span class="good">✔ cubre el diagnóstico sin inventar auditoría de negocio</span></span></div>
+  </div>
+
+  <p style="margin-top:22px;"><b>Por qué el borrado NO es auditoría de negocio:</b> no mueve plata, no cambia
+     una deuda, no es una decisión institucional. Es el sistema limpiando la consecuencia de un error de tipeo
+     intermitente. Nadie de la directiva va a preguntar "¿por qué se borró esta fila duplicada?" — pero un
+     técnico sí podría necesitar, si un reclamo desaparece sin razón, confirmar <i>"lo borró dedup el 10/07, y
+     no había trabajo manual que rescatar"</i>. Eso es diagnóstico, y un log lo cubre entero.</p>
+</div>
+
+<!-- DISTINCIÓN CLAVE -->
+<div class="sec dist">
+  <h2>La distinción que decide el formato</h2>
+  <div class="dist-grid">
+    <div class="dist-box dist-b">
+      <h4>📊 Auditoría de negocio → Excel</h4>
+      <ul>
+        <li>Registra un <b>hecho de negocio</b>: plata, deuda, obligación, decisión humana institucional</li>
+        <li>Responde <b>"¿qué pasó y por qué?"</b> a quien rinde cuentas (directiva, usuario, revisión)</li>
+        <li>Es <b>fuente de verdad institucional</b> — sobrevive al código, se consulta meses/años después</li>
+        <li>Lo lee un <b>no-técnico</b> → formato Excel, columnas con nombre</li>
+        <li>Solo crece, nunca se borra ni se filtra</li>
+      </ul>
+      <div class="ej">Ejemplos: <code>trazabilidad_reclamos.xlsx</code> · <code>deuda_directiva.xlsx</code> · trazabilidad de pagos</div>
+    </div>
+    <div class="dist-box dist-l">
+      <h4>🔧 Diagnóstico → log de texto</h4>
+      <ul>
+        <li>Registra <b>lo que hizo el código</b>: auto-limpiezas, correcciones técnicas, errores de tipeo corregidos</li>
+        <li>Responde <b>"¿qué hizo el sistema?"</b> a un técnico que depura un comportamiento raro</li>
+        <li>No es un hecho de negocio → <b>nadie rinde cuentas</b> de eso ante un tercero</li>
+        <li>Lo lee un <b>técnico con grep</b> → texto append-only, una línea por evento</li>
+        <li>Persiste lo suficiente para reconstruir qué pasó si aparece un bug</li>
+      </ul>
+      <div class="ej">Ejemplos: <code>logs/duplicados.log</code> · <code>run.log</code></div>
+    </div>
+  </div>
+</div>
+
+<!-- TEST DE DECISIÓN -->
+<div class="sec test-sec">
+  <h2>② El test de una pregunta</h2>
+  <p>Ante cualquier cosa que el sistema quiera registrar, una sola pregunta decide el formato:</p>
+  <div class="test-box">
+    <div class="q">¿Alguien tendría que rendir cuentas de esto ante un tercero?</div>
+    <div class="branch si"><span class="yn">SÍ →</span><span>afecta plata, deuda o una decisión institucional → <b>auditoría de negocio en Excel</b>, permanente, consultable por un no-técnico</span></div>
+    <div class="branch no"><span class="yn">NO →</span><span>solo importa para entender qué hizo el sistema si algo falla → <b>log de diagnóstico en texto</b>, append-only, greppable</span></div>
+  </div>
+  <p style="margin-top:18px;">El borrado del duplicado cae claramente en el NO: corregir la consecuencia de
+     un error de tipeo no es algo de lo que nadie rinda cuentas. Por eso, log.</p>
+</div>
+
+<!-- TABLA COMPARATIVA -->
+<div class="sec">
+  <h2>③ Lado a lado</h2>
+  <table class="conv">
+    <tr><th>Dimensión</th><th>Auditoría de negocio</th><th>Log de diagnóstico</th></tr>
+    <tr><td>¿Qué registra?</td><td class="b">hechos de negocio (plata, deuda, obligación)</td><td class="l">lo que hizo el código</td></tr>
+    <tr><td>¿A quién responde?</td><td class="b">directiva, usuario, revisión de cuentas</td><td class="l">técnico que depura</td></tr>
+    <tr><td>¿Pregunta que contesta?</td><td class="b">¿qué pasó y por qué?</td><td class="l">¿qué hizo el sistema?</td></tr>
+    <tr><td>Formato</td><td class="b">Excel (no-técnico lo abre)</td><td class="l">texto append-only (grep)</td></tr>
+    <tr><td>Vida útil</td><td class="b">institucional, años</td><td class="l">operativa, la que haga falta</td></tr>
+    <tr><td>Riesgo de confundirlos</td><td class="b">se llena de ruido técnico y pierde valor</td><td class="l">se sobre-diseña un Excel que nadie audita</td></tr>
+  </table>
+</div>
+
+<!-- POR QUÉ IMPORTA -->
+<div class="sec">
+  <div class="why">
+    <div class="why-box">
+      <h4>Por qué no mezclarlos</h4>
+      <p>Unir el borrado de duplicados dentro de <code>trazabilidad_reclamos.xlsx</code> ensuciaría la auditoría
+         de negocio con ruido técnico: quien la abre para entender la plata de los reclamos tendría que filtrar
+         decenas de "se borró una fila duplicada". Distinto consumidor, distinta pregunta, distinta vida útil →
+         distinto archivo.</p>
+    </div>
+    <div class="why-box">
+      <h4>Por qué no sobre-diseñar</h4>
+      <p>Hacer un Excel append-only para el dedup sería inventar auditoría de negocio donde no la hay — el error
+         de tipeo no es un hecho institucional. El log cubre exactamente la necesidad real ("si aparece el bug,
+         saber qué borró el sistema") sin construir infraestructura que nadie va a consultar. Regla del Tres:
+         no abstraigas ni formalices antes de que exista la necesidad real.</p>
+    </div>
+  </div>
+</div>
+
+<!-- CIERRE -->
+<div class="cierre">
+  <h2>Reglas para recordar</h2>
+  <div class="regla"><b>1.</b> Antes de registrar algo, preguntá <b>"¿quién lo lee y para qué pregunta?"</b>.
+    Eso decide el formato, no el hábito de "guardar todo en Excel por las dudas".</div>
+  <div class="regla"><b>2.</b> El test de una pregunta: <b>¿alguien rinde cuentas de esto ante un tercero?</b>
+    SÍ → auditoría de negocio (Excel permanente). NO → log de diagnóstico (texto append-only).</div>
+  <div class="regla"><b>3.</b> No mezcles los dos en un archivo. La auditoría de negocio se contamina con ruido
+    técnico; el diagnóstico no necesita el peso de un Excel institucional.</div>
+  <div class="regla"><b>4.</b> Corregir la consecuencia de un <b>error de tipeo</b> (fecha mal puesta,
+    duplicado) es diagnóstico, no negocio. Va a <code>logs/</code>, no a <code>trazabilidad_*.xlsx</code>.</div>
+  <div class="regla"><b>5.</b> Un log de diagnóstico bien hecho cubre la necesidad completa: una línea por evento,
+    append-only, greppable por la clave del caso (predio, fecha) → si mañana aparece el bug, reconstruís qué
+    hizo el sistema sin tocar código.</div>
+</div>
+
+</body>
+</html>

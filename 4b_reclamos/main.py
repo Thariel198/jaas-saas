@@ -48,6 +48,7 @@ log = logging.getLogger(__name__)
 BASE_DIR    = Path(__file__).parent
 OUTPUTS_DIR = BASE_DIR / "outputs"
 TRAZAB_DIR  = BASE_DIR / "trazabilidad"
+LOGS_DIR    = BASE_DIR / "logs"
 
 # Cruza límites de módulo: pagos_efectivo vive en 4_pagos/efectivo/outputs/
 PAGOS_EFECTIVO_PATH = BASE_DIR.parent / "4_pagos" / "efectivo" / "outputs" / "pagos_efectivo.xlsx"
@@ -321,8 +322,9 @@ def _aplicar_manual(detectados: pd.DataFrame, existente: pd.DataFrame) -> pd.Dat
             fila = det.to_dict()
             if m["TIPO_RECLAMO"]:
                 fila["TIPO_RECLAMO"] = m["TIPO_RECLAMO"]
-            if m["RECLAMO"]:
-                fila["RECLAMO"] = m["RECLAMO"]
+            # RECLAMO ya no se preserva: desde que mesa_N.xlsx tiene CATEGORIA, el
+            # detalle nace en el input y debe reflejar siempre el COMENTARIO fresco
+            # (ver docs/aprendizaje/.../placeholder_disfrazado_de_manual_20260710.html)
             fila["RESOLUCION"]       = m["RESOLUCION"]
             fila["ESTADO"]           = m["ESTADO"]
             fila["FECHA_RESOLUCION"] = m["FECHA_RESOLUCION"]
@@ -369,6 +371,116 @@ def _cargar_arrastres(existente: pd.DataFrame, detectados: pd.DataFrame, mes: st
                "MES_ANO_DETECTADO", "MES_ANO_ORIGEN",
                "TIPO_RECLAMO", "RECLAMO", "RESOLUCION", "ESTADO", "FECHA_RESOLUCION"]].reset_index(drop=True)
 
+# ── Depuración de duplicados por FECHA_COBRO corregida a mano ──────────────────
+
+def _reconciliar_duplicados(todas: pd.DataFrame, detectados: pd.DataFrame, mes: str):
+    """
+    Reconcilia filas duplicadas por predio nacidas de una FECHA_COBRO corregida a mano.
+
+    El reclamo se identifica por (MESA,MZ,LT,FECHA_COBRO). Si el cobrador corrige o
+    completa la FECHA de un pago en mesa_N DESPUÉS de la primera detección, la fila
+    vieja queda huérfana (arrastre) y la detección fresca entra como nueva → dos filas
+    del mismo predio que nunca se vuelven a unir. Este paso las reconcilia ANTES de
+    escribir reclamos.xlsx, así el próximo run no las regenera.
+
+    Criterio por grupo (MESA,MZ,LT) — todo automático salvo el caso ambiguo:
+      grupo de 1 fila                         → intacto (arrastre legítimo)
+      grupo >1:
+        confirmada = su FECHA_COBRO está en el input fresco (detectados) del predio
+        stale      = NO confirmada + MES_ANO_ORIGEN == mes (mismo cobro, fecha corregida)
+        · hay ≥1 confirmada Y ≥1 stale → conserva la confirmada, migra trabajo manual
+          de stale→confirmada, elimina la stale (motivo FECHA_CORREGIDA)
+        · arrastre legítimo de mes anterior (MES_ANO_ORIGEN ≠ mes) → nunca se toca
+        · 2+ confirmadas con fechas distintas (dos pagos reales) → intacto, legítimo
+        · grupo >1 sin confirmada que lo ancle y con algo originado este mes → REVISAR
+          (no se elimina; queda en el log para mirada humana)
+
+    No escribe archivos — función pura. Retorna (df_limpio, log_entries).
+    """
+    if todas.empty:
+        return todas, []
+
+    # Fechas confirmadas por el input fresco, por predio
+    fresh = {}
+    for _, r in detectados.iterrows():
+        pk = (_norm(r.get("MESA", "")), _norm(r.get("MZ", "")), _norm(r.get("LT", "")))
+        fresh.setdefault(pk, set()).add(_norm_fecha(r.get("FECHA_COBRO", "")))
+
+    MANUALES = ["TIPO_RECLAMO", "RESOLUCION", "ESTADO", "FECHA_RESOLUCION"]
+    mes_n = _norm(mes)
+
+    grupos = {}
+    for idx, r in todas.iterrows():
+        pk = (_norm(r.get("MESA", "")), _norm(r.get("MZ", "")), _norm(r.get("LT", "")))
+        grupos.setdefault(pk, []).append(idx)
+
+    drop_idx = []
+    log_entries = []
+
+    def _reg(i, keep, motivo, migro):
+        return {
+            "mesa": _clean(todas.at[i, "MESA"]), "mz": _clean(todas.at[i, "MZ"]),
+            "lt": _clean(todas.at[i, "LT"]),
+            "fecha_del": _norm_fecha(todas.at[i, "FECHA_COBRO"]) or "(vacía)",
+            "fecha_keep": (_norm_fecha(todas.at[keep, "FECHA_COBRO"]) or "(vacía)") if keep is not None else "",
+            "motivo": motivo, "migro": migro,
+        }
+
+    for pk, idxs in grupos.items():
+        if len(idxs) < 2:
+            continue
+        fresh_fechas = fresh.get(pk, set())
+        confirmadas = [i for i in idxs
+                       if fresh_fechas and _norm_fecha(todas.at[i, "FECHA_COBRO"]) in fresh_fechas]
+        stale = [i for i in idxs
+                 if i not in confirmadas and _norm(todas.at[i, "MES_ANO_ORIGEN"]) == mes_n]
+
+        if confirmadas and stale:
+            keep = confirmadas[0]  # ancla = detección fresca
+            for i in stale:
+                migro = False
+                for c in MANUALES:
+                    keep_v, stale_v = _clean(todas.at[keep, c]), _clean(todas.at[i, c])
+                    if not stale_v:
+                        continue
+                    # ESTADO nunca está vacío: migrar si la fresca sigue en PENDIENTE
+                    # y la stale trae un estado más avanzado (el supervisor lo trabajó).
+                    needs = (not keep_v) or (c == "ESTADO" and keep_v == "PENDIENTE" and stale_v != "PENDIENTE")
+                    if needs:
+                        todas.at[keep, c] = stale_v
+                        migro = True
+                drop_idx.append(i)
+                log_entries.append(_reg(i, keep, "FECHA_CORREGIDA", migro))
+        elif not confirmadas and any(_norm(todas.at[i, "MES_ANO_ORIGEN"]) == mes_n for i in idxs):
+            # grupo >1 sin ancla fresca pero con algo de este mes → no se puede decidir
+            for i in idxs:
+                log_entries.append(_reg(i, None, "REVISAR", False))
+
+    if drop_idx:
+        todas = todas.drop(index=drop_idx).reset_index(drop=True)
+    return todas, log_entries
+
+
+def _append_log_duplicados(entries: list, mes: str) -> None:
+    """Log de diagnóstico append-only. NO es auditoría de negocio: registra qué borró
+    el sistema al reconciliar duplicados, para poder rastrear si un reclamo desaparece.
+    (ver docs/aprendizaje/.../auditoria_negocio_vs_log_diagnostico_20260710.html)"""
+    if not entries:
+        return
+    LOGS_DIR.mkdir(parents=True, exist_ok=True)
+    ts = datetime.now().strftime("%Y-%m-%d %H:%M")
+    with open(LOGS_DIR / "duplicados.log", "a", encoding="utf-8") as f:
+        for e in entries:
+            predio = f"{e['mesa']} {e['mz']}-{e['lt']}"
+            if e["motivo"] == "REVISAR":
+                f.write(f"{ts} · {mes} · {predio} · REVISAR · "
+                        f"fecha {e['fecha_del']} sin confirmar en input · no se tocó\n")
+            else:
+                f.write(f"{ts} · {mes} · {predio} · eliminada {e['fecha_del']} · "
+                        f"conservada {e['fecha_keep'] or '—'} · {e['motivo']} · "
+                        f"migro_manual={'SI' if e['migro'] else 'NO'}\n")
+
+
 # ── Escritura Excel ───────────────────────────────────────────────────────────
 
 def _argb(hex6: str) -> str:
@@ -414,7 +526,7 @@ _SECCIONES_VISTA = [
     ("¿Quién cobró?",          "MESA",              "MONTO"),
     ("Período",                "MES_ANO_DETECTADO", "MES_ANO_ORIGEN"),
     ("¿Qué tipo?",             "TIPO_RECLAMO",      "TIPO_RECLAMO"),
-    ("Reclamo — llenar a mano","RECLAMO",           "FECHA_RESOLUCION"),
+    ("Reclamo y resolución",   "RECLAMO",           "FECHA_RESOLUCION"),
 ]
 
 _COLS_TRAZAB = [
@@ -847,6 +959,23 @@ def main(mes: str) -> None:
     if resolucion_lookup:
         log.info(f"Correcciones disponibles en resolucion_reclamos_{mes}.xlsx: {len(resolucion_lookup)}")
         todas = _aplicar_resolucion(todas, resolucion_lookup)
+
+    # Reconciliar duplicados por FECHA_COBRO corregida a mano (canal efectivo).
+    # Corrige en memoria antes de escribir → el próximo run no los regenera.
+    todas, dup_log = _reconciliar_duplicados(todas, detectados, mes)
+    if dup_log:
+        _append_log_duplicados(dup_log, mes)
+        elim  = [e for e in dup_log if e["motivo"] == "FECHA_CORREGIDA"]
+        revis = [e for e in dup_log if e["motivo"] == "REVISAR"]
+        if elim:
+            predios = ", ".join(f"{e['mesa']} {e['mz']}-{e['lt']}" for e in elim[:8])
+            extra = f" (+{len(elim) - 8} más)" if len(elim) > 8 else ""
+            log.info(f"Depurados {len(elim)} duplicados por fecha corregida: {predios}{extra}")
+            log.info("  detalle -> logs/duplicados.log")
+        if revis:
+            pr = sorted({(e["mesa"], e["mz"], e["lt"]) for e in revis})
+            log.warning(f"[REVISAR] {len(pr)} predio(s) no se tocaron: "
+                        + ", ".join(f"{m} {mz}-{lt}" for m, mz, lt in pr))
 
     mask_activos = todas["ESTADO"].isin(ESTADOS_ACTIVOS)
     df_activos   = todas[mask_activos].copy().reset_index(drop=True)
