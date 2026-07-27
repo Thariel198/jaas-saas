@@ -171,7 +171,8 @@ def _cargar_reporte_previo(log: logging.Logger) -> dict[tuple, dict]:
     # header en fila 2 (fila 1 = grupos)
     headers = {str(ws.cell(2, c).value or "").strip().upper(): c
                for c in range(1, ws.max_column + 1)}
-    requeridas = {"TIPO", "MZ_PADRON", "LT_PADRON", "MZ_OPERARIO", "LT_OPERARIO",
+    requeridas = {"TIPO", "MZ_PADRON", "LT_PADRON", "NOMBRE_PADRON",
+                  "MZ_OPERARIO", "LT_OPERARIO", "NOMBRE_OPERARIO",
                   "REVISADO", "AUTORIZAR", "APLICADO"}
     faltantes = requeridas - set(headers.keys())
     if faltantes:
@@ -190,8 +191,10 @@ def _cargar_reporte_previo(log: logging.Logger) -> dict[tuple, dict]:
             tipo,
             _norm(ws.cell(r, headers["MZ_PADRON"]).value),
             _norm_lt(ws.cell(r, headers["LT_PADRON"]).value),
+            _norm(ws.cell(r, headers["NOMBRE_PADRON"]).value),
             _norm(ws.cell(r, headers["MZ_OPERARIO"]).value),
             _norm_lt(ws.cell(r, headers["LT_OPERARIO"]).value),
+            _norm(ws.cell(r, headers["NOMBRE_OPERARIO"]).value),
         )
         sticky[key] = {
             "REVISADO":       str(ws.cell(r, headers["REVISADO"]).value or "").strip(),
@@ -290,8 +293,8 @@ def _fusionar_con_sticky(
     for d in deltas:
         key = (
             d["TIPO"],
-            _norm(d["MZ_PADRON"]),   _norm_lt(d["LT_PADRON"]),
-            _norm(d["MZ_OPERARIO"]), _norm_lt(d["LT_OPERARIO"]),
+            _norm(d["MZ_PADRON"]),   _norm_lt(d["LT_PADRON"]),   _norm(d["NOMBRE_PADRON"]),
+            _norm(d["MZ_OPERARIO"]), _norm_lt(d["LT_OPERARIO"]), _norm(d["NOMBRE_OPERARIO"]),
         )
         previo = sticky.get(key)
         if previo and (previo["REVISADO"] or previo["AUTORIZAR"] or previo["APLICADO"]):
