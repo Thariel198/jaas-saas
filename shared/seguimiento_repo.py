@@ -2,9 +2,9 @@
 shared/seguimiento_repo.py — Único writer de seguimiento_pueblo.xlsx
 
 API PÚBLICA:
-    registrar_cargo(mz, lt, concepto, mes, monto, *, source, audit_ref)   → dict
-    registrar_pago(mz, lt, concepto, mes, monto, *, source, audit_ref)    → dict
-    registrar_ajuste(mz, lt, concepto, mes, monto, *, source, audit_ref, motivo) → dict
+    registrar_cargo(mz, lt, concepto, mes, monto, *, source, audit_ref, clase=, motivo=)  → dict
+    registrar_pago(mz, lt, concepto, mes, monto, *, source, audit_ref, clase=, motivo=)   → dict
+    registrar_ajuste(mz, lt, concepto, mes, monto, *, source, audit_ref, motivo, clase=)  → dict
     get_saldo(mz, lt, concepto, mes)          → float
     get_saldos_bulk(concepto, mes)            → dict {(mz,lt): saldo} (todos los predios, 1 sola lectura)
     pago_registrado(mz, lt, concepto, mes)    → float (Σ PAGO ya anotado — para reconciliación por delta)
@@ -18,6 +18,8 @@ INVARIANTES:
     - Idempotencia por (source, audit_ref, mz, lt, concepto) — mismo evento no duplica.
     - SALDO = Σcargos − Σpagos ± Σajustes, siempre derivado, nunca celda mutable a mano.
     - Génesis = el primer evento CARGO de un predio. No existe ledger de génesis aparte.
+    - TIPO_EVENTO dice CÓMO se mueve el saldo; CLASE dice POR QUÉ pasó. El reporte de
+      plata que entró = Σ PAGO con CLASE ∈ CLASES_SUMAN_CAJA — nunca Σ PAGO a secas.
 
 Contrato visual: docs/formato_seguimiento_pueblo.html
 Decisión de diseño: docs/decisiones/seguimiento_pueblo.md
@@ -44,6 +46,30 @@ SHEET_NAME       = "Eventos"
 
 CONCEPTOS_VALIDOS = {"MULTA", "ACUERDOS", "CONVENIO"}
 TIPOS_EVENTO      = ("CARGO", "PAGO", "AJUSTE")
+
+# CLASE — qué HECHO representa el evento. TIPO_EVENTO dice cómo se mueve el
+# saldo (CARGO sube, PAGO baja, AJUSTE corrige); CLASE dice por qué pasó.
+# Sin esto, un AJUSTE de −75 no distingue "la directiva exoneró" de "pagó hace
+# dos años" de "revertimos un bug" — las tres colapsan en la misma fila y el
+# reporte de caja se vuelve indefendible.
+CLASES_VALIDAS = {
+    "COBRANZA",           # PAGO normal: plata del ciclo, vino por la cascada
+    "ABONO_REZAGADO",     # plata real de un ciclo viejo que la caja recién ve
+    "DECLARACION",        # "ya pagó" declarado, sin monto/fecha/canal que ubicar
+    "EXONERACION",        # la directiva decidió no cobrar — nunca hubo plata
+    "CORRECCION_SISTEMA", # defecto del código (pago fantasma, fórmula mal)
+    "REASIGNACION",       # la deuda se movió entre conceptos, sin plata nueva
+    "GENESIS",            # nació el cargo (siembra o génesis tardía)
+    "SIN_CLASIFICAR",     # default de compatibilidad — visible a propósito
+}
+
+# Las únicas dos clases que representan plata que SUMA al total de caja.
+# DECLARACION no está acá a propósito: esa plata ya entró y ya se contó (como
+# exceso sin atribuir), lo que cambia es el dueño, no el total. Ver
+# docs/diario/2026-08-03_solucion_precursor_mas_ledger.html
+CLASES_SUMAN_CAJA = {"COBRANZA", "ABONO_REZAGADO"}
+
+_CLASE_DEFAULT = {"CARGO": "GENESIS", "PAGO": "COBRANZA", "AJUSTE": "SIN_CLASIFICAR"}
 
 # Predios de convenio de instalación (conexión nueva) — su deuda ya está
 # completa en arrastre_consolidado (junio la cargó full desde DATA_boletas),
@@ -72,13 +98,18 @@ _COLS = [
     ("SOURCE",      _SEC_QUIEN,  24, "center"),
     ("AUDIT_REF",   _SEC_QUIEN,  28, "left"),
     ("TIMESTAMP",   _SEC_QUIEN,  20, "center"),
+    # CLASE/MOTIVO van al FINAL a propósito: _append_evento escribe por índice
+    # de _COLS, así que insertarlas en el medio desalinearía las 1.563 filas
+    # ya escritas (su TIMESTAMP quedaría bajo el encabezado de otra columna).
+    ("CLASE",       _SEC_QUIEN,  20, "center"),
+    ("MOTIVO",      _SEC_QUIEN,  46, "left"),
 ]
 
 _SECCIONES = [
     ("Predio",         "MZ",     "LT"),
     ("Evento",         "CONCEPTO", "TIPO_EVENTO"),
     ("Movimiento",     "CARGO",  "SALDO"),
-    ("Quién / por qué", "SOURCE", "TIMESTAMP"),
+    ("Quién / por qué", "SOURCE", "MOTIVO"),
 ]
 
 # ── Helpers internos ─────────────────────────────────────────────────────────
@@ -172,7 +203,8 @@ def _write_headers(ws) -> None:
     ws.freeze_panes = "A3"
 
 
-_COLS_TEXTO = ("MZ", "LT", "CONCEPTO", "MES", "TIPO_EVENTO", "SOURCE", "AUDIT_REF", "TIMESTAMP")
+_COLS_TEXTO = ("MZ", "LT", "CONCEPTO", "MES", "TIPO_EVENTO", "SOURCE", "AUDIT_REF", "TIMESTAMP",
+               "CLASE", "MOTIVO")
 _COLS_NUM   = ("CARGO", "PAGO", "AJUSTE", "SALDO")
 
 
@@ -184,6 +216,12 @@ def _leer_eventos() -> pd.DataFrame:
         return pd.DataFrame(columns=[c[0] for c in _COLS])
     dtype_map = {c: str for c in _COLS_TEXTO}
     df = pd.read_excel(SEGUIMIENTO_PATH, sheet_name=SHEET_NAME, header=1, dtype=dtype_map)
+    # CLASE/MOTIVO se agregaron cuando el archivo ya tenía historia. Un archivo
+    # sin migrar no las trae — se materializan vacías para que ningún lector
+    # tenga que preguntarse si la columna existe.
+    for col in _COLS_TEXTO:
+        if col not in df.columns:
+            df[col] = ""
     for col in _COLS_NUM:
         df[col] = pd.to_numeric(df[col], errors="coerce")
     return df
@@ -223,7 +261,8 @@ def _saldo_previo(mz: str, lt: str, concepto: str, mes: str) -> float:
     return float(sub.iloc[-1]["SALDO"])
 
 
-def _append_evento(mz, lt, concepto, mes, tipo_evento, cargo, pago, ajuste, saldo, source, audit_ref) -> None:
+def _append_evento(mz, lt, concepto, mes, tipo_evento, cargo, pago, ajuste, saldo,
+                   source, audit_ref, clase, motivo) -> None:
     if SEGUIMIENTO_PATH.exists():
         wb = load_workbook(SEGUIMIENTO_PATH)
         ws = wb[SHEET_NAME] if SHEET_NAME in wb.sheetnames else wb.active
@@ -241,6 +280,7 @@ def _append_evento(mz, lt, concepto, mes, tipo_evento, cargo, pago, ajuste, sald
         "TIPO_EVENTO": tipo_evento,
         "CARGO": cargo, "PAGO": pago, "AJUSTE": ajuste, "SALDO": saldo,
         "SOURCE": source, "AUDIT_REF": audit_ref, "TIMESTAMP": ts,
+        "CLASE": clase, "MOTIVO": motivo or "",
     }
     for ci, (nombre, sec, _ancho, align) in enumerate(_COLS, start=1):
         _dat(ws.cell(row=next_row, column=ci), fila[nombre], sec[2], sec[3], align=align)
@@ -249,7 +289,8 @@ def _append_evento(mz, lt, concepto, mes, tipo_evento, cargo, pago, ajuste, sald
 
 # ── API pública: escritura ───────────────────────────────────────────────────
 
-def _registrar(mz, lt, concepto, mes, monto, tipo_evento, *, source, audit_ref, motivo=None) -> dict:
+def _registrar(mz, lt, concepto, mes, monto, tipo_evento, *, source, audit_ref,
+               motivo=None, clase=None) -> dict:
     if not source:
         raise ValueError("source no puede ser vacío")
     if not audit_ref:
@@ -260,6 +301,9 @@ def _registrar(mz, lt, concepto, mes, monto, tipo_evento, *, source, audit_ref, 
         raise ValueError(f"MZ/LT inválidos ({mz!r}, {lt!r})")
     if tipo_evento == "AJUSTE" and not motivo:
         raise ValueError("registrar_ajuste: motivo no puede ser vacío")
+    clase = str(clase or _CLASE_DEFAULT[tipo_evento]).strip().upper()
+    if clase not in CLASES_VALIDAS:
+        raise ValueError(f"clase inválida: {clase!r} — válidas: {sorted(CLASES_VALIDAS)}")
 
     if _ya_registrado(source, audit_ref, mz_n, lt_n, concepto):
         log.info(f"seguimiento_repo: skip (idempotente) — {source}/{audit_ref} {mz_n}-{lt_n} {concepto}")
@@ -279,24 +323,38 @@ def _registrar(mz, lt, concepto, mes, monto, tipo_evento, *, source, audit_ref, 
         ajuste = monto
         saldo_nuevo = saldo_previo + monto
 
-    _append_evento(mz_n, lt_n, concepto, mes, tipo_evento, cargo, pago, ajuste, saldo_nuevo, source, audit_ref)
-    log.info(f"seguimiento_repo: {tipo_evento} {mz_n}-{lt_n} {concepto} {mes} monto={monto} saldo={saldo_nuevo}")
+    _append_evento(mz_n, lt_n, concepto, mes, tipo_evento, cargo, pago, ajuste, saldo_nuevo,
+                   source, audit_ref, clase, motivo)
+    log.info(f"seguimiento_repo: {tipo_evento} {mz_n}-{lt_n} {concepto} {mes} "
+             f"monto={monto} saldo={saldo_nuevo} clase={clase}")
     return {"saldo_resultante": saldo_nuevo, "skipped": False}
 
 
-def registrar_cargo(mz, lt, concepto, mes, monto, *, source: str, audit_ref: str) -> dict:
-    """Deuda nueva — siembra inicial o cargo del mes (faena/reunión/asamblea/convenio)."""
-    return _registrar(mz, lt, concepto, mes, monto, "CARGO", source=source, audit_ref=audit_ref)
+def registrar_cargo(mz, lt, concepto, mes, monto, *, source: str, audit_ref: str,
+                    clase: str | None = None, motivo: str | None = None) -> dict:
+    """Deuda nueva — siembra inicial o cargo del mes (faena/reunión/asamblea/convenio).
+    clase por defecto GENESIS."""
+    return _registrar(mz, lt, concepto, mes, monto, "CARGO", source=source, audit_ref=audit_ref,
+                      clase=clase, motivo=motivo)
 
 
-def registrar_pago(mz, lt, concepto, mes, monto, *, source: str, audit_ref: str) -> dict:
-    """5_cobranza registra la porción de un pago que va a este concepto."""
-    return _registrar(mz, lt, concepto, mes, monto, "PAGO", source=source, audit_ref=audit_ref)
+def registrar_pago(mz, lt, concepto, mes, monto, *, source: str, audit_ref: str,
+                   clase: str | None = None, motivo: str | None = None) -> dict:
+    """5_cobranza registra la porción de un pago que va a este concepto.
+    clase por defecto COBRANZA (plata del ciclo). Usar ABONO_REZAGADO cuando la
+    plata es de un ciclo viejo que la caja recién ve."""
+    return _registrar(mz, lt, concepto, mes, monto, "PAGO", source=source, audit_ref=audit_ref,
+                      clase=clase, motivo=motivo)
 
 
-def registrar_ajuste(mz, lt, concepto, mes, monto, *, source: str, audit_ref: str, motivo: str) -> dict:
-    """Corrección manual — monto puede ser negativo. Nunca edita un evento pasado."""
-    return _registrar(mz, lt, concepto, mes, monto, "AJUSTE", source=source, audit_ref=audit_ref, motivo=motivo)
+def registrar_ajuste(mz, lt, concepto, mes, monto, *, source: str, audit_ref: str, motivo: str,
+                     clase: str | None = None) -> dict:
+    """Corrección manual — monto puede ser negativo. Nunca edita un evento pasado.
+    `motivo` es obligatorio y AHORA SE PERSISTE (antes se exigía y se descartaba).
+    `clase` dice qué hecho fue (EXONERACION · DECLARACION · CORRECCION_SISTEMA ·
+    REASIGNACION); sin ella queda SIN_CLASIFICAR, visible a propósito."""
+    return _registrar(mz, lt, concepto, mes, monto, "AJUSTE", source=source, audit_ref=audit_ref,
+                      motivo=motivo, clase=clase)
 
 # ── API pública: lectura ─────────────────────────────────────────────────────
 
@@ -319,6 +377,31 @@ def pago_registrado(mz, lt, concepto, mes) -> float:
     if sub.empty:
         return 0.0
     return float(sub["PAGO"].fillna(0).sum())
+
+
+def ajuste_reconciliado(mz, lt, concepto, mes, source) -> float:
+    """Σ AJUSTE ya registrado por `source` para (mz, lt, concepto, mes).
+    Complementa a pago_registrado() en la reconciliación por delta: el "SET_TIENE"
+    real que dejó una corrida es Σ PAGO + Σ AJUSTE(source propio). Filtra por
+    `source` para NO contar ajustes de otro origen (ej. correccion_genesis_formula
+    corrige la deuda, no el pago). Sin este término el branch AJUSTE no es
+    idempotente y se re-dispara en cada corrida (ver docs/aprendizaje contador tuerto)."""
+    concepto = _validar_concepto(concepto)
+    df = _leer_eventos()
+    if df.empty:
+        return 0.0
+    mz_n, lt_n = _norm(mz), _norm(lt)
+    sub = df[
+        (df["MZ"].astype(str).map(_norm) == mz_n) &
+        (df["LT"].astype(str).map(_norm) == lt_n) &
+        (df["CONCEPTO"].astype(str).str.strip().str.upper() == concepto) &
+        (df["MES"].astype(str) == str(mes)) &
+        (df["TIPO_EVENTO"] == "AJUSTE") &
+        (df["SOURCE"].astype(str) == str(source))
+    ]
+    if sub.empty:
+        return 0.0
+    return float(sub["AJUSTE"].fillna(0).sum())
 
 
 def get_saldo(mz, lt, concepto, mes) -> float:
