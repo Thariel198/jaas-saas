@@ -14,8 +14,22 @@
     "estado": "ABIERTO",
     "arrastre": {
       "generado": true,
-      "generado_en": "2026-07-02T17:51:17"
+      "generado_en": "2026-07-02T17:51:17",
+      "validado": true,
+      "validado_en": "2026-07-09T05:50:35"
     },
-    "ultima_actualizacion": "2026-07-02T17:51:17"
+    "ultima_actualizacion": "2026-07-09T05:50:35"
+  },
+  "2026-07": {
+    "estado": "CERRADO",
+    "arrastre": {
+      "generado": true,
+      "generado_en": "2026-07-06T14:15:04",
+      "validado": true,
+      "validado_en": "2026-07-31T18:40:40",
+      "gap_conocido": "Nivel 1a TE PAGO dif=+550.00 y 2 MZ efectivo con diferencia, aceptado 31/07/2026 -- no bloquea, causa raiz sin resolver (ver memoria)"
+    },
+    "ultima_actualizacion": "2026-07-31T18:40:40",
+    "cerrado_en": "2026-07-26T15:33:22"
   }
 }
