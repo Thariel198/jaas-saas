@@ -37,6 +37,7 @@ ROOT          = Path(__file__).parent
 sys.path.insert(0, str(ROOT.parent / "shared"))
 import seguimiento_repo as repo  # noqa: E402
 import utils_estado_ciclo as repo_estado  # noqa: E402
+import ciclo as ciclo_activo  # noqa: E402
 INPUTS_DIR    = ROOT / "inputs"
 OUTPUTS_DIR   = ROOT / "outputs"
 SHARED_DIR    = ROOT.parent / "shared"
@@ -461,8 +462,25 @@ def _localizar_planilla() -> Path:
             f"Falta planilla_YYYY-MM.xlsx en {PLAN_DIR}\n"
             f"  → Correr 2_planilla (publica la planilla en shared/planilla_mes/)"
         )
+
+    # El ciclo lo declara 1_lecturas (shared/ciclo_activo.json). Elegir
+    # "el último por orden alfabético" es lo que dejaba cobrar el mes
+    # equivocado cuando conviven planillas de varios meses en la carpeta:
+    # el 05/08/2026 había planilla_2026-06, -07 y -08 y una corrida habría
+    # cobrado agosto con los pagos de julio.
+    mes = ciclo_activo.activo(default=None, path=SHARED_DIR / "ciclo_activo.json")
+    if mes is not None:
+        esperada = PLAN_DIR / f"planilla_{mes}.xlsx"
+        if not esperada.exists():
+            raise FileNotFoundError(
+                f"El ciclo activo es {mes} pero falta {esperada.name} en {PLAN_DIR}\n"
+                f"  → Correr 2_planilla para el ciclo {mes}"
+            )
+        return esperada
+
     if len(candidatos) > 1:
-        log.warning(f"Múltiples planillas en {PLAN_DIR} → usando {candidatos[-1].name}")
+        log.warning(f"Sin ciclo activo declarado (shared/ciclo_activo.json) y "
+                    f"múltiples planillas en {PLAN_DIR} → usando {candidatos[-1].name}")
     return candidatos[-1]
 
 def _validar_inputs() -> Path:

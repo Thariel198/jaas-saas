@@ -35,6 +35,7 @@ import sys as _sys
 _sys.path.insert(0, str(Path(__file__).parent.parent))  # para shared/
 import config
 from pdf_orden import generar_pdf
+from shared import ciclo as ciclo_activo
 from shared.utils_sort_mz_lt import clave_orden
 import formato_excel as fe
 from sin_servicio.validar_ausencias import (
@@ -534,7 +535,13 @@ def _detectar_anomalias(
                 "tipo": "USUARIO_FANTASMA",
                 "calc_m3": None,
             }
-            if justifica_ausencia(key, lista_sin_servicio):
+            if datos.get("sin_servicio") == "Si":
+                informativas.append({
+                    **base, "categoria": "informativa",
+                    "motivo": "ausente del template · SIN_SERVICIO=Si en el acumulado (lote cerrado)",
+                    "resuelto_por": "sin_servicio_acumulado",
+                })
+            elif justifica_ausencia(key, lista_sin_servicio):
                 informativas.append({
                     **base, "categoria": "informativa",
                     "motivo": "ausente del template · catalogado SIN_MEDIDOR en lista_sin_servicio",
@@ -1016,6 +1023,39 @@ def _actualizar_acumulado(confirmados: list[dict], historial: dict, meses_orden:
              f"{len(todas_keys)} usuarios · {len(meses_final)} ciclos")
 
 
+# ── CICLO ACTIVO ──────────────────────────────────────────────────────────────
+def _mes_del_registro(filas: list[dict]) -> str:
+    """El mes del ciclo sale de la columna MES_ANO de la plantilla del operario —
+    es el primer lugar del pipeline donde el mes es un DATO y no una deducción.
+
+    Antes se tomaba filas[0] sin mirar el resto: una plantilla con dos meses
+    mezclados (copiar la del mes pasado y actualizar solo algunas filas) pasaba
+    sin ruido y arrastraba el mes viejo hasta 5_cobranza. Acá se exige uno solo,
+    y se DECLARA en shared/ciclo_activo.json para que ningún módulo de más abajo
+    tenga que adivinarlo con "el último archivo por orden alfabético" (así nacieron
+    los 15 pagos fantasma del 06/07/2026)."""
+    meses = sorted({f["mes_ano"].strip() for f in filas if f.get("mes_ano", "").strip()})
+    if not meses:
+        raise ValueError(
+            f"Ninguna fila de {config.REGISTRO_MES_PATH.name} tiene MES_ANO.\n"
+            f"  -> la plantilla del operario declara el mes del ciclo: llenar esa columna"
+        )
+    if len(meses) > 1:
+        detalle = {m: sum(1 for f in filas if f.get("mes_ano", "").strip() == m) for m in meses}
+        raise ValueError(
+            f"{config.REGISTRO_MES_PATH.name} tiene MES_ANO mezclado: {detalle}\n"
+            f"  -> todas las filas del ciclo son del mismo mes; corregir antes de seguir"
+        )
+    # La ruta sale de config (no de shared/ciclo.py) para que los tests, que
+    # monkey-patchean INPUTS_DIR con un árbol sintético, no pisen el
+    # ciclo_activo.json real del repo.
+    destino = config.INPUTS_DIR.parent.parent / "shared" / "ciclo_activo.json"
+    mes_ano = ciclo_activo.escribir(meses[0], origen=f"1_lecturas/{config.REGISTRO_MES_PATH.name}",
+                                     path=destino)
+    log.info(f"Ciclo activo declarado: {mes_ano} → {destino}")
+    return mes_ano
+
+
 # ── MAIN ──────────────────────────────────────────────────────────────────────
 def main():
     print("\n" + "═" * 65)
@@ -1040,7 +1080,7 @@ def main():
     _asegurar_correcciones_historicas()
     historicas = _cargar_correcciones_historicas()
 
-    mes_ano = filas[0]["mes_ano"] if filas else datetime.now().strftime("%Y-%m")
+    mes_ano = _mes_del_registro(filas)
     ciclo = _detectar_ciclo(mes_ano)
     print(f"       Mes: {mes_ano} · Ciclo: {ciclo} · lista_sin_servicio: {len(lista_ss)} usuarios · "
           f"correcciones_historicas: {len(historicas)} activa(s)")
