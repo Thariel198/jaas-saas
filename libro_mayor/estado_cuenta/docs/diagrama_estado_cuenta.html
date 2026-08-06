@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>libro_mayor/estado_cuenta — Diagrama detallado</title>
+<style>
+  body { font-family: Arial, sans-serif; font-size: 13px; margin: 30px; color: #1f2937; max-width: 980px; }
+  h1   { font-size: 18px; color: #1e3a5f; border-bottom: 2px solid #1e3a5f; padding-bottom: 6px; }
+  h2   { font-size: 14px; color: #374151; margin-top: 26px; border-left: 4px solid #6b7280; padding-left: 8px; }
+  p    { margin: 6px 0; }
+  .meta { background:#f3f4f6; border:1px solid #d1d5db; border-radius:4px; padding:10px 14px; margin-bottom:18px; }
+  .meta span { font-weight:bold; }
+  table { border-collapse: collapse; width:100%; margin: 10px 0 16px; font-size: 12px; }
+  th, td { border: 1px solid #e5e7eb; padding: 6px 10px; text-align:left; }
+  th { background:#f9fafb; font-size:11px; text-transform:uppercase; color:#6b7280; }
+  code { background:#f3f4f6; padding:1px 5px; border-radius:3px; font-size:11.5px; }
+  .box { border-radius:6px; padding:10px 14px; margin:10px 0; font-size:12.5px; }
+  .b-in   { background:#FEF3C7; border-left:4px solid #CA6F1E; }
+  .b-rule { background:#f0f4ff; border-left:4px solid #a5b4fc; }
+  .b-out  { background:#E9F7EF; border-left:4px solid #1E8449; }
+  .b-not  { background:#FADBD8; border-left:4px solid #C0392B; }
+  .b-motor { background:#1E8449; color:#fff; border-left:4px solid #145A32; }
+  .b-motor code { background:rgba(255,255,255,0.15); color:#fff; }
+  ul { margin:4px 0 4px 18px; } li { margin:3px 0; }
+</style>
+</head>
+<body>
+
+<h1>libro_mayor/estado_cuenta — Diagrama detallado</h1>
+<div class="meta">
+  <span>Bounded context:</span> libro_mayor (agregado <b>estado_cuenta</b>) &nbsp;|&nbsp;
+  <span>Estado:</span> Fase 1 cerrada — sin código &nbsp;|&nbsp;
+  <span>Fecha:</span> 2026-07-12
+</div>
+
+<h2>Inputs — con origen</h2>
+<div class="box b-in">
+  <ul>
+    <li><b>CARGOS</b> desde 4 fuentes, cada una emite solo su HECHO:
+      <table style="margin-top:6px;">
+        <tr><th>Fuente</th><th>Concepto(s)</th><th>Fase</th></tr>
+        <tr><td><code>2_planilla</code></td><td>CONSUMO · CORTE</td><td>2</td></tr>
+        <tr><td><code>5_cobranza</code></td><td>MULTA · ACUERDOS · CONVENIO</td><td>2 — deja de aplicar, solo emite</td></tr>
+        <tr><td><code>arrastre_consolidado</code></td><td>CONVENIO (instalación)</td><td>2</td></tr>
+        <tr><td><code>deuda_directiva</code></td><td>OTROS</td><td>2</td></tr>
+      </table>
+    </li>
+    <li><b>ABONOS</b> de <code>libro_mayor/caja</code> — el motor los lee por <code>ABONO_ID</code>, nunca los copia.</li>
+    <li><b>Migración de <code>seguimiento_pueblo</code>:</b> se siembran los CARGOS históricos; las aplicaciones viejas ("total por concepto", sin link a caja) se descartan.</li>
+  </ul>
+</div>
+
+<h2>El motor de aplicación — pieza central</h2>
+<div class="box b-motor">
+  <p><b>aplicar(cargos_abiertos, abonos) → aplicaciones</b></p>
+  <ul>
+    <li>Única pieza del sistema que ve <b>caja + deuda juntas</b> — por eso es la única que puede llenar <code>ABONO_ID</code> + <code>MES_CARGO</code> en una aplicación.</li>
+    <li>Camina la prioridad y reparte FIFO por <code>MES_CARGO</code>: <code>CONSUMO → CORTE → CONVENIO → ACUERDOS → MULTA → OTROS → SALDO_A_FAVOR</code> (tramo pueblo corregido 2026-07-23, ver dominio CA1).</li>
+    <li>Idempotente por <code>(ABONO_ID, CARGO)</code> — re-corrible sin duplicar.</li>
+    <li>Sobrante de un abono que superó todos los cargos abiertos → concepto explícito <code>SALDO_A_FAVOR</code> (crédito del predio), nunca un residual implícito.</li>
+    <li>Una devolución baja <code>SALDO_A_FAVOR</code> FIFO — se anota como aplicación <code>(DEVOLUCION_ID, SALDO_A_FAVOR, −monto)</code>.</li>
+  </ul>
+</div>
+
+<h2>Reglas clave (fuera del motor)</h2>
+<div class="box b-rule">
+  <ul>
+    <li><b>Writer único:</b> solo <code>cuenta_repo.py</code> escribe cargos, aplicaciones y ajustes.</li>
+    <li><b>Los feeders solo emiten HECHOS (cargos)</b> — nadie más que el motor aplica.</li>
+    <li><b>Toda deuda es un CARGO acá</b>, venga de donde venga (decisión ⑧) — el hack <code>PREDIOS_INSTALACION_EXCLUIDOS</code> de 5_cobranza desaparece.</li>
+    <li><b>SALDO siempre derivado</b> (Σcargos − Σaplicaciones ± Σajustes), nunca una celda que se edita a mano.</li>
+    <li><b><code>JASS_ID</code> en cada evento</b> desde el día 1.</li>
+  </ul>
+</div>
+
+<h2>Outputs — con columnas</h2>
+<table>
+  <tr><th>Archivo</th><th>Tipo</th><th>Columnas clave</th><th>Consumidor</th></tr>
+  <tr>
+    <td>store de CARGOS</td>
+    <td>Auditoría (append-only)</td>
+    <td><code>JASS_ID, MZ, LT, CONCEPTO, MES_CARGO, MONTO, SOURCE</code></td>
+    <td>motor de aplicación</td>
+  </tr>
+  <tr>
+    <td>store de APLICACIONES</td>
+    <td>Auditoría (append-only)</td>
+    <td><code>JASS_ID, ABONO_ID, CARGO (concepto+mes_cargo), MONTO_APLICADO</code></td>
+    <td>tools/estado_cuenta · tools/explicar_reclamo</td>
+  </tr>
+  <tr>
+    <td>vista / PDF estado_cuenta</td>
+    <td>Vista operacional (regenerable)</td>
+    <td>panorama por predio: cargos abiertos, aplicaciones, saldo</td>
+    <td>mesa / agente / operario</td>
+  </tr>
+</table>
+<p>Contratos completos: ver <code>formato_cargo.html</code>, <code>formato_aplicacion.html</code>, <code>formato_vista_estado_cuenta.html</code>.</p>
+
+<h2>Acoplamiento con otros módulos</h2>
+<div class="box b-rule">
+  <ul>
+    <li><b>Lee de:</b> <code>libro_mayor/caja</code> (abonos, vía <code>ABONO_ID</code>).</li>
+    <li><b>Escriben cargos:</b> <code>2_planilla</code>, <code>5_cobranza</code>, <code>arrastre_consolidado</code>, <code>deuda_directiva</code>.</li>
+    <li><b>Reemplaza:</b> <code>shared/seguimiento_pueblo.xlsx</code> / <code>seguimiento_repo.py</code> — ese store queda deprecado una vez migrado.</li>
+    <li><b><code>5_cobranza</code> cambia de rol:</b> hoy aplica pagos directo (<code>_reconciliar_pagos_pueblo</code>); pasa a emitir solo <code>registrar_cargo()</code>.</li>
+  </ul>
+</div>
+
+<h2>Lo que NO hace este módulo</h2>
+<div class="box b-not">
+  <ul>
+    <li>No guarda el hecho de caja (cuánto entró, por qué canal) — eso es <code>libro_mayor/caja</code>.</li>
+    <li>No decide cuánta plata entró; parte de que el abono ya existe en caja.</li>
+    <li>No deja que un feeder aplique — solo el motor.</li>
+  </ul>
+</div>
+
+<hr style="margin-top:30px; border-color:#e5e7eb;">
+<p style="font-size:11px; color:#9ca3af;">
+  Fuente de verdad: <code>libro_mayor/estado_cuenta/README.md</code>. Si este diagrama contradice el README, el README manda.
+</p>
+
+</body>
+</html>

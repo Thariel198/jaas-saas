@@ -1,0 +1,1278 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cuaderno — libro_mayor</title>
+<link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+
+<header class="hero">
+  <p class="crumbs"><a href="index.html">← Cuaderno</a> · libro_mayor</p>
+  <p class="eyebrow"><span class="dot"></span>substrato · bounded context</p>
+  <h1>libro_mayor — el registro permanente del sistema</h1>
+  <p class="lede">
+    No es un módulo del pipeline: es el <strong>substrato</strong> sobre el que todo asienta y del
+    que todos leen — el libro mayor contable. Empezamos por <code>dominio/</code>, las reglas puras.
+    Cada firma se cierra <strong>por preguntas</strong>: la decisión nace de una duda, y el diagrama
+    de la duda es lo que enseña.
+  </p>
+  <div class="meta-row">
+    <span>arranque: 2026-07-16</span>
+    <span>verdad → decisiones/ledger_fase1</span>
+    <span>mapa → ../arquitectura/index.html</span>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section style="margin:28px 0 10px">
+    <p class="plate-label">Altura 1 · mapa del contexto</p>
+    <h2 style="max-width:40ch">libro_mayor de un vistazo — quién le pasa qué a quién</h2>
+    <p style="max-width:66ch;color:var(--ink-soft);margin:0 0 18px">El bosque antes del árbol: los
+      módulos de afuera <strong>escriben eventos</strong> (abonos y cargos) y otros <strong>solo
+      leen</strong> vistas. Adentro, el <strong>motor</strong> es la única pieza que ve caja y deuda
+      juntas.</p>
+    <div class="ascii">  ENTRA · feeders ESCRIBEN eventos              SALE · consumidores solo LEEN
+ ─────────────────────────────────            ──────────────────────────────
+  4_pagos ────────── abono ──────┐              ┌──── 3_boletas (saldo del mes)
+  2_planilla ─── cargo AGUA ─────┤              ├──── 6_corte (riesgo_corte)
+  obligaciones ─ cargo pueblo ───┤              ├──── extracto de cuenta (PDF)
+  6_corte ────── cargo corte ────┤              ├──── 5b (arqueo · conciliar)
+  4b_reclamos ── ident/ajuste ───┘              └──── 4b (explicar_reclamo)
+                    │                                    ▲
+ ═══════════════════▼════════ libro_mayor/ ═════════════╪═════════════════════
+                                                        │ leen vistas
+  ┌──────────────┐   dominio/ = reglas puras (cero I/O) │
+  │   dominio/   │   TODOS importan · nadie guarda datos acá
+  └──────────────┘                                      │
+  ┌──────────┐ abonos   ┌──────────────────┐ cargos     │
+  │  caja/   │═════════►│  estado_cuenta/  │◄═══ (feeders de cargo)
+  │ writer   │          │  cuenta_repo     │            │
+  │ único    │          │  + MOTOR ★       │  ★ única pieza que ve
+  └────┬─────┘          └────────┬─────────┘    caja + cargos juntos
+       │ abonos                  │ cargos        (frontera transaccional)
+       └───────────►┌────────────▼───────────┐               │
+                    │ motor aplica la cascada │ produce       │
+                    │ de dominio ────────────►│ APLICACIONES  │
+                    └────────────┬────────────┘               │
+                                 ▼                            │
+                    ┌─────────────────────┐  ┌──────────┐     │
+                    │ stores/  xlsx → PG  │◄─│  tools/  │─────┘
+                    │ (puerto / adapter)  │  │ read-only│
+                    └─────────────────────┘  └──────────┘</div>
+    <div class="keypoint"><b>3 puntos ciegos que este mapa cierra:</b>
+      ① <b>¿quién escribe el saldo?</b> nadie — el saldo no se guarda, el motor lo deriva
+      (<code>cargos − aplicaciones</code>) · ② <b>¿por dónde entra la plata?</b> siempre por
+      <code>caja/</code> · ③ <b>¿por dónde entra una deuda?</b> siempre como CARGO vía
+      <code>estado_cuenta/</code>, venga de agua, pueblo, corte o reclamo.</div>
+  </section>
+
+  <div class="modulo-laminas">
+
+    <!-- ══════════ LÁMINA · dominio/ ══════════ -->
+    <article class="lamina" data-submodulo="dominio" id="dominio">
+      <div class="anchor">
+        <span><span class="pin">📍</span> libro_mayor · dominio</span>
+        <a href="../decisiones/ledger_fase1_decisiones.md">verdad → ledger_fase1</a>
+        <a href="cimientos.html#tres-alturas">método → 3 alturas</a>
+      </div>
+      <p class="plate-label">substrato · reglas puras</p>
+      <h2>dominio/ — las reglas puras del ledger</h2>
+      <p>La capa que define <strong>qué conceptos existen, cómo se reparte un pago y quién se corta</strong>,
+        sin tocar ningún archivo. Se construye <strong>firma por firma</strong>. Esta lámina trae primero
+        el cuadro entero (Altura 2) y debajo cada decisión con la pregunta que la parió (Altura 3).</p>
+
+      <!-- ─────────── ALTURA 2 ─────────── -->
+      <div class="sub-h"><span class="qn">Altura 2</span> el cuadro del módulo entero</div>
+      <div class="ascii">┌──────────────┬───────────────────────┬───────────────┬─────────────┬──────────────┐
+│  QUÉ ENTRA   │  QUÉ HACE (6 firmas)  │   QUÉ SALE    │  QUIÉN LEE  │  DECISIONES  │
+├──────────────┼───────────────────────┼───────────────┼─────────────┼──────────────┤
+│ nada de disco│ 1 taxonomia    🟢     │ valores puros:│ caja_repo   │ T1-T5    🟢  │
+│              │ 2 entidades    🟢     │  · Reparto    │ cuenta_repo │ E1-E3    🟢  │
+│ en memoria:  │ 3 cascada      🟢     │  · saldo(int) │ motor       │ CA1-CA4  🟢  │
+│  · cargos    │ 4 politica_c.  🟢     │  · ¿corta?    │ tools       │ PC1-PC7  🟢  │
+│  · un abono  │ 5 saldo        🟢     │  · CARGO_ID   │             │ S1-S5    🟢  │
+│              │ 6 identidad    🟢     │ nunca archivo │             │ I1-I4    🟢  │
+└──────────────┴───────────────────────┴───────────────┴─────────────┴──────────────┘</div>
+      <div class="keypoint"><b>Lo que revela el molde:</b> las columnas <b>ENTRA</b> y <b>SALE</b> no
+        tienen archivos. Eso no es un hueco — es la <b>definición</b> de una capa pura: entra por
+        parámetros, sale por retorno, nunca toca disco ni sabe de JASS. Por eso se testea con dicts.</div>
+
+      <!-- ─────────── ALTURA 3 ─────────── -->
+      <div class="sub-h"><span class="qn">Altura 3</span> una decisión por firma — en orden de dependencia</div>
+      <p>El orden no es capricho: todo cuelga de <code>taxonomia</code> (el diccionario), así que se
+        cierra primero. <code>cascada</code> necesita las <code>entidades</code> → va después.</p>
+      <div class="ascii">   taxonomia ◄── entidades ◄── cascada ◄── saldo
+       ▲                          │
+       └──────── politica_corte ◄─┘ ◄── identidad (transversal)</div>
+
+      <!-- ========== 1 · taxonomia ========== -->
+      <div class="sub-h"><span class="qn">1 · 🟢</span> taxonomia.py — el diccionario del ledger</div>
+      <p>Antes de escribirla hubo <strong>5 preguntas</strong> (recuperadas de
+        <code>RETOMAR_dominio</code> · "Bloques por abrir" + el código). Cada una parte en opciones y
+        la decisión sale del <em>por qué</em>.</p>
+      <div class="qbar">
+        <span class="q">① ¿agua = mantenimiento?</span>
+        <span class="q">② ¿arrastre es concepto?</span>
+        <span class="q">③ ¿falta OTROS?</span>
+        <span class="q">④ ¿hay sub?</span>
+        <span class="q">⑤ ¿céntimos?</span>
+      </div>
+
+      <p style="margin:22px 0 6px;font-size:14px"><strong>① ¿AGUA y MANTENIMIENTO son un concepto o dos?</strong> → <b>dos</b> (T1)</p>
+      <div class="ascii">  CÓDIGO los SUMA:                    la pregunta parte en dos opciones:
+  P1 = mes_actual + mantenimiento     A) 1 concepto "agua+mant"      B) 2 conceptos
+       └──── un solo número ─────┘        ┌──────────────────┐         ┌──────┐ ┌──────────────┐
+                                          │ AGUA+MANT (junto)│         │ AGUA │ │ MANTENIMIENTO│
+                                          └──────────────────┘         └──────┘ └──────────────┘
+                                          consumo y cuota mezclados     consumo    cuota fija
+                     │
+                     ▼   <b>POR QUÉ B</b> (separados):
+       · son cobros DISTINTOS: agua = consumo variable · mant = cuota fija mensual
+       · el contador y el extracto los reportan por separado (ley + claridad al socio)
+       · un pago debe poder cubrir uno sin el otro → necesitan vivir aparte</div>
+
+      <p style="margin:22px 0 6px;font-size:14px"><strong>② ¿"arrastre" (lo que quedó debiendo de meses previos) es un concepto propio?</strong> → <b>no</b> (T2)</p>
+      <div class="ascii">  ¿"arrastre" es un BALDE nuevo (8º concepto)  o  es la MISMA agua de un mes viejo?
+
+    opción A · arrastre = concepto          opción B · arrastre = AGUA con MES_CARGO viejo
+    ┌────────────┐                           Cargo(AGUA, mes=2026-03) ┐
+    │  ARRASTRE  │  ◄ 8º balde                Cargo(AGUA, mes=2026-04) ├─ mismo concepto,
+    └────────────┘                           Cargo(AGUA, mes=2026-05) ┘  distinto mes → FIFO
+                       │
+                       ▼   <b>POR QUÉ B</b> (no es concepto → 7 conceptos, no 8):
+        · "arrastrar" no cambia QUÉ se debe (sigue siendo agua), solo CUÁNDO nació
+        · un balde "arrastre" duplicaría el concepto AGUA → dos nombres para lo mismo
+        · FIFO por MES_CARGO lo resuelve sin inventar taxonomía (paga el mes más viejo 1º)</div>
+
+      <p style="margin:22px 0 6px;font-size:14px"><strong>③ ¿el único cambio a P1-P5 es agregar P6 OTROS, aunque hoy nadie lo emita?</strong> → <b>sí</b> (T3)</p>
+      <div class="ascii">  CÓDIGO: P1-P5           DESTINO: P1-P6
+  (5 prioridades)         P6 OTROS ◄ slot de escape · sin emisor hoy
+                     │
+                     ▼   <b>POR QUÉ agregarlo vacío</b>:
+       · lente de escala: una JASS futura con un cobro raro entra por OTROS
+         SIN tocar el motor (config, no código)
+       · costo cero: es un slot al final de la cascada, especulativo pero barato</div>
+
+      <p style="margin:22px 0 6px;font-size:14px"><strong>④ ¿hay un "sub" genérico, o las fuentes traen el split para todos?</strong> → <b>las fuentes lo traen</b> (T4)</p>
+      <div class="ascii">  cada concepto de pueblo se PARTE en sub (viene ya partido de la secretaria):
+
+     MULTA    ── reunión · faena          un pago debe saber QUÉ sub cubrió:
+     ACUERDOS ── techado · campo          "ya pagué mi faena" ◄ sin sub, no se
+     CONVENIO ── medidor · instalación · reactivación (⑬)  puede explicar la atribución
+                     │                                       de un reclamo
+                     ▼   <b>POR QUÉ sin genérico permanente</b>:
+       · las fuentes crudas (obligaciones/) traen el split → no hace falta un "sub varios"
+       · solo la data histórica vieja queda con sub genérico HASTA re-sembrar (Fase 2)
+       · reactivación (24/07/2026) sumó el 3er sub de CONVENIO — deuda que NACE al
+         reactivar un predio dormido años, pagada en cuotas (misma forma que instalación)</div>
+
+      <p style="margin:22px 0 6px;font-size:14px"><strong>⑤ ¿el dinero va en céntimos enteros?</strong> → <b>sí, sin TOL</b> (T5)</p>
+      <div class="knob"><b>→ Ver:</b> <a href="cimientos.html#glosario">Cimientos · Precisión de datos —
+        céntimos enteros</a>. Es un concepto transversal (vale para todo el sistema), así que su lámina
+        vive en Cimientos y acá solo se apunta. En una línea: <code>float</code> miente al sumar →
+        guardar todo en enteros (1850 = S/ 18.50) hace la comparación exacta y borra el <code>TOL</code>.</div>
+
+      <div class="ascii">  RESULTADO — 7 conceptos · cascada P1-P6 · céntimos int
+  ────────────────────────────────────────────────────
+  P1  AGUA · MANTENIMIENTO · arrastre(FIFO)
+  P2  CORTE_RECONEXION
+  P3  CONVENIO   medidor → instalación → reactivación
+  P4  ACUERDOS   techado → campo
+  P5  MULTA      reunión → faena
+  P6  OTROS      (slot residual, sin emisor)
+  ── tramo pueblo corregido 2026-07-23 (era MULTA→ACUERDOS→CONVENIO, ver CA1) ──
+  ── reactivación (⑬) sumada 24/07/2026 al 3er sub de CONVENIO ──</div>
+      <div class="analogy"><b>El concepto que enseña taxonomía:</b> el código venía todo fusionado
+        (agua+mant sumados, arrastre como número suelto). Modelar = <b>separar lo fusionado y nombrar
+        cada parte por lo que ES</b>, y decidir qué falta (OTROS) y qué se parte (sub).</div>
+
+      <!-- ========== 2 · entidades (puntero) ========== -->
+      <div class="sub-h"><span class="qn">2 · 🟢</span> entidades.py — las cosas (sustantivos)</div>
+      <p>Esta firma <strong>ya tiene su lámina</strong> — no se duplica, se apunta. Sus 3 preguntas
+        (¿qué es una entidad? · ¿cuál es su flujo? · ¿qué es <code>__post_init__</code>?) y las
+        decisiones E1-E3, con sus diagramas de flujo, viven junto al concepto que las explica.</p>
+      <div class="knob"><b>→ Ver:</b> <a href="cimientos.html#modelado-tipos">Cimientos · Modelado con
+        tipos — ¿Qué es una entidad? (E1-E3)</a>. En una línea: 5 entidades <code>frozen</code> que se
+        validan al nacer; el Ajuste apunta por <code>CARGO_ID</code>; la identidad del abono es entidad propia.</div>
+
+      <!-- ========== 3 · cascada ========== -->
+      <div class="sub-h"><span class="qn">3 · 🟢</span> cascada.py — cómo un pago cubre las deudas</div>
+      <p>La firma: <code>aplicar(cargos_abiertos, abono) → Reparto(aplicaciones, saldo_a_favor)</code>.
+        Rediseño del código viejo (<code>5_cobranza::_descomponer_saldo</code>). Cuatro preguntas → CA1-CA4.</p>
+      <div class="qbar">
+        <span class="q">CA1 ¿en qué orden reparte?</span>
+        <span class="q">CA2 ¿qué pasa si sobra?</span>
+        <span class="q">CA3 ¿cuántos pagos por vez?</span>
+        <span class="q">CA4 ¿y la devolución?</span>
+      </div>
+
+      <p style="margin:22px 0 6px;font-size:14px"><strong>CA1 orden del reparto · CA2 qué pasa con el sobrante</strong></p>
+      <div class="ascii">  UN abono de UN predio
+        │
+        ▼   reparte en ORDEN FIJO hasta agotar la plata
+  ┌─────────────────────────────────────────────────────┐        clave_orden(cargo) =
+  │ P1  AGUA / MANT / arrastre ─FIFO─► mes + viejo      │          (prioridad, sub, mes_cargo)
+  │ P2  CORTE_RECONEXION                                │              1º        2º     3º FIFO
+  │ P3  CONVENIO   medidor → instalación → reactivación │
+  │ P4  ACUERDOS   techado → campo                      │   ◄── CA1: prioridad → sub-orden → FIFO
+  │ P5  MULTA      reunión → faena                      │       (pueblo corregido 2026-07-23)
+  │ P6  OTROS                                           │       (reactivación ⑬ sumada 24/07/2026)
+  └─────────────────────────┬───────────────────────────┘
+                             ▼  ¿sobró plata?
+                  ┌──────────────────────┐
+                  │ <b>SALDO_A_FAVOR</b>         │  ◄── CA2: concepto explícito
+                  └──────────────────────┘       el código viejo lo TIRABA (restante descartado)</div>
+
+      <p style="margin:22px 0 6px;font-size:14px"><strong>¿por qué el tramo pueblo va CONVENIO → ACUERDOS → MULTA?</strong> (reorden 2026-07-23)</p>
+      <div class="ascii">  el MISMO principio del sub-orden, subido un nivel:
+  ┌──────────────────────────────────────────────────────────┐
+  │ "el dinero cubre primero lo que SOLO el dinero puede saldar" │
+  └──────────────────────────────────────────────────────────┘
+                     │
+     ┌───────────────┴────────────────┐
+     ▼                                 ▼
+  MULTA = la más "no-monetaria"     CONVENIO · ACUERDOS = solo con plata
+   · faena  → se paga con TRABAJO    · medidor · instalación · reactivación
+   · reunión→ se EXONERA (asistencia,  · techado · campo
+              pasa muy seguido)
+     │                                 │
+     ▼                                 ▼
+  va ÚLTIMA (P5)                    van PRIMERO (P3·P4)
+  lo más probable de trabajar/       lo único que la plata puede cubrir
+  perdonar → no gastar plata ahí
+                     │
+                     ▼   <b>lo que destapó el bug</b> (caso C-1):
+   el orden viejo (multa 1º) marcaba "pagada" una multa que el vecino
+   NUNCA cubrió, solo porque el waterfall llegaba a ella antes que a
+   convenio/acuerdos — que era lo que él sí había pagado</div>
+
+      <p style="margin:22px 0 6px;font-size:14px"><strong>CA3 la cascada procesa 1 abono · CA4 la devolución queda fuera</strong></p>
+      <div class="ascii">  CAPA MOTOR  (sabe de tiempo · I/O)                cascada = función PURA
+  ┌──────────────────────────────────────┐
+  │ abonos ordenados por FECHA:           │
+  │   05/07 · 12/07 · 28/07   (N = 3)     │
+  │       │   por cada uno:               │
+  │       ▼                               │
+  │  cascada.aplicar(cargos, <b>1 abono</b>) ──┼───►  1 pago · sin fechas · sin archivos
+  │       │   devuelve Reparto             │        ◄── CA3: se testea con dicts
+  │       ▼   actualiza cargos            │
+  └──────────────────────────────────────┘
+
+  DEVOLUCIÓN (plata que SALE)  ─────►  egreso de caja  vs  SALDO_A_FAVOR
+       NO entra a la cascada                lo maneja el MOTOR      ◄── CA4
+       código viejo: la sumaba DENTRO de P1 agua (número mezclado en la deuda)</div>
+      <div class="analogy"><b>El concepto que enseña cascada:</b> igual que taxonomía — separar lo
+        fusionado. CA3 partió "la regla de reparto" de "el manejo del tiempo"; CA4 partió "un egreso"
+        de "una deuda". La señal de fusión: un número o una función haciendo dos trabajos.</div>
+
+      <!-- ========== 4 · politica_corte ========== -->
+      <div class="sub-h"><span class="qn">4 · 🟢</span> politica_corte.py — ¿este predio se corta?</div>
+      <p>La firma: <code>evaluar(saldo, meses_impagos, ya_cortado, en_revision, pago_ventana, cfg) →
+        (motivo, penalidad, salvado)</code>, con <code>cfg</code> del <strong>manifiesto del tenant</strong>
+        por trigger. Rediseño de <code>6_corte</code> (<code>generar_lista</code> Día 0 + <code>seguimiento</code>
+        Día 2 colapsan en una función pura). Decidida con el <strong>lente de escala</strong>: los valores no se
+        hardcodean, entran por config. Siete preguntas → PC1-PC7.</p>
+      <div class="qbar">
+        <span class="q">PC1 ¿umbral?</span>
+        <span class="q">PC2 ¿qué salva?</span>
+        <span class="q">PC3 ¿1 instante?</span>
+        <span class="q">PC4 ¿escala?</span>
+        <span class="q">PC5 ¿exonerado?</span>
+        <span class="q">PC6 multa</span>
+        <span class="q">PC7 salida</span>
+      </div>
+
+      <!-- ── PC1 ── -->
+      <p style="margin:24px 0 6px;font-size:14px"><strong>PC1 · ¿Se corta por MONTO de deuda o por CONDUCTA (meses sin pagar)?</strong> → <b>conducta</b></p>
+      <p style="max-width:70ch">Antes el código cortaba con <code>MES_ANTERIOR ≥ S/8</code>. <b>No era arbitrario:</b>
+        cada planilla era independiente y solo guardaba el pago del mes anterior — no había historia. Como la
+        deuda mínima de consumo es S/8, una deuda de 1 a 7 soles delataba que la persona <em>había pagado algo</em>
+        (parcial), y a esos no se los cortaba. El S/8 era un <b>proxy</b> de "no pagó nada". Hoy el ledger sí guarda
+        el pago de cada mes → ya no hace falta el proxy, se cuenta directo.</p>
+      <div class="ascii">  A) MONTO (lo viejo, un proxy)          B) CONDUCTA (lo correcto ahora)
+     deuda ≥ S/8 → corta                    pagó S/0 durante N meses seguidos → corta
+     ┌────────────────────┐                 ┌──────────────────────────────────┐
+     │ mira el TAMAÑO      │                 │ mira el COMPORTAMIENTO            │
+     │ de la deuda         │                 │ (¿está pagando o no?)  N=config  │
+     └────────────────────┘                 └──────────────────────────────────┘
+                     │
+                     ▼   <b>POR QUÉ B</b>:
+       · el corte castiga NO PAGAR, no DEBER MUCHO — alguien con un convenio grande pero al día NO se corta
+       · el S/8 rompía con tarifas distintas: cortaba a uno al mes 1 y a otro recién al mes 3
+       · N (cuántos meses) = config del tenant (agua = 2 meses), no un número clavado en el código</div>
+      <div class="keypoint"><b>PC1b · ¿qué cuenta como "mes impago"?</b> → <b>que haya pagado S/0 ese mes.</b>
+        Si pagó aunque sea un poco, ese mes NO cuenta como impago (es la misma idea del proxy viejo, ahora exacta).
+        Así un pago parcial te <em>frena</em> el conteo hacia el corte.</div>
+      <div class="knob"><b>⚠ Precondición (abre la próxima firma):</b> para contar "meses impagos" hace falta que
+        <code>saldo.py</code> derive ese número del ledger (por FIFO de <code>MES_CARGO</code>) y lo mantenga
+        <b>actualizado</b> — si alguien paga hoy un mes viejo, el conteo tiene que bajar. Sin eso confiable,
+        esta regla no se sostiene.</div>
+
+      <!-- ── PC2 ── -->
+      <p style="margin:24px 0 6px;font-size:14px"><strong>PC2 · Ya estás en la lista de corte: ¿qué te salva?</strong> → <b>cubrir la penalidad</b></p>
+      <p style="max-width:70ch">El código se contradecía: en el Día 0 (armar lista) bastaba pagar <em>cualquier cosa</em>
+        para zafar, pero en el Día 2 (tras la ventana de gracia) exigía haber pagado la penalidad completa.
+        Elegimos la regla del <b>Día 2</b>.</p>
+      <div class="ascii">  A) cualquier pago salva              B) hay que cubrir la penalidad
+     pagó S/1 de S/300 → zafa            pago_en_ventana ≥ penalidad → salvado
+                     │                          si pagó menos → CORTADO igual
+                     ▼   <b>POR QUÉ B</b>:
+       · el que pagó a medias no zafa: o junta la penalidad o va a corte — si no, cualquiera esquiva con S/1
+       · OJO: esto NO choca con PC1b. Son dos momentos distintos:
+           PC1  (entrar a la lista) → un parcial te FRENA (no acumulás mes impago)
+           PC2  (ya en la lista)    → para SALVARTE ahí, sí o sí cubrís la penalidad
+       · "¿permite salvarse con parcial?" es un bool de config por trigger (agua = sí en PC1, no en PC2)</div>
+
+      <!-- ── PC3 ── -->
+      <p style="margin:24px 0 6px;font-size:14px"><strong>PC3 · ¿La función <code>evaluar()</code> sabe qué día es?</strong> → <b>no — es una calculadora de un instante</b></p>
+      <p style="max-width:70ch">Esta es la que más cuesta. La idea: <code>evaluar()</code> es como una
+        <b>calculadora</b>. Le pasás el estado de un predio <em>ahora</em> y te devuelve el veredicto <em>ahora</em>.
+        No sabe si es "Día 0" o "Día 2", no abre archivos, no mira el reloj. Quien sabe de fechas es el
+        <b>MOTOR</b>, que la llama <b>dos veces</b> con distinto input:</p>
+      <div class="ascii">  EL MOTOR (sabe fechas) llama a la MISMA función 2 veces:
+
+  Día 0 · arma la lista de corte
+     evaluar(meses_impagos=2, pago_ventana=0,  cfg_agua)
+        └─► (motivo="agua", penalidad=20, salvado=False)      → este predio ENTRA a la lista
+
+  Día 2 · terminó la ventana de gracia, ¿pagó?
+     evaluar(meses_impagos=2, pago_ventana=25, cfg_agua)
+        └─► (motivo="agua", penalidad=20, salvado=True )      → pagó ≥ 20 → NO se corta
+     evaluar(meses_impagos=2, pago_ventana=5,  cfg_agua)
+        └─► (motivo="agua", penalidad=20, salvado=False)      → pagó poco → CORTADO
+
+  misma función · distinto input · el "cuándo" y el "cuántas veces" los decide el MOTOR</div>
+      <div class="ascii">  ¿por qué NO meter los dos días adentro de evaluar()?
+
+  A) pura de 1 instante (elegida)        B) la función maneja los 2 momentos
+     evaluar = calculadora                  evaluar sabe de Día 0 / Día 2 adentro
+     el motor pone el reloj                 → vuelve a partir la decisión en 2 lugares
+                     ▼   <b>POR QUÉ A</b>:      = el mismo enredo que tiene el código hoy
+       · una sola verdad de "¿se corta?", que se prueba con un diccionario de entrada (sin archivos)
+       · es EXACTAMENTE lo que ya decidimos en cascada (CA3): la regla no sabe de tiempo; el motor itera</div>
+
+      <!-- ── PC4 ── -->
+      <p style="margin:24px 0 6px;font-size:14px"><strong>PC4 · La penalidad sube de S/20 a S/40. ¿Quién decide ese salto?</strong> → <b>el motor, no <code>evaluar()</code></b></p>
+      <p style="max-width:70ch">La penalidad arranca en S/20 cuando entrás a la lista, y <b>escala a S/40</b> si no
+        pagás durante la ventana y te cortan de verdad. La pregunta es dónde vive esa escalada. Como
+        <code>evaluar()</code> no sabe qué día es (PC3), <b>no puede</b> decidir el salto — el salto es
+        "pasó la ventana y no pagaste", un hecho del tiempo, y el tiempo es del motor.</p>
+      <div class="ascii">  penalidad_base = S/20  ◄── viene de la CONFIG del trigger (no está clavada en el código)
+        │
+        │   evaluar() siempre devuelve la BASE (20). No escala nada.
+        ▼
+  MOTOR: ¿pasó la ventana de gracia y NO cubrió la penalidad?
+        ├─ sí  → escala ×2 → S/40   (corte confirmado)
+        └─ no  → queda en S/20
+                     ▼   <b>POR QUÉ así</b>:
+       · <code>evaluar()</code> solo afirma un HECHO: "la penalidad de corte de este trigger es 20"
+       · la escalada es un EVENTO temporal ("no pagó a tiempo") → lo aplica el motor, coherente con PC3
+       · el 20 y el factor de escala son CONFIG por tenant → una JASS podría cortar con otra penalidad
+         sin tocar una línea de código (lente de escala)</div>
+
+      <!-- ── PC5 ── -->
+      <p style="margin:24px 0 6px;font-size:14px"><strong>PC5 · ¿"ya cortado" alcanza, o falta un estado?</strong> → <b>falta EXONERADO (3er estado)</b></p>
+      <p style="max-width:70ch">El código trataba igual a un cortado y a un exonerado (a ninguno lo vuelve a
+        evaluar). Pero <b>no son lo mismo</b>: un cortado se quedó sin agua; un exonerado sigue con agua pero se le
+        <em>perdonó</em> el corte por una razón. Merecen ser estados distintos y auditables.</p>
+      <div class="ascii">  activo  │  cortado  │  EXONERADO ◄── el estado nuevo
+                             ├─ mensual    → CADUCA al mes · exige un MOTIVO
+                             │               (enfermedad · reclamo · verificación · …)
+                             └─ permanente → no caduca · la decide la junta (ej. vejez)
+                     ▼   <b>POR QUÉ 3 estados</b>:
+       · el exonerado DEBE, pero tiene un perdón vigente → si un bool lo mezcla con "cortado", se pierde el porqué
+       · la exoneración puede vencer → se guarda con {tipo, motivo, período} para saber cuándo vuelve a activo
+       · lleva JASS_ID como todo evento (lente): auditable y multi-tenant</div>
+
+      <!-- ── PC6 ── -->
+      <p style="margin:24px 0 6px;font-size:14px"><strong>PC6 · El corte por multa, ¿es otro código?</strong> → <b>no — es la MISMA función con otra config</b></p>
+      <p style="max-width:70ch">Acá el lente de escala manda: <b>no hay</b> un "código de corte de agua" y otro
+        "de corte de multa". Hay <b>una sola</b> <code>evaluar()</code>. Lo que cambia entre agua y multa es la
+        <b>config</b> que le pasás — como dos recetas para la misma máquina.</p>
+      <div class="ascii">  MISMA función evaluar() · dos configs distintas:
+
+  cfg_agua  = { umbral_meses: 2, penalidad_base: 20 (→40), permite_salvarse_parcial: sí }
+  cfg_multa = { umbral_meses: 0, penalidad_base: 20 (→40), permite_salvarse_parcial: no }
+
+  Ejemplo — un predio con 1 multa impaga:
+     evaluar(meses_impagos=0, ..., cfg_multa)   con umbral_meses = 0
+        └─► umbral 0 significa "cualquier multa impaga ya dispara corte" (no espera 2 meses como el agua)
+        └─► (motivo="multa", penalidad=20, salvado=False)</div>
+      <p style="max-width:70ch"><b>Por qué importa:</b> esto es lo que ya fijó la memoria — <code>6b_corte_multas</code>
+        <b>no es un módulo aparte</b>, es el concepto <code>multa</code> marcado como "dispara corte" en el
+        manifiesto del tenant. Una JASS que no corta por multas simplemente no pone ese trigger. Y la penalidad
+        de multa es <b>la misma 20→40 del agua</b> (no trae un número propio).</p>
+
+      <p style="margin:20px 0 6px;font-size:14px"><strong>PC6 × CA1 · el reorden de la cascada empuja a este trigger</strong> (consecuencia querida, 2026-07-23)</p>
+      <div class="ascii">  ORDEN VIEJO (multa P3, temprana)        ORDEN NUEVO (multa P5, última)
+  ────────────────────────────────        ─────────────────────────────
+  un parcial CUBRE la multa               un parcial NO la toca
+        │                                        │
+        ▼                                        ▼
+  pocos con multa impaga                   MUCHOS con multa impaga
+        │                                        │
+        └──────────────────┬─────────────────────┘
+                           ▼
+              cfg_multa: "cualquier multa impaga corta"
+                           │
+                           ▼   <b>consecuencia QUERIDA</b> (no un efecto a mitigar):
+   muchos vecinos reclaman "ya pagué convenio/acuerdos" — y es CIERTO,
+   pero su multa seguía sin pagar. El orden nuevo la deja visible y
+   elegible para corte → saca a la luz las multas realmente impagas.</div>
+
+      <!-- ── PC7 ── -->
+      <p style="margin:24px 0 6px;font-size:14px"><strong>PC7 · <code>evaluar()</code> devuelve <code>(motivo, penalidad, salvado)</code>: ¿dónde se lee "no se corta"?</strong> → <b>motivo = solo el trigger</b></p>
+      <p style="max-width:70ch">El código viejo metía todo en un solo texto <code>motivo</code>: a veces decía
+        "agua" (por qué cortaría), a veces "reclamo en revisión" o "pago parcial" (por qué NO). Mezclaba
+        <b>dos preguntas distintas</b> en un campo, y para saber si hubo corte había que leer el texto. Lo separamos.</p>
+      <div class="ascii">  motivo = SOLO el disparador ∈ {"agua", "multa", ""}     ← ¿por qué CORTARÍA?
+  salvado = sí / no                                        ← ¿algo lo frenó?
+
+  Se lee directo, sin interpretar texto:
+     ("agua", 20, False)  → corta por agua
+     ("agua", 20, True )  → iba a cortar por agua, pero se salvó (pagó / reclamo)
+     ("",      0, False)  → motivo vacío = no hay disparador → NO se corta
+                     ▼   <b>¿y el "por qué se salvó" (reclamo vs pago)?</b>
+       no se pierde: <code>evaluar()</code> RECIBE <code>en_revision</code> y <code>pago_ventana</code> como
+       entrada, así que el motor ya sabe la razón y la anota en la lista/auditoría. No hace falta devolverla.</div>
+      <div class="analogy"><b>El concepto que enseña politica_corte:</b> el lente de escala separa la
+        <b>política</b> (los números: cuántos meses, cuánta penalidad — viven en la config del tenant) del
+        <b>mecanismo</b> (la función <code>evaluar</code>, idéntica en las 25k JASS). Agua y multa no son dos
+        ramas de código: son dos filas de config alimentando el mismo motor. Eso es "de lo general a lo
+        específico": el general (la función) está completo; lo específico (la config) es solo lo que cada JASS declara.</div>
+
+      <!-- ========== 5 · saldo ========== -->
+      <div class="sub-h"><span class="qn">5 · 🟢</span> saldo.py — ¿cuánto debe? ¿cuántos meses sin pagar?</div>
+      <p>Dos firmas puras: <code>saldo(cargos, aplicaciones) → int céntimos</code> (deuda total del predio) y
+        <code>meses_impagos(cargos_agua, aplicaciones) → int</code> (la <strong>precondición de PC1</strong>).
+        Rediseño de <code>6_corte</code>, que hoy adivina la conducta con el proxy <code>MES_ANTERIOR ≥ 8</code>.
+        Clave: <b>no re-corre la cascada</b> — lee las <code>Aplicacion</code> que el motor ya creó y las suma por
+        cargo. Cinco preguntas → S1-S5.</p>
+      <div class="qbar">
+        <span class="q">S1 ¿qué es un mes?</span>
+        <span class="q">S2 ¿qué es impago?</span>
+        <span class="q">S3 ¿se guarda?</span>
+        <span class="q">S4 ¿total o desglose?</span>
+        <span class="q">S5 ¿seguidos?</span>
+      </div>
+
+      <!-- ── S1 ── -->
+      <p style="margin:24px 0 6px;font-size:14px"><strong>S1 · Para contar meses impagos, ¿"un mes" es solo el AGUA (consumo) o la boleta entera?</strong> → <b>AGUA + MANTENIMIENTO</b></p>
+      <p style="max-width:70ch">La taxonomía separó <code>AGUA</code> (consumo) y <code>MANTENIMIENTO</code> en dos
+        conceptos. Pero la persona recibe <b>una sola boleta por mes</b>. "Pagó S/0 ese mes" (PC1b) se mide contra
+        <em>toda</em> la boleta de ese <code>MES_CARGO</code>, no contra un concepto suelto.</p>
+      <div class="ascii">  A) solo el consumo (AGUA)          B) la boleta entera  ◄── elegida
+  ┌────────────────────────┐         ┌───────────────────────────────┐
+  │ impago ⟺ S/0 al AGUA   │         │ impago ⟺ S/0 a AGUA + MANT    │
+  │ ignora mantenimiento   │         │ = a todo lo del MES_CARGO     │
+  └────────────────────────┘         └───────────────────────────────┘
+                     ▼   <b>POR QUÉ B</b>:
+       · la persona recibe UNA boleta por mes (consumo + mantenimiento juntos)
+       · con A, un mes donde solo debe mantenimiento no contaría → se cortaría de menos
+       · pagó el consumo pero no el mantenimiento = pagó algo → NO es impago (coherente con PC1b)</div>
+
+      <!-- ── S2 ── -->
+      <p style="margin:24px 0 6px;font-size:14px"><strong>S2 · El pago no viene marcado "para mayo" — la cascada lo reparte por FIFO. ¿Qué es un "mes impago"?</strong> → <b>el mes que recibió S/0</b></p>
+      <p style="max-width:70ch">La cascada (CA1) aplica cada abono al mes <b>más viejo</b> primero; nadie etiqueta un
+        pago "por mayo". Así que "mes impago" no se lee del pago, se lee de la imputación: un mes es impago si sus
+        cargos recibieron <b>S/0</b>. El mes-frontera que quedó a medias (recibió algo) <b>no cuenta</b>.</p>
+      <div class="ascii">  A) mes con saldo ABIERTO (>0)      B) mes que recibió S/0  ◄── elegida
+  ┌────────────────────────────┐    ┌───────────────────────────────┐
+  │ el parcial-frontera SÍ      │    │ el parcial-frontera NO cuenta │
+  │ cuenta como impago          │    │ (puso algo → sigue enganchado)│
+  └────────────────────────────┘    └───────────────────────────────┘
+
+   ejemplo (viejo → nuevo):   [ pagado ][ PARCIAL ][ S/0 ][ S/0 ]
+                 A contaría 3 impagos    ·    B cuenta 2 impagos
+                     ▼   <b>POR QUÉ B</b>:
+       · "impago" = no puso NADA ese mes → mira la conducta, no el tamaño de la deuda (idea de PC1)
+       · con A, quien paga a medias todos los meses igual va a corte — injusto y choca con PC1b
+       · el parcial FRENA el conteo: puso algo → todavía está enganchado</div>
+
+      <!-- ── S3 ── -->
+      <p style="margin:24px 0 6px;font-size:14px"><strong>S3 · ¿<code>saldo.py</code> guarda el contador de meses y lo actualiza, o lo recalcula cada vez?</strong> → <b>lo recalcula (función pura, cero estado)</b></p>
+      <p style="max-width:70ch">El RETOMAR pedía "mantener el conteo al día: si alguien paga hoy un mes viejo, tiene
+        que bajar". La forma correcta de mantenerlo al día es <b>no guardarlo</b>: se deriva de <code>(cargos,
+        aplicaciones)</code> cada vez que se lo pide.</p>
+      <div class="ascii">  A) guardar el contador             B) re-derivar (como el saldo)  ◄── elegida
+  ┌────────────────────────────┐    ┌────────────────────────────────┐
+  │ un script recuenta y        │    │ en el PAGO: solo se APILA el   │
+  │ reescribe el campo en CADA  │    │ hecho (append) · 0 cálculo     │
+  │ pago · hay que sincronizar  │    │                                │
+  │  → si un paso falla,        │    │ el número se calcula al LEER   │
+  │    el campo miente          │    │ (cuando politica_corte lo pide)│
+  └────────────────────────────┘    └────────────────────────────────┘
+                     ▼   <b>POR QUÉ B</b>:
+       · un contador guardado se desincroniza = el bug de writer único otra vez
+       · misma decisión que cascada (CA3) y politica_corte (PC3): el estado vive en el ledger</div>
+      <div class="keypoint"><b>Lo que hizo clic:</b> "re-derivar" <b>no</b> es recalcular en cada pago. En el pago
+        solo se <b>apila el evento</b> (cero cálculo); el conteo se deriva <b>al leer</b>, cuando
+        <code>politica_corte</code> lo pregunta. Por eso no se desincroniza: <em>escribir no calcula, leer sí</em>.
+        Es idéntico a cómo el ledger nunca guarda el saldo — lo re-deriva de <code>deuda − pago1 − pago2</code>.</div>
+
+      <!-- ── S4 ── -->
+      <p style="margin:24px 0 6px;font-size:14px"><strong>S4 · <code>saldo()</code> ¿devuelve el total, o el desglose por concepto?</strong> → <b>solo el total acá</b></p>
+      <p style="max-width:70ch"><code>saldo() = Σ cargos − Σ aplicaciones</code> (piso 0 por cargo), un <code>int</code>
+        en céntimos. El <b>desglose</b> por concepto/mes (para el estado de cuenta o el arrastre) sale de los
+        <em>mismos</em> cargos y aplicaciones, así que lo arma <code>estado_cuenta</code> cuando lo necesita — no se
+        duplica dentro de <code>saldo</code>.</p>
+      <div class="ascii">  A) saldo() con desglose            B) saldo() = total  ◄── elegida
+  ┌────────────────────────────┐    ┌───────────────────────────────┐
+  │ {agua:120, multa:40, …}     │    │ 18450 céntimos (un int)       │
+  │ + el total                  │    │ el desglose lo arma           │
+  │                             │    │ estado_cuenta de los MISMOS   │
+  │                             │    │ datos                         │
+  └────────────────────────────┘    └───────────────────────────────┘
+                     ▼   <b>POR QUÉ B</b>:
+       · politica_corte pide un total (¿debe algo?), no el desglose
+       · el desglose en 2 lugares = 2 verdades que se pueden contradecir
+       · una firma, un trabajo</div>
+
+      <!-- ── S5 ── -->
+      <p style="margin:24px 0 6px;font-size:14px"><strong>S5 · PC1 exige "N meses <em>seguidos</em>". ¿Hay que rastrear la consecutividad aparte?</strong> → <b>no — FIFO ya la garantiza</b></p>
+      <p style="max-width:70ch">Como el abono siempre cierra el mes <b>más viejo</b> primero, es <b>imposible</b>
+        tener un mes pagado "en medio" de dos impagos. Los meses en S/0 son siempre el bloque más reciente y
+        contiguo. Así que "seguidos" sale gratis: <code>meses_impagos</code> cuenta desde el mes actual hacia atrás
+        y se detiene en el primer mes con pago.</p>
+      <div class="ascii">  A) rastrear consecutividad aparte  B) confiar en FIFO  ◄── elegida
+  ┌────────────────────────────┐    ┌───────────────────────────────┐
+  │ código extra que verifica   │    │ FIFO hace imposible un mes    │
+  │ que no haya un mes pagado   │    │ pagado EN MEDIO de impagos    │
+  │ en el medio                 │    │ → impagos = cola contigua     │
+  └────────────────────────────┘    └───────────────────────────────┘
+
+   imposible bajo FIFO:  [ S/0 ][ pagado ][ S/0 ]   ✗ nunca (el pago cierra el viejo primero)
+   siempre bajo FIFO:    [ pagado ][ pagado ][ S/0 ][ S/0 ]   ✓ impagos = cola contigua
+                     ▼   <b>POR QUÉ B</b>:
+       · FIFO = priorizar lo antiguo: el pago tapa primero el mes más viejo
+       · el orden de la cascada ya ordena la conducta (los pagados son siempre los viejos)
+       · "N seguidos" es una propiedad heredada del FIFO, no una regla nueva → cero código extra</div>
+      <div class="analogy"><b>El concepto que enseña saldo:</b> una sola pasada FIFO da las dos respuestas
+        —<b>cuánto debe</b> (la suma) y <b>cómo se comporta</b> (los meses en S/0)— y regala la consecutividad.
+        El número no se guarda en ningún lado: se re-deriva del ledger, como toda regla pura del dominio.</div>
+
+      <!-- ========== 6 · identidad ========== -->
+      <div class="sub-h"><span class="qn">6 · 🟢</span> identidad.py — el nombre único de cada hecho</div>
+      <p>Acuña el nombre de cada hecho del ledger. Firmas: <code>cargo_id(cargo) → str</code> ·
+        <code>abono_id(mov) → str</code> · <code>canon(mz, lt, concepto, sub, mes) → tuple</code> (normaliza
+        antes de generar el id). Consolida en la capa pura las reglas ya fijadas en el contrato (① <code>ABONO_ID</code>,
+        <code>CARGO_ID</code>) y resuelve sus contradicciones. Cuatro preguntas → I1-I4.</p>
+      <div class="keypoint"><b>Qué es una identidad · quién tiene id propio.</b> Identidad = un nombre <b>estable y
+        determinista</b>: el mismo hecho real siempre saca el mismo id → re-sembrar reconoce "este ya lo tenía"
+        (idempotencia). Y no todo acuña id propio — hay dos familias: las <b>COSAS que nacen</b> (<code>Cargo</code>=deuda,
+        <code>MovimientoCaja</code>=pago) tienen id propio; los <b>vínculos</b> (<code>Aplicacion</code>, <code>Ajuste</code>,
+        <code>IdentificacionAbono</code>) se identifican por el PAR que conectan —p.ej. <code>(ABONO_ID, CARGO_ID)</code>—
+        e inventarles un id sería un nombre que nadie referencia.</div>
+      <div class="qbar">
+        <span class="q">I1 ¿legible o hash?</span>
+        <span class="q">I2 ¿quién canoniza?</span>
+        <span class="q">I3 ¿abono lleva predio?</span>
+        <span class="q">I4 ¿re-identificar re-mint?</span>
+      </div>
+
+      <!-- ── I1 ── -->
+      <p style="margin:24px 0 6px;font-size:14px"><strong>I1 · El contrato se contradice: la prosa dice <code>sha256[:8]</code> (opaco) pero los ejemplos son legibles. ¿Cuál?</strong> → <b>prefijo legible + shorthash</b></p>
+      <p style="max-width:70ch">Un id puede ser un hash opaco o un texto que se lee. Elegimos el segundo: un
+        <b>prefijo legible</b> (lo humano) más un <b>shorthash</b> corto que desambigua el resto.</p>
+      <div class="ascii">  A) hash puro                       B) prefijo legible + shorthash  ◄── elegida
+  ┌──────────────────────────┐       ┌──────────────────────────────────┐
+  │  a1b2c3d4                │       │ cargo: jass-C-43-multa-a1b2c3d4  │
+  │  opaco · 32 bits         │       │ abono: jass-2026-05-YA-a3f9c1    │
+  │  colisiona al tope       │       │ el PREFIJO particiona el espacio │
+  │  (predios×conceptos×meses)│       │ → el hash corto sigue seguro     │
+  └──────────────────────────┘       └──────────────────────────────────┘
+                     ▼   <b>POR QUÉ B</b>:
+       · el <code>[:8]</code> es del SUFIJO hash, no del id entero → resuelve la ambigüedad del contrato
+       · hash puro de 32 bits colisiona a escala; con prefijo el hash solo desambigua dentro de
+         un bucket chico (mismo jass-mz-lt-concepto) → colisión despreciable
+       · un id legible se depura de un vistazo; el opaco obliga a un lookup para todo</div>
+
+      <!-- ── I2 ── -->
+      <p style="margin:24px 0 6px;font-size:14px"><strong>I2 · El mismo predio escrito <code>C</code>/<code>c</code>/<code> C </code> o <code>43</code>/<code>43.0</code> daría ids distintos. ¿Quién normaliza?</strong> → <b>un solo <code>canon()</code> en <code>identidad.py</code></b></p>
+      <p style="max-width:70ch">El determinismo <b>vive</b> en la canonicalización: si dos entradas que son "la
+        misma" no se normalizan igual, el id deja de ser determinista y se <b>duplica el cargo</b>.</p>
+      <div class="ascii">  A) cada módulo normaliza a su modo  B) canon() centralizado  ◄── elegida
+  ┌────────────────────────────┐     ┌───────────────────────────────┐
+  │ _norm_mz/_norm_lt copiados  │     │ identidad.py dueño único:     │
+  │ en 6_corte, 5_cobranza, …   │     │  MZ→upper · LT→int · concepto │
+  │ → divergen → el "mismo"     │     │  canónico · mes→YYYY-MM       │
+  │   predio da 2 ids           │     │ todo id pasa por acá primero  │
+  └────────────────────────────┘     └───────────────────────────────┘
+                     ▼   <b>POR QUÉ B</b>:
+       · si dos entradas "iguales" no canonizan igual, el id no es determinista → cargo duplicado
+       · hoy <code>_norm_mz/_norm_lt</code> están repetidos por módulo (regla del Tres: toca unificar)
+       · un solo <code>canon()</code> = una sola definición de "el mismo predio" en las 25k JASS</div>
+
+      <!-- ── I3 ── -->
+      <p style="margin:24px 0 6px;font-size:14px"><strong>I3 · Un yape de S/100 paga 2 predios. ¿El <code>ABONO_ID</code> lleva el predio?</strong> → <b>no — el dinero no lleva dueño</b></p>
+      <p style="max-width:70ch">El id del abono se arma con <b>de dónde vino</b> la plata (canal + origen +
+        timestamp), no con <b>de quién es</b>. Así un depósito es un abono, aunque pague a varios.</p>
+      <div class="ascii">  A) el id del abono incluye mz/lt    B) abono predio-agnóstico  ◄── elegida
+  ┌────────────────────────────┐     ┌───────────────────────────────┐
+  │ 1 yape a 2 predios → 2       │     │ 1 depósito = 1 abono          │
+  │ abonos con id colisionado   │     │ yape: clave (jass, origen,    │
+  │ (mismo dinero contado 2×)   │     │ timestamp) · SIN predio       │
+  │                             │     │ el predio vive en la          │
+  │                             │     │ APLICACIÓN, no en la caja     │
+  └────────────────────────────┘     └───────────────────────────────┘
+                     ▼   <b>POR QUÉ B</b>:
+       · el hecho es "entró S/100", uno solo — repartirlo en 2 predios es interpretación
+         (la hace el motor en las aplicaciones), no un hecho de caja
+       · efectivo SÍ lleva predio (1 pago = 1 predio, anotado en la mesa) → sin motor_matching
+       · es la identidad que <code>motor_matching</code> ya usa hoy para yape (Hueco 1 del contrato)</div>
+
+      <!-- ── I4 ── -->
+      <p style="margin:24px 0 6px;font-size:14px"><strong>I4 · Un blanco se reclama (o se reasigna). ¿Cambia su <code>ABONO_ID</code>?</strong> → <b>no — id estable + evento aparte</b></p>
+      <p style="max-width:70ch">"Blanco" = dueño desconocido <em>todavía</em>. El dinero ya tiene id (de canal+ref);
+        cuando alguien reclama, no se toca ese id: se <b>agrega un hecho</b> que dice de quién es.</p>
+      <div class="ascii">  A) recalcular el id al identificar   B) id estable + evento aparte  ◄── elegida
+  ┌────────────────────────────┐     ┌────────────────────────────────┐
+  │ el id incluye el predio →   │     │ ABONO_ID sale de canal+ref,    │
+  │ al asignar predio el id     │     │ NO del predio → nunca cambia   │
+  │ CAMBIA → rompe las FK de    │     │ el dueño se corrige con un     │
+  │ las aplicaciones · no       │     │ HECHO nuevo append-only:       │
+  │ idempotente                 │     │ identificar_abono(id,C,43,recl)│
+  └────────────────────────────┘     └────────────────────────────────┘
+
+   se lee en orden (append-only):
+     ABONO  jass-2026-05-YA-a3f9c1   DESTINO=PENDIENTE   (dueño desconocido)
+     IDENTIFICAR_ABONO  → C-43 (reclamo #12)   ← se AGREGA una fila
+     APLICACIÓN  abono_id=…a3f9c1 → cargo de C-43   (referencia el MISMO id)
+                     ▼   <b>POR QUÉ B</b>:
+       · el dinero es el mismo antes y después del reclamo → su id debe ser estable
+       · identidad del dinero (ABONO_ID) ≠ identidad del dueño (evento aparte) — dos cosas
+       · un blanco reclamado no rompe FKs ni idempotencia; el motor revierte/re-aplica leyendo el hecho</div>
+
+      <div class="keypoint"><b>Lo que hizo clic — el hash no salva un campo editable:</b> la llave de efectivo
+        incluye <code>fecha</code>, que tipea un humano. Un typo re-corrido cambia el hash → el ledger lo ve como
+        "otro pago" → <b>duplicado</b> (bug real). El hash no tiene la culpa: metiste un campo <em>editable</em>
+        dentro de la identidad. <b>Regla:</b> la identidad se arma solo con campos estables; lo editable es atributo.
+        <b>Fix:</b> anclar la identidad de efectivo a la <b>procedencia</b> (<code>origen_archivo + fila</code>,
+        estable ante ediciones) + un <b>gatillo de casi-duplicado</b> (mismo predio·monto·mesa, fecha ±pocos días)
+        que pide <b>autorización humana</b> antes de insertar. Yape queda con contenido porque lo fija el banco.</div>
+      <div class="keypoint"><b>Lo que hizo clic — "blanco" no es un id a medias:</b> el <code>CARGO_ID</code> lleva
+        <code>mz-lt</code> (una deuda siempre es de un predio); el <code>ABONO_ID</code> <b>nunca</b>
+        (<code>jass-mes-canal-#hash</code>). Por eso no existe "cargo blanco", pero sí "abono blanco" =
+        <code>DESTINO=PENDIENTE</code> — que es un <em>valor de campo</em>, no un id incompleto. El id del abono
+        está completo desde que entra la plata, aunque el dueño se sepa después.</div>
+      <div class="analogy"><b>El concepto que enseña identidad:</b> hay una identidad del <b>dinero</b>
+        (<code>ABONO_ID</code>, de dónde vino) y una del <b>dueño</b> (qué predio) — son dos cosas, y separarlas es
+        lo que deja corregir sin romper nada. Un ledger append-only nunca muta ni borra el pasado: corrige
+        <b>sumando</b> un hecho nuevo. Es el mismo principio del saldo (<code>deuda − pago1 − pago2</code>): la
+        verdad se re-deriva de los hechos, no se edita.</div>
+
+      <div class="dcaption">🟢 <b>dominio/ completo</b> — las 6 firmas cerradas (taxonomía · entidades · cascada ·
+        politica_corte · saldo · identidad). Siguiente: reconciliar los READMEs con esta verdad, luego Fase 2 (código).
+        Fuente: decisiones/ledger_fase1_decisiones.md</div>
+    </article>
+
+    <!-- ══════════ LÁMINA · caja/ ══════════ -->
+    <article class="lamina" data-submodulo="caja" id="caja">
+      <div class="anchor">
+        <span><span class="pin">📍</span> libro_mayor · caja</span>
+        <a href="../../libro_mayor/caja/README.md">verdad → caja/README.md</a>
+        <a href="cimientos.html#tres-alturas">método → 3 alturas</a>
+      </div>
+      <p class="plate-label">agregado · HECHOS de dinero</p>
+      <h2>caja/ — el libro de todo lo que entra y sale</h2>
+      <p>El ledger <strong>append-only</strong> de dinero: cuánto, cuándo, por qué canal, con qué
+        referencia. Es el lado <strong>HECHO</strong> del principio rector (HECHO vs
+        INTERPRETACIÓN) — caja nunca decide a qué deuda va un pago, eso es trabajo del
+        <strong>motor</strong> en <code>estado_cuenta</code>. Reemplaza al descartado
+        <code>7b_historial_pagos</code> (arquitectura distinta, se escribe desde cero).</p>
+
+      <!-- ─────────── ALTURA 2 ─────────── -->
+      <div class="sub-h"><span class="qn">Altura 2</span> el cuadro del módulo entero</div>
+      <div class="ascii">┌──────────────┬──────────────────────────┬────────────────┬──────────────┬──────────────┐
+│  QUÉ ENTRA   │  QUÉ HACE                │   QUÉ SALE     │  QUIÉN LEE   │  DECISIONES  │
+├──────────────┼──────────────────────────┼────────────────┼──────────────┼──────────────┤
+│ archivos     │ importar_efectivo.py     │ MovimientoCaja │ estado_cuenta│ ①⑦⑨⑩   🟢  │
+│ crudos de    │ importar_yape.py         │ (INGRESO o     │ (motor, vía  │              │
+│ 4_pagos:     │ importar_egresos.py      │  EGRESO, mismo │  ABONO_ID —  │              │
+│  pagos_      │   → arman el HECHO       │  esquema)      │  referencia, │              │
+│  efectivo    │                          │                │  nunca copia)│              │
+│  pagos_yape  │ caja_repo.py (WRITER     │ append-only,   │              │              │
+│  pagos_      │  ÚNICO):                 │ nunca se edita │ consultar.py │              │
+│  pagaste     │  registrar_movimiento    │ (corrección =  │ (5b_valida-  │              │
+│              │  identificar_abono       │  evento nuevo) │  ción, agente│              │
+│              │  reasignar_abono         │                │  read-only)  │              │
+└──────────────┴──────────────────────────┴────────────────┴──────────────┴──────────────┘</div>
+      <div class="keypoint"><b>Lo que revela el molde:</b> caja solo emite <b>HECHOS</b> de
+        dinero — nunca decide a qué deuda va. Por eso QUÉ SALE es siempre
+        <code>MovimientoCaja</code>, nunca una Aplicación; repartir es trabajo del
+        <b>motor</b> de <code>estado_cuenta</code>, que ve caja + deuda juntas. Mismo
+        principio que separa <code>dominio</code> de todo lo que lo rodea: quien crea el
+        hecho no es quien lo interpreta.</div>
+
+      <!-- ─────────── ALTURA 3 ─────────── -->
+      <div class="sub-h"><span class="qn">Altura 3</span> una decisión por pregunta</div>
+      <p>Dos de las cuatro decisiones de caja (① identidad del abono · ⑨ cómo se corrige
+        un blanco) <strong>ya se enseñaron completas</strong> en la lámina <code>dominio ·
+        identidad</code> — acá solo se apuntan, no se repiten. Las dos nuevas son propias
+        de caja: <strong>cómo se nombra un evento de dinero</strong> y
+        <strong>en qué vocabulario se clasifica</strong>.</p>
+      <div class="qbar">
+        <span class="q">⑩-a ¿un esquema o dos?</span>
+        <span class="q">⑩-b BALDE vs CONCEPTO</span>
+        <span class="q">⑩-c ¿qué cruza a la deuda?</span>
+        <span class="q">⑩-d ¿"comunitario" es balde?</span>
+      </div>
+
+      <!-- ── ⑩-a ── -->
+      <p style="margin:24px 0 6px;font-size:14px"><strong>⑩-a · Entra plata y sale plata (devolución, gasto). ¿Son dos esquemas distintos, o uno?</strong> → <b>uno solo — <code>MovimientoCaja</code></b></p>
+      <p style="max-width:70ch">Un ingreso (pago de agua) y un egreso (devolución, gasto
+        institucional) parecen cosas distintas. Pero para responder <em>"tesorería del
+        mes: cuánto entró, cuánto salió"</em> necesitás verlos con el mismo molde.</p>
+      <div class="ascii">  A) dos esquemas (ABONO / EGRESO)     B) un esquema, un campo DIRECCION  ◄── elegida
+  ┌────────────────────────────┐       ┌───────────────────────────────┐
+  │ tabla ABONOS                │       │ MovimientoCaja                │
+  │ tabla EGRESOS               │       │  DIRECCION = INGRESO | EGRESO │
+  │ (2 formas de leer, 2 queries)│      │  el signo de tesorería        │
+  └────────────────────────────┘       └───────────────────────────────┘
+                     ▼   <b>POR QUÉ B</b>:
+       · "cuánto entró / cuánto salió" es UNA query (`GROUP BY DIRECCION`), no dos
+       · `ABONO_ID` / `DEVOLUCION_ID` / `GASTO_ID` comparten el mismo esquema de id
+         determinista (identidad, ya visto) — solo cambia el prefijo semántico
+       · 1 tabla en Postgres, no dos (lente de escala §3: 1 bounded context = 1 esquema)</div>
+
+      <!-- ── ⑩-b ── -->
+      <p style="margin:24px 0 6px;font-size:14px"><strong>⑩-b · <code>BALDE</code> (caja) y <code>CONCEPTO</code> (deuda) suenan parecido. ¿Son lo mismo?</strong> → <b>no — dos vocabularios distintos, que el motor conecta</b></p>
+      <p style="max-width:70ch"><code>BALDE</code> clasifica <b>de dónde vino la plata</b>
+        (agua, tanque, honorario…). <code>CONCEPTO</code> clasifica <b>a qué deuda se
+        debe</b> (AGUA, MULTA, CONVENIO…). Nacen en agregados distintos y responden
+        preguntas distintas.</p>
+      <div class="ascii">  BALDE (caja) ────────────┐        ┌──────────── CONCEPTO (estado_cuenta)
+  "¿qué NATURALEZA          │        │        "¿a qué DEUDA se aplica?"
+   tiene este dinero?"       │        │
+  agua · tanque · honorario  │  MOTOR │   AGUA · MANTENIMIENTO · MULTA · …
+  · devolucion · gasto       └───────►│   (la cascada de dominio/taxonomia)
+                     ▼   <b>POR QUÉ separados</b>:
+       · un movimiento BALDE=agua puede repartirse en VARIOS conceptos (agua, corte,
+         multa) según la cascada — 1 balde → N conceptos posibles, no 1-a-1
+       · fusionarlos mezclaría "de dónde vino" con "adónde va" — la misma confusión
+         que ya resolvió `dominio` separando HECHO de INTERPRETACIÓN</div>
+
+      <!-- ── ⑩-c ── -->
+      <p style="margin:24px 0 6px;font-size:14px"><strong>⑩-c · No todo BALDE de ingreso toca la deuda de un predio. ¿Cuáles sí?</strong> → <b>agua y devolución/retorno — tanque y deuda_directiva NO</b></p>
+      <div class="ascii">                A PREDIO (toca deuda)      POR CONCEPTO (informativo, sin predio)
+  INGRESO (+)     agua → cascada P1-P6      tanque · deuda_directiva
+  EGRESO  (−)     devolucion/retorno        honorario · gasto (institucional)
+                  → baja SALDO_A_FAVOR
+                     ▼   <b>POR QUÉ tanque/deuda_directiva quedan afuera</b>:
+       · son APORTES VOLUNTARIOS, no obligaciones del predio — nadie le debe eso a nadie
+       · si generaran CARGO, un vecino que NO aporta al tanque aparecería "debiendo"
+         algo que nunca se le cobró → CARGO fantasma
+       · viven en caja como balde puro; `estado_cuenta` ni se entera que existen</div>
+
+      <!-- ── ⑩-d ── -->
+      <p style="margin:24px 0 6px;font-size:14px"><strong>⑩-d · Un depósito llega marcado "comunitario". ¿Es un balde nuevo?</strong> → <b>no — es un mecanismo de reparto, no una naturaleza de dinero</b></p>
+      <p style="max-width:70ch">Colisión de nombres real, encontrada auditando el código:
+        "tanque comunitario" (adjetivo — el tanque es de la comunidad) se confundió con
+        <code>CONCEPTO=comunitario</code> de <code>motor_matching</code> — un cobrador que
+        junta el pago de varios vecinos en un solo depósito de Yape.</p>
+      <div class="ascii">  A) "comunitario" = balde nuevo       B) "comunitario" = mecanismo de reparto  ◄── elegida
+  ┌────────────────────────────┐       ┌───────────────────────────────┐
+  │ 9º balde en la lista        │       │ sigue siendo BALDE=agua (①)   │
+  │ ¿a qué predio le toca?      │       │ el depósito se desgloza por   │
+  │ el sistema no sabría        │       │ lote en `Segregacion`:        │
+  │                             │       │  PADRE_SEGREGADO → N HIJOS    │
+  └────────────────────────────┘       └───────────────────────────────┘
+                     ▼   <b>POR QUÉ B</b>:
+       · el dinero de agua sigue SIENDO agua, sin importar cómo llegó agrupado
+       · el reparto en N predios es el mismo mecanismo del Hueco 1 (yape que paga
+         2 predios) — ya resuelto por identidad: 1 depósito = 1 abono, el reparto
+         vive en las APLICACIONES, no en un balde nuevo
+       · <b>efecto real:</b> <code>buscar_abono</code> debe mirar también los
+         <code>HIJO_SEGREGADO</code>, no solo depósitos de primer nivel — el pago de
+         un vecino puede estar enterrado dentro del depósito de su cobrador</div>
+
+      <div class="knob"><b>→ Ya visto (no se repite):</b> <code>ABONO_ID</code> determinista
+        (①) y cómo se corrige un blanco sin mutar su id (⑨, <code>identificar_abono</code>/
+        <code>reasignar_abono</code>) están enseñados completos en
+        <a href="#dominio">dominio · identidad (I3, I4)</a>. Acá solo aplican: caja es
+        quien las EJECUTA (los eventos), <code>dominio/identidad</code> es quien define
+        CÓMO se nombran.</div>
+
+      <div class="analogy"><b>El concepto que enseña caja:</b> un ledger de dinero no
+        necesita saber de deuda para ser útil — responde tesorería (cuánto entró/salió,
+        por balde) sin tocar el otro lado. Separar <code>BALDE</code> de
+        <code>CONCEPTO</code> es la misma disciplina que separar HECHO de
+        INTERPRETACIÓN: cada agregado nombra SOLO lo que le toca a él.</div>
+
+      <div class="dcaption">🟢 <b>caja — spec cerrado</b> (decisiones ①⑦⑨⑩ del contrato).
+        Sin código todavía (Fase 2). Fuente: <code>libro_mayor/caja/README.md</code> ·
+        contrato completo en <code>docs/decisiones/ledger_fase1_decisiones.md</code>.</div>
+    </article>
+
+    <!-- ══════════ LÁMINA · estado_cuenta/ ══════════ -->
+    <article class="lamina" data-submodulo="estado_cuenta" id="estado_cuenta">
+      <div class="anchor">
+        <span><span class="pin">📍</span> libro_mayor · estado_cuenta</span>
+        <a href="../../libro_mayor/estado_cuenta/README.md">verdad → estado_cuenta/README.md</a>
+        <a href="cimientos.html#tres-alturas">método → 3 alturas</a>
+      </div>
+      <p class="plate-label">agregado · INTERPRETACIÓN de la deuda</p>
+      <h2>estado_cuenta/ — la cuenta corriente y el motor que la llena</h2>
+      <p>El lado <strong>INTERPRETACIÓN</strong> del principio rector: acá nace la deuda
+        (<code>Cargo</code>) y acá vive el <strong>MOTOR</strong>, la única pieza del
+        sistema que ve <code>caja</code> (lo que entró) y la deuda juntos — por eso es la
+        única que puede decidir a qué cargo fue cada abono. Rediseña
+        <code>shared/seguimiento_pueblo.xlsx</code> (nació sin diseño, 3 conceptos, sin
+        link al pago real).</p>
+
+      <!-- ─────────── ALTURA 2 ─────────── -->
+      <div class="sub-h"><span class="qn">Altura 2</span> el cuadro del módulo entero</div>
+      <div class="ascii">┌──────────────┬──────────────────────────┬────────────────┬──────────────┬──────────────┐
+│  QUÉ ENTRA   │  QUÉ HACE                │   QUÉ SALE     │  QUIÉN LEE   │  DECISIONES  │
+├──────────────┼──────────────────────────┼────────────────┼──────────────┼──────────────┤
+│ CARGOS de:   │ cuenta_repo.py (WRITER   │ Cargo ·        │ tools/ (lo   │ ②③④⑥⑨⑪⑫🟢│
+│  2_planilla  │  ÚNICO):                 │ Aplicacion ·   │  que usa el  │              │
+│  obligaciones│   registrar_cargo        │ Ajuste         │  agente)     │              │
+│  6_corte     │   registrar_aplicacion   │                │              │              │
+│              │   registrar_ajuste       │ SALDO = Σcargos│ 3_boletas    │              │
+│ ABONOS de    │                          │ − Σaplicac.,   │  (Fase 2,    │              │
+│  caja (vía   │ motor_aplicacion.py      │ SIEMPRE derivado│  saldo real) │              │
+│  ABONO_ID,   │  (EL MOTOR): aplicar(    │ nunca celda    │              │              │
+│  nunca copia)│  cargos, abonos) →       │                │ 4b_reclamos  │              │
+│              │  aplicaciones — camina   │                │  (invoca,    │              │
+│ resolución de│  `dominio/cascada`       │                │  no escribe) │              │
+│  4b_reclamos │                          │                │              │              │
+└──────────────┴──────────────────────────┴────────────────┴──────────────┴──────────────┘</div>
+      <div class="keypoint"><b>Lo que revela el molde:</b> QUÉ ENTRA tiene DOS fuentes que
+        nunca se tocan directamente (cargos por un lado, abonos de <code>caja</code> por
+        otro) — el único punto donde se cruzan es adentro del MOTOR. Ningún emisor
+        (<code>2_planilla</code>, <code>obligaciones</code>) sabe si su cargo ya se pagó;
+        eso solo lo sabe el motor, y solo cuando corre.</div>
+
+      <!-- ─────────── ALTURA 3 ─────────── -->
+      <div class="sub-h"><span class="qn">Altura 3</span> una decisión por pregunta</div>
+      <p>La decisión ⑨ (reclamos → hechos del ledger) <strong>ya se enseñó completa</strong>
+        en <code>dominio · identidad</code> (I4) — acá solo se apunta. Las tres nuevas son
+        el corazón de este agregado: <strong>quién aplica</strong>, <strong>cómo traza</strong>
+        y <strong>qué pasa cuando sobra o se devuelve</strong> plata.</p>
+      <div class="qbar">
+        <span class="q">⑥ ¿quién aplica?</span>
+        <span class="q">② ¿a qué cargo exacto?</span>
+        <span class="q">③④ ¿y si sobra / se devuelve?</span>
+      </div>
+
+      <!-- ── ⑥ ── -->
+      <p style="margin:24px 0 6px;font-size:14px"><strong>⑥ · ¿Quién decide a qué cargo fue cada abono — cada módulo por su cuenta, o alguien central?</strong> → <b>EL MOTOR, pieza propia</b></p>
+      <p style="max-width:70ch">Hoy nadie "aplica" de verdad: <code>5_cobranza</code>
+        calcula el <code>SALDO</code> leyendo la planilla entera, sin pasar nunca por un
+        <code>abono_id</code> — no hay forma de trazar qué pago cubrió qué (Hueco 2). El
+        motor resuelve esto siendo la <b>única</b> pieza que ve los dos lados a la vez.</p>
+      <div class="ascii">  A) cada módulo aplica lo suyo             B) UN motor ve los dos lados  ◄── elegida
+  ┌────────────────────────────┐            ┌───────────────────────────────┐
+  │ 5_cobranza calcula SALDO    │            │ motor_aplicacion.aplicar(      │
+  │ leyendo la planilla entera  │            │   cargos_abiertos, abonos)     │
+  │ — NUNCA vio un abono_id     │            │ → APLICACIONES con abono_id +  │
+  │ (sin trazabilidad real)     │            │   cargo — camina dominio/cascada│
+  └────────────────────────────┘            └───────────────────────────────┘
+                     ▼   <b>POR QUÉ B</b>:
+       · aplicar exige ver AMBOS lados a la vez (qué debe + qué pagó) — solo el motor los junta
+       · los emisores (2_planilla, obligaciones, 6_corte) SOLO emiten cargos; caja SOLO
+         emite abonos; nadie más "aplica"
+       · <code>5_cobranza</code> se DISUELVE — el código confirma que nunca aplicó de
+         verdad, solo escribía un número (`registrar_pago`/`registrar_ajuste`, sin link)</div>
+
+      <!-- ── ② ── -->
+      <p style="margin:24px 0 6px;font-size:14px"><strong>② · Un abono de julio puede saldar la multa de marzo. ¿Cómo sabe la Aplicación cuál CARGO exacto tocó?</strong> → <b>referencia el cargo completo, no solo el concepto</b></p>
+      <div class="ascii">  A) referencia genérica "a MULTA"          B) referencia el CARGO exacto  ◄── elegida
+  ┌────────────────────────────┐            ┌───────────────────────────────┐
+  │ Aplicacion(abono, MULTA,    │            │ Aplicacion(abono,               │
+  │  monto)                     │            │   CARGO=(MULTA, reunión,        │
+  │ ¿cuál MES? ¿cuál SUB?       │            │          2026-03), monto)       │
+  │ se pierde en el camino      │            │ trazable: sabe qué mes cubrió   │
+  └────────────────────────────┘            └───────────────────────────────┘
+                     ▼   <b>POR QUÉ B</b>:
+       · sin `MES_CARGO` la tool no puede responder "¿qué mes de multa ya pagué?"
+       · sin `SUB_CONCEPTO` no distingue faena de reunión dentro de la misma multa
+       · es lo que permite el extracto de cuenta (⑫): mostrar la traza pago→cargo, mes a mes</div>
+
+      <!-- ── ③④ ── -->
+      <p style="margin:24px 0 6px;font-size:14px"><strong>③④ · ¿Qué pasa cuando un abono es más grande que toda la deuda? ¿Y si después se devuelve?</strong> → <b>un concepto explícito, que la devolución baja por FIFO</b></p>
+      <div class="ascii">  ③ sobra plata (cascada llegó al final)     ④ se devuelve después
+  ┌────────────────────────────┐            ┌───────────────────────────────┐
+  │ Aplicacion(abono,           │            │ caja: DEVOLUCION_ID (egreso)   │
+  │  SALDO_A_FAVOR, sobrante)   │            │ motor: Aplicacion(              │
+  │ = un CONCEPTO más, no un    │            │   DEVOLUCION_ID, SALDO_A_FAVOR, │
+  │ residual invisible          │            │   −monto)                       │
+  └────────────────────────────┘            └───────────────────────────────┘
+                     ▼   <b>POR QUÉ</b>:
+       · `SALDO_A_FAVOR` es una FILA que se consulta y se suma — el código viejo la tiraba
+       · la devolución baja el saldo a favor por FIFO — plata parqueada es fungible, no
+         importa "cuál" abono generó el crédito, solo cuánto queda
+       · si la devolución excede el saldo a favor, `auditoria_conservacion()` lo marca</div>
+      <div class="knob"><b>Invariante que nunca se rompe</b> (se corre antes y después de
+        cualquier corrección, como auto-chequeo):
+        <code>MONTO(abono) = Σ MONTO_APLICADO a conceptos + SALDO_A_FAVOR generado</code>.
+        Nada se pierde, nada se inventa — todo abono se explica completo.</div>
+
+      <div class="knob"><b>→ Ya visto (no se repite):</b> cómo un reclamo se resuelve
+        <em>sin editar nada</em> — <code>identificar_abono</code>/<code>reasignar_abono</code>
+        (⑨) — está enseñado completo en <a href="#dominio">dominio · identidad (I4)</a>. La
+        pieza nueva acá es <code>registrar_ajuste</code>: cuando el CARGO está mal (te
+        cobraron de más), no el abono — <code>estado_cuenta</code> es quien lo escribe.</div>
+
+      <div class="analogy"><b>El concepto que enseña estado_cuenta:</b> separar HECHO de
+        INTERPRETACIÓN no alcanza si nadie hace la interpretación — por eso el MOTOR es una
+        pieza con nombre propio, no una función suelta dentro de otro módulo. Ver los dos
+        lados a la vez es un privilegio de una sola pieza en todo el sistema.</div>
+
+      <div class="dcaption">🟢 <b>estado_cuenta — spec cerrado</b> (decisiones ②③④⑥⑨⑪⑫ del
+        contrato). Sin código todavía (Fase 2). Fuente:
+        <code>libro_mayor/estado_cuenta/README.md</code> · contrato completo en
+        <code>docs/decisiones/ledger_fase1_decisiones.md</code>.</div>
+    </article>
+
+    <!-- ══════════ LÁMINA · motor_aplicacion ══════════ -->
+    <article class="lamina" data-submodulo="motor" id="motor">
+      <div class="anchor">
+        <span><span class="pin">📍</span> libro_mayor · motor_aplicacion</span>
+        <a href="../../libro_mayor/estado_cuenta/README.md">verdad → estado_cuenta/README.md §⑥</a>
+        <a href="cimientos.html#tres-alturas">método → 3 alturas</a>
+      </div>
+      <p class="plate-label">pieza destacada · vive dentro de estado_cuenta</p>
+      <h2>motor_aplicacion.py — quien de verdad reparte la plata</h2>
+      <p>No es un submódulo aparte en el disco (vive en <code>estado_cuenta/</code>), pero
+        merece su propia lámina: es la <strong>única</strong> pieza de todo el sistema que
+        ve <code>caja</code> y la deuda a la vez, y la única que <em>itera en el tiempo</em>
+        — <code>dominio/cascada</code> no sabe qué día es (CA3), el motor sí. Esta lámina
+        repite ese punto con un trazado de varios abonos, para que quede fijo.</p>
+
+      <!-- ─────────── ALTURA 2 ─────────── -->
+      <div class="sub-h"><span class="qn">Altura 2</span> el cuadro de la pieza entera</div>
+      <div class="ascii">┌──────────────┬──────────────────────────┬────────────────┬──────────────┬──────────────┐
+│  QUÉ ENTRA   │  QUÉ HACE                │   QUÉ SALE     │  QUIÉN LEE   │  DECISIONES  │
+├──────────────┼──────────────────────────┼────────────────┼──────────────┼──────────────┤
+│ cargos       │ por cada abono, en orden │ Aplicacion[]   │ cuenta_repo  │ ⑥ (Hueco 2) │
+│  abiertos de │  de FECHA (el motor SÍ   │ (persiste vía  │  las guarda  │ usa CA1-CA4  │
+│  estado_cuenta│  sabe de tiempo):        │  cuenta_repo)  │              │  de dominio/ │
+│              │   dominio/cascada.aplicar│                │ tools/ (con- │  cascada     │
+│ abonos de    │    (cargos, 1 abono)     │ SALDO_A_FAVOR  │  sultan el   │  (ejecuta,   │
+│  caja, TODOS │  → actualiza cargos      │  cuando corres-│  resultado)  │  no decide)  │
+│  los del mes │  → repite con el         │  ponde         │              │              │
+│              │   siguiente abono        │                │              │              │
+└──────────────┴──────────────────────────┴────────────────┴──────────────┴──────────────┘</div>
+      <div class="keypoint"><b>Lo que revela el molde:</b> QUÉ HACE es un <b>bucle</b>
+        alrededor de una función pura. El motor no tiene reglas de reparto propias —
+        eso ya lo decidió <code>dominio/cascada</code> (CA1-CA4). El motor solo aporta lo
+        que la cascada explícitamente NO sabe: el orden en el tiempo y la actualización del
+        estado entre un abono y el siguiente.</div>
+
+      <!-- ─────────── ALTURA 3 ─────────── -->
+      <div class="sub-h"><span class="qn">Altura 3</span> el mismo punto, visto en un trazado real</div>
+      <div class="qbar">
+        <span class="q">¿dónde vive la memoria entre abonos?</span>
+        <span class="q">¿cuándo corre?</span>
+      </div>
+
+      <p style="margin:24px 0 6px;font-size:14px"><strong>Después de pagar parte de junio, el siguiente abono tiene que saber que junio ya bajó de S/8 a S/6. ¿Dónde vive ese dato?</strong> → en el motor, por eliminación — no es una elección, es obligado</p>
+      <p style="max-width:70ch">Esto <b>no es</b> "elegimos que el motor haga el bucle en vez
+        de la cascada" — esa alternativa ni existe. CA3 ya decidió que <code>cascada</code>
+        es una función <b>pura</b>: mismo input, siempre mismo output, <b>sin memoria</b> de
+        la llamada anterior. Si algo tiene que "recordar" cuánto quedó debiendo junio después
+        del primer pago, y cascada no puede recordar nada, esa memoria solo puede vivir en
+        quien la llama.</p>
+      <div class="ascii">  CASCADA = una calculadora                     MOTOR = quien aprieta los botones
+  ┌──────────────────────────┐                  ┌───────────────────────────────┐
+  │ aplicar(cargos, abono)    │  ◄── la llama ─  │ por cada abono, en orden de    │
+  │  → Reparto                │      el motor    │  fecha:                        │
+  │                            │                  │   1. llama a cascada           │
+  │ NO tiene memoria — cada    │                  │   2. GUARDA el resultado       │
+  │ llamada empieza de cero    │                  │   3. actualiza "cargos" con lo │
+  │                            │                  │      que quedó pendiente       │
+  └──────────────────────────┘                  │   4. pasa al siguiente abono   │
+                                                  └───────────────────────────────┘</div>
+
+      <p style="max-width:70ch">El trazado con números — se ve dónde vive cada dato:</p>
+      <div class="ascii">  Predio debe:  P1 AGUA·mayo S/8 · P1 AGUA·junio S/8 · P2 CORTE S/20   (total S/36)
+
+  ── abono 1 · 05/jul · S/10 ──────────────────────────────────────────
+  motor: cascada.aplicar(cargos_ACTUALES, abono1)   ← cascada NO sabe que vendrá un abono2
+     P1 mayo (debe 8)   → cubre TODO · resta 2
+     P1 junio (debe 8)  → cubre PARCIAL 2 · resta 0
+     Reparto: [mayo→8, junio→2]  saldo_a_favor=0
+                     │
+                     ▼   la llamada a cascada YA TERMINÓ — se olvidó de todo.
+                         el MOTOR es quien guarda el resultado y actualiza:
+              AGUA·junio ahora debe 8−2 = 6   (CORTE sigue en 20, nadie lo tocó)
+
+  ── abono 2 · 20/jul · S/30 ──────────────────────────────────────────
+  motor: cascada.aplicar(cargos_YA_ACTUALIZADOS, abono2)  ← recibe el "6" que el MOTOR guardó
+     P1 junio (debe 6, NO 8 — cascada ni sabe que antes era 8)  → cubre TODO · resta 24
+     P2 CORTE (debe 20)                                         → cubre TODO · resta 4
+     Reparto: [junio→6, CORTE→20]  saldo_a_favor=4
+
+                     ▼   <b>por qué la memoria no podía vivir en cascada</b>:
+       · "pura" (CA3) significa exactamente esto: no le queda nada pegado entre llamadas
+       · una función que SÍ recordara dejaría de ser pura — sería otra cosa, con otro nombre
+       · por eliminación, el bucle Y la memoria entre vueltas quedan del lado de quien
+         llama — el motor es simple código con una variable que se actualiza en el for</div>
+
+      <p style="margin:24px 0 6px;font-size:14px"><strong>¿Cuándo corre el motor — cada vez que llega un abono, o junta varios?</strong> → <b>on-demand o post-cierre</b>, nunca "en caliente" al momento del pago</p>
+      <div class="ascii">  caja recibe plata TODO el mes (importadores corren post-cierre, nunca en caliente)
+                     │
+                     ▼
+  el MOTOR corre cuando alguien lo necesita:
+     · post-cierre del ciclo → aplica el lote completo del mes
+     · on-demand → un `tool` del agente lo invoca al investigar un reclamo
+                     ▼   POR QUÉ:
+       · nunca hay una "aplicación a medio hacer" mientras el mes está abierto
+       · el mismo motor sirve para el batch mensual Y para la consulta puntual —
+         no son dos código distintos, es la misma función llamada distinto (como PC3)</div>
+
+      <div class="analogy"><b>El concepto que se repite acá:</b> una función pura +
+        un bucle que sabe de tiempo, ya visto en <code>cascada</code> (CA3) y en
+        <code>politica_corte</code> (PC3, Día 0 / Día 2). Es el mismo patrón tres veces:
+        <b>la regla no sabe de tiempo, quien la llama sí</b> — y por eso se repite: es el
+        patrón más importante de todo <code>dominio/</code>.</div>
+
+      <div class="dcaption">🟢 <b>motor_aplicacion — spec cerrado</b> (decisión ⑥, Hueco 2
+        resuelto). Vive físicamente en <code>estado_cuenta/motor_aplicacion.py</code>. Sin
+        código todavía (Fase 2). Fuente: <code>libro_mayor/estado_cuenta/README.md</code> §⑥.</div>
+    </article>
+
+    <!-- ══════════ LÁMINA · stores/ ══════════ -->
+    <article class="lamina" data-submodulo="stores" id="stores">
+      <div class="anchor">
+        <span><span class="pin">📍</span> libro_mayor · stores</span>
+        <a href="../../libro_mayor/README.md">verdad → libro_mayor/README.md</a>
+        <a href="../lente_escala.md">lente → docs/lente_escala.md</a>
+      </div>
+      <p class="plate-label">adapter · patrón 🟢 cerrado (heredado del lente) · forma concreta 🟡</p>
+      <h2>stores/ — donde vive el archivo (hoy) o la tabla (mañana)</h2>
+      <p>La única carpeta de <code>libro_mayor/</code> que sabe que existe un
+        <code>.xlsx</code>. Todo lo demás — <code>dominio</code>, <code>caja_repo</code>,
+        <code>cuenta_repo</code> — habla en dataclasses y dicts, nunca en filas de Excel.
+        A diferencia de <code>dominio/caja/estado_cuenta</code>, acá no hay una tabla de
+        decisiones numeradas (①-⑫) propia — pero eso no es porque el patrón esté abierto:
+        <b>ya está cerrado</b>, heredado directo de <code>docs/lente_escala.md</code> §6
+        ("Cómo se aplicó ya" — no "a decidir"). Lo que falta es la <b>forma concreta</b>
+        (cuántos adapters, cómo entra el backfill) — eso sí es genuinamente 🟡.</p>
+
+      <!-- ─────────── ALTURA 2 ─────────── -->
+      <div class="sub-h"><span class="qn">Altura 2</span> el cuadro de la pieza entera</div>
+      <div class="ascii">┌──────────────┬──────────────────────────┬────────────────┬──────────────┬──────────────┐
+│  QUÉ ENTRA   │  QUÉ HACE                │   QUÉ SALE     │  QUIÉN LLAMA │  DECISIONES  │
+├──────────────┼──────────────────────────┼────────────────┼──────────────┼──────────────┤
+│ llamadas de  │ lee/escribe el .xlsx      │ filas como     │ caja_repo.py │ patrón 🟢:   │
+│  caja_repo   │  (mañana: filas de        │  dataclass     │ cuenta_repo. │  puerto/     │
+│  cuenta_repo │  Postgres)                │  (MovimientoCaja│  py — NUNCA │  adapter     │
+│  (nunca de   │                            │  Cargo,        │  dominio/    │  forma 🟡:   │
+│  dominio     │ NO conoce reglas de        │  Aplicacion…)  │  directo     │  cuántos     │
+│  directo)    │  negocio — solo persiste   │                │              │  stores, cómo│
+└──────────────┴──────────────────────────┴────────────────┴──────────────┴──────────────┘</div>
+      <div class="keypoint"><b>Lo que revela el molde:</b> QUIÉN LLAMA nunca es
+        <code>dominio</code> — pasa siempre por <code>caja_repo</code>/<code>cuenta_repo</code>.
+        Ese salto intermedio es el patrón completo: <code>dominio</code> decide, el repo
+        orquesta (valida, arma la entidad), <code>stores</code> solo guarda.</div>
+
+      <!-- ─────────── ALTURA 3 ─────────── -->
+      <div class="sub-h"><span class="qn">Altura 3</span> el patrón, no una decisión cerrada</div>
+      <p style="max-width:70ch">Esto no son preguntas con opciones A/B ya zanjadas — es un
+        <strong>patrón de arquitectura ya elegido</strong> (puerto/adapter) que todavía no
+        se bajó a decisiones concretas de <code>stores/</code>. Lo que sí está firme:</p>
+      <div class="ascii">  dominio/            caja_repo.py / cuenta_repo.py       stores/
+  ┌──────────────┐    ┌──────────────────────────┐    ┌──────────────────┐
+  │ reglas puras  │    │ EL PUERTO — sabe de       │    │ EL ADAPTER — sabe │
+  │ cero I/O      │◄───┤  negocio (valida contra   │◄───┤  de .xlsx (hoy)   │
+  │ testea con    │    │  taxonomía, arma la       │    │  o Postgres       │
+  │ dicts         │    │  entidad frozen)          │    │  (mañana)         │
+  └──────────────┘    └──────────────────────────┘    └──────────────────┘
+        NUNCA cambia          NUNCA cambia si stores        ESTO se reemplaza
+        por el motor de       cambia de adapter              el día de la
+        persistencia                                          migración a Postgres</div>
+      <div class="knob"><b>Por qué importa (lente de escala §6):</b> el día que
+        <code>.xlsx</code> se reemplace por Postgres, <code>stores/</code> es la
+        <b>única</b> carpeta que cambia. <code>dominio/</code> no sabe que existió un
+        Excel; <code>caja_repo/cuenta_repo</code> no saben que existirá una tabla SQL.
+        El patrón repo es lo que hace esa migración un cambio de una pieza, no una
+        reescritura del sistema.</div>
+      <p style="margin:24px 0 6px;font-size:14px"><strong>Si el patrón ya está cerrado, ¿por qué no bajarlo YA a decisiones concretas de <code>stores/</code>?</strong> → porque todavía no existe a quién servir — se decide en Fase 2, no antes</p>
+      <p style="max-width:70ch">No es pereza — es secuencia. <code>stores/</code> vive
+        <b>detrás</b> de <code>caja_repo.registrar_movimiento()</code>, pero esa función
+        hoy es un nombre en un README, no código con parámetros exactos. Diseñar el
+        adapter concreto sin saber qué le va a pedir el repo es adivinar.</p>
+      <div class="ascii">  dominio/          caja/ · estado_cuenta/            stores/
+  (las reglas)      (los repos — SOLO README,        (el adapter)
+                      sin código todavía)
+      │                        │                        │
+      ▼                        ▼                        ▼
+   🟢 cerrado              🟢 cerrado                🟡 esperando
+   T1-T5 · CA1-CA4         ①-⑫: qué campos,          — no tiene a
+   PC1-PC7 · S1-S5         qué valida, qué             quién servir
+   I1-I4                   escribe cada repo           todavía
+
+  ¿es la misma ambigüedad que ①-⑫ / PC1-PC7?  NO:
+    "¿un pago parcial protege del corte?"     → decisión de NEGOCIO, más de una
+                                                  respuesta razonable, hay que elegir
+    "¿cuántos archivos usa el adapter?"       → mecánica de ingeniería, la resuelve
+                                                  SOLA el código real de caja_repo
+                                                  cuando exista, sin debate</div>
+      <div class="knob"><b>El error simétrico que esto evita:</b> el proyecto ya tiene
+        aprendida la regla <em>"no codificar sin que el diseño esté cerrado"</em>. Diseñar
+        el detalle de <code>stores/</code> antes de que exista el código que lo llama es
+        el <b>mismo error al revés</b> — diseñar sin tener el contexto real que Fase 2 va a
+        revelar gratis. La propia metodología lo dice: <em>"Fase 1 cerrada antes de empezar
+        Fase 2. Si aparece una duda de diseño durante la implementación, parar y volver a
+        Fase 1."</em> — es decir: la pregunta se abre cuando escribir
+        <code>caja_repo.py</code> la haga aparecer, no antes.</div>
+
+      <div class="analogy"><b>Lo que falta decidir (⚪, no es tarea de hoy):</b> cómo se
+        parte <code>stores/</code> por store (¿un adapter por entidad? ¿uno por agregado?),
+        qué pasa con backfill/import histórico, y el mapeo exacto columna↔campo. Se abre
+        cuando <code>dominio</code> y los repos ya tengan código real que persistir — y
+        esa espera es la arquitectura puerto/adapter <b>funcionando como se diseñó</b>, no
+        una laguna.</div>
+
+      <div class="dcaption">🟢 patrón cerrado (puerto/adapter) · 🟡 <b>forma concreta de
+        stores sin abrir todavía</b>. Fuente: <code>libro_mayor/README.md</code> +
+        <code>docs/lente_escala.md</code> §6.</div>
+    </article>
+
+    <!-- ══════════ LÁMINA · tools/ ══════════ -->
+    <article class="lamina" data-submodulo="tools" id="tools">
+      <div class="anchor">
+        <span><span class="pin">📍</span> libro_mayor · tools</span>
+        <a href="../../libro_mayor/README.md">verdad → libro_mayor/README.md</a>
+        <a href="../../libro_mayor/estado_cuenta/README.md">ejemplos → estado_cuenta/README.md §⑫</a>
+      </div>
+      <p class="plate-label">superficie del agente · disciplina 🟢 cerrada · spec por tool: mixto</p>
+      <h2>tools/ — lo único que el agente puede tocar</h2>
+      <p>Funciones de <strong>solo lectura</strong> — la superficie que un agente invoca
+        para responder preguntas ("¿por qué C-43 sigue debiendo?", "dame el extracto de
+        los últimos 6 meses"). Nunca escriben; escribir sigue siendo trabajo exclusivo de
+        <code>caja_repo</code>/<code>cuenta_repo</code> (writer único, ya visto en
+        <a href="#caja">caja</a>).</p>
+
+      <!-- ─────────── ALTURA 2 ─────────── -->
+      <div class="sub-h"><span class="qn">Altura 2</span> el cuadro de la pieza entera</div>
+      <div class="ascii">┌──────────────┬──────────────────────────┬────────────────┬──────────────┬──────────────┐
+│  QUÉ ENTRA   │  QUÉ HACE                │   QUÉ SALE     │  QUIÉN LLAMA │  DECISIONES  │
+├──────────────┼──────────────────────────┼────────────────┼──────────────┼──────────────┤
+│ una pregunta │ lee cargos+aplicaciones  │ datos           │ el AGENTE    │ solo-lectura │
+│  del agente  │  de estado_cuenta y      │  estructurados  │  (Claude Code│  🟢 · ⑫      │
+│  (mz, lt,    │  abonos de caja — cruza   │ (no PDF — el   │  u otro)     │  extracto 🟢 │
+│  rango…)     │  agregados, solo lee      │  render es      │              │  · 2 tools   │
+│              │                          │  aparte)        │              │  ⚪ sin spec  │
+└──────────────┴──────────────────────────┴────────────────┴──────────────┴──────────────┘</div>
+      <div class="keypoint"><b>Lo que revela el molde:</b> QUÉ HACE dice "cruza
+        agregados" — <code>tools/</code> es la única capa con permiso de leer
+        <code>caja</code> Y <code>estado_cuenta</code> a la vez <em>sin</em> ser el motor
+        (el motor cruza para escribir aplicaciones; tools cruza solo para responder).</div>
+
+      <!-- ─────────── ALTURA 3 ─────────── -->
+      <div class="sub-h"><span class="qn">Altura 3</span> lo que ya está claro + un cabo suelto</div>
+
+      <p style="margin:24px 0 6px;font-size:14px"><strong>¿Por qué <code>tools/</code> nunca escribe, ni siquiera para "casos simples"?</strong> → porque escribir ya tiene dueño (writer único)</p>
+      <div class="ascii">  si tools pudiera escribir:              tools solo lee (elegido):
+  ┌────────────────────────────┐          ┌───────────────────────────────┐
+  │ un 3er camino de escritura,  │          │ TODA escritura pasa por        │
+  │ además de caja_repo y        │          │  caja_repo / cuenta_repo       │
+  │ cuenta_repo — ¿cuál manda    │          │ tools solo arma preguntas,     │
+  │ si dos caminos chocan?       │          │  nunca decide nada nuevo       │
+  └────────────────────────────┘          └───────────────────────────────┘
+                     ▼   POR QUÉ:
+       · "writer único" (ya visto en caja y estado_cuenta) se rompe si tools escribe
+       · el agente PIDE una corrección invocando registrar_ajuste/identificar_abono
+         (eso ya lo vimos en identidad I4) — no la hace él mismo por atajo</div>
+
+      <p style="margin:24px 0 6px;font-size:14px"><strong>Ejemplo ya spec'd — <code>extracto_predio(mz, lt, desde, hasta)</code> (⑫)</strong></p>
+      <div class="ascii">  ① DEUDA POR CONCEPTO→SUB (estado actual, prioridad P1-P6)
+  ② PAGOS Y CÓMO SE APLICARON (traza la cascada, pago por pago)
+  ③ APORTES VOLUNTARIOS (tanque) — informativo, no resta deuda
+                     ▼
+  devuelve FILAS (no PDF) — el render (`shared/utils_render.py`) las convierte en
+  documento aparte. tools nunca "imprime", solo arma datos.</div>
+
+      <p style="margin:24px 0 6px;font-size:14px"><strong>De las 4 tools nombradas en el README, ¿cuántas están de verdad spec'd?</strong> → 1 cerrada, 1 a medias, 2 solo nombradas</p>
+      <p style="max-width:70ch">"tools/ existe" no es lo mismo que "cada tool está
+        diseñada". Mirando cada una por separado, la madurez es dispareja — y eso es
+        información real, no hay que promediarla en un solo 🟡 para todo el módulo.</p>
+      <div class="ascii">  extracto_predio          🟢 CERRADO   ⑫: 5 decisiones + layout de 3 secciones
+                                        (por PREDIO · tanque aparte · rango=todo ·
+                                         on-demand · template propio) — en el contrato
+
+  auditoria_conservacion  🟡 PARCIAL   el INVARIANTE que chequea ya está cerrado:
+                                          MONTO(abono) = Σ aplicado + Σ saldo_a_favor
+                                        pero su INTERFAZ de tool (¿por predio? ¿global?
+                                        ¿qué devuelve si falla?) no tiene spec propio
+
+  estado_cuenta.py        ⚪ ABIERTO   solo el nombre + "panorama completo de un
+   (panorama del predio)               predio" — sin campos, sin formato de salida
+
+  explicar_reclamo.py     ⚪ ABIERTO   solo el nombre + "la historia de un pago: a
+                                        dónde fue cada sol" — sin campos, sin formato</div>
+      <div class="keypoint"><b>Por qué esta distinción importa:</b> <code>extracto_predio</code>
+        se podría empezar a codificar hoy mismo (Fase 2) sin volver a Fase 1 — tiene spec
+        completo. <code>estado_cuenta.py</code>/<code>explicar_reclamo.py</code> NO — si
+        alguien intentara codificarlos ahora, tendría que inventar el formato de salida
+        sobre la marcha, que es exactamente lo que la metodología pide evitar.</div>
+
+      <div class="knob"><b>Cabo suelto (⚪, no decidido — encontrado auditando, no
+        inventado):</b> <code>libro_mayor/README.md</code> lista <code>tools/</code> como
+        carpeta hermana de <code>caja</code>/<code>estado_cuenta</code> (top-level), pero
+        <code>estado_cuenta/README.md</code> describe su propio <code>tools/</code> anidado
+        adentro (<code>estado_cuenta.py</code>, <code>explicar_reclamo.py</code>,
+        <code>extracto_predio.py</code>, <code>auditoria_conservacion.py</code>). Hoy en
+        disco solo existe la carpeta top-level (vacía, <code>.gitkeep</code>). Si una tool
+        cruza agregados (como <code>extracto_predio</code>, que lee caja Y estado_cuenta),
+        ¿vive arriba (top-level) o dentro de quien "es dueña" del dato principal
+        (estado_cuenta)? No lo resuelvo acá — es una pregunta de diseño real para la
+        próxima sesión, no una decisión de esta lámina.</div>
+
+      <div class="analogy"><b>El concepto que enseña tools:</b> read-only no es una
+        restricción técnica — es la misma disciplina de <b>writer único</b> vista desde el
+        otro lado. Un solo camino para escribir, cualquier cantidad de caminos para leer.</div>
+
+      <div class="dcaption">🟢 disciplina read-only + <code>extracto_predio</code> (⑫)
+        cerrados · 🟡 <code>auditoria_conservacion</code> parcial · ⚪
+        <code>estado_cuenta.py</code>/<code>explicar_reclamo.py</code> sin spec ·
+        ⚪ ubicación de la carpeta sin resolver. Fuente:
+        <code>libro_mayor/README.md</code> + <code>estado_cuenta/README.md</code> §⑫.</div>
+    </article>
+
+  </div>
+
+  <footer class="closing">
+    dominio = reglas puras (cero I/O) · la verdad exacta → decisiones/ledger_fase1 + libro_mayor/README<br>
+    Altura 3 COMPLETA: taxonomía · entidades · cascada · politica_corte · saldo · identidad 🟢<br>
+    cuaderno = el por qué · mapa → ../arquitectura/index.html
+  </footer>
+</main>
+
+<script>
+  /* Agrupa las láminas por su submódulo (data-submodulo) en secciones colapsables. */
+  (function () {
+    document.querySelectorAll('.modulo-laminas').forEach(function (cont) {
+      var laminas = Array.prototype.slice.call(cont.querySelectorAll('.lamina'));
+      if (!laminas.length) return;
+      var orden = [], grupos = {};
+      laminas.forEach(function (l) {
+        var sub = l.getAttribute('data-submodulo') || '—';
+        if (!grupos[sub]) { grupos[sub] = []; orden.push(sub); }
+        grupos[sub].push(l);
+      });
+      cont.innerHTML = '';
+      orden.forEach(function (sub) {
+        var items = grupos[sub];
+        var d = document.createElement('details');
+        d.open = true;
+        var s = document.createElement('summary');
+        var n = items.length;
+        s.innerHTML = sub + '<span class="sub-count">' + n + ' lámina' + (n > 1 ? 's' : '') + '</span>';
+        d.appendChild(s);
+        items.forEach(function (i) { d.appendChild(i); });
+        cont.appendChild(d);
+      });
+    });
+  })();
+</script>
+
+</body>
+</html>

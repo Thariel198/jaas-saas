@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cuaderno — Cimientos</title>
+<link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+
+<header class="hero">
+  <p class="crumbs"><a href="index.html">← Cuaderno</a> · Cimientos</p>
+  <p class="eyebrow"><span class="dot"></span>módulo transversal</p>
+  <h1>Cimientos — conceptos de todo el sistema</h1>
+  <p class="lede">
+    Láminas que no pertenecen a un módulo: valen para todo jass_system. Agrupadas por tema
+    (colapsá el que no estés leyendo). Cada lámina dice a qué pertenece y enlaza su verdad y su mapa.
+  </p>
+</header>
+
+<main class="wrap">
+  <div class="modulo-laminas">
+
+    <!-- ══════════ LÁMINA · método de las 3 alturas ══════════ -->
+    <article class="lamina" data-submodulo="Método de diseño" id="tres-alturas">
+      <div class="anchor">
+        <span><span class="pin">📍</span> Cimientos · Método de diseño</span>
+        <a href="../decisiones/ledger_fase1_decisiones.md">decisiones → ledger_fase1</a>
+        <a href="../arquitectura/index.html">mapa → arquitectura</a>
+      </div>
+      <p class="plate-label">cimiento</p>
+      <h2>Cómo diagramamos el sistema — 3 alturas de zoom</h2>
+      <p>Para <strong>no tener puntos ciegos</strong>, cada parte del sistema se dibuja como cajas
+        y flechas, pero a la <strong>altura de zoom</strong> que le corresponde. Son tres. Bajás una
+        altura cuando querés más detalle; subís cuando te perdiste en el árbol y necesitás el bosque.</p>
+
+      <div class="diagram">
+        <div class="three">
+          <div class="box brass">
+            <span class="box-title">🔭 ALTURA 1 · MAPA</span>
+            <span class="box-sub">todo el sistema de un vistazo.</span>
+            <ul><li>módulos = cajas</li><li>flechas = archivos</li><li>1 lámina para todo</li></ul>
+            <span class="fixed-tag">¿quién pasa qué a quién?</span>
+          </div>
+          <div class="box brass">
+            <span class="box-title">🔍 ALTURA 2 · MÓDULO</span>
+            <span class="box-sub">una pieza por dentro.</span>
+            <ul><li>molde fijo de 5:</li><li>entra · hace · sale</li><li>quién lee · decisiones</li></ul>
+            <span class="fixed-tag">¿qué entra, hace, sale?</span>
+          </div>
+          <div class="box accent">
+            <span class="box-title">🔬 ALTURA 3 · DECISIÓN</span>
+            <span class="box-sub">un porqué, en detalle.</span>
+            <ul><li>código → destino</li><li>el rediseño</li><li>ej. CA1-CA4 · E1-E3</li></ul>
+            <span class="data-tag">¿por qué así y no otra?</span>
+          </div>
+        </div>
+        <p class="diagram-caption">Altura 1 = el bosque · Altura 2 = un árbol · Altura 3 = por qué esa rama crece así</p>
+      </div>
+
+      <div class="sub-h">La regla de oro — Altura 2 y 3 van en la MISMA lámina</div>
+      <p>La lámina de un módulo trae <strong>primero el cuadro entero</strong> (Altura 2) y
+        <strong>debajo, el detalle de cada decisión</strong> (Altura 3). No se separan: si el
+        "qué hace" vive en un archivo y el "por qué" en otro, tenés que saltar entre páginas para
+        entender una sola pieza. Juntas, abrís la lámina y ves todo su contexto.</p>
+      <div class="ascii">┌─ lámina de un módulo (ej. dominio/) ───────────────────────┐
+│  [ ALTURA 2 ]  el cuadro de 5 del módulo entero            │  ◄ primero el TODO
+│  ─────────────────────────────────────────────────────    │
+│  [ ALTURA 3 ]  un cuadro por decisión, con su porqué:      │  ◄ luego el DETALLE
+│      · cascada   CA1-CA4                                    │
+│      · entidades E1-E3                                      │
+└────────────────────────────────────────────────────────────┘
+ (Altura 1 SÍ es lámina aparte — es de otro "módulo": el sistema entero)</div>
+      <div class="keypoint"><b>Y la regla que evita ahogarse:</b> la lámina de una pieza se escribe
+        <b>cuando su diseño cierra</b>, no antes. El diagrama viaja con el trabajo — no es una tarea
+        aparte de "documentar todo de golpe".</div>
+
+      <div class="sub-h"><span class="qn">ej.</span> Altura 3 en acción — <code>cascada.py</code> (CA1-CA4)</div>
+      <p>La cascada es la regla de <em>cómo un pago cubre las deudas de un predio</em>. Se rediseñó
+        desde el código viejo (<code>5_cobranza::_descomponer_saldo</code>). Dos diagramas de cajas
+        cuentan las 4 decisiones.</p>
+
+      <p style="margin:22px 0 6px;font-size:14px"><strong>CA1 orden del reparto · CA2 qué pasa con el sobrante</strong></p>
+      <div class="ascii">  UN abono de UN predio
+        │
+        ▼   reparte en ORDEN FIJO hasta agotar la plata
+  ┌───────────────────────────────────────────────┐        clave_orden(cargo) =
+  │ P1  AGUA / MANT / arrastre ─FIFO─► mes + viejo │          (prioridad, sub, mes_cargo)
+  │ P2  CORTE_RECONEXION                            │              1º        2º     3º FIFO
+  │ P3  MULTA      reunión → faena                  │
+  │ P4  ACUERDOS   techado → campo                  │   ◄── CA1: prioridad → sub-orden → FIFO
+  │ P5  CONVENIO   medidor → instalación            │
+  │ P6  OTROS                                       │
+  └───────────────────────┬───────────────────────┘
+                          ▼  ¿sobró plata?
+                  ┌──────────────────────┐
+                  │ <b>SALDO_A_FAVOR</b>         │  ◄── CA2: concepto explícito
+                  └──────────────────────┘       el código viejo lo TIRABA (restante descartado)</div>
+
+      <p style="margin:22px 0 6px;font-size:14px"><strong>CA3 la cascada procesa 1 abono · CA4 la devolución queda fuera</strong></p>
+      <div class="ascii">  CAPA MOTOR  (sabe de tiempo · I/O)                cascada = función PURA
+  ┌──────────────────────────────────────┐
+  │ abonos ordenados por FECHA:           │
+  │   05/07 · 12/07 · 28/07   (N = 3)     │
+  │       │   por cada uno:               │
+  │       ▼                               │
+  │  cascada.aplicar(cargos, <b>1 abono</b>) ──┼───►  1 pago · sin fechas · sin archivos
+  │       │   devuelve Reparto             │        ◄── CA3: se testea con dicts
+  │       ▼   actualiza cargos            │
+  └──────────────────────────────────────┘
+
+  DEVOLUCIÓN (plata que SALE)  ─────►  egreso de caja  vs  SALDO_A_FAVOR
+       NO entra a la cascada                lo maneja el MOTOR      ◄── CA4
+       código viejo: la sumaba DENTRO de P1 agua (número mezclado en la deuda)</div>
+      <div class="dcaption">decisión de módulo — vive junto al concepto que la explica · fuente: decisiones/ledger_fase1_decisiones.md (tabla CA1-CA4)</div>
+      <div class="analogy"><b>El concepto que enseña:</b> modelar = <b>separar lo que el código
+        fusionó</b> y nombrar cada parte por lo que ES. CA3 partió "la regla" de "el tiempo"; CA4
+        partió "un egreso" de "una deuda". La señal de fusión: un número o una función haciendo dos trabajos.</div>
+
+      <div class="sub-h"><span class="qn">ej.</span> Altura 3 en acción — <code>entidades.py</code> (E1-E3)</div>
+      <p>Esta decisión <strong>ya tiene su lámina</strong>: no se duplica acá, se apunta. Su Altura 3
+        (los diagramas de flujo de E1 · E2 · E3) vive en la lámina de <b>Modelado con tipos</b>, junto
+        al concepto que la explica.</p>
+      <div class="knob"><b>→ Ver:</b> <a href="#modelado-tipos">Modelado con tipos — ¿Qué es una entidad?
+        (E1-E3)</a>. Ejemplo de la regla de oro: el porqué de las entidades vive pegado al "qué es una
+        entidad", no en una página suelta.</div>
+
+      <div class="before-after">
+        <div class="card hueco-card">
+          <span class="tag hueco">sin el método</span>
+          <p>Cada quien dibuja lo que quiere, a la altura que quiere → hay piezas sin diagrama (puntos ciegos) y otras con tres versiones que se contradicen.</p>
+        </div>
+        <div class="card resuelto-card">
+          <span class="tag resuelto">con las 3 alturas</span>
+          <p>Toda pieza tiene <b>exactamente una</b> lámina, a su altura. Recorrés Altura 1 → 2 → 3 y no queda rincón sin mapear.</p>
+        </div>
+      </div>
+    </article>
+
+    <!-- ══════════ LÁMINA · motor/herramienta/config ══════════ -->
+    <article class="lamina" data-submodulo="Escala y multi-tenant">
+      <div class="anchor">
+        <span><span class="pin">📍</span> Cimientos · Escala y multi-tenant</span>
+        <a href="../lente_escala.md">verdad → lente_escala.md</a>
+        <a href="../arquitectura/index.html">mapa → arquitectura</a>
+      </div>
+      <p class="plate-label">cimiento</p>
+      <h2>Motor, herramienta y config — qué se "enchufa" por JASS</h2>
+      <p>
+        Para escalar a 25 000 JASS, dar de alta una nueva debe ser <strong>encender o apagar
+        capacidades</strong>, no tocar código. El error es pensarlo como "enchufar una licuadora"
+        —agregar una máquina nueva—. La imagen correcta: <strong>una sola máquina con todos los
+        programas ya adentro</strong>; por cada JASS solo girás una perilla que dice qué programas
+        quedan encendidos.
+      </p>
+      <div class="diagram">
+        <div class="three">
+          <div class="box brass">
+            <span class="box-title">MOTOR</span>
+            <span class="box-sub">la máquina. Idéntica en las 25 000 JASS.</span>
+            <ul><li>dominio/</li><li>caja · estado_cuenta</li><li>motor_aplicacion</li><li>motor de corte</li></ul>
+            <span class="fixed-tag">fijo · código</span>
+          </div>
+          <div class="box brass">
+            <span class="box-title">HERRAMIENTA</span>
+            <span class="box-sub">un botón de la máquina — un verbo que se invoca.</span>
+            <ul><li>registrar_cargo</li><li>aplicar</li><li>extracto_predio</li><li>arqueo_caja</li></ul>
+            <span class="fixed-tag">fijo · código</span>
+          </div>
+          <div class="box accent">
+            <span class="box-title">CONFIG / CAPACIDAD</span>
+            <span class="box-sub">qué cobra/hace ESTA JASS. Lo único que varía.</span>
+            <ul><li>conceptos activos</li><li>triggers de corte</li><li>tarifas · umbrales</li><li>canales</li></ul>
+            <span class="data-tag">varía por JASS · data</span>
+          </div>
+        </div>
+        <p class="diagram-caption">motor y herramienta = fijos e iguales para todos · config = la perilla de cada JASS</p>
+      </div>
+      <div class="knob">
+        <b>¿Una JASS sin multas?</b> El manifiesto no activa el concepto <code>multa</code> →
+        el motor nunca emite ese cargo → es el botón apagado. <b>Mismo código para todos.</b>
+        Si cada JASS necesitara su propio motor o herramienta, serían 25 000 versiones de código = imposible de mantener.
+      </div>
+      <div class="before-after">
+        <div class="card hueco-card">
+          <span class="tag hueco">confusión</span>
+          <p>"Agregar una JASS = enchufar un artefacto nuevo (como una licuadora)." Suena a sumar hardware/código por cliente.</p>
+        </div>
+        <div class="card resuelto-card">
+          <span class="tag resuelto">realidad</span>
+          <p>Se enciende/apaga una <b>capacidad</b> que la máquina ya tiene, desde un archivo de <b>config</b>. El motor no se toca.</p>
+        </div>
+      </div>
+    </article>
+
+    <!-- ══════════ LÁMINA · céntimos ══════════ -->
+    <article class="lamina" data-submodulo="Precisión de datos">
+      <div class="anchor">
+        <span><span class="pin">📍</span> Cimientos · Precisión de datos</span>
+        <a href="../../libro_mayor/estado_cuenta/README.md">verdad → estado_cuenta/README</a>
+        <a href="../arquitectura/index.html">mapa → arquitectura</a>
+      </div>
+      <p class="plate-label">cimiento</p>
+      <h2>Céntimos enteros — por qué el dinero no va en decimales</h2>
+      <p>
+        Guardar plata como decimal (<code>float</code>) miente al sumar: <code>0.1 + 0.2</code> no
+        da <code>0.3</code>, da <code>0.30000000004</code>. Por eso el código de hoy compara "con
+        margen" (<code>TOL = 0.005</code>). La solución estándar para dinero: guardar todo en
+        <strong>céntimos enteros</strong> — comparación exacta, y el margen desaparece.
+      </p>
+      <div class="before-after">
+        <div class="card hueco-card">
+          <span class="tag hueco">hoy · float + TOL</span>
+          <p><code>S/ 18.50</code> se guarda como <code>18.5</code>. Al sumar aparece basura de decimales → hay que preguntar "¿es igual dentro de <code>TOL = 0.005</code>?". Frágil.</p>
+        </div>
+        <div class="card resuelto-card">
+          <span class="tag resuelto">destino · céntimos int</span>
+          <p><code>S/ 18.50</code> → <code>1850</code> céntimos. <code>185 + 15 = 200</code> <b>siempre exacto</b>. Comparación directa, sin margen. El <code>TOL</code> se elimina.</p>
+        </div>
+      </div>
+      <div class="invariant">float :   0.1 + 0.2 = <span class="hi">0.30000000004</span>   → "casi 0.3" (necesita TOL)
+céntimos:  10  +  20  = <span class="hi">30</span>              → exacto, sin TOL</div>
+      <p style="font-size:13.5px;color:var(--ink-faint);margin-top:14px">
+        <b>Por qué importa a escala:</b> un descuadre de 1 céntimo, repetido en miles de predios ×
+        25 000 JASS, es plata real que no cuadra. El entero lo elimina de raíz — es dinero y auditoría, no puede "casi" cuadrar.
+      </p>
+    </article>
+
+    <!-- ══════════ LÁMINA · qué es una entidad + __post_init__ ══════════ -->
+    <article class="lamina" data-submodulo="Modelado con tipos" id="modelado-tipos">
+      <div class="anchor">
+        <span><span class="pin">📍</span> Cimientos · Modelado con tipos</span>
+        <a href="../decisiones/ledger_fase1_decisiones.md">decisiones → entidades E1-E3</a>
+        <a href="../arquitectura/index.html">mapa → arquitectura</a>
+      </div>
+      <p class="plate-label">cimiento</p>
+      <h2>¿Qué es una entidad? (y qué es <code>__post_init__</code>)</h2>
+      <p>Antes de escribir <code>entidades.py</code> hubo tres preguntas. Esta lámina las responde
+        en orden — cada una es el ladrillo de la siguiente.</p>
+      <div class="qbar">
+        <span class="q">① ¿qué es una entidad?</span>
+        <span class="q">② ¿cuál es su flujo?</span>
+        <span class="q">③ ¿qué es __post_init__?</span>
+      </div>
+
+      <div class="sub-h"><span class="qn">①</span> ¿Qué es una entidad?</div>
+      <p>Una <strong>forma fija</strong> para un dato: un formulario con casillas obligatorias.
+        Hoy el código usa "diccionarios sueltos" (datos sin forma, fáciles de romper); la entidad
+        les da forma y reglas.</p>
+      <div class="ascii">HOY · dict suelto (sin forma)          DESTINO · entidad (forma fija)
+┌───────────────────────────┐         ┌───────────────────────────┐
+│ r = {                     │         │ Cargo(                    │
+│   "mes_actual": 18.5,     │         │   mz="C", lt="43",        │
+│   "multa": 40,            │  ────►   │   concepto="MULTA",       │
+│   "mz":"C", ...           │         │   sub="faena",            │
+│ }                         │         │   mes_cargo="2026-03",    │
+│ · ¿qué campos tiene?      │         │   monto_centimos=3000 )   │
+│ · ¿escribí "muta"? nadie  │         │ · casillas FIJAS          │
+│   avisa · nadie valida    │         │ · no entra si está mal    │
+└───────────────────────────┘         └───────────────────────────┘</div>
+      <div class="dcaption">plata suelta y frágil  →  formulario con casillas fijas y validado</div>
+      <div class="analogy"><b>Analogía:</b> una entidad es un formulario. "Cargo" siempre tiene las
+        mismas casillas (predio · concepto · mes · monto). No lo podés mandar a medias ni con un
+        concepto inventado.</div>
+
+      <div class="sub-h">Entidad = sustantivo · motor/tools = verbo</div>
+      <p>Las entidades son las <strong>cosas</strong> (sustantivos). Lo que se hace con ellas
+        —registrar, aplicar, consultar— son <strong>acciones</strong> (verbos), y esas NO son
+        entidades.</p>
+      <div class="ascii">LAS 5 COSAS (entidades = sustantivos)      LO QUE SE HACE (verbos, no entidades)
+· MovimientoCaja   un pago / un egreso    · registrar
+· Cargo            una deuda que nació    · aplicar
+· Aplicacion       un pago → una deuda    · consultar
+· Ajuste           una corrección
+· IdentificacionAbono  asignar predio a un blanco</div>
+
+      <div class="sub-h"><span class="qn">②</span> ¿Cuál es su flujo?</div>
+      <p>Las entidades no son un proceso: son los datos que <strong>viajan</strong> por el sistema.
+        El flujo es quién las crea y quién las lee. <code>entidades.py</code> solo define las formas
+        (los formularios en blanco) — no hace nada por sí mismo.</p>
+      <div class="ascii"> 2_planilla   ──crea──►  Cargo ───────────┐
+ obligaciones ──crea──►  Cargo ───────────┤
+ 6_corte      ──crea──►  Cargo ───────────┤
+ 4_pagos      ──crea──►  MovimientoCaja ──┤
+                                           ▼
+                                     ┌───────────┐
+                                     │  <b>MOTOR</b>    │  lee Cargos + Movimientos juntos
+                                     └─────┬─────┘
+                                           │ crea
+                                           ▼
+                                      Aplicacion   ("este pago cubrió esta deuda")</div>
+      <div class="keypoint"><b>Clave:</b> <code>entidades.py</code> es el <b>vocabulario de cosas</b>
+        que todos los demás usan. Define formas; no ejecuta lógica.</div>
+
+      <div class="sub-h"><span class="qn">③</span> ¿Qué es <code>__post_init__</code>?</div>
+      <p>Un método especial de las <em>dataclasses</em> de Python que <strong>corre solo,
+        automático, justo después de crear la entidad</strong>. Es donde vive el control de calidad
+        — el "guardia".</p>
+      <div class="ascii">   Cargo(concepto="MULTA", sub="faena", monto_centimos=3000)
+              │
+              ▼   (1) Python llena las casillas        ← automático (__init__)
+       concepto=MULTA · sub=faena · monto=3000
+              │
+              ▼   (2) __post_init__ corre SOLO         ← automático, justo después
+       ┌──────────────────────────────────────┐
+       │ ¿concepto existe en taxonomía?   ✓    │
+       │ ¿sub válido para MULTA?          ✓    │
+       │ ¿monto_centimos > 0?             ✓    │
+       └───────────────┬──────────────────────┘
+              ┌─────────┴─────────┐
+              ▼                   ▼
+          todo ok             algo falla
+              │                   │
+              ▼                   ▼
+        entidad creada     <b>EXPLOTA</b> (ValueError) → la entidad NO existe</div>
+      <div class="keypoint"><b>En una línea:</b> <code>__post_init__</code> es el guardia que revisa
+        la entidad apenas se arma, sin que nadie tenga que acordarse de llamarlo. Sin él, validarías
+        a mano cada vez (y algún día te olvidás). Por eso "validan al construirse" (decisión E2).</div>
+
+      <div class="sub-h"><span class="qn">④</span> En la práctica — la decisión real
+        <span style="font-family:var(--font-mono);font-size:12px;color:var(--brass)">(📍 libro_mayor/dominio)</span></div>
+      <p>El concepto de arriba es transversal. Acá está su <strong>primera aplicación concreta</strong>:
+        al modelar las 5 entidades de <code>libro_mayor/dominio</code> se tomaron 3 decisiones. Lo
+        valioso no fue la decisión en sí, sino <em>el porqué</em>.</p>
+      <p style="margin:22px 0 6px;font-size:14px"><strong>E1 · ¿cómo el AJUSTE señala el cargo que corrige?</strong> → <b>CARGO_ID</b></p>
+      <div class="ascii">  humano/agente sabe:              la tool traduce         el AJUSTE guarda
+  ┌───────────────────────┐  sha256[:8]  ┌──────────┐      ┌──────────┐
+  │ mz·lt·concepto·sub·mes │ ──────────►  │ CARGO_ID │ ───► │ CARGO_ID │──┐
+  └───────────────────────┘              └──────────┘      └──────────┘  │ apunta EXACTO
+                                                                          ▼
+                                                                   ┌─────────────┐
+                                                                   │ 1 solo cargo│
+                                                                   └─────────────┘
+  <b>POR QUÉ CARGO_ID y no (concepto,sub,mes):</b>
+  · es único y determinista → nunca ambiguo
+  · la llave humana NO es única si un predio tiene 2 cargos del mismo concepto+mes
+    → el ajuste no sabría a cuál ir
+  · lo cómodo afuera (llave humana) + lo exacto adentro (id) — lo mejor de ambos</div>
+
+      <p style="margin:22px 0 6px;font-size:14px"><strong>E2 · ¿entidades frozen + validan al construirse?</strong> → <b>SÍ</b></p>
+      <div class="ascii">  crear entidad ──► __post_init__ VALIDA ──► si algo está mal, EXPLOTA acá
+       │              · concepto existe en taxonomía        (no 3 meses después)
+       │              · sub válido para ese concepto
+       │              · monto_centimos > 0  (Cargo, MovimientoCaja)
+       ▼
+  frozen ──► nadie la edita jamás
+
+  <b>POR QUÉ:</b>
+  · append-only DE VERDAD: corregir = evento NUEVO, nunca mutar el viejo
+  · falla temprano: mejor romper al crear que descubrir basura en una auditoría de plata
+  · Ajuste y devolución van con SIGNO (bajar deuda = negativo) → ahí no se pide > 0</div>
+
+      <p style="margin:22px 0 6px;font-size:14px"><strong>E3 · IdentificacionAbono ¿entidad propia o un MovimientoCaja más?</strong> → <b>propia</b></p>
+      <div class="ascii">  un blanco (abono sin predio)          identificar NO mueve plata:
+  ┌────────────────────────┐            solo dice "ese abono es de C-43"
+  │ MovimientoCaja          │           ┌─────────────────────────────┐
+  │ entró S/100 · sin mz/lt │  ───────► │ IdentificacionAbono          │──► dispara
+  └────────────────────────┘            │ (abono_id → mz·lt·reclamo_id) │    al motor
+                                         └─────────────────────────────┘    a re-aplicar
+  <b>POR QUÉ entidad propia:</b>
+  · otra FORMA: no tiene monto/canal/dirección → en MovimientoCaja iría vacía o con mentira
+  · otro HECHO: la plata YA entró; esto es una corrección de IDENTIDAD, append-only
+  · regla del ledger: "cada hecho, su entidad" — mezclarlas la rompe</div>
+      <div class="dcaption">decisión de módulo (no transversal) — vive junto al concepto que la explica · fuente: decisiones/ledger_fase1_decisiones.md</div>
+
+      <div class="analogy"><b>Para recordar:</b> entidad = un dato con <b>forma y reglas</b>;
+        <code>__post_init__</code> = el guardia que revisa las reglas solo, al momento de armarla.</div>
+    </article>
+
+  </div>
+
+  <section class="glossary" id="aprendizaje">
+    <p class="plate-label">Aprendizaje</p>
+    <h2>Preguntas que este cuaderno responde</h2>
+    <p style="max-width:66ch;color:var(--ink-soft);margin:0 0 18px">Si tenés una de estas dudas,
+      el link te lleva a la lámina que la resuelve. Se agregan preguntas a medida que cada pieza cierra.</p>
+    <dl class="terms">
+      <dt><a href="#modelado-tipos">¿Qué es una entidad?</a></dt>
+        <dd>Modelado con tipos — forma fija + validación al construirse (<code>__post_init__</code>), E1-E3.</dd>
+      <dt><a href="#tres-alturas">¿Cómo leo todo el sistema sin perderme?</a></dt>
+        <dd>Método de diseño — las 3 alturas de zoom (mapa · módulo · decisión).</dd>
+      <dt><a href="#tres-alturas">¿Cómo se reparte un pago entre las deudas?</a></dt>
+        <dd>Método de diseño → ejemplo <code>cascada.py</code> (CA1-CA4): orden P1-P6 → sub → FIFO.</dd>
+      <dt><a href="#glosario">¿Por qué el dinero no va en decimales?</a></dt>
+        <dd>Precisión de datos — céntimos enteros, sin <code>TOL</code>.</dd>
+    </dl>
+  </section>
+
+  <section class="glossary" id="glosario">
+    <p class="plate-label">Glosario</p>
+    <h2>Términos, en una línea</h2>
+    <dl class="terms">
+      <dt>MOTOR</dt><dd>la máquina fija — dominio, ledger, motor de aplicación. Igual en las 25 000 JASS.</dd>
+      <dt>HERRAMIENTA</dt><dd>un verbo que se invoca (registrar_cargo, extracto_predio…). Fija, la misma para todos.</dd>
+      <dt>CONFIG / MANIFIESTO</dt><dd>lo único que varía por JASS — qué conceptos y capacidades están encendidos. Es DATA, no código.</dd>
+      <dt>CAPACIDAD</dt><dd>algo que la máquina sabe hacer y una JASS puede tener encendido o apagado (ej. cobrar multas).</dd>
+      <dt>céntimos int</dt><dd>guardar el dinero en enteros (1850 = S/ 18.50) para sumar/comparar exacto.</dd>
+      <dt>TOL</dt><dd>el margen (0.005) que el código viejo necesitaba por usar float — desaparece con céntimos.</dd>
+    </dl>
+  </section>
+
+  <footer class="closing">
+    Cimientos = conceptos transversales · verdad → README del módulo que aplica · mapa → ../arquitectura/index.html
+  </footer>
+</main>
+
+<script>
+  /* Agrupa las láminas por su submódulo (data-submodulo) en secciones colapsables.
+     Agregás una lámina nueva con su data-submodulo → cae sola en su grupo. */
+  (function () {
+    document.querySelectorAll('.modulo-laminas').forEach(function (cont) {
+      var laminas = Array.prototype.slice.call(cont.querySelectorAll('.lamina'));
+      if (!laminas.length) return;
+      var orden = [], grupos = {};
+      laminas.forEach(function (l) {
+        var sub = l.getAttribute('data-submodulo') || '—';
+        if (!grupos[sub]) { grupos[sub] = []; orden.push(sub); }
+        grupos[sub].push(l);
+      });
+      cont.innerHTML = '';
+      orden.forEach(function (sub) {
+        var items = grupos[sub];
+        var d = document.createElement('details');
+        d.open = true;
+        var s = document.createElement('summary');
+        var n = items.length;
+        s.innerHTML = sub + '<span class="sub-count">' + n + ' lámina' + (n > 1 ? 's' : '') + '</span>';
+        d.appendChild(s);
+        items.forEach(function (i) { d.appendChild(i); });
+        cont.appendChild(d);
+      });
+    });
+  })();
+</script>
+
+</body>
+</html>

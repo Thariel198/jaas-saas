@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Contrato de formato — store de APLICACIONES (estado_cuenta)</title>
+<style>
+  body { font-family: Arial, sans-serif; font-size: 13px; margin: 30px; color: #1f2937; }
+  h1   { font-size: 18px; color: #1e3a5f; border-bottom: 2px solid #1e3a5f; padding-bottom: 6px; }
+  h2   { font-size: 14px; color: #374151; margin-top: 28px; border-left: 4px solid #6b7280; padding-left: 8px; }
+  p    { margin: 6px 0; }
+  .meta { background:#f3f4f6; border:1px solid #d1d5db; border-radius:4px; padding:10px 14px; margin-bottom:18px; }
+  .meta span { font-weight:bold; }
+
+  table { border-collapse: collapse; margin: 0 0 20px; font-size: 11.5px; }
+  th, td { border: 1px solid #fff; padding: 3px 8px; white-space: nowrap; }
+  .sec { font-weight:bold; font-size:10px; text-align:center; }
+  .col { font-weight:bold; font-size:10px; text-align:center; }
+  .dat { font-size:10px; }
+
+  .s-id { background:#EBF5FB; color:#1A5276; }
+  .d-id { background:#F4FAFF; color:#1A5276; }
+  .s-abono { background:#E6F1FB; color:#0C447C; }
+  .d-abono { background:#F0F8FF; color:#0C447C; }
+  .s-cargo { background:#E9F7EF; color:#1E5C3A; }
+  .d-cargo { background:#F4FBF7; color:#1E5C3A; }
+  .s-monto { background:#1E8449; color:#fff; }
+  .d-monto { background:#D5F5E3; color:#145A32; font-weight:bold; }
+
+  .val-favor { background:#F3E8FF; color:#4A235A; font-weight:bold; }
+  .val-dev   { background:#FADBD8; color:#7B241C; font-weight:bold; }
+
+  .logica-box { background:#f0f4ff; border:1px solid #a5b4fc; border-radius:4px;
+                padding:10px 14px; margin:12px 0; font-size:12px; }
+  .logica-box b { color:#3730a3; }
+  ul { margin:4px 0 4px 18px; } li { margin:3px 0; }
+  code { background:#f3f4f6; padding:1px 5px; border-radius:3px; font-size:11px; }
+  .nota { background:#FFF3CD; border-left:3px solid #F0C040; padding:8px 12px;
+          border-radius:0 4px 4px 0; font-size:12px; color:#7D5A00; margin:10px 0; }
+</style>
+</head>
+<body>
+
+<h1>Contrato de formato — store de APLICACIONES</h1>
+
+<div class="meta">
+  <span>Sub-contexto:</span> libro_mayor/estado_cuenta &nbsp;|&nbsp;
+  <span>Writer:</span> cuenta_repo.py (registrar_aplicacion) — llamado SOLO por motor_aplicacion.py &nbsp;|&nbsp;
+  <span>Tipo:</span> Auditoría — append-only, la INTERPRETACIÓN derivada &nbsp;|&nbsp;
+  <span>Versión:</span> 1.0 &nbsp;|&nbsp; 12/07/2026
+</div>
+
+<h2>Propósito</h2>
+<div class="logica-box">
+  <b>La INTERPRETACIÓN: a qué cargo fue cada porción de cada abono.</b><br><br>
+  <ul>
+    <li>1 fila = 1 imputación: parte (o todo) un abono cubre un cargo concreto.</li>
+    <li>Un abono grande puede generar varias filas (una por cada cargo que cubre, en orden de prioridad).</li>
+    <li><b>Solo el motor de aplicación escribe acá</b> — ningún feeder (2_planilla, 5_cobranza) aplica directo.</li>
+    <li>Referencia, nunca recopia: <code>ABONO_ID</code> apunta a caja, <code>CARGO</code> apunta al cargo — el monto vive una sola vez en cada lado.</li>
+  </ul>
+</div>
+
+<div class="nota">
+  <b>Fila especial <code>SALDO_A_FAVOR</code>:</b> cuando un abono supera todos los cargos abiertos, el sobrante
+  se aplica a este concepto explícito (crédito del predio) — no queda "flotando" sin fila.
+</div>
+
+<h2>Hoja: Aplicaciones</h2>
+
+<table>
+  <tr>
+    <th class="sec s-id"    colspan="1">Identidad</th>
+    <th class="sec s-abono" colspan="1">Abono origen</th>
+    <th class="sec s-cargo" colspan="2">Cargo saldado</th>
+    <th class="sec s-monto" colspan="1">Monto aplicado</th>
+  </tr>
+  <tr>
+    <th class="col s-id">JASS_ID</th>
+    <th class="col s-abono">ABONO_ID</th>
+    <th class="col s-cargo">CONCEPTO</th>
+    <th class="col s-cargo">MES_CARGO</th>
+    <th class="col s-monto">MONTO_APLICADO</th>
+  </tr>
+  <!-- fila 1: aplicación normal a multa -->
+  <tr>
+    <td class="dat d-id">tupac_amaru</td>
+    <td class="dat d-abono">tupac_amaru-2026-05-YA-a3f9c1</td>
+    <td class="dat d-cargo">MULTA</td>
+    <td class="dat d-cargo">2026-03</td>
+    <td class="dat d-monto">S/ 40.00</td>
+  </tr>
+  <!-- fila 2: mismo abono, resto va a saldo a favor -->
+  <tr>
+    <td class="dat d-id">tupac_amaru</td>
+    <td class="dat d-abono">tupac_amaru-2026-05-YA-a3f9c1</td>
+    <td class="dat val-favor">SALDO_A_FAVOR</td>
+    <td class="dat val-favor">—</td>
+    <td class="dat d-monto">S/ 60.00</td>
+  </tr>
+  <!-- fila 3: devolución baja el saldo a favor -->
+  <tr>
+    <td class="dat d-id">tupac_amaru</td>
+    <td class="dat val-dev">tupac_amaru-2026-05-EF-dev-7e21 (DEVOLUCION_ID)</td>
+    <td class="dat val-favor">SALDO_A_FAVOR</td>
+    <td class="dat val-favor">—</td>
+    <td class="dat d-monto">− S/ 15.00</td>
+  </tr>
+</table>
+
+<h2>Anchos de columna y formato openpyxl</h2>
+<table>
+  <tr style="background:#f9fafb;">
+    <th style="padding:4px 10px;">Columna</th>
+    <th style="padding:4px 10px;">Ancho</th>
+    <th style="padding:4px 10px;">Formato</th>
+    <th style="padding:4px 10px;">Sección</th>
+  </tr>
+  <tr><td>JASS_ID</td><td>14</td><td>texto · left</td><td>Identidad</td></tr>
+  <tr><td>ABONO_ID</td><td>32</td><td>texto · mono · left · o DEVOLUCION_ID si es reversa de saldo a favor</td><td>Abono origen</td></tr>
+  <tr><td>CONCEPTO</td><td>16</td><td>texto · center · "SALDO_A_FAVOR" en fondo morado</td><td>Cargo saldado</td></tr>
+  <tr><td>MES_CARGO</td><td>12</td><td>texto YYYY-MM · center · vacío si SALDO_A_FAVOR</td><td>Cargo saldado</td></tr>
+  <tr><td>MONTO_APLICADO</td><td>16</td><td>'"S/" #,##0.00' · right · bold · negativo = reversa por devolución</td><td>Monto aplicado</td></tr>
+</table>
+
+<h2>Invariante de conservación (verificado por <code>auditoria_conservacion()</code>)</h2>
+<div class="logica-box">
+  <code>Por cada (JASS_ID, ABONO_ID): MONTO(abono) = Σ MONTO_APLICADO a conceptos + SALDO_A_FAVOR generado</code><br>
+  <code>Global por JASS_ID: Σ abonos = Σ aplicado + Σ saldo_a_favor_vigente + Σ devoluciones</code>
+</div>
+
+<h2>Leyenda de colores</h2>
+<table>
+  <tr style="background:#f9fafb;">
+    <th style="padding:4px 10px;">Color</th>
+    <th style="padding:4px 10px;">Sección</th>
+    <th style="padding:4px 10px;">Significado</th>
+  </tr>
+  <tr><td style="background:#EBF5FB;padding:4px 10px;">Azul claro</td><td>Identidad</td><td>Tenant</td></tr>
+  <tr><td style="background:#E6F1FB;padding:4px 10px;">Azul operario</td><td>Abono origen</td><td>FK al hecho en caja (o devolución)</td></tr>
+  <tr><td style="background:#E9F7EF;padding:4px 10px;">Verde claro</td><td>Cargo saldado</td><td>Qué deuda cubre esta porción</td></tr>
+  <tr><td style="background:#1E8449;padding:4px 10px;color:#fff;">Verde oscuro</td><td>Monto aplicado</td><td>La porción imputada</td></tr>
+  <tr><td style="background:#F3E8FF;padding:4px 10px;">Morado</td><td>Valor especial</td><td>SALDO_A_FAVOR — crédito explícito, no residual</td></tr>
+  <tr><td style="background:#FADBD8;padding:4px 10px;">Rojo</td><td>Valor especial</td><td>Reversa por DEVOLUCION — baja el saldo a favor</td></tr>
+</table>
+
+<h2>Freeze panes</h2>
+<p><code>freeze_panes = "A3"</code> — filas 1 y 2 fijas (sección + columnas).</p>
+
+<hr style="margin-top:30px; border-color:#e5e7eb;">
+<p style="font-size:11px; color:#9ca3af;">
+  Contrato visual v1.0 — motor_aplicacion.py debe replicar exactamente este formato.<br>
+  Sub-contexto: libro_mayor/estado_cuenta &nbsp;|&nbsp; Creado: 12/07/2026
+</p>
+
+</body>
+</html>

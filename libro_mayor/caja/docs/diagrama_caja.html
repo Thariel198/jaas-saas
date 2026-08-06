@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>libro_mayor/caja — Diagrama detallado</title>
+<style>
+  body { font-family: Arial, sans-serif; font-size: 13px; margin: 30px; color: #1f2937; max-width: 980px; }
+  h1   { font-size: 18px; color: #1e3a5f; border-bottom: 2px solid #1e3a5f; padding-bottom: 6px; }
+  h2   { font-size: 14px; color: #374151; margin-top: 26px; border-left: 4px solid #6b7280; padding-left: 8px; }
+  p    { margin: 6px 0; }
+  .meta { background:#f3f4f6; border:1px solid #d1d5db; border-radius:4px; padding:10px 14px; margin-bottom:18px; }
+  .meta span { font-weight:bold; }
+  table { border-collapse: collapse; width:100%; margin: 10px 0 16px; font-size: 12px; }
+  th, td { border: 1px solid #e5e7eb; padding: 6px 10px; text-align:left; }
+  th { background:#f9fafb; font-size:11px; text-transform:uppercase; color:#6b7280; }
+  code { background:#f3f4f6; padding:1px 5px; border-radius:3px; font-size:11.5px; }
+  .box { border-radius:6px; padding:10px 14px; margin:10px 0; font-size:12.5px; }
+  .b-in   { background:#FEF3C7; border-left:4px solid #CA6F1E; }
+  .b-rule { background:#f0f4ff; border-left:4px solid #a5b4fc; }
+  .b-out  { background:#E9F7EF; border-left:4px solid #1E8449; }
+  .b-not  { background:#FADBD8; border-left:4px solid #C0392B; }
+  ul { margin:4px 0 4px 18px; } li { margin:3px 0; }
+</style>
+</head>
+<body>
+
+<h1>libro_mayor/caja — Diagrama detallado</h1>
+<div class="meta">
+  <span>Bounded context:</span> libro_mayor (agregado <b>caja</b>) &nbsp;|&nbsp;
+  <span>Estado:</span> Fase 1 cerrada — sin código &nbsp;|&nbsp;
+  <span>Fecha:</span> 2026-07-12
+</div>
+
+<h2>Inputs — con origen</h2>
+<div class="box b-in">
+  <ul>
+    <li><code>pagos_efectivo.xlsx</code> — de <code>4_pagos/efectivo/outputs/</code>, estado <b>posterior a 7_cierre</b> (mes consolidado, no en caliente)</li>
+    <li><code>*_procesado.xlsx</code> — de <code>4_pagos/yape/motor_matching/</code>, mismo corte post-cierre</li>
+    <li>registro de devoluciones — del libro de devoluciones (efectivo/yape), post-cierre</li>
+    <li><b>backfill histórico</b> (Oct-2025 → hoy): staging en <code>caja/inputs/historico/</code>, mismo importador que el flujo en vivo</li>
+  </ul>
+</div>
+
+<h2>Reglas clave</h2>
+<div class="box b-rule">
+  <ul>
+    <li><b>Writer único:</b> solo <code>caja_repo.py</code> escribe el store. Los 3 importadores son productores thin — leen su fuente y llaman al repo, nunca escriben directo.</li>
+    <li><b>1 depósito = 1 abono:</b> un yape de S/100 que paga dos predios sigue siendo <b>un</b> abono de S/100. El reparto por predio vive en <code>estado_cuenta</code> (APLICACIÓN), no acá.</li>
+    <li><b><code>ABONO_ID</code> determinista:</b> <code>{JASS_ID}-{MES_CICLO}-{CANAL}-{shorthash(clave_natural)}</code>. Nunca secuencial ni aleatorio — re-sembrar un mes en cualquier orden mapea al mismo id (idempotente).</li>
+    <li><b>Append-only:</b> ningún evento se edita ni se borra. Una corrección es un evento nuevo.</li>
+    <li><b><code>JASS_ID</code> en cada evento</b> desde el día 1 (decisión ⑦) — núcleo tenant-agnóstico.</li>
+    <li><b>Egreso = evento propio</b> (<code>DIRECCION=EGRESO</code>, <code>BALDE=devolucion/retorno/gasto</code>, <code>DEVOLUCION_ID</code>/<code>GASTO_ID</code>), no un abono negativo escondido. La caja registra ingresos y egresos por balde (decisión ⑩).</li>
+  </ul>
+</div>
+
+<h2>Outputs — con columnas</h2>
+<table>
+  <tr><th>Archivo</th><th>Tipo</th><th>Columnas clave</th><th>Consumidor</th></tr>
+  <tr>
+    <td>store de ABONOS</td>
+    <td>Auditoría (append-only)</td>
+    <td><code>JASS_ID, ABONO_ID, CANAL, TIPO, MONTO, FECHA, REFERENCIA, MES_CICLO, MZ, LT</code></td>
+    <td><code>estado_cuenta</code> (motor, vía ABONO_ID) · <code>consultar.py</code></td>
+  </tr>
+</table>
+<p>Contrato de formato completo: ver <code>formato_evento_caja.html</code>.</p>
+
+<h2>Acoplamiento con otros módulos</h2>
+<div class="box b-rule">
+  <ul>
+    <li><b>Lee de:</b> <code>4_pagos/efectivo</code>, <code>4_pagos/yape/motor_matching</code> — solo su estado post-<code>7_cierre</code>.</li>
+    <li><b>Lo lee:</b> <code>estado_cuenta</code> (el motor de aplicación referencia cada abono por <code>ABONO_ID</code>, nunca copia el monto).</li>
+    <li><b>No se acopla</b> con <code>2_planilla</code> ni <code>5_cobranza</code> directamente — esos módulos hablan con <code>estado_cuenta</code> (cargos), no con la caja.</li>
+  </ul>
+</div>
+
+<h2>Lo que NO hace este módulo</h2>
+<div class="box b-not">
+  <ul>
+    <li>No reparte el depósito por concepto (consumo/corte/multa/…).</li>
+    <li>No conoce la deuda ni calcula saldos.</li>
+    <li>No decide prioridad de aplicación ni a qué predio se imputa un abono compartido.</li>
+  </ul>
+</div>
+
+<hr style="margin-top:30px; border-color:#e5e7eb;">
+<p style="font-size:11px; color:#9ca3af;">
+  Fuente de verdad: <code>libro_mayor/caja/README.md</code>. Si este diagrama contradice el README, el README manda.
+</p>
+
+</body>
+</html>

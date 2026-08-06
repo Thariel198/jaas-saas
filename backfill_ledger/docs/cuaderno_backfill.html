@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cuaderno — backfill_ledger</title>
+<style>
+:root{
+  --paper:#F1F2EA; --paper-raised:#FBFBF6; --ink:#172227; --ink-soft:#4B5A5E; --ink-faint:#7C8A87;
+  --line:rgba(23,34,39,0.15); --line-strong:rgba(23,34,39,0.32);
+  --accent:#1D6E86; --accent-ink:#0F4757; --accent-soft:rgba(29,110,134,0.10);
+  --brass:#8C6A1E; --brass-soft:rgba(140,106,30,0.12);
+  --hueco:#A33F2C; --hueco-soft:rgba(163,63,44,0.09);
+  --resuelto:#2E7A50; --resuelto-soft:rgba(46,122,80,0.10);
+  --font-display:Georgia,"Iowan Old Style","Noto Serif","Times New Roman",serif;
+  --font-body:"Segoe UI","Noto Sans",-apple-system,BlinkMacSystemFont,sans-serif;
+  --font-mono:"Cascadia Mono",Consolas,"SF Mono",ui-monospace,"Courier New",monospace;
+}
+@media (prefers-color-scheme:dark){:root{
+  --paper:#10181B; --paper-raised:#17211F; --ink:#E8EEE9; --ink-soft:#A9B8B3; --ink-faint:#718280;
+  --line:rgba(232,238,233,0.14); --line-strong:rgba(232,238,233,0.30);
+  --accent:#5FBAD4; --accent-ink:#BFE7F2; --accent-soft:rgba(95,186,212,0.13);
+  --brass:#D8B65C; --brass-soft:rgba(216,182,92,0.14);
+  --hueco:#E28C7C; --hueco-soft:rgba(226,140,124,0.13);
+  --resuelto:#78CE9B; --resuelto-soft:rgba(120,206,155,0.13);
+}}
+:root[data-theme="dark"]{
+  --paper:#10181B; --paper-raised:#17211F; --ink:#E8EEE9; --ink-soft:#A9B8B3; --ink-faint:#718280;
+  --line:rgba(232,238,233,0.14); --line-strong:rgba(232,238,233,0.30);
+  --accent:#5FBAD4; --accent-ink:#BFE7F2; --accent-soft:rgba(95,186,212,0.13);
+  --brass:#D8B65C; --brass-soft:rgba(216,182,92,0.14);
+  --hueco:#E28C7C; --hueco-soft:rgba(226,140,124,0.13);
+  --resuelto:#78CE9B; --resuelto-soft:rgba(120,206,155,0.13);
+}
+:root[data-theme="light"]{
+  --paper:#F1F2EA; --paper-raised:#FBFBF6; --ink:#172227; --ink-soft:#4B5A5E; --ink-faint:#7C8A87;
+  --line:rgba(23,34,39,0.15); --line-strong:rgba(23,34,39,0.32);
+  --accent:#1D6E86; --accent-ink:#0F4757; --accent-soft:rgba(29,110,134,0.10);
+  --brass:#8C6A1E; --brass-soft:rgba(140,106,30,0.12);
+  --hueco:#A33F2C; --hueco-soft:rgba(163,63,44,0.09);
+  --resuelto:#2E7A50; --resuelto-soft:rgba(46,122,80,0.10);
+}
+*{box-sizing:border-box}
+html{background:var(--paper)}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased}
+code,.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+a{color:var(--accent-ink)}
+.wrap{max-width:920px;margin:0 auto;padding:0 24px 96px}
+header.hero{padding:52px 24px 26px;max-width:920px;margin:0 auto}
+.eyebrow{font-family:var(--font-mono);font-size:12.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--accent-ink);display:flex;align-items:center;gap:10px;margin:0 0 14px}
+.eyebrow .dot{width:6px;height:6px;background:var(--accent);border-radius:50%;flex:none}
+.crumbs{font-family:var(--font-mono);font-size:12.5px;color:var(--ink-faint);margin:0 0 14px}
+h1{font-family:var(--font-display);font-weight:400;font-size:clamp(28px,4.2vw,42px);line-height:1.12;letter-spacing:-.01em;margin:0 0 16px;text-wrap:balance;max-width:22ch}
+header.hero p.lede{font-size:17px;color:var(--ink-soft);max-width:64ch;margin:0 0 20px}
+.meta-row{display:flex;flex-wrap:wrap;gap:8px 10px;font-family:var(--font-mono);font-size:12.5px;color:var(--ink-faint)}
+.meta-row span{border:1px solid var(--line);padding:4px 9px;border-radius:3px}
+section{margin:28px 0 10px}
+.plate-label{font-family:var(--font-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--brass);border-left:2px solid var(--brass);padding-left:10px;margin:0 0 10px}
+h2{font-family:var(--font-display);font-weight:400;font-size:clamp(22px,3vw,28px);line-height:1.2;margin:0 0 16px;text-wrap:balance;max-width:34ch}
+section>p,.lamina>p{max-width:66ch;color:var(--ink-soft);margin:0 0 20px}
+section>p strong{color:var(--ink);font-weight:600}
+.ascii{font-family:var(--font-mono);font-size:12.5px;line-height:1.5;white-space:pre;overflow-x:auto;background:var(--paper);border:1px solid var(--line-strong);border-radius:6px;padding:16px 18px;color:var(--ink-soft);margin:0 0 10px}
+.ascii b{color:var(--accent-ink);font-weight:700}
+.dcaption{font-family:var(--font-mono);font-size:11.5px;color:var(--ink-faint);margin:0 0 22px;padding-left:2px}
+.keypoint{border-left:3px solid var(--resuelto);background:var(--resuelto-soft);border-radius:0 6px 6px 0;padding:12px 16px;margin:6px 0 20px;font-size:14px;color:var(--ink)}
+.keypoint b{color:var(--resuelto)}
+.analogy{border-left:3px solid var(--brass);background:var(--brass-soft);border-radius:0 6px 6px 0;padding:12px 16px;margin:6px 0 20px;font-size:14px;color:var(--ink-soft);font-style:italic}
+.analogy b{color:var(--brass);font-style:normal}
+.warn{border-left:3px solid var(--hueco);background:var(--hueco-soft);border-radius:0 6px 6px 0;padding:12px 16px;margin:6px 0 20px;font-size:14px;color:var(--ink)}
+.warn b{color:var(--hueco)}
+.sub-h{font-family:var(--font-display);font-size:19px;margin:34px 0 12px;color:var(--ink);display:flex;align-items:baseline;gap:10px}
+.sub-h .qn{font-family:var(--font-mono);font-size:12px;color:var(--brass);white-space:nowrap}
+.lamina{border:1px solid var(--line);border-radius:8px;background:var(--paper-raised);padding:26px 22px 30px;margin:0 0 18px}
+table.map{width:100%;border-collapse:collapse;margin:0 0 18px;font-size:13.5px}
+table.map th,table.map td{border:1px solid var(--line);padding:8px 11px;text-align:left;vertical-align:top}
+table.map th{background:var(--accent-soft);color:var(--accent-ink);font-family:var(--font-mono);font-size:12px;font-weight:700}
+table.map td code{font-size:12px}
+.status{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 6px;font-family:var(--font-mono);font-size:12px}
+.status span{padding:4px 10px;border-radius:3px;border:1px solid var(--line)}
+.status .ok{background:var(--resuelto-soft);color:var(--resuelto)}
+.status .no{background:var(--hueco-soft);color:var(--hueco)}
+footer.closing{margin-top:52px;padding-top:24px;border-top:1px solid var(--line);font-family:var(--font-mono);font-size:12px;color:var(--ink-faint);line-height:1.8}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <p class="crumbs">Cuaderno · backfill_ledger</p>
+  <p class="eyebrow"><span class="dot"></span>tarea de desarrollo · agosto 2026</p>
+  <h1>backfill — cómo el ledger se llena de la historia vieja</h1>
+  <p class="lede">
+    El ledger nace <strong>vacío</strong>, pero ya hay meses de historia. El <strong>backfill</strong>
+    es la carga inicial: siembra los <strong>hechos crudos</strong> y deja que el motor re-derive todo.
+    Cada corrección que hacemos a mano hoy es un <strong>precursor</strong> — el terreno que el backfill
+    va a leer mañana. Este cuaderno lo explica con diagramas de cajas.
+  </p>
+  <div class="meta-row">
+    <span>Fase 2 · no empezada</span>
+    <span>precursores → shared/</span>
+    <span>diseño ledger → libro_mayor/</span>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ══════════ LÁMINA 1 · qué es ══════════ -->
+  <section>
+    <p class="plate-label">Altura 1 · el concepto</p>
+    <h2>Qué es un backfill — "rellenar hacia atrás"</h2>
+    <p>Es cargar en un sistema nuevo toda la historia que ocurrió <strong>antes</strong> de que ese
+      sistema existiera. El ledger arranca en blanco; hay 9+ meses de pagos y deudas en el sistema
+      viejo. El backfill mete esa historia — pero <strong>no fotocopia</strong> los resultados ya
+      calculados: siembra los hechos y re-calcula.</p>
+
+    <div class="ascii">  LÍNEA DE TIEMPO
+  Oct 2025 ──────────── julio 2026 ──────── (agosto) se construye el ledger
+     │                      │                      │
+     └─ 9 meses de pagos,   │                      └─ el ledger nace <b>VACÍO</b>
+        deudas, cortes en   │                         → el backfill le mete la historia
+        el sistema viejo ───┘</div>
+    <p class="dcaption">el ledger no vivió esos 9 meses · alguien tiene que contárselos</p>
+
+    <div class="ascii">  CÓMO los cuenta — re-deriva, NO fotocopia
+
+  ┌──────────────────────────┐
+  │ datos viejos (mesas,     │   siembra solo los HECHOS crudos:
+  │ seguimiento_pueblo)      │
+  └───────────┬──────────────┘
+              ▼
+  ┌─────────────────────┐   ┌─────────────────────┐
+  │ <b>ABONOS</b> históricos   │   │ <b>CARGOS</b> históricos   │
+  │ (entró plata)       │   │ (nació deuda)       │
+  └──────────┬──────────┘   └──────────┬──────────┘
+             └────────────┬────────────┘
+                          ▼
+                  ┌───────────────┐
+                  │ <b>MOTOR</b> aplicar  │  ← re-calcula TODAS las aplicaciones
+                  └───────┬───────┘     con su link (abono → cargo)
+                          ▼
+                 ledger poblado y consistente</div>
+
+    <div class="analogy"><b>Analogía del cuaderno:</b> no pegás las hojas rotas del cuaderno viejo
+      adentro del nuevo. Re-copiás solo los hechos limpios (quién pagó, quién debe) y dejás que el
+      sistema nuevo re-calcule el resto. Los tachones del viejo no se heredan.</div>
+
+    <div class="keypoint"><b>Corre una sola vez.</b> Es la carga inicial. Después el ledger corre en
+      vivo, mes a mes, tras <code>7_cierre</code>. El backfill no es recurrente.</div>
+  </section>
+
+  <!-- ══════════ LÁMINA 2 · los 4 precursores ══════════ -->
+  <section class="lamina">
+    <p class="plate-label">Altura 2 · el terreno de hoy</p>
+    <h2>Los 6 precursores → sus eventos de ledger</h2>
+    <p>Cada corrección manual que hacemos en julio se guarda en un archivo <strong>durable</strong> en
+      <code>shared/</code>. Hoy lo aplica el overlay de <code>5_cobranza</code> (arregla julio de
+      verdad); mañana el backfill lee el <em>mismo</em> archivo y lo convierte en su evento de ledger.
+      Un archivo, dos vidas.</p>
+
+    <div class="ascii">                    HOY (real, corre en 5_cobranza)      MAÑANA (backfill → ledger)
+                    ──────────────────────────────       ──────────────────────────
+
+  abonos_rezagados.xlsx   overlay resta la deuda          <b>registrar_movimiento</b>
+  8 pagos retenidos    ─▶ de junio (mes_anterior)   ────▶ ABONO NUEVO que faltaba
+  (yape no transferido)   de esos 8 predios                (nunca entró a caja)
+    ↳ RESPALDO             columna nueva: "documentado"     viaja como EVIDENCIA del
+      documentado/         (mesa+yape, 7 casos) vs          abono — el backfill NO
+      solo_declaracion     "solo_declaracion" (F1-4,         pierde la señal de confianza
+                            solo palabra de la secretaria)   baja, solo la hereda
+
+  reidentificacion.xlsx   overlay mueve el crédito        <b>reasignar_abono</b>
+  V-16→V-6, C1-9→C1-17,─▶ al predio correcto        ────▶ el abono cambia de dueño
+  B-15→B-19                                                (predio A → predio B)
+    ↳ deuda_correcciones  overlay le <b>devuelve</b> la     (mismo evento — reasignar
+      .xlsx · mitad espejo· deuda real al origen     ┈┈┈▶  YA saca el abono del origen;
+      solo si el origen      (multa, acuerdos...)          esta mitad solo existe HOY
+      sí debía de verdad                                   porque el overlay no resta)
+
+  devoluciones_aplicadas  overlay resta el exceso         <b>SALDO_A_FAVOR</b> → cargo
+  G-18, P-6            ─▶ del concepto elegido       ────▶ el exceso es crédito que
+  exceso → convenio       (convenio)                       el motor imputa a un cargo
+
+  ajustes_cargo.xlsx      overlay resta el CARGO          <b>registrar_ajuste</b>
+  F1-4 corte junio     ─▶ mismo (NO hay plata de     ────▶ anula un CARGO que nació
+  anulado (no correspondía) más de por medio)               mal — REF_AUDIT ancla el
+                                                             hecho original (audit_penalidad)
+
+  genesis_tardia.xlsx     overlay SUMA el CARGO           <b>registrar_cargo</b>
+  6 lotes techado y    ─▶ (nació BIEN, solo tarde     ────▶ el cargo nace en su
+  campo, fuente        ┈▶ a la génesis congelada)          MES_ANO_ORIGEN real — el
+  corregida en obligaciones/ (ver REF_FUENTE)               overlay solo cubre el ciclo
+                                                             ya congelado, no hace falta
+                                                             de nuevo el próximo mes
+
+  aportes_tanque_manual    overlay YA cableado en          <b>registrar_movimiento</b>
+  C1-17 tanque         ─▶  consolidar_tanque.py       ───▶ BALDE=tanque · reasignado
+  (_leer_tanque_manuales)                                  NO cruza a deuda (voluntario)
+
+  blancos_efectivo.xlsx   overlay YA cableado en          <b>identificar_abono</b>
+  5 blancos junio (B6) ─▶ 5_cobranza (_cargar_        ───▶ blanco → predio
+  1 con dueño · 4 sin     blancos_efectivo)                (la plata YA estaba en caja)
+
+  shared/blancos_        overlay YA vigente (más          <b>identificar_abono</b>
+  acumulados.xlsx ─────▶ viejo que blancos_efectivo) ────▶ mismo evento, canal Yape
+  (canal Yape)            escribís MZ/LOTE → se aplica     (blancos_efectivo lo copió
+  E-8 · S/58 · 10/06      solo, sin tocar código            de acá para efectivo)
+
+  reasignaciones_          overlay YA cableado en          <b>reasignar_aplicacion</b>
+  aplicacion.xlsx     ─▶   5_cobranza                 ───▶ el ABONO se desconecta del
+  F1-11 · S/75             (_reconciliar_pagos_pueblo)      CARGO donde cayó por
+                           revierte la aplicación en        cascada y se re-conecta al
+                           ACUERDOS y la manda a            CARGO que el pagador pidió
+                           CONVENIO — CARGO de origen        — sigue debiéndose techado</div>
+    <p class="dcaption">línea sólida = ya funciona hoy · línea punteada = pendiente de codificar</p>
+
+    <table class="map">
+      <tr><th>precursor</th><th>qué es en el fondo</th><th>evento ledger</th></tr>
+      <tr><td><code>abonos_rezagados</code></td><td>un abono que <b>faltaba</b> (nunca entró a caja)</td><td><code>registrar_movimiento</code></td></tr>
+      <tr><td><code>reidentificacion</code></td><td>un abono en el <b>lote equivocado</b></td><td><code>reasignar_abono</code></td></tr>
+      <tr><td><code>deuda_correcciones</code></td><td>mitad espejo — deuda <b>real</b> que hay que devolver al origen</td><td><code>reasignar_abono</code> (mismo evento)</td></tr>
+      <tr><td><code>devoluciones_aplicadas</code></td><td>un <b>exceso</b> dirigido a otro concepto</td><td><code>SALDO_A_FAVOR</code> → motor</td></tr>
+      <tr><td><code>ajustes_cargo</code></td><td>un CARGO que nació y <b>no correspondía</b> — se anula (sin plata de más)</td><td><code>registrar_ajuste</code></td></tr>
+      <tr><td><code>genesis_tardia</code></td><td>un CARGO <b>legítimo</b> — nació bien, pero su fuente llegó tarde a un ciclo ya congelado</td><td><code>registrar_cargo</code></td></tr>
+      <tr><td><code>aportes_tanque_manuales</code></td><td>un abono <b>voluntario</b> mal ubicado</td><td><code>registrar_movimiento</code> tanque</td></tr>
+      <tr><td><code>blancos_efectivo</code></td><td>un abono <b>sin dueño</b> (B6 lo borró de junio)</td><td><code>identificar_abono</code></td></tr>
+      <tr><td><code>blancos_acumulados</code></td><td>lo mismo que arriba, canal <b>Yape</b> — overlay más viejo, ya vigente</td><td><code>identificar_abono</code> (mismo evento)</td></tr>
+      <tr><td><code>reasignaciones_aplicacion</code></td><td>un ABONO que la cascada <b>iba a aplicar</b> a un CARGO distinto al que pidió el pagador</td><td><code>reasignar_aplicacion</code></td></tr>
+    </table>
+
+    <div class="status">
+      <span class="ok">abonos_rezagados ✓ overlay codificado</span>
+      <span class="ok">reidentificacion ✓ overlay codificado</span>
+      <span class="ok">deuda_correcciones ✓ overlay codificado (2026-07-24, mitad espejo)</span>
+      <span class="ok">devoluciones_aplicadas ✓ overlay codificado</span>
+      <span class="ok">ajustes_cargo ✓ overlay codificado (2026-07-24, F1-4 corte junio)</span>
+      <span class="ok">genesis_tardia ✓ overlay codificado (2026-07-24, 6 lotes techado y campo)</span>
+      <span class="ok">aportes_tanque_manuales ✓ overlay codificado (consolidar_tanque.py)</span>
+      <span class="ok">blancos_efectivo ✓ overlay codificado (5_cobranza) — corregía estado stale de este cuaderno</span>
+      <span class="ok">blancos_acumulados (Yape) ✓ overlay vigente desde antes — E-8/S58 (2026-07-24)</span>
+      <span class="ok">reasignaciones_aplicacion ✓ overlay codificado (2026-07-25, F1-11 techado→convenio)</span>
+    </div>
+
+    <div class="keypoint"><b>El patrón que une todo:</b> cada archivo es una fila estructurada de una
+      corrección que el sistema viejo no sabía representar limpio. El overlay la aplica ahora; el
+      backfill la lee mañana; el motor re-deriva las aplicaciones. Nunca se edita el crudo histórico.</div>
+
+    <div class="analogy"><b>Por qué deuda_correcciones no cuenta como un 6º precursor:</b> no es un tipo
+      de hecho nuevo, es la <em>otra mitad</em> de una reidentificación cuando el lote equivocado sí
+      tenía deuda real de por medio (no solo exceso). Hoy vive en un archivo aparte porque el overlay
+      de <code>5_cobranza</code> solo sabe <em>sumar</em> crédito al destino, nunca <em>restar</em> en el
+      origen. El día que exista <code>reasignar_abono</code> de verdad, una sola llamada mueve el abono
+      y ambos lados se ajustan solos — <code>deuda_correcciones.xlsx</code> se jubila.</div>
+
+    <div class="analogy"><b>Por qué reasignar_aplicacion SÍ es un tipo nuevo (25/07/2026):</b>
+      <code>ajustes_cargo</code> y <code>devoluciones_aplicadas</code> se parecen pero tocan otra
+      entidad. <code>ajustes_cargo</code> declara que el CARGO no correspondía (se anula, SALDO→0).
+      <code>devoluciones_aplicadas</code> dirige plata que <em>ya era sobrante</em> (ningún cargo la
+      iba a interceptar). El caso F1-11 es distinto de ambos: el CARGO de destino (ACUERDOS/techado)
+      es legítimo y sigue abierto — lo que hay que revertir es la <b>APLICACIÓN</b> que la cascada P1-P6
+      le iba a dar de oficio a ese ABONO. Es la primera corrección que toca la entidad APLICACIÓN
+      (línea 288 de <code>estado_cuenta/README.md</code>) sin tocar ABONO ni CARGO en ninguno de los
+      dos lados.</div>
+  </section>
+
+  <!-- ══════════ LÁMINA 3 · el bloque partido ══════════ -->
+  <section class="lamina">
+    <p class="plate-label">Altura 3 · el caso difícil</p>
+    <h2>C1-17 — cómo el backfill parte un bloque mixto en 2 abonos</h2>
+    <p>El caso que cruza dos precursores. En junio, un depósito de <strong>S/218.50</strong> quedó
+      anotado en C1-9, sin concepto — pero adentro mezcla <strong>18.5 agua + 200 tanque</strong>, y
+      además era de C1-17, no de C1-9. Un solo bloque crudo esconde tres problemas.</p>
+
+    <div class="sub-h"><span class="qn">la objeción</span> "junio ve UN bloque, no dos — ¿cómo reasigno abono A y B?"</div>
+    <p>Correcto: junio produce <strong>un</strong> abono de 218.50. Abono A y B no existen por
+      separado. La partición <strong>no</strong> es un tool en vivo ni se edita junio — ocurre en el
+      backfill, guiada por las dos notas ancladas al mismo bloque.</p>
+
+    <div class="ascii">  ENTRADA AL BACKFILL
+  ┌────────────────────────────┐   ┌──────────────────────────────────────┐
+  │ HECHO CRUDO (intocable)    │   │ NOTAS DE CORRECCIÓN (precursores)      │
+  │ mesa_2 junio · fila 36     │   │ ancladas a f36:                        │
+  │   C1-9 · 218.50 · efectivo │   │   nota 1: 18.5 · agua   · →C1-17       │
+  │   (mal lote + sin partir)  │   │   nota 2: 200  · tanque · →C1-17       │
+  └─────────────┬──────────────┘   └───────────────┬──────────────────────┘
+                └─────────────┬─────────────────────┘
+                              ▼
+      ┌───────────────────────────────────────────┐
+      │ PASO 1 · EMPAREJA por ancla                │
+      │  notas cuyo ancla = (mesa_2, f36) → 2      │
+      │  → sabe que este bloque se parte           │
+      └───────────────────────┬───────────────────┘
+                              ▼
+      ┌───────────────────────────────────────────┐
+      │ PASO 2 · <b>CHEQUEO DE SUMA</b> (conservación)   │
+      │                                            │
+      │   18.5  +  200  =  <b>218.50</b>  =  el bloque   │
+      │   ✓ cuadra → parte sin crear ni perder plata│
+      │   ✗ no cuadra → lo marca, NO siembra        │
+      └───────────────────────┬───────────────────┘
+                              ▼
+      ┌───────────────────────────────────────────┐
+      │ PASO 3 · EMITE 2 ABONOS (no el bloque)     │
+      │  abono A                abono B            │
+      │  hash(f36+<b>agua</b>)         hash(f36+<b>tanque</b>)     │
+      │  18.5 · agua            200 · tanque       │
+      │  → C1-17 (reasignado)   → C1-17 (reasignado)│
+      └───────────────────────┬───────────────────┘
+                              ▼
+      ┌───────────────────────────────────────────┐
+      │ PASO 4 · el MOTOR aplica por balde         │
+      │  A (agua)  → cargo agua de C1-17           │
+      │  B (tanque)→ crédito tanque (sin cargo)    │
+      └───────────────────────────────────────────┘</div>
+
+    <div class="keypoint"><b>El chequeo de suma es lo que lo hace seguro.</b> Las 2 notas
+      <em>deben</em> sumar el bloque (<code>18.5 + 200 = 218.50</code>). Es el invariante de
+      conservación del contrato: <code>MONTO(bloque) = MONTO(A) + MONTO(B)</code>. Sin él, alguien
+      podría anotar "18.5 + 150" y perder 50 en el aire — el backfill lo rechaza.</div>
+
+    <div class="analogy"><b>La analogía:</b> mesa_2 f36 = el recibo original del banco (mal puesto),
+      <b>intocable</b>. Las 2 notas = dos post-its pegados encima: "18.5 es agua de C1-17, 200 es
+      tanque de C1-17". El contador lee recibo + post-its y asienta 2 líneas correctas. Nunca borra
+      el recibo.</div>
+
+    <div class="warn"><b>Detalle de diseño aún abierto:</b> dos abonos con la misma procedencia (f36)
+      necesitan ID distinto → hay que sumar el <code>BALDE</code> a la llave del <code>ABONO_ID</code>
+      (<code>hash(f36+agua) ≠ hash(f36+tanque)</code>). El contrato hoy dice
+      <code>ABONO_ID = hash(procedencia)</code> a secas. Es una extensión chica — y es justo lo que
+      este caso destapa que el backfill va a necesitar. No decidido todavía.</div>
+
+    <div class="keypoint"><b>De acá en adelante no pasa:</b> la columna <code>CONCEPTO</code> de la
+      mesa ya etiqueta el tanque en la captura → nacen 2 abonos de una, sin partir. El problema es
+      puro legado del registro de junio sin partir.</div>
+  </section>
+
+  <!-- ══════════ LÁMINA 4 · el blanco identificado ══════════ -->
+  <section class="lamina">
+    <p class="plate-label">Altura 3 · el otro caso difícil</p>
+    <h2>blancos_efectivo — plata que la caja recibió pero sin dueño</h2>
+    <p>En junio, <strong>5 pagos en efectivo</strong> (S/282) entraron a la caja pero el cobrador
+      no supo de qué predio eran → los anotó <strong>BLANCO</strong>. El bug <strong>B6</strong>
+      (efectivo no ruteaba blancos, a diferencia de yape) los <strong>borró en silencio</strong>: nunca
+      bajaron deuda de nadie. La plata <em>sí</em> está en la caja de junio — lo que se perdió fue la
+      <strong>atribución</strong>. Hoy solo 1 de los 5 se puede nombrar.</p>
+
+    <div class="ascii">  LOS 5 BLANCOS DE JUNIO (todos = plata en caja, sin dueño)
+  ┌───────────┬───────┬─────────────────┬──────────────────────┬──────────────┐
+  │ mesa/fila │ monto │ cobrador        │ comentario           │ identidad    │
+  ├───────────┼───────┼─────────────────┼──────────────────────┼──────────────┤
+  │ mesa_1 f23│   69  │ Wilder Trujillo │ —                    │ desconocida  │
+  │ mesa_1 f41│   37  │ Wilder Trujillo │ —                    │ desconocida  │
+  │ mesa_2 f7 │   24  │ Yerald Romero   │ "Exoneracion"        │ ? (R-7, D2)  │
+  │ mesa_6 f7 │   45  │ Wagner Trujillo │ "Hernestina Vall.?"  │ <b>G-12</b> (tentativa)│
+  │ mesa_6 f62│  107  │ Wagner Trujillo │ —                    │ ? (O-6, D2)  │
+  └───────────┴───────┴─────────────────┴──────────────────────┴──────────────┘
+     69 + 37 + 24 + 45 + 107 = <b>S/282</b>   ·   1 identificado · 4 aún blancos</div>
+    <p class="dcaption">un solo archivo los guarda a los 5 · el arqueo de junio ve acá su faltante</p>
+
+    <div class="sub-h"><span class="qn">caso A</span> ¿cómo se identifica el abono de G-12?</div>
+    <p>La identificación <strong>es</strong> el acto de escribir <code>MZ=G · LT=12</code> en la fila.
+      Eso convierte un blanco en un abono con dueño — sin tocar el crudo de junio.</p>
+
+    <div class="ascii">  ┌────────────────────────────┐   ┌──────────────────────────────────────┐
+  │ HECHO CRUDO (intocable)    │   │ NOTA (blancos_efectivo.xlsx)           │
+  │ mesa_6 junio · fila 7      │   │ misma plata, ahora con dueño:          │
+  │   BLANCO · 45 · efectivo   │   │   MZ=<b>G</b> · LT=<b>12</b> · 45 · agua           │
+  │   "Hernestina Valladares?" │   │   MES_APLICA=2026-07 · ESTADO=id       │
+  └─────────────┬──────────────┘   └───────────────┬──────────────────────┘
+                └─────────────┬─────────────────────┘
+                              ▼
+      HOY ─────────────────────────────────  MAÑANA (backfill) ───────────────
+      5_cobranza overlay lee la fila         registrar_movimiento (efec·junio·
+      CON MZ/LT → aplica S/45 a la      ────▶ predio=null) YA estaba en caja +
+      deuda de junio de G-12                  <b>identificar_abono</b> (blanco → G-12)
+      (fecha real junio, acredita julio)      → el motor lo imputa a su cargo</div>
+
+    <div class="keypoint"><b>Primera y única vez.</b> Junio nunca aplicó estos S/45 (B6 los borró) →
+      aplicarlos ahora <em>no</em> es doble conteo. La deuda de G-12 baja por primera vez.</div>
+
+    <div class="sub-h"><span class="qn">caso B</span> ¿y los 4 sin identificar? ¿solo quedan como historial?</div>
+    <p>Casi — pero es más fuerte que "historial". No son una nota muerta: son <strong>plata real que la
+      caja recibió</strong>, solo que sin dueño asignado. Quedan en el archivo, <strong>inertes</strong>
+      a la cobranza, hasta que alguien las nombre.</p>
+
+    <div class="ascii">  fila SIN MZ/LT  ─▶  el overlay la SALTEA  ─▶  no toca la deuda de nadie
+                          (gate: sin MZ/LT,          NO se pierde · NO se inventa
+                           no aplica)                 un dueño falso
+        │
+        ▼
+  en el ledger de mañana:
+  ┌─────────────────────────────────────────────────────────┐
+  │ registrar_movimiento  (efectivo · junio · predio=null)  │  ← la caja SÍ sabe
+  │        │                                                │     que entró la plata
+  │        ▼                                                │
+  │   queda SIN identificar_abono → sin imputar a un cargo  │  ← espera dueño
+  └─────────────────────────────────────────────────────────┘
+        │
+        ▼   cuando aparezca el dueño (llenar MZ/LT)
+  el MISMO mecanismo la aplica → deja de ser blanco</div>
+
+    <div class="analogy"><b>La analogía:</b> es plata en un sobre en la caja fuerte con un signo de
+      pregunta encima. No está perdida (está en la caja, cuenta para el arqueo), pero no se le
+      abona a nadie hasta que alguien escriba el nombre en el sobre. El sobre espera; la plata no
+      se mueve ni se inventa un dueño.</div>
+
+    <div class="keypoint"><b>Por qué no es un <code>abonos_rezagados</code>:</b> el rezagado es un
+      movimiento que <em>faltaba</em> en la caja (Wagner lo retuvo → hay que <code>registrar</code>lo
+      con dueño conocido). El blanco <em>sí entró</em> a la caja, lo que falta es el <em>dueño</em> →
+      el tool que lo define es <code>identificar_abono</code> (blanco → predio), no
+      <code>registrar_movimiento</code>.</div>
+
+    <div class="warn"><b>Verificar antes de sembrar:</b> O-6 (S/107) y R-7 (S/24) figuraban en D2 como
+      "reclamarán en julio". Confirmar que no se aplicaron ya por otra vía antes de meterlos acá — si
+      sí, sería doble conteo. Chequeo de seguridad del backfill, no bloquea el diseño.</div>
+  </section>
+
+  <!-- ══════════ LÁMINA 5 · la mitad espejo ══════════ -->
+  <section class="lamina">
+    <p class="plate-label">Altura 3 · el tercer caso difícil</p>
+    <h2>B-15 → B-19 — cuando el destino sí pagaba deuda real</h2>
+    <p>Melissa Pillaca (B-19) pagó por Yape <strong>S/70</strong> el 06/06/2026 19:19:54, con el
+      mensaje "Melissa MZB Lt 15" — typeó mal su propio lote. El motor de matching hizo exactamente lo
+      que el mensaje decía: lo cargó a <strong>B-15</strong> (Saory Rapray Silva), un lote de otra
+      persona. A diferencia de V-6/V-16 (Lámina 2), acá el lote equivocado <strong>sí</strong> tenía
+      deuda real esperando — el pago no generó exceso, pagó multa y acuerdos de otra persona.</p>
+
+    <div class="ascii">  JUNIO — lo que pasó de verdad          JUNIO — lo que el sistema vio
+  ┌─────────────────────────────┐        ┌─────────────────────────────┐
+  │ B-19 (Melissa) debía        │        │ B-19 sin ningún pago        │
+  │  20 mes_anterior + 50 multa │        │  → sigue debiendo 70        │
+  │  = 70 exacto                │        │  → 2 meses de multa impaga  │
+  │  → pagó por Yape, typeo mal │        │                             │
+  ├─────────────────────────────┤        ├─────────────────────────────┤
+  │ B-15 (Saory) debía          │        │ B-15 con 70 de pago fantasma│
+  │  50 multa + 75 acuerdos     │        │  → multa 50 pagada del todo │
+  │  = 125, sin pagar nada      │        │  → acuerdos 75→55 restante  │
+  └─────────────────────────────┘        └─────────────────────────────┘</div>
+    <p class="dcaption">un solo typo de lote → dos cuentas mal, ninguna de las dos con exceso visible</p>
+
+    <div class="sub-h"><span class="qn">la diferencia con V-6/V-16</span> ahí el origen solo tenía exceso; acá tenía deuda real</div>
+    <p>Por eso una sola fila de <code>reidentificacion.xlsx</code> no alcanza. Hace falta la mitad
+      espejo en <code>deuda_correcciones.xlsx</code>, y con un timing distinto: el crédito a B-19
+      aplica <strong>ya</strong> (julio — la sacan de la lista de corte), pero la deuda que se le
+      devuelve a B-15 aplica <strong>en agosto</strong> (su boleta de julio ya se imprimió con el
+      saldo viejo; no se le puede cambiar retroactivamente algo ya entregado).</p>
+
+    <div class="ascii">  ┌──────────────────────────────┐   ┌──────────────────────────────────┐
+  │ reidentificacion.xlsx fila 8 │   │ deuda_correcciones.xlsx (nuevo)    │
+  │ B-15 → B-19 · monto 70       │   │ B-15 · multa +50 · acuerdos +20    │
+  │ MES_ANO_APLICA = <b>2026-07</b>    │   │ MES_ANO_APLICA = <b>2026-08</b>          │
+  │ REF: Yape 06/06 19:19:54     │   │ REF: reidentificacion.xlsx fila 8  │
+  └───────────────┬───────────────┘   └────────────────┬───────────────────┘
+                  ▼                                     ▼
+     julio: B-19 mes_anterior(20)+          agosto: B-15 recupera su
+     multa(50) → 0 · sale de corte           deuda real (multa 50 · acuerdos 20)
+                                              → boleta de agosto sale mayor</div>
+
+    <div class="keypoint"><b>Verificado antes de escribir:</b> se confirmó en <code>planilla_cobrado</code>
+      (repo junio congelado) que B-15 recibió exactamente el waterfall multa→acuerdos con esos 70, y que
+      el dato ya no existe en el crudo Yape vivo (los meses cerrados se caen del feed) — por eso hacía
+      falta reconstruir el monto exacto a mano en vez de re-leerlo de una fuente viva.</div>
+
+    <div class="warn"><b>Costo humano, no técnico:</b> en agosto, la boleta de B-15/Saory va a subir
+      sin que ella haya hecho nada nuevo ese mes — hay que explicarle que fue una corrección de un
+      error de junio, no un cargo nuevo.</div>
+  </section>
+
+  <footer class="closing">
+    backfill_ledger · cuaderno de aprendizaje · 2026-07-21 · lámina 5: 2026-07-24<br>
+    tarea de desarrollo — agosto 2026 · Fase 2 no empezada<br>
+    diseño del ledger → ../../libro_mayor/ · precursores → ../../shared/ · README → ../README.md
+  </footer>
+
+</main>
+</body>
+</html>

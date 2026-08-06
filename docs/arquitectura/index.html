@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>jass_system — Mapa maestro de arquitectura</title>
+<style>
+  :root{
+    --bg:#f6f9fb; --surface:#ffffff; --surface-2:#eef4f8;
+    --ink:#10212e; --ink-soft:#40586a; --ink-faint:#6f869a;
+    --line:#d8e4ec; --line-soft:#e8eff4;
+    --accent:#1a5276;
+    /* tipos */
+    --feeder:#0c447c;  --feeder-bg:#e9f1fb;
+    --store:#1e5c3a;   --store-bg:#e7f4ec;
+    --motor:#5b21b6;   --motor-bg:#f3e8ff;
+    --tool:#9a6a00;    --tool-bg:#fbf1dc;
+    --config:#4b5563;  --config-bg:#eef1f4;
+    --here:#b91c1c;    --here-bg:#fde8e8;
+    --mono:ui-monospace,"SF Mono","Cascadia Code","JetBrains Mono",Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#0d1922; --surface:#14232f; --surface-2:#1a2c3a;
+      --ink:#e7f0f6; --ink-soft:#a9bece; --ink-faint:#7893a6;
+      --line:#26404f; --line-soft:#1e3444; --accent:#5aa8db;
+      --feeder:#6db2ea; --feeder-bg:#12283d;
+      --store:#5fce93;  --store-bg:#122b1f;
+      --motor:#b98cf0;  --motor-bg:#241436;
+      --tool:#e0b155;   --tool-bg:#2c2410;
+      --config:#9aa7b4; --config-bg:#1f272e;
+      --here:#f08a8a;   --here-bg:#2c1414;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0d1922; --surface:#14232f; --surface-2:#1a2c3a;
+    --ink:#e7f0f6; --ink-soft:#a9bece; --ink-faint:#7893a6;
+    --line:#26404f; --line-soft:#1e3444; --accent:#5aa8db;
+    --feeder:#6db2ea; --feeder-bg:#12283d;
+    --store:#5fce93;  --store-bg:#122b1f;
+    --motor:#b98cf0;  --motor-bg:#241436;
+    --tool:#e0b155;   --tool-bg:#2c2410;
+    --config:#9aa7b4; --config-bg:#1f272e;
+    --here:#f08a8a;   --here-bg:#2c1414;
+  }
+  :root[data-theme="light"]{
+    --bg:#f6f9fb; --surface:#ffffff; --surface-2:#eef4f8;
+    --ink:#10212e; --ink-soft:#40586a; --ink-faint:#6f869a;
+    --line:#d8e4ec; --line-soft:#e8eff4; --accent:#1a5276;
+    --feeder:#0c447c; --feeder-bg:#e9f1fb;
+    --store:#1e5c3a;  --store-bg:#e7f4ec;
+    --motor:#5b21b6;  --motor-bg:#f3e8ff;
+    --tool:#9a6a00;   --tool-bg:#fbf1dc;
+    --config:#4b5563; --config-bg:#eef1f4;
+    --here:#b91c1c;   --here-bg:#fde8e8;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
+    line-height:1.55;-webkit-font-smoothing:antialiased;font-size:15px}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 22px}
+  code{font-family:var(--mono);font-size:.9em}
+
+  header{padding:52px 0 26px;border-bottom:1px solid var(--line)}
+  .eyebrow{font-family:var(--mono);font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--accent);margin:0 0 14px}
+  h1{font-size:clamp(26px,4.4vw,40px);line-height:1.08;margin:0 0 14px;letter-spacing:-.02em;font-weight:680}
+  .lede{font-size:clamp(15px,2.2vw,18px);color:var(--ink-soft);max-width:70ch;margin:0}
+
+  .here{display:flex;align-items:center;gap:10px;margin-top:22px;background:var(--here-bg);
+    border:1px solid var(--here);border-radius:10px;padding:11px 15px;font-size:14px}
+  .here b{color:var(--here)}
+  .here .pin{font-size:16px}
+
+  section{padding:38px 0;border-bottom:1px solid var(--line-soft)}
+  .sec-head{display:flex;align-items:baseline;gap:12px;margin:0 0 4px}
+  .sec-num{font-family:var(--mono);font-size:12px;color:var(--ink-faint)}
+  h2{font-size:clamp(19px,2.9vw,26px);margin:0;letter-spacing:-.015em;font-weight:660}
+  .sec-sub{color:var(--ink-soft);margin:6px 0 22px;max-width:74ch;font-size:14px}
+
+  /* legend */
+  .legend{display:flex;flex-wrap:wrap;gap:8px}
+  .lg{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:12px;
+    padding:5px 11px;border-radius:999px;border:1px solid var(--line);background:var(--surface)}
+  .sw{width:11px;height:11px;border-radius:3px;flex:none}
+  .sw.feeder{background:var(--feeder)} .sw.store{background:var(--store)}
+  .sw.motor{background:var(--motor)} .sw.tool{background:var(--tool)} .sw.config{background:var(--config)}
+
+  /* pipeline row */
+  .pipe{display:flex;flex-wrap:wrap;gap:8px;align-items:stretch}
+  .step{flex:1 1 128px;min-width:118px;border:1px solid var(--line);border-radius:10px;
+    background:var(--surface);padding:11px 12px;position:relative}
+  .step .id{font-family:var(--mono);font-weight:600;font-size:12.5px;color:var(--feeder)}
+  .step .nm{font-size:13px;margin-top:2px;color:var(--ink)}
+  .step .st{font-family:var(--mono);font-size:10.5px;margin-top:7px;color:var(--ink-faint)}
+  .step.warn{border-color:var(--tool)} .step.warn .st{color:var(--tool)}
+  .step.mid{border-color:var(--feeder)}
+
+  /* type cards */
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
+  .card{border:1px solid var(--line);border-radius:12px;background:var(--surface);
+    padding:15px 16px;border-top:3px solid var(--line)}
+  .card.feeder{border-top-color:var(--feeder)} .card.store{border-top-color:var(--store)}
+  .card.motor{border-top-color:var(--motor)} .card.tool{border-top-color:var(--tool)}
+  .card.config{border-top-color:var(--config)}
+  .card .kind{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase}
+  .card.feeder .kind{color:var(--feeder)} .card.store .kind{color:var(--store)}
+  .card.motor .kind{color:var(--motor)} .card.tool .kind{color:var(--tool)} .card.config .kind{color:var(--config)}
+  .card h3{margin:5px 0 4px;font-size:15.5px}
+  .card p{margin:0;font-size:13px;color:var(--ink-soft)}
+  .files{margin:10px 0 0;padding:0;list-style:none;font-family:var(--mono);font-size:12px}
+  .files li{display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-top:1px dashed var(--line-soft)}
+  .files li:first-child{border-top:0}
+  .files .badge{font-size:10.5px;padding:1px 7px;border-radius:5px;white-space:nowrap}
+  .b-ok{background:var(--store-bg);color:var(--store)}
+  .b-here{background:var(--here-bg);color:var(--here);font-weight:700}
+  .b-wait{background:var(--config-bg);color:var(--config)}
+
+  /* why cards */
+  .why{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+  .wc{border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:15px 16px}
+  .wc h3{margin:0 0 10px;font-size:15px;display:flex;align-items:center;gap:8px}
+  .wc .n{font-family:var(--mono);font-size:12px;color:var(--ink-faint)}
+  .wc .row{display:flex;gap:9px;margin:7px 0;font-size:13px}
+  .wc .row .ic{flex:none;width:18px;text-align:center}
+  .wc .row .tx{color:var(--ink-soft)}
+  .wc .row .tx b{color:var(--ink)}
+
+  .plug{border:1px dashed var(--config);border-radius:12px;background:var(--config-bg);
+    padding:16px 18px;margin-top:6px}
+  .plug h3{margin:0 0 6px;font-size:15px;color:var(--config)}
+  .plug p{margin:0 0 10px;font-size:13.5px;color:var(--ink-soft)}
+  .plug pre{margin:0;font-family:var(--mono);font-size:12px;line-height:1.65;color:var(--ink-soft);
+    overflow-x:auto;white-space:pre;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px}
+
+  footer{padding:34px 0 60px;color:var(--ink-faint);font-size:12.5px;font-family:var(--mono)}
+  .arrow-down{text-align:center;color:var(--ink-faint);font-family:var(--mono);margin:10px 0;font-size:14px}
+  @media (max-width:560px){ .step{flex-basis:100%} }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <p class="eyebrow">jass_system · mapa maestro · flujo + porqué</p>
+    <h1>Cómo está armado el proyecto, y por qué</h1>
+    <p class="lede">Un <b>proceso mensual</b> (módulos 0→7) que emite <b>hechos</b> a un
+      <b>substrato permanente</b> (<code>libro_mayor/</code>), del que se deriva todo: saldo, boleta,
+      corte y extracto. Cada caja está pintada por <b>tipo</b> para que distingas de un vistazo qué es
+      motor, qué es herramienta y qué se configura por JASS.</p>
+    <div class="here">
+      <span class="pin">📍</span>
+      <span><b>Dónde estás:</b> Fase 1 (diseño) · <code>libro_mayor/dominio/</code> · firma 2 de 6 (<code>entidades</code>). Nada del substrato está codificado aún.</span>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">·</span><h2>Los 5 tipos de caja</h2></div>
+    <p class="sec-sub">Toda la arquitectura se lee con este vocabulario. <b>Motor</b> y <b>herramienta</b>
+      son código FIJO e idéntico en las 25 000 JASS; lo único que cambia por JASS es la
+      <b>config/capacidad</b> — lo que se "enchufa/desenchufa".</p>
+    <div class="legend">
+      <span class="lg"><span class="sw feeder"></span>feeder — emite un HECHO (cargo/abono)</span>
+      <span class="lg"><span class="sw store"></span>store — el libro (guarda el hecho)</span>
+      <span class="lg"><span class="sw motor"></span>motor — deriva (aplica, calcula) · FIJO</span>
+      <span class="lg"><span class="sw tool"></span>herramienta — un verbo que se invoca · FIJO</span>
+      <span class="lg"><span class="sw config"></span>config/capacidad — se enchufa por JASS · DATA</span>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">01</span><h2>Capa 1 · Proceso mensual (0→7)</h2></div>
+    <p class="sec-sub">Esto YA está codificado y corre. Cada módulo transforma el flujo de <b>este</b> mes
+      y, en el destino, emite su hecho al libro mayor. <span style="color:var(--tool)">Ámbar</span> = se disuelve/reshaped en el ledger.</p>
+    <div class="pipe">
+      <div class="step"><div class="id">0</div><div class="nm">padrón</div><div class="st">✅ operativo</div></div>
+      <div class="step"><div class="id">1</div><div class="nm">lecturas</div><div class="st">✅ operativo</div></div>
+      <div class="step mid"><div class="id">2</div><div class="nm">planilla</div><div class="st">✅ · emite cargo agua/mant</div></div>
+      <div class="step"><div class="id">3</div><div class="nm">boletas</div><div class="st">✅ operativo</div></div>
+      <div class="step mid"><div class="id">4 · 4b</div><div class="nm">pagos · reclamos</div><div class="st">✅ · emite abono</div></div>
+      <div class="step warn"><div class="id">5 · 5b</div><div class="nm">cobranza · valida</div><div class="st">⚠ se disuelven</div></div>
+      <div class="step warn"><div class="id">6 · 6b</div><div class="nm">corte · multas</div><div class="st">↻ 6 reshaped · 6b se disuelve</div></div>
+      <div class="step"><div class="id">7</div><div class="nm">cierre</div><div class="st">🟢 diseñado</div></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">02</span><h2>Capa 2 · Substrato <code>libro_mayor/</code></h2></div>
+    <p class="sec-sub">El registro permanente. Diseño cerrado, <b>nada codificado aún</b>. Acá se distingue
+      claramente el <b>motor</b> (fijo), las <b>herramientas</b> (fijas) y lo que se <b>configura</b> por JASS.</p>
+    <div class="grid">
+
+      <div class="card motor">
+        <div class="kind">motor · reglas puras</div>
+        <h3><code>dominio/</code></h3>
+        <p>La lógica de negocio, sin I/O, en céntimos int. Testeable con dicts. Se codifica PRIMERO.</p>
+        <ul class="files">
+          <li><span>1 · taxonomia.py</span><span class="badge b-ok">🟢 cerrada</span></li>
+          <li><span>2 · entidades.py</span><span class="badge b-here">📍 acá</span></li>
+          <li><span>3 · cascada.py</span><span class="badge b-wait">pendiente</span></li>
+          <li><span>4 · politica_corte.py</span><span class="badge b-wait">pendiente</span></li>
+          <li><span>5 · saldo.py</span><span class="badge b-wait">pendiente</span></li>
+          <li><span>6 · identidad.py</span><span class="badge b-wait">pendiente</span></li>
+        </ul>
+      </div>
+
+      <div class="card store">
+        <div class="kind">store · el dinero (HECHO)</div>
+        <h3><code>caja/</code></h3>
+        <p>Ledger append-only de abonos y egresos. Responde "¿pagué? ¿cuándo? ¿canal? ¿cuánto?".</p>
+        <ul class="files">
+          <li><span>caja_repo.py</span><span class="badge b-wait">🟢 diseño</span></li>
+          <li><span>importar_efectivo/yape/egr.</span><span class="badge b-wait">🟢 diseño</span></li>
+          <li><span>consultar.py</span><span class="badge b-wait">🟢 diseño</span></li>
+        </ul>
+      </div>
+
+      <div class="card store">
+        <div class="kind">store · la deuda (HECHO)</div>
+        <h3><code>estado_cuenta/</code></h3>
+        <p>Ledger append-only de cargos + aplicaciones. Responde "tu pago fue a multa, aún debes medidor".</p>
+        <ul class="files">
+          <li><span>cuenta_repo.py</span><span class="badge b-wait">🟢 diseño</span></li>
+          <li><span>motor_aplicacion.py</span><span class="badge b-wait">🟢 diseño</span></li>
+          <li><span>tools/ extracto·arqueo…</span><span class="badge b-wait">🟢 diseño</span></li>
+        </ul>
+      </div>
+
+      <div class="card motor">
+        <div class="kind">motor · la interpretación</div>
+        <h3>motor_aplicacion</h3>
+        <p>La ÚNICA pieza que ve caja + deuda juntas. Camina la cascada P1-P6 y reparte cada abono. Idempotente.</p>
+      </div>
+
+      <div class="card feeder">
+        <div class="kind">feeder · emisor event-driven</div>
+        <h3><code>obligaciones/</code></h3>
+        <p>Emite los cargos que no nacen de la lectura: multa · acuerdos · convenio. Fuente cruda → CARGO idempotente.</p>
+        <ul class="files">
+          <li><span>registrar_multa/acuerdo/…</span><span class="badge b-wait">🟢 diseño</span></li>
+          <li><span>backfill (histórico)</span><span class="badge b-wait">🟢 diseño</span></li>
+        </ul>
+      </div>
+
+      <div class="card tool">
+        <div class="kind">herramientas · verbos fijos</div>
+        <h3>tools del agente</h3>
+        <p>Operaciones que se invocan, iguales para todas las JASS: <code>registrar_cargo</code> · <code>aplicar</code>
+          · <code>extracto_predio</code> · <code>arqueo_caja</code> · <code>riesgo_corte</code>.</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">03</span><h2>Lo único que cambia por JASS · el manifiesto (config)</h2></div>
+    <p class="sec-sub">El motor y las herramientas son idénticos en las 25 000 JASS. Dar de alta una JASS =
+      encender/apagar <b>capacidades</b> en un archivo de config — no tocar el motor.</p>
+    <div class="plug">
+      <h3>⬜ config/capacidad — se enchufa por JASS, es DATA</h3>
+      <p>Una JASS sin multas simplemente no activa el concepto <code>multa</code>: el motor nunca emite ese cargo.
+        Es el botón apagado — <b>mismo código para todos</b>.</p>
+      <pre>config/jass/&lt;id&gt;:
+  conceptos_activos:  [agua, mantenimiento, corte_reconexion, multa, acuerdos, convenio]
+  cortes.triggers:    [ {motivo: agua,  umbral: 8, penalidad: 20},
+                        {motivo: multa, umbral: 0, penalidad: 40} ]
+  tarifas · umbrales · canales</pre>
+    </div>
+  </div>
+</section>
+
+<section style="border-bottom:0">
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">04</span><h2>El porqué de cada pieza</h2></div>
+    <p class="sec-sub">Para cada decisión: qué pregunta del cliente responde · qué problema real corrige ·
+      cómo escala según el lente (25k JASS · Postgres · config-driven).</p>
+    <div class="why">
+
+      <div class="wc">
+        <h3><span class="n">1</span> Dos capas (proceso vs substrato)</h3>
+        <div class="row"><span class="ic">❓</span><span class="tx">"¿cuál es mi saldo? ¿pagué?"</span></div>
+        <div class="row"><span class="ic">🔧</span><span class="tx">hoy el saldo tiene <b>3 dueños</b> que se pisan → bugs B4/B5/B7. Un substrato = una respuesta.</span></div>
+        <div class="row"><span class="ic">📈</span><span class="tx">1 substrato = <b>1 esquema Postgres</b> donde todos los meses asientan.</span></div>
+      </div>
+
+      <div class="wc">
+        <h3><span class="n">2</span> Hecho vs interpretación</h3>
+        <div class="row"><span class="ic">❓</span><span class="tx">"¿a dónde fue mi pago? ¿por qué sigo debiendo el medidor?"</span></div>
+        <div class="row"><span class="ic">🔧</span><span class="tx">el saldo se editaba a mano en celdas regenerables → se pisaba, nunca cuadraba en 5b.</span></div>
+        <div class="row"><span class="ic">📈</span><span class="tx">traduce <b>1:1 a tablas Postgres</b> (abonos·cargos·aplicaciones), re-derivable.</span></div>
+      </div>
+
+      <div class="wc">
+        <h3><span class="n">3</span> <code>dominio/</code> · reglas puras</h3>
+        <div class="row"><span class="ic">❓</span><span class="tx">"¿este predio va a corte? ¿cuánto debe exactamente?"</span></div>
+        <div class="row"><span class="ic">🔧</span><span class="tx">las reglas estaban en el main.py de <b>3 módulos</b> (3 copias que divergen). Acá viven una vez.</span></div>
+        <div class="row"><span class="ic">📈</span><span class="tx">tenant-agnóstico (umbral por config) · <b>céntimos = exacto</b> (sin descuadre × 25k JASS).</span></div>
+      </div>
+
+      <div class="wc">
+        <h3><span class="n">4</span> Motor de aplicación único</h3>
+        <div class="row"><span class="ic">❓</span><span class="tx">"¿cómo se repartió mi pago entre mis deudas?"</span></div>
+        <div class="row"><span class="ic">🔧</span><span class="tx">cada módulo aplicaba a su manera; nadie veía caja+deuda junto → atribución inconsistente.</span></div>
+        <div class="row"><span class="ic">📈</span><span class="tx"><b>idempotente</b> (re-corrible sin duplicar) · 1 sola frontera transaccional.</span></div>
+      </div>
+
+      <div class="wc">
+        <h3><span class="n">5</span> <code>obligaciones/</code> · emisor</h3>
+        <div class="row"><span class="ic">❓</span><span class="tx">"¿de dónde salió esta multa / este convenio?"</span></div>
+        <div class="row"><span class="ic">🔧</span><span class="tx">la deuda no-agua se sembraba con un script marcado 'desechable'. Ahora es permanente y trazable.</span></div>
+        <div class="row"><span class="ic">📈</span><span class="tx">el <b>mismo emisor</b> hace el backfill del histórico (re-deriva, no migra).</span></div>
+      </div>
+
+      <div class="wc">
+        <h3><span class="n">6</span> 6_corte unificado (absorbe 6b)</h3>
+        <div class="row"><span class="ic">❓</span><span class="tx">"¿por qué me cortaron el agua?"</span></div>
+        <div class="row"><span class="ic">🔧</span><span class="tx">2 módulos-espejo duplicaban el lifecycle → un bug se arreglaba dos veces. Ahora 1 motor, el motivo es un dato.</span></div>
+        <div class="row"><span class="ic">📈</span><span class="tx"><b>política ≠ arquitectura</b>: agregar/quitar motivos = editar el manifiesto, no forkear.</span></div>
+      </div>
+
+      <div class="wc">
+        <h3><span class="n">7</span> Manifiesto de tenant (config)</h3>
+        <div class="row"><span class="ic">❓</span><span class="tx">(dueño del SaaS) "¿cómo doy de alta una JASS nueva?"</span></div>
+        <div class="row"><span class="ic">🔧</span><span class="tx">hardcodear 'la JASS' impide multi-tenant. Lo específico entra por config.</span></div>
+        <div class="row"><span class="ic">📈</span><span class="tx"><b>25k JASS con 1 motor idéntico</b>; agregar/quitar conceptos = una línea del manifiesto.</span></div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    jass_system · docs/arquitectura/index.html · hub maestro · el proceso construye, el libro mayor cosecha · verdad en los README, vista acá
+  </div>
+</footer>
+
+</body>
+</html>

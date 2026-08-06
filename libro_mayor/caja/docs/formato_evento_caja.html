@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Contrato de formato — store de MOVIMIENTOS DE CAJA</title>
+<style>
+  body { font-family: Arial, sans-serif; font-size: 13px; margin: 30px; color: #1f2937; }
+  h1   { font-size: 18px; color: #1e3a5f; border-bottom: 2px solid #1e3a5f; padding-bottom: 6px; }
+  h2   { font-size: 14px; color: #374151; margin-top: 28px; border-left: 4px solid #6b7280; padding-left: 8px; }
+  p    { margin: 6px 0; }
+  .meta { background:#f3f4f6; border:1px solid #d1d5db; border-radius:4px; padding:10px 14px; margin-bottom:18px; }
+  .meta span { font-weight:bold; }
+
+  table { border-collapse: collapse; margin: 0 0 20px; font-size: 11.5px; }
+  th, td { border: 1px solid #fff; padding: 3px 8px; white-space: nowrap; }
+  .sec { font-weight:bold; font-size:10px; text-align:center; }
+  .col { font-weight:bold; font-size:10px; text-align:center; }
+  .dat { font-size:10px; }
+
+  /* Identidad — azul */
+  .s-id { background:#EBF5FB; color:#1A5276; }
+  .d-id { background:#F4FAFF; color:#1A5276; }
+  /* Dirección + balde — azul operario */
+  .s-dir { background:#E6F1FB; color:#0C447C; }
+  .d-dir { background:#F0F8FF; color:#0C447C; }
+  /* Monto/Fecha — verde calculado */
+  .s-monto { background:#E9F7EF; color:#1E5C3A; }
+  .d-monto { background:#F4FBF7; color:#1E5C3A; }
+  /* Origen — verde oscuro clave */
+  .s-origen { background:#1E8449; color:#fff; }
+  .d-origen { background:#D5F5E3; color:#145A32; font-weight:bold; }
+  /* Destino — morado */
+  .s-dest { background:#5B21B6; color:#fff; }
+  .d-dest { background:#F3E8FF; color:#4A235A; }
+
+  .ing { color:#065F46; font-weight:bold; }
+  .egr { color:#991B1B; font-weight:bold; }
+
+  .logica-box { background:#f0f4ff; border:1px solid #a5b4fc; border-radius:4px;
+                padding:10px 14px; margin:12px 0; font-size:12px; }
+  .logica-box b { color:#3730a3; }
+  ul { margin:4px 0 4px 18px; } li { margin:3px 0; }
+  code { background:#f3f4f6; padding:1px 5px; border-radius:3px; font-size:11px; }
+  .nota { background:#FFF3CD; border-left:3px solid #F0C040; padding:8px 12px;
+          border-radius:0 4px 4px 0; font-size:12px; color:#7D5A00; margin:10px 0; }
+  pre { background:#0f172a; color:#e2e8f0; padding:12px 14px; border-radius:6px;
+        font-size:11px; overflow-x:auto; }
+</style>
+</head>
+<body>
+
+<h1>Contrato de formato — store de MOVIMIENTOS DE CAJA</h1>
+
+<div class="meta">
+  <span>Sub-contexto:</span> libro_mayor/caja &nbsp;|&nbsp;
+  <span>Writer:</span> caja_repo.py (registrar_movimiento) &nbsp;|&nbsp;
+  <span>Tipo:</span> Auditoría — append-only, todo movimiento de dinero (ingreso y egreso) &nbsp;|&nbsp;
+  <span>Versión:</span> 2.0 &nbsp;|&nbsp; 12/07/2026
+</div>
+
+<h2>Propósito</h2>
+<div class="logica-box">
+  <b>El HECHO crudo del dinero: cuánto entró/salió, cuándo, por qué canal, en qué balde.</b><br><br>
+  <ul>
+    <li>1 fila = 1 movimiento. <code>DIRECCION=INGRESO</code> (entró) o <code>DIRECCION=EGRESO</code> (salió).</li>
+    <li><code>BALDE</code> = naturaleza del movimiento (agua, tanque, devolución, gasto…). <b>No es el <code>CONCEPTO</code> de deuda</b> de estado_cuenta.</li>
+    <li>Un depósito que paga 2 predios sigue siendo <b>1 fila</b> — el reparto vive en <code>estado_cuenta</code>.</li>
+    <li>Nunca se edita ni se borra una fila. Una corrección es una fila nueva.</li>
+    <li>Idempotente por <code>ORIGEN_ARCHIVO</code>: re-sembrar un mes no duplica.</li>
+  </ul>
+</div>
+
+<div class="nota">
+  <b>Decisión ⑩:</b> la caja registra ingresos <em>y</em> egresos por balde para responder
+  tesorería del mes (<code>ENTRÓ = Σ INGRESO · SALIÓ = Σ EGRESO</code>) y reproducir la
+  validación de <code>5b_validacion</code> desde una sola fuente.
+</div>
+
+<h2>Hoja: Movimientos</h2>
+
+<table>
+  <tr>
+    <th class="sec s-id"     colspan="2">Identidad</th>
+    <th class="sec s-dir"    colspan="3">Dirección y balde</th>
+    <th class="sec s-monto"  colspan="2">Monto y fecha</th>
+    <th class="sec s-origen" colspan="2">Origen / trazabilidad</th>
+    <th class="sec s-dest"   colspan="2">Destino (predio)</th>
+  </tr>
+  <tr>
+    <th class="col s-id">JASS_ID</th>
+    <th class="col s-id">ABONO_ID / EGRESO_ID</th>
+    <th class="col s-dir">CANAL</th>
+    <th class="col s-dir">DIRECCION</th>
+    <th class="col s-dir">BALDE</th>
+    <th class="col s-monto">MONTO</th>
+    <th class="col s-monto">FECHA</th>
+    <th class="col s-origen">REFERENCIA</th>
+    <th class="col s-origen">MES_CICLO</th>
+    <th class="col s-dest">MZ</th>
+    <th class="col s-dest">LT</th>
+  </tr>
+  <!-- ingreso agua a predio -->
+  <tr>
+    <td class="dat d-id">tupac_amaru</td>
+    <td class="dat d-id">tupac_amaru-2026-05-EF-b71a02</td>
+    <td class="dat d-dir">efectivo</td>
+    <td class="dat d-dir ing">INGRESO</td>
+    <td class="dat d-dir">agua</td>
+    <td class="dat d-monto">S/ 45.00</td>
+    <td class="dat d-monto">05/05/2026</td>
+    <td class="dat d-origen">MESA-Wilder</td>
+    <td class="dat d-origen">2026-05</td>
+    <td class="dat d-dest">C</td>
+    <td class="dat d-dest">43</td>
+  </tr>
+  <!-- ingreso yape split, blanco pendiente -->
+  <tr>
+    <td class="dat d-id">tupac_amaru</td>
+    <td class="dat d-id">tupac_amaru-2026-05-YA-a3f9c1</td>
+    <td class="dat d-dir">yape</td>
+    <td class="dat d-dir ing">INGRESO</td>
+    <td class="dat d-dir">agua</td>
+    <td class="dat d-monto">S/ 100.00</td>
+    <td class="dat d-monto">05/05/2026 14:22:03</td>
+    <td class="dat d-origen">Yape-987654321</td>
+    <td class="dat d-origen">2026-05</td>
+    <td class="dat d-dest" style="color:#9ca3af;">(PENDIENTE)</td>
+    <td class="dat d-dest" style="color:#9ca3af;">—</td>
+  </tr>
+  <!-- ingreso por concepto: tanque (sin predio) -->
+  <tr>
+    <td class="dat d-id">tupac_amaru</td>
+    <td class="dat d-id">tupac_amaru-2026-05-YA-c50d18</td>
+    <td class="dat d-dir">yape</td>
+    <td class="dat d-dir ing">INGRESO</td>
+    <td class="dat d-dir">tanque</td>
+    <td class="dat d-monto">S/ 20.00</td>
+    <td class="dat d-monto">07/05/2026 09:10:44</td>
+    <td class="dat d-origen">Yape-111222333</td>
+    <td class="dat d-origen">2026-05</td>
+    <td class="dat d-dest" style="color:#9ca3af;">(CONCEPTO)</td>
+    <td class="dat d-dest" style="color:#9ca3af;">—</td>
+  </tr>
+  <!-- egreso: devolución a predio -->
+  <tr>
+    <td class="dat d-id">tupac_amaru</td>
+    <td class="dat d-id">tupac_amaru-2026-05-EF-dev-7e21</td>
+    <td class="dat d-dir">efectivo</td>
+    <td class="dat d-dir egr">EGRESO</td>
+    <td class="dat d-dir">devolucion</td>
+    <td class="dat d-monto">S/ 15.00</td>
+    <td class="dat d-monto">06/05/2026</td>
+    <td class="dat d-origen">Devolución exceso M-15</td>
+    <td class="dat d-origen">2026-05</td>
+    <td class="dat d-dest">M</td>
+    <td class="dat d-dest">15</td>
+  </tr>
+  <!-- egreso: gasto institucional (sin predio) -->
+  <tr>
+    <td class="dat d-id">tupac_amaru</td>
+    <td class="dat d-id">tupac_amaru-2026-05-YA-gas-9b03</td>
+    <td class="dat d-dir">yape</td>
+    <td class="dat d-dir egr">EGRESO</td>
+    <td class="dat d-dir">honorario</td>
+    <td class="dat d-monto">S/ 80.00</td>
+    <td class="dat d-monto">08/05/2026 16:40:00</td>
+    <td class="dat d-origen">Pago operador bomba</td>
+    <td class="dat d-origen">2026-05</td>
+    <td class="dat d-dest" style="color:#9ca3af;">(CONCEPTO)</td>
+    <td class="dat d-dest" style="color:#9ca3af;">—</td>
+  </tr>
+</table>
+
+<h2>La matriz de baldes</h2>
+<pre>
+                A PREDIO (MZ-LT)          POR CONCEPTO (balde nombrado, sin predio)
+INGRESO (+)     agua                       tanque · deuda_directiva
+  (TE PAGÓ)     blancos → DESTINO=PENDIENTE (concepto libre futuro)
+EGRESO  (−)     devolucion · retorno       honorario · gasto  (GASTO institucional)
+  (PAGASTE)
+</pre>
+<div class="logica-box" style="border-left:4px solid #b91c1c;">
+  <b>Corrección 2026-07-13:</b> <code>comunitario</code> NO es un balde — es el mecanismo
+  de segregación de <code>motor_matching</code> (1 depósito de un cobrador cubre N predios,
+  se desgloza por lote en la hoja <code>Segregacion</code>). Y <code>deuda_directiva</code>
+  NO cruza a <code>estado_cuenta</code>: es un caso específico (2 miembros de la directiva
+  anterior repagando un faltante de caja), balde caja-only igual que <code>tanque</code>.
+</div>
+<div class="logica-box">
+  <b>Qué balde cruza a <code>estado_cuenta</code>:</b> <code>agua</code>
+  (aplica a cargos por concepto/mes, cascada P1-P5) · <code>devolucion</code>/<code>retorno</code>
+  (bajan SALDO_A_FAVOR) · <code>blancos</code> tras identificarse (⑨). <b>Solo caja</b>
+  (no tocan deuda): <code>tanque</code>·<code>deuda_directiva</code> (aporte/reposición
+  voluntaria) y <code>honorario</code>·<code>gasto</code> (egreso institucional).
+</div>
+
+<h2>Anchos de columna y formato openpyxl</h2>
+<table>
+  <tr style="background:#f9fafb;">
+    <th style="padding:4px 10px;">Columna</th>
+    <th style="padding:4px 10px;">Ancho</th>
+    <th style="padding:4px 10px;">Formato</th>
+    <th style="padding:4px 10px;">Sección</th>
+  </tr>
+  <tr><td>JASS_ID</td><td>14</td><td>texto · left</td><td>Identidad</td></tr>
+  <tr><td>ABONO_ID / EGRESO_ID</td><td>32</td><td>texto · mono · left</td><td>Identidad</td></tr>
+  <tr><td>CANAL</td><td>10</td><td>texto · center</td><td>Dirección y balde</td></tr>
+  <tr><td>DIRECCION</td><td>11</td><td>texto · center · bold · INGRESO=verde / EGRESO=rojo</td><td>Dirección y balde</td></tr>
+  <tr><td>BALDE</td><td>16</td><td>texto · center</td><td>Dirección y balde</td></tr>
+  <tr><td>MONTO</td><td>14</td><td>'"S/" #,##0.00' · right · el signo lo da DIRECCION</td><td>Monto y fecha</td></tr>
+  <tr><td>FECHA</td><td>18</td><td>dd/mm/yyyy (yape: + hh:mm:ss) · center</td><td>Monto y fecha</td></tr>
+  <tr><td>REFERENCIA</td><td>26</td><td>texto · left · nunca vacía</td><td>Origen / trazabilidad</td></tr>
+  <tr><td>MES_CICLO</td><td>12</td><td>texto YYYY-MM · center</td><td>Origen / trazabilidad</td></tr>
+  <tr><td>MZ</td><td>7</td><td>texto · mono · center · vacío si DESTINO≠PREDIO</td><td>Destino</td></tr>
+  <tr><td>LT</td><td>7</td><td>texto · mono · center · vacío si DESTINO≠PREDIO</td><td>Destino</td></tr>
+</table>
+<p><b>Nota:</b> <code>DESTINO</code> (PREDIO/CONCEPTO/PENDIENTE) es derivable de MZ-LT + BALDE;
+se materializa como columna si conviene para query. La celda MZ muestra el estado cuando no hay predio.</p>
+
+<h2>Regla de id determinista</h2>
+<div class="logica-box">
+  <code>{JASS_ID}-{MES_CICLO}-{CANAL}-{shorthash(clave_natural)}</code> — determinista, no secuencial.
+  <ul>
+    <li>efectivo: clave natural = <code>(jass, mesa, cobrador, fecha, monto, mz, lt)</code></li>
+    <li>yape: clave natural = <code>(jass, origen, timestamp)</code> — predio-agnóstico</li>
+    <li>egresos: mismo esquema (<code>DEVOLUCION_ID</code> / <code>GASTO_ID</code>)</li>
+  </ul>
+</div>
+
+<h2>Auditoría de tesorería (query, no archivo aparte)</h2>
+<pre>
+ENTRÓ = Σ MONTO donde DIRECCION=INGRESO      SALIÓ = Σ MONTO donde DIRECCION=EGRESO
+NETO  = ENTRÓ − SALIÓ            desglose:   GROUP BY BALDE
+</pre>
+
+<h2>Leyenda de colores</h2>
+<table>
+  <tr style="background:#f9fafb;">
+    <th style="padding:4px 10px;">Color</th>
+    <th style="padding:4px 10px;">Sección</th>
+    <th style="padding:4px 10px;">Significado</th>
+  </tr>
+  <tr><td style="background:#EBF5FB;padding:4px 10px;">Azul claro</td><td>Identidad</td><td>Tenant + id determinista del movimiento</td></tr>
+  <tr><td style="background:#E6F1FB;padding:4px 10px;">Azul operario</td><td>Dirección y balde</td><td>Si entró o salió, y de qué naturaleza (balde)</td></tr>
+  <tr><td style="background:#E9F7EF;padding:4px 10px;">Verde claro</td><td>Monto y fecha</td><td>El hecho numérico</td></tr>
+  <tr><td style="background:#1E8449;padding:4px 10px;color:#fff;">Verde oscuro</td><td>Origen / trazabilidad</td><td>De dónde viene, a qué ciclo pertenece</td></tr>
+  <tr><td style="background:#F3E8FF;padding:4px 10px;">Morado</td><td>Destino</td><td>Predio (si aplica); PENDIENTE = blanco; CONCEPTO = balde sin predio</td></tr>
+</table>
+
+<h2>Freeze panes</h2>
+<p><code>freeze_panes = "A3"</code> — filas 1 y 2 fijas (sección + columnas).</p>
+
+<hr style="margin-top:30px; border-color:#e5e7eb;">
+<p style="font-size:11px; color:#9ca3af;">
+  Contrato visual v2.0 — caja_repo.py debe replicar exactamente este formato.<br>
+  Sub-contexto: libro_mayor/caja &nbsp;|&nbsp; v1.0 (formato_abono) → v2.0 (evento_caja: +DIRECCION +BALDE +DESTINO, decisión ⑩) · 12/07/2026
+</p>
+
+</body>
+</html>

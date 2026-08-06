@@ -1,0 +1,461 @@
+<title>jass_system — Arquitectura del pipeline futuro</title>
+<style>
+  :root{
+    --bg:#f6f9fb; --surface:#ffffff; --surface-2:#eef4f8;
+    --ink:#10212e; --ink-soft:#40586a; --ink-faint:#6f869a;
+    --line:#d8e4ec; --line-soft:#e8eff4;
+    --accent:#1a5276; --accent-soft:#2e78a8;
+    --proceso:#0c447c; --proceso-bg:#e9f1fb;
+    --ledger:#1e5c3a; --ledger-bg:#e7f4ec;
+    --emisor:#5b21b6; --emisor-bg:#f3e8ff;
+    --warn:#9a6a00; --warn-bg:#fbf1dc;
+    --mono:ui-monospace,"SF Mono","Cascadia Code","JetBrains Mono",Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#0d1922; --surface:#14232f; --surface-2:#1a2c3a;
+      --ink:#e7f0f6; --ink-soft:#a9bece; --ink-faint:#7893a6;
+      --line:#26404f; --line-soft:#1e3444;
+      --accent:#5aa8db; --accent-soft:#78bce8;
+      --proceso:#6db2ea; --proceso-bg:#12283d;
+      --ledger:#5fce93; --ledger-bg:#122b1f;
+      --emisor:#b98cf0; --emisor-bg:#241436;
+      --warn:#e0b155; --warn-bg:#2c2410;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0d1922; --surface:#14232f; --surface-2:#1a2c3a;
+    --ink:#e7f0f6; --ink-soft:#a9bece; --ink-faint:#7893a6;
+    --line:#26404f; --line-soft:#1e3444;
+    --accent:#5aa8db; --accent-soft:#78bce8;
+    --proceso:#6db2ea; --proceso-bg:#12283d;
+    --ledger:#5fce93; --ledger-bg:#122b1f;
+    --emisor:#b98cf0; --emisor-bg:#241436;
+    --warn:#e0b155; --warn-bg:#2c2410;
+  }
+  :root[data-theme="light"]{
+    --bg:#f6f9fb; --surface:#ffffff; --surface-2:#eef4f8;
+    --ink:#10212e; --ink-soft:#40586a; --ink-faint:#6f869a;
+    --line:#d8e4ec; --line-soft:#e8eff4;
+    --accent:#1a5276; --accent-soft:#2e78a8;
+    --proceso:#0c447c; --proceso-bg:#e9f1fb;
+    --ledger:#1e5c3a; --ledger-bg:#e7f4ec;
+    --emisor:#5b21b6; --emisor-bg:#f3e8ff;
+    --warn:#9a6a00; --warn-bg:#fbf1dc;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
+    line-height:1.6;-webkit-font-smoothing:antialiased;font-size:16px}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+  a{color:var(--accent-soft)}
+
+  /* ---- header ---- */
+  header{padding:64px 0 40px;border-bottom:1px solid var(--line)}
+  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--accent);margin:0 0 18px}
+  h1{font-size:clamp(30px,5vw,46px);line-height:1.08;margin:0 0 20px;
+    letter-spacing:-.02em;text-wrap:balance;font-weight:680}
+  .lede{font-size:clamp(17px,2.4vw,20px);color:var(--ink-soft);max-width:64ch;margin:0}
+  .lede b{color:var(--ink);font-weight:640}
+
+  .meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:28px}
+  .chip{font-family:var(--mono);font-size:12px;padding:5px 11px;border-radius:999px;
+    border:1px solid var(--line);color:var(--ink-soft);background:var(--surface)}
+
+  /* ---- sections ---- */
+  section{padding:52px 0;border-bottom:1px solid var(--line-soft)}
+  .sec-head{display:flex;align-items:baseline;gap:14px;margin:0 0 6px}
+  .sec-num{font-family:var(--mono);font-size:13px;color:var(--ink-faint)}
+  h2{font-size:clamp(22px,3.2vw,30px);margin:0;letter-spacing:-.015em;font-weight:660;text-wrap:balance}
+  .sec-sub{color:var(--ink-soft);margin:8px 0 30px;max-width:70ch}
+
+  /* ---- layer legend ---- */
+  .layers{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin-top:8px}
+  .layer{border:1px solid var(--line);border-radius:12px;padding:16px 18px;background:var(--surface)}
+  .layer h3{margin:0 0 6px;font-size:15px;display:flex;align-items:center;gap:9px}
+  .layer p{margin:0;font-size:13.5px;color:var(--ink-soft)}
+  .dot{width:11px;height:11px;border-radius:3px;flex:none}
+  .d-proceso{background:var(--proceso)} .d-ledger{background:var(--ledger)} .d-emisor{background:var(--emisor)}
+
+  /* ---- pipeline ---- */
+  .pipe{display:flex;flex-direction:column;gap:0}
+  .mod{position:relative;display:grid;grid-template-columns:88px 1fr;gap:0;
+    border:1px solid var(--line);border-radius:12px;background:var(--surface);
+    margin-bottom:12px;overflow:hidden}
+  .mod-id{background:var(--proceso-bg);color:var(--proceso);font-family:var(--mono);
+    font-weight:600;display:flex;align-items:center;justify-content:center;
+    font-size:15px;border-right:1px solid var(--line);padding:14px 6px;text-align:center;line-height:1.25}
+  .mod-body{padding:15px 18px}
+  .mod-body h3{margin:0 0 4px;font-size:16px}
+  .mod-body .role{color:var(--ink-soft);font-size:14px;margin:0 0 10px}
+  .flow{display:flex;flex-wrap:wrap;gap:6px 8px;font-family:var(--mono);font-size:12px}
+  .tag{padding:3px 9px;border-radius:6px;background:var(--surface-2);color:var(--ink-soft);
+    border:1px solid var(--line-soft);white-space:nowrap}
+  .tag.emit{background:var(--ledger-bg);color:var(--ledger);border-color:transparent}
+  .tag.emit.abono{background:var(--proceso-bg);color:var(--proceso)}
+  .tag.dissolve{background:var(--warn-bg);color:var(--warn);border-color:transparent}
+  .arrow{display:flex;justify-content:center;color:var(--ink-faint);font-family:var(--mono);
+    font-size:14px;margin:-4px 0 8px}
+
+  .badge{position:absolute;top:12px;right:14px;font-family:var(--mono);font-size:10.5px;
+    letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:5px}
+  .b-survive{background:var(--ledger-bg);color:var(--ledger)}
+  .b-dissolve{background:var(--warn-bg);color:var(--warn)}
+  .b-reshape{background:var(--proceso-bg);color:var(--proceso)}
+
+  /* emisor card (obligaciones) */
+  .mod.emisor .mod-id{background:var(--emisor-bg);color:var(--emisor)}
+
+  /* ---- substrate block ---- */
+  .substrate{border:1.5px solid var(--ledger);border-radius:16px;background:var(--ledger-bg);
+    padding:8px 8px 6px;margin-top:6px}
+  .sub-inner{background:var(--surface);border-radius:11px;padding:22px 22px 8px}
+  .agg{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:6px}
+  .agg-card{border:1px solid var(--line);border-radius:11px;padding:16px 17px;background:var(--surface)}
+  .agg-card .k{font-family:var(--mono);font-size:12px;color:var(--ledger);letter-spacing:.04em}
+  .agg-card h3{margin:5px 0 7px;font-size:15.5px}
+  .agg-card p{margin:0;font-size:13.5px;color:var(--ink-soft)}
+  .motor{margin-top:14px;border:1px dashed var(--ledger);border-radius:11px;padding:16px 18px;
+    background:var(--ledger-bg)}
+  .motor h3{margin:0 0 6px;font-size:15.5px;color:var(--ledger)}
+  .motor p{margin:0;font-size:13.5px;color:var(--ink-soft)}
+  .motor code{font-family:var(--mono);font-size:12.5px;color:var(--ink)}
+
+  /* ---- principle / callout ---- */
+  .principle{display:grid;grid-template-columns:1fr auto 1fr;gap:0;align-items:stretch;
+    border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--surface);margin-top:6px}
+  .principle > div{padding:22px 22px}
+  .principle .hecho{background:var(--surface)}
+  .principle .interp{background:var(--ledger-bg)}
+  .principle .mid{display:flex;align-items:center;justify-content:center;
+    background:var(--surface-2);border-left:1px solid var(--line);border-right:1px solid var(--line);
+    font-family:var(--mono);color:var(--accent);font-size:22px;padding:0 14px}
+  .principle .k{font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;margin:0 0 8px}
+  .principle .hecho .k{color:var(--proceso)} .principle .interp .k{color:var(--ledger)}
+  .principle h3{margin:0 0 6px;font-size:16px} .principle p{margin:0;font-size:13.5px;color:var(--ink-soft)}
+
+  /* ---- cascade ladder ---- */
+  .cascade{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--surface);margin-top:6px}
+  .rung{display:grid;grid-template-columns:52px 150px 1fr;gap:0;align-items:center;
+    border-bottom:1px solid var(--line-soft);font-size:14px}
+  .rung:last-child{border-bottom:0}
+  .rung .p{font-family:var(--mono);font-weight:600;color:var(--accent);text-align:center;padding:13px 0;
+    background:var(--surface-2);align-self:stretch;display:flex;align-items:center;justify-content:center}
+  .rung .c{font-weight:600;padding:13px 16px}
+  .rung .s{color:var(--ink-soft);font-family:var(--mono);font-size:12.5px;padding:13px 16px}
+  .rung.out{opacity:.62}
+  .rung.out .p{color:var(--ink-faint)}
+
+  /* ---- extracto highlight ---- */
+  .story{border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:12px;
+    background:var(--surface);padding:20px 22px;margin-top:6px}
+  .story .q{font-size:15px;font-style:italic;color:var(--ink);margin:0 0 14px}
+  .story pre{margin:0;font-family:var(--mono);font-size:12.5px;line-height:1.7;color:var(--ink-soft);
+    overflow-x:auto;white-space:pre}
+  .story .kick{margin:14px 0 0;font-size:14px;color:var(--ink)}
+  .story .kick b{color:var(--accent)}
+
+  /* ---- endgame grid ---- */
+  .endgame{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-top:6px}
+  .eg{border:1px solid var(--line);border-radius:12px;padding:17px 18px;background:var(--surface)}
+  .eg .k{font-family:var(--mono);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--accent);margin:0 0 8px}
+  .eg p{margin:0;font-size:13.5px;color:var(--ink-soft)}
+  .eg b{color:var(--ink)}
+
+  footer{padding:40px 0 70px;color:var(--ink-faint);font-size:13px;font-family:var(--mono)}
+
+  @media (max-width:620px){
+    .principle{grid-template-columns:1fr}
+    .principle .mid{border:0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:10px}
+    .rung{grid-template-columns:44px 1fr;grid-template-areas:"p c" "p s"}
+    .rung .s{padding-top:0}
+    .mod{grid-template-columns:64px 1fr}
+  }
+</style>
+
+<header>
+  <div class="wrap">
+    <p class="eyebrow">jass_system · arquitectura destino (post-ledger)</p>
+    <h1>Un proceso mensual que asienta sobre un libro mayor permanente</h1>
+    <p class="lede">El sistema corre el <b>ciclo mensual de cobros de agua</b> de una JASS — del padrón a la lectura, la boleta, el pago y el corte — y cada módulo asienta sus <b>hechos</b> (nació una deuda, entró un pago) en un <b>libro mayor append-only</b>. De ese libro se deriva todo lo demás: el saldo, la boleta, el riesgo de corte y el <b>extracto de cuenta</b> que resuelve los reclamos. Diseñado para escalar a 25&nbsp;000 JASS.</p>
+    <div class="meta">
+      <span class="chip">saldo = Σcargos − Σaplicaciones ± Σajustes</span>
+      <span class="chip">céntimos int · sin TOL</span>
+      <span class="chip">multi-tenant · JASS_ID</span>
+      <span class="chip">append-only</span>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">01</span><h2>Dos capas</h2></div>
+    <p class="sec-sub">El sistema no es una sola cosa. Es un <b>proceso</b> que transforma el flujo de un mes, y un <b>substrato</b> que acumula todos los meses. La confusión entre ambos fue la raíz de los bugs de saldo (3 dueños distintos del mismo número).</p>
+    <div class="layers">
+      <div class="layer">
+        <h3><span class="dot d-proceso"></span>Proceso mensual · <code>0…7</code></h3>
+        <p>Batch. Cada módulo lleva número = orden en el pipeline. Transforma el flujo de <b>este</b> mes y emite hechos al libro mayor.</p>
+      </div>
+      <div class="layer">
+        <h3><span class="dot d-ledger"></span>Substrato · <code>libro_mayor/</code></h3>
+        <p>Sin número: no es un paso, es el registro permanente. Un bounded context = 1 esquema Postgres = 1 servicio = 1 set de tools de agente.</p>
+      </div>
+      <div class="layer">
+        <h3><span class="dot d-emisor"></span>Emisor · <code>obligaciones/</code></h3>
+        <p>Sin número: event-driven, no mensual. Traduce los eventos de la secretaria (asamblea, faena, convenio) en cargos.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">02</span><h2>El proceso mensual</h2></div>
+    <p class="sec-sub">Del padrón al cierre. En el estado destino, cada módulo emite su <b>hecho</b> al libro mayor en vez de escribir saldos en archivos regenerables. <span style="color:var(--ledger)">Verde</span> = emite CARGO (deuda) · <span style="color:var(--proceso)">azul</span> = emite ABONO (dinero) · <span style="color:var(--warn)">ámbar</span> = se disuelve en el ledger.</p>
+
+    <div class="pipe">
+      <div class="mod">
+        <div class="mod-id">0<br>padrón</div>
+        <div class="mod-body">
+          <h3>Identidad del predio · MZ+LT</h3>
+          <p class="role">Reconcilia el padrón de la JASS contra COFOPRI (fuente de verdad). Resuelve reasignaciones de lote en cascada + override auditado.</p>
+          <div class="flow"><span class="tag">← planilla JASS · COFOPRI</span><span class="tag">→ padron_reconciliado</span></div>
+        </div>
+      </div>
+      <div class="arrow">↓</div>
+
+      <div class="mod">
+        <div class="mod-id">1<br>lecturas</div>
+        <div class="mod-body">
+          <h3>Lectura del medidor</h3>
+          <p class="role">Sincroniza el registro del operario con el padrón y valida las lecturas del mes (13 reglas de anomalía).</p>
+          <div class="flow"><span class="tag">← padron_reconciliado</span><span class="tag">→ lecturas_planilla_YYYY-MM</span></div>
+        </div>
+      </div>
+      <div class="arrow">↓</div>
+
+      <div class="mod">
+        <div class="mod-id">2<br>planilla</div>
+        <div class="mod-body">
+          <span class="badge b-reshape">emite cargo</span>
+          <h3>Planilla del mes</h3>
+          <p class="role">Consolida lecturas + consumo. En el destino queda <b>solo con agua + mantenimiento</b>; los demás conceptos migran a sus dueños.</p>
+          <div class="flow"><span class="tag">← lecturas_planilla · tarifas</span><span class="tag emit">→ CARGO agua · mantenimiento</span></div>
+        </div>
+      </div>
+      <div class="arrow">↓</div>
+
+      <div class="mod">
+        <div class="mod-id">3<br>boletas</div>
+        <div class="mod-body">
+          <h3>Boleta por socio</h3>
+          <p class="role">Enriquece (data_boletas) y renderiza la boleta. En el destino lee el <b>saldo derivado</b> del ledger, no una columna de descuento manual.</p>
+          <div class="flow"><span class="tag">← estado_cuenta (saldo)</span><span class="tag">→ boleta PDF</span></div>
+        </div>
+      </div>
+      <div class="arrow">↓</div>
+
+      <div class="mod">
+        <div class="mod-id">4<br>pagos</div>
+        <div class="mod-body">
+          <span class="badge b-reshape">emite abono</span>
+          <h3>Pagos · efectivo + yape</h3>
+          <p class="role">Registra e identifica cada pago a su predio (motor_matching para yape). En el destino cada pago es un <b>ABONO</b> a caja.</p>
+          <div class="flow"><span class="tag">← mesas · reporte yape</span><span class="tag emit abono">→ ABONO (caja)</span></div>
+        </div>
+      </div>
+      <div class="arrow">↓</div>
+
+      <div class="mod">
+        <div class="mod-id">4b<br>reclamos</div>
+        <div class="mod-body">
+          <h3>Ciclo de reclamos</h3>
+          <p class="role">Detecta y resuelve reclamos de cobro. No escribe el saldo: emite el <b>hecho</b> (identificar/reasignar abono · ajuste) y el motor re-deriva.</p>
+          <div class="flow"><span class="tag emit abono">→ identificar/reasignar abono</span><span class="tag emit">→ ajuste de cargo</span></div>
+        </div>
+      </div>
+      <div class="arrow">↓</div>
+
+      <div class="mod">
+        <div class="mod-id">5<br>cobranza</div>
+        <div class="mod-body">
+          <span class="badge b-dissolve">se disuelve</span>
+          <h3>Consolidación de cobranza</h3>
+          <p class="role">Hoy calcula saldos y arrastres. En el destino <b>desaparece</b>: aplicar → motor · saldo/arrastre → query · cargos no-agua → obligaciones.</p>
+          <div class="flow"><span class="tag dissolve">→ motor · queries · obligaciones</span></div>
+        </div>
+      </div>
+      <div class="arrow">↓</div>
+
+      <div class="mod">
+        <div class="mod-id">5b<br>valida</div>
+        <div class="mod-body">
+          <span class="badge b-dissolve">se disuelve</span>
+          <h3>Validación del dinero</h3>
+          <p class="role">Cuadra lo cobrado contra el banco. En el destino son dos tools point-in-time: <b>arqueo_caja</b> (query pura) + <b>conciliar_caja</b> (vs crudo bancario).</p>
+          <div class="flow"><span class="tag dissolve">→ arqueo_caja + conciliar_caja</span></div>
+        </div>
+      </div>
+      <div class="arrow">↓</div>
+
+      <div class="mod">
+        <div class="mod-id">6<br>corte</div>
+        <div class="mod-body">
+          <span class="badge b-survive">sobrevive</span>
+          <h3>Lista de corte · agua</h3>
+          <p class="role">Genera la lista de mora, gestiona el ciclo BORRADOR→PUBLICADA→COMPROMETIDA. Ya no calcula saldo: lo consulta y <b>emite el CARGO de reconexión</b>.</p>
+          <div class="flow"><span class="tag">← saldo (query)</span><span class="tag emit">→ CARGO corte_reconexion</span></div>
+        </div>
+      </div>
+      <div class="arrow">↓</div>
+
+      <div class="mod">
+        <div class="mod-id">6b<br>multas</div>
+        <div class="mod-body">
+          <span class="badge b-dissolve">se disuelve</span>
+          <h3>Corte por multas</h3>
+          <p class="role">Ya <b>no es un módulo</b>: bajo el ledger es el <b>trigger <code>multa</code></b> del motor de corte único de 6_corte. Mismas 4 ops que el corte de agua; difiere solo en 4 parámetros de config del tenant.</p>
+          <div class="flow"><span class="tag dissolve">→ absorbido en 6_corte (trigger multa)</span></div>
+        </div>
+      </div>
+      <div class="arrow">↓</div>
+
+      <div class="mod">
+        <div class="mod-id">7<br>cierre</div>
+        <div class="mod-body">
+          <h3>Transición de período</h3>
+          <p class="role">Congela el mes, cosecha su foto inmutable a <code>archivo/YYYY-MM/</code> y limpia los temporales. Después de cerrar, el proceso <b>asienta</b> el mes en el libro mayor.</p>
+          <div class="flow"><span class="tag">freeze · foto · limpieza</span><span class="tag">→ asienta en libro_mayor</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">03</span><h2>El emisor de cargos no-agua</h2></div>
+    <p class="sec-sub"><code>obligaciones/</code> no lleva número: su disparador es un <b>evento</b> (una asamblea, una faena, un convenio firmado), no el ciclo mensual. Lee las fuentes crudas de la secretaria y emite cargos con su sub-concepto real.</p>
+    <div class="pipe">
+      <div class="mod emisor">
+        <div class="mod-id">obli-<br>gaciones</div>
+        <div class="mod-body">
+          <h3>Multa · Acuerdos · Convenio → CARGO</h3>
+          <p class="role">Script determinista sobre los archivos de la secretaria (no juicio manual). Remapea el predio viejo→COFOPRI al leer, emite un cargo idempotente por predio y sub-concepto.</p>
+          <div class="flow">
+            <span class="tag">← reunión · faena (asistencia)</span>
+            <span class="tag">← techado/campo · medidor · instalación</span>
+            <span class="tag emit">→ CARGO multa · acuerdos · convenio</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">04</span><h2>El substrato · <code>libro_mayor/</code></h2></div>
+    <p class="sec-sub">El corazón. Dos agregados en un solo bounded context — porque el motor imputa dinero a deuda <b>atómicamente</b> y eso exige una sola frontera transaccional. Sobre <code>dominio/</code> (reglas puras, sin I/O) se apoyan las dos mitades y el motor.</p>
+
+    <div class="substrate">
+      <div class="sub-inner">
+        <div class="agg">
+          <div class="agg-card">
+            <div class="k">dominio/ · reglas puras</div>
+            <h3>El vocabulario y la lógica</h3>
+            <p>Taxonomía de conceptos, cascada de prioridad, política de corte, saldo e identidad. Céntimos int, cero I/O, tenant-agnóstico. Testeable con dicts. Lo importan las dos mitades.</p>
+          </div>
+          <div class="agg-card">
+            <div class="k">caja/ · el dinero (HECHO)</div>
+            <h3>Abonos y egresos</h3>
+            <p>Writer único de movimientos: quién pagó, cuánto, por qué canal, a qué balde. <code>ABONO_ID</code> determinista. Un depósito yape que cubre N predios sigue siendo <b>un</b> abono.</p>
+          </div>
+          <div class="agg-card">
+            <div class="k">estado_cuenta/ · la deuda (HECHO)</div>
+            <h3>Cargos y aplicaciones</h3>
+            <p>Writer único de cargos. Cada cargo es una obligación que nació: concepto, sub-concepto, mes, monto. <code>SALDO</code> nunca es una celda — se deriva.</p>
+          </div>
+        </div>
+        <div class="motor">
+          <h3>▸ motor_aplicacion · la INTERPRETACIÓN</h3>
+          <p>La única pieza que ve caja y deuda juntas. <code>aplicar(cargos_abiertos, abonos) → aplicaciones</code>: camina la prioridad, reparte FIFO por mes, referencia el <code>ABONO_ID</code>. Los módulos solo emiten hechos; nadie más aplica. Idempotente → re-corrible sin duplicar.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">05</span><h2>El principio que sostiene todo</h2></div>
+    <p class="sec-sub">Separar el <b>hecho</b> inmutable (entró plata, nació deuda) de la <b>interpretación</b> derivada (a qué se aplicó ese pago). Cada fuente escribe solo su hecho; un único motor interpreta. Esto traduce 1:1 a tablas Postgres y es el substrato correcto para tools de agente idempotentes.</p>
+    <div class="principle">
+      <div class="hecho">
+        <p class="k">Hecho · inmutable</p>
+        <h3>Cada fuente escribe el suyo</h3>
+        <p>2_planilla emite el cargo de agua. 4_pagos emite el abono. obligaciones emite la multa. Ninguno decide a dónde va el dinero — solo registra que ocurrió.</p>
+      </div>
+      <div class="mid">→</div>
+      <div class="interp">
+        <p class="k">Interpretación · derivada</p>
+        <h3>Un solo motor aplica</h3>
+        <p>El motor ve los dos lados y reparte cada abono entre los cargos abiertos por prioridad. El saldo cae solo. Cambió una regla → se re-corre, no se re-edita.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">06</span><h2>La cascada de prioridad</h2></div>
+    <p class="sec-sub">Cuando un pago no alcanza a cubrir toda la deuda, el motor lo reparte por esta escalera — dentro de cada concepto, en sub-orden por regla de negocio. Es lo que hace que un pago "para el medidor" pueda terminar cubriendo agua o multa.</p>
+    <div class="cascade">
+      <div class="rung"><div class="p">P1</div><div class="c">Agua · Mantenimiento · arrastre</div><div class="s">FIFO por mes · sin sub</div></div>
+      <div class="rung"><div class="p">P2</div><div class="c">Corte / reconexión</div><div class="s">sin sub</div></div>
+      <div class="rung"><div class="p">P3</div><div class="c">Multa</div><div class="s">reunión → faena</div></div>
+      <div class="rung"><div class="p">P4</div><div class="c">Acuerdos</div><div class="s">techado → campo</div></div>
+      <div class="rung"><div class="p">P5</div><div class="c">Convenio</div><div class="s">medidor → instalación</div></div>
+      <div class="rung out"><div class="p">P6</div><div class="c">Otros</div><div class="s">slot residual · sin emisor hoy</div></div>
+      <div class="rung out"><div class="p">—</div><div class="c">Deuda directiva · Tanque</div><div class="s">balde caja-only · fuera de la cascada</div></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">07</span><h2>El entregable · reporte_seguimiento</h2></div>
+    <p class="sec-sub">El <b>extracto de cuenta</b> es una tool de solo lectura que cruza los dos agregados: "esto pasó en tu cuenta". Es lo único que resuelve un reclamo, porque muestra a dónde fue <b>cada sol</b> — y por qué un concepto que el socio cree pagado sigue abierto.</p>
+    <div class="story">
+      <p class="q">"Yo pagué mi medidor, S/25." — y sin embargo el ledger dice que sigue debiendo el medidor.</p>
+      <pre>Pago S/25  →  la cascada lo aplica por prioridad:
+   P1  agua marzo        20   ← el pago cae acá primero
+   P3  multa faena       30   ← y acá (parcial: 5)
+   P5  convenio medidor  25   ← nunca se tocó
+
+En su mente pagó el medidor. El motor dice: el medidor sigue abierto.</pre>
+      <p class="kick">Por eso <b>no hay atajo</b>: la cascada acopla los conceptos. Falta un concepto en el ledger y todo lo de abajo se atribuye mal. El extracto solo es correcto con <b>todos</b> los cargos y <b>todos</b> los abonos cargados — y el motor decidiendo la atribución real.</p>
+    </div>
+  </div>
+</section>
+
+<section style="border-bottom:0">
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">08</span><h2>Hacia dónde escala</h2></div>
+    <p class="sec-sub">La frontera de <code>libro_mayor/</code> es 1:1 con el endgame. El archivo <code>.xlsx</code> de hoy es un adapter detrás del patrón repo — se reemplaza por Postgres sin que el resto del contexto cambie.</p>
+    <div class="endgame">
+      <div class="eg"><p class="k">Postgres</p><p><b>1 esquema</b> · tablas abonos, cargos, aplicaciones — todas con JASS_ID. Modesto, no hiperescala: 25k JASS × ≤10k predios.</p></div>
+      <div class="eg"><p class="k">Docker</p><p><b>1 servicio</b> · <code>docker build libro_mayor/</code> anda solo. El render de PDF, candidato a su propio contenedor.</p></div>
+      <div class="eg"><p class="k">Agente</p><p><b>1 set de tools</b> · registrar_abono, registrar_cargo, aplicar, estado_cuenta, extracto_predio, arqueo_caja…</p></div>
+      <div class="eg"><p class="k">Multi-tenant</p><p><b>JASS_ID</b> en cada evento, clave e id. Núcleo tenant-agnóstico: lo específico de cada JASS entra por config.</p></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    jass_system · arquitectura destino · el proceso construye, el libro mayor cosecha · saldo siempre derivado
+  </div>
+</footer>

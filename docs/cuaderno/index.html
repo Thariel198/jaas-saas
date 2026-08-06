@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>jass_system — Cuaderno técnico</title>
+<link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+
+<header class="hero">
+  <p class="eyebrow"><span class="dot"></span>jass_system · cuaderno técnico</p>
+  <h1>El aprendizaje del sistema, ordenado por módulo</h1>
+  <p class="lede">
+    Cada módulo es una tarjeta. Entrás y ves <strong>todas sus láminas</strong>, agrupadas por
+    submódulo (colapsables, para que nunca sea un ladrillo). El <em>por qué</em> vive acá; la
+    <em>verdad exacta</em> en el README de cada módulo; el <em>mapa</em> en <code>docs/arquitectura/</code>.
+  </p>
+  <div class="meta-row">
+    <span>arranque: 2026-07-16</span>
+    <span>verdad → README de cada módulo</span>
+    <span>mapa → ../arquitectura/index.html</span>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="modgrid">
+
+    <a class="modcard cimientos" href="cimientos.html">
+      <div class="mk">transversal</div>
+      <h3>Cimientos</h3>
+      <p>Conceptos que no son de un módulo — valen para todo el sistema.</p>
+      <div class="count on">4 láminas · 3 alturas de diseño · motor/herramienta/config · céntimos · qué es una entidad</div>
+    </a>
+
+    <a class="modcard" href="libro_mayor.html">
+      <div class="mk">substrato</div>
+      <h3>libro_mayor</h3>
+      <p>dominio · caja · estado_cuenta · motor de aplicación.</p>
+      <div class="count on">1 lámina · dominio/ · taxonomía · entidades · cascada (3 alturas)</div>
+    </a>
+
+    <div class="modcard disabled">
+      <div class="mk">emisor</div>
+      <h3>obligaciones</h3>
+      <p>Emite los cargos no-agua: multa · acuerdos · convenio.</p>
+      <div class="count off">sin láminas aún</div>
+    </div>
+
+    <div class="modcard disabled">
+      <div class="mk">proceso · 2</div>
+      <h3>2_planilla</h3>
+      <p>La planilla del mes — agua + mantenimiento.</p>
+      <div class="count off">sin láminas aún</div>
+    </div>
+
+    <div class="modcard disabled">
+      <div class="mk">proceso · 4</div>
+      <h3>4_pagos</h3>
+      <p>Registra los pagos — efectivo + yape.</p>
+      <div class="count off">sin láminas aún</div>
+    </div>
+
+    <div class="modcard disabled">
+      <div class="mk">proceso · 6</div>
+      <h3>6_corte</h3>
+      <p>Corte de servicio multi-motivo (agua + multa).</p>
+      <div class="count off">sin láminas aún</div>
+    </div>
+
+  </div>
+
+  <footer class="closing">
+    un módulo aparece activo acá cuando tiene su 1ª lámina — sin tarjetas vacías con contenido<br>
+    dentro de cada módulo: láminas agrupadas por submódulo (colapsables) · cada lámina anclada + con links<br>
+    cuaderno = el por qué · spec para codificar → README + docs/arquitectura + formato_* de cada módulo
+  </footer>
+</main>
+
+</body>
+</html>

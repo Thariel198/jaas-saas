@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>libro_mayor/estado_cuenta — Flujo visual</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Arial, sans-serif; background: #F0F4F8; font-size: 13px; }
+.page { padding: 28px 24px 60px; max-width: 1080px; margin: 0 auto; }
+h1   { font-size: 17px; color: #1A5276; margin-bottom: 4px; }
+.sub { font-size: 11px; color: #888; margin-bottom: 10px; }
+.badge { display:inline-block; background:#F3E8FF; color:#5B21B6; border:1px solid #C4B5FD;
+         border-radius:4px; padding:3px 10px; font-size:10.5px; font-weight:bold; margin-bottom:28px; }
+
+.varr { color: #AAA; font-size: 20px; margin: 5px 0; line-height: 1; text-align:center; }
+.harr-row { display:flex; align-items:center; justify-content:center; gap:6px; margin: 8px 0; }
+.harr-line { border-top: 2px dashed #BBB; width: 60px; }
+.harr-tip  { color: #AAA; font-size: 16px; }
+
+.script {
+  border-radius: 8px; padding: 10px 14px;
+  text-align: center; border: 2px solid transparent;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+}
+.sc-name { font-family: Consolas, monospace; font-size: 11px; font-weight: bold; }
+.sc-note { font-size: 10px; opacity: 0.85; }
+
+.sc-gold   { background: #1E8449; border-color: #145A32; color: #fff; }
+.sc-blue   { background: #D6EAF8; border-color: #1A5276; color: #1A5276; }
+.sc-purple { background: #EDE9FE; border-color: #5B21B6; color: #5B21B6; }
+.sc-green  { background: #D5F5E3; border-color: #1E8449; color: #1E5C3A; }
+.sc-red    { background: #FADBD8; border-color: #C0392B; color: #7B241C; }
+
+.file { border-radius: 5px; padding: 5px 10px; font-size: 10px;
+  font-family: Consolas, monospace; font-weight: bold; text-align:left;
+  line-height: 1.5; border-left: 3px solid transparent; }
+.file small { font-weight: normal; font-family: Arial, sans-serif; display: block; color: inherit; opacity: 0.8; }
+.fn { background: #FEF3C7; color: #7D5A00; border-left-color: #CA6F1E; }
+.fa { background: #EBF5FB; color: #1A5276; border-left-color: #1A5276; }
+.fp { background: #F3E8FF; color: #5B21B6; border-left-color: #5B21B6; }
+
+.tag { font-size: 9px; font-weight: bold; text-transform: uppercase;
+       letter-spacing: 0.4px; margin-bottom: 3px; color: #888; }
+.tag-blue { color:#1A5276; } .tag-green { color:#1E8449; }
+
+/* ═══ 4 FUENTES DE CARGO ═══ */
+.sources { display:flex; gap:14px; justify-content:center; }
+.src { flex:1; max-width: 220px; display:flex; flex-direction:column; align-items:center; gap:6px; }
+
+/* ═══ EL MOTOR — caja destacada, central ═══ */
+.motor-wrap { display:flex; justify-content:center; margin: 8px 0; }
+.motor-box {
+  width: 420px; background:#1E8449; border:3px solid #145A32; border-radius: 12px;
+  padding: 16px 20px; text-align:center; color:#fff; box-shadow: 0 4px 10px rgba(0,0,0,0.12);
+}
+.motor-box .sc-name { font-size: 13px; }
+.motor-box .sc-note { font-size: 10.5px; opacity:0.95; margin-top:4px; line-height:1.5; }
+
+.feed-in { display:flex; justify-content:center; gap: 40px; margin: 6px 0; }
+.feed-in .lbl { font-size: 10px; color:#555; text-align:center; }
+
+/* ═══ SALIDA DEL MOTOR ═══ */
+.out-wrap { display:flex; justify-content:center; margin-top:10px; }
+.out-box { width: 380px; }
+
+.split3 { display:flex; gap:16px; margin-top:16px; }
+.split3 > div { flex:1; display:flex; flex-direction:column; align-items:center; gap:6px; }
+
+.legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 34px;
+          padding-top: 14px; border-top: 1px dashed #CCC; justify-content: center; }
+.leg { display: flex; align-items: center; gap: 5px; font-size: 10px; color: #555; }
+.leg-dot { width: 12px; height: 12px; border-radius: 2px; flex-shrink: 0; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <h1>libro_mayor/estado_cuenta — Flujo visual</h1>
+  <div class="sub">Ledger append-only de la deuda (cargos) + motor de aplicación · Fase 1 — diseño cerrado, sin código</div>
+  <div class="badge">Cargos: fuera de caliente cada uno con su propio timing · Aplicaciones: post-cierre o on-demand</div>
+
+  <!-- ══ 4 FUENTES QUE EMITEN CARGOS ══ -->
+  <div class="sources">
+    <div class="src">
+      <div class="tag tag-blue">Emite cargo</div>
+      <div class="script sc-blue" style="width:100%;">
+        <div class="sc-name">2_planilla</div>
+        <div class="sc-note">CONSUMO · CORTE<br>(Fase 2)</div>
+      </div>
+    </div>
+    <div class="src">
+      <div class="tag tag-blue">Emite cargo</div>
+      <div class="script sc-blue" style="width:100%;">
+        <div class="sc-name">5_cobranza</div>
+        <div class="sc-note">MULTA · ACUERDOS<br>CONVENIO — deja de aplicar</div>
+      </div>
+    </div>
+    <div class="src">
+      <div class="tag tag-blue">Emite cargo</div>
+      <div class="script sc-blue" style="width:100%;">
+        <div class="sc-name">arrastre_consolidado</div>
+        <div class="sc-note">CONVENIO<br>(instalación)</div>
+      </div>
+    </div>
+    <div class="src">
+      <div class="tag tag-blue">Emite cargo</div>
+      <div class="script sc-blue" style="width:100%;">
+        <div class="sc-name">deuda_directiva</div>
+        <div class="sc-note">OTROS</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="varr">↓ ↓ ↓ ↓</div>
+
+  <!-- ══ WRITER ÚNICO DE CARGOS ══ -->
+  <div style="display:flex; justify-content:center;">
+    <div class="script sc-purple" style="width:460px;">
+      <div class="sc-name">cuenta_repo.py — WRITER ÚNICO</div>
+      <div class="sc-note">registrar_cargo() · registrar_aplicacion() · registrar_ajuste()<br>append-only · SALDO siempre derivado · JASS_ID en todo</div>
+    </div>
+  </div>
+
+  <div class="varr">↓</div>
+  <div style="display:flex; justify-content:center;">
+    <div class="file fa" style="width:460px; text-align:center;">
+      store de CARGOS — AUDITORÍA<br><small>toda deuda de un predio, venga de donde venga (SOURCE) · abiertos hasta saldarse</small>
+    </div>
+  </div>
+
+  <div class="varr">↓</div>
+
+  <!-- ══ EL MOTOR — caja propia, destacada ══ -->
+  <div class="feed-in">
+    <div class="lbl">cargos abiertos<br>↘</div>
+    <div class="lbl">abonos de <b>libro_mayor/caja</b><br>↙</div>
+  </div>
+
+  <div class="motor-wrap">
+    <div class="motor-box">
+      <div class="sc-name">★ MOTOR DE APLICACIÓN — motor_aplicacion.py ★</div>
+      <div class="sc-note">
+        aplicar(cargos_abiertos, abonos) → aplicaciones<br>
+        camina prioridad FIFO por MES_CARGO<br>
+        CONSUMO → CORTE → CONVENIO → ACUERDOS → MULTA → OTROS → SALDO_A_FAVOR<br>
+        <b>única pieza que ve caja + deuda juntas</b> · único que llena ABONO_ID + MES_CARGO<br>
+        idempotente por (ABONO_ID, CARGO)
+      </div>
+    </div>
+  </div>
+
+  <div class="varr">↓</div>
+
+  <div class="out-wrap">
+    <div class="out-box">
+      <div class="file fa" style="text-align:center; width:100%;">
+        store de APLICACIONES — AUDITORÍA<br>
+        <small>abono_id → cargo · monto_aplicado · nunca edita, solo agrega</small>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SPLIT: 3 tools que consumen el estado ══ -->
+  <div class="split3">
+    <div>
+      <div class="varr">↓</div>
+      <div class="script sc-green" style="width:100%;">
+        <div class="sc-name">tools/estado_cuenta.py</div>
+        <div class="sc-note">panorama completo<br>de un predio</div>
+      </div>
+    </div>
+    <div>
+      <div class="varr">↓</div>
+      <div class="script sc-green" style="width:100%;">
+        <div class="sc-name">tools/explicar_reclamo.py</div>
+        <div class="sc-note">historia de un pago:<br>a dónde fue cada sol</div>
+      </div>
+    </div>
+    <div>
+      <div class="varr">↓</div>
+      <div class="script sc-red" style="width:100%;">
+        <div class="sc-name">tools/auditoria_conservacion.py</div>
+        <div class="sc-note">Σabonos = Σaplicado + Σsaldo_a_favor<br>+ Σdevoluciones — ¿cuadra?</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="varr" style="margin-top:14px;">↓</div>
+  <div style="display:flex; justify-content:center;">
+    <div class="file fp" style="width:340px; text-align:center;">
+      vista/ — vista ancha + PDF imprimible<br><small>para la mesa · lo que el agente/operario ve</small>
+    </div>
+  </div>
+
+  <!-- LEYENDA -->
+  <div class="legend">
+    <div class="leg"><div class="leg-dot" style="background:#D6EAF8;border:1px solid #1A5276;"></div>Feeder — solo emite HECHO (cargo)</div>
+    <div class="leg"><div class="leg-dot" style="background:#EDE9FE;border:1px solid #5B21B6;"></div>Writer único</div>
+    <div class="leg"><div class="leg-dot" style="background:#1E8449;"></div>★ El motor — única pieza que aplica</div>
+    <div class="leg"><div class="leg-dot" style="background:#D5F5E3;border:1px solid #1E8449;"></div>Tool de lectura (agent-callable)</div>
+    <div class="leg"><div class="leg-dot" style="background:#FADBD8;border:1px solid #C0392B;"></div>Tool de auto-verificación</div>
+    <div class="leg"><div class="leg-dot" style="background:#EBF5FB;border:1px solid #AED6F1;"></div>Auditoría (append-only)</div>
+    <div class="leg"><div class="leg-dot" style="background:#F3E8FF;border:1px solid #C4B5FD;"></div>Vista operacional (proyección)</div>
+  </div>
+
+</div>
+</body>
+</html>
