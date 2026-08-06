@@ -56,6 +56,11 @@ CLASES_VALIDAS = {
     "COBRANZA",           # PAGO normal: plata del ciclo, vino por la cascada
     "ABONO_REZAGADO",     # plata real de un ciclo viejo que la caja recién ve
     "DECLARACION",        # "ya pagó" declarado, sin monto/fecha/canal que ubicar
+    "DECLARACION_SECRETARIA",  # la secretaria confirma que el vecino ya pagó, y
+                          # TODAVÍA NO SE INVESTIGÓ si esa plata es un exceso que ya
+                          # estaba en caja o un pago nuevo que hay que sembrar en
+                          # abonos_rezagados.xlsx. Marca de trabajo pendiente: no
+                          # suma a caja mientras no se resuelva (ver LEER_ANTES.md)
     "EXONERACION",        # la directiva decidió no cobrar — nunca hubo plata
     "CORRECCION_SISTEMA", # defecto del código (pago fantasma, fórmula mal)
     "REASIGNACION",       # la deuda se movió entre conceptos, sin plata nueva
