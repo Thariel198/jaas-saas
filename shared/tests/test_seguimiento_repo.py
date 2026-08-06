@@ -71,15 +71,17 @@ try:
 except ValueError:
     check(True, "rechaza concepto inválido AGUA")
 
-# 10) generar_vista — 3 hojas por concepto (+ CONVENIO_HISTORIAL si existe el
-# snapshot de génesis), doble header, dash para mes sin evento
+# 10) generar_vista — 3 hojas por concepto + Ajustes (+ CONVENIO_HISTORIAL si
+# existe el snapshot de génesis), doble header, dash para mes sin evento.
+# Desde el 06/08/2026 cada mes son 4 columnas: DEUDA · PAGO · AJUSTE · SALDO.
+# El AJUSTE ya no se suma dentro de DEUDA — una corrección se leía como deuda nueva.
 VISTA_TMP = ROOT / "shared" / "_tmp_test_vista.xlsx"
 repo.generar_vista(VISTA_TMP)
 check(VISTA_TMP.exists(), "generar_vista crea el archivo")
 
 import openpyxl
 wb = openpyxl.load_workbook(VISTA_TMP)
-esperadas = {"MULTA", "ACUERDOS", "CONVENIO"}
+esperadas = {"MULTA", "ACUERDOS", "CONVENIO", "Ajustes"}
 if repo._MEDIDOR_SALDO_PATH_VISTA.exists():
     esperadas.add("CONVENIO_HISTORIAL")
 check(set(wb.sheetnames) == esperadas, f"hojas = {sorted(esperadas)}, obtuve {wb.sheetnames}")
@@ -87,14 +89,27 @@ check(set(wb.sheetnames) == esperadas, f"hojas = {sorted(esperadas)}, obtuve {wb
 ws = wb["CONVENIO"]
 check(ws["A2"].value == "MZ" and ws["B2"].value == "LT" and ws["C2"].value == "NOMBRE", "fila 2 = MZ/LT/NOMBRE")
 check(ws["A1"].value == "Predio", "fila 1 col A = sección Predio")
-check(ws["D1"].value == "2026-07" and ws["G1"].value == "2026-08", "secciones de mes = 2026-07, 2026-08")
-check(ws["D2"].value == "DEUDA" and ws["E2"].value == "PAGO" and ws["F2"].value == "SALDO", "sub-columnas mes 1 = DEUDA/PAGO/SALDO")
+check(ws["D1"].value == "2026-07" and ws["H1"].value == "2026-08", "secciones de mes = 2026-07, 2026-08")
+check(ws["D2"].value == "DEUDA" and ws["E2"].value == "PAGO" and ws["F2"].value == "AJUSTE"
+      and ws["G2"].value == "SALDO", "sub-columnas mes 1 = DEUDA/PAGO/AJUSTE/SALDO")
 
-# fila 3 = A-6 (único predio de CONVENIO en este test)
+# fila 3 = A-6 (único predio de CONVENIO en este test) — sin ajustes: la celda va "·"
 check(ws["A3"].value == "A" and ws["B3"].value == "6", "fila 3 = predio A-6")
-check(ws["D3"].value == 900.0 and ws["E3"].value == 100.0 and ws["F3"].value == 800.0, "julio: DEUDA=900 PAGO=100 SALDO=800")
-check(ws["G3"].value == 0.0 and ws["H3"].value == 79.0 and ws["I3"].value == 721.0, "agosto: DEUDA=0 PAGO=79 SALDO=721")
+check(ws["D3"].value == 900.0 and ws["E3"].value == 100.0 and ws["F3"].value == "·"
+      and ws["G3"].value == 800.0, "julio: DEUDA=900 PAGO=100 AJUSTE=· SALDO=800")
+check(ws["H3"].value == 0.0 and ws["I3"].value == 79.0 and ws["J3"].value == "·"
+      and ws["K3"].value == 721.0, "agosto: DEUDA=0 PAGO=79 AJUSTE=· SALDO=721")
 check(ws.freeze_panes == "D3", "freeze_panes = D3")
+
+# hoja Ajustes — el AJUSTE de C-14 del paso 6 tiene que estar, con su MOTIVO
+ws_aj = wb["Ajustes"]
+check(ws_aj["A2"].value == "MZ" and ws_aj["F2"].value == "AJUSTE" and ws_aj["I2"].value == "MOTIVO",
+      "hoja Ajustes: cabecera MZ…AJUSTE…MOTIVO")
+filas_aj = [[ws_aj.cell(row=r, column=c).value for c in range(1, 10)]
+            for r in range(3, ws_aj.max_row + 1)]
+c14 = [f for f in filas_aj if f[0] == "C" and f[1] == "14"]
+check(len(c14) == 1 and c14[0][5] == -50.0, f"hoja Ajustes trae el ajuste de C-14 (-50), obtuve {c14}")
+check(c14[0][8] == "multa anulada por reclamo", f"hoja Ajustes trae el MOTIVO, obtuve {c14[0][8]!r}")
 
 ws_m = wb["MULTA"]
 check(ws_m["A3"].value == "C" and ws_m["B3"].value == "14", "hoja MULTA tiene el predio C-14 (ajuste)")

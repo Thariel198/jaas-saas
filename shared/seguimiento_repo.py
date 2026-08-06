@@ -522,12 +522,14 @@ def deudores(concepto, minimo: float = 0.0) -> pd.DataFrame:
 VISTA_PATH = _SHARED / "vista_seguimiento_pueblo.xlsx"
 
 _SEC_PREDIO_V = ("EBF5FB", "1A5276", "F4FAFF", "1A5276")
-# (header_bg, header_fg, deuda_fg, pago_fg, saldo_bg, saldo_fg) — cicla cada 3 meses
+# (header_bg, header_fg, deuda_fg, pago_fg, saldo_bg, saldo_fg, ajuste_fg) — cicla cada 3 meses
 _PALETAS_MES = [
-    ("FEF3C7", "92400E", "92400E", "065F46", "FDE68A", "78350F"),
-    ("DBEAFE", "1E3A8A", "1E3A8A", "065F46", "BFDBFE", "1E3A8A"),
-    ("EDE9FE", "5B21B6", "5B21B6", "065F46", "DDD6FE", "4C1D95"),
+    ("FEF3C7", "92400E", "92400E", "065F46", "FDE68A", "78350F", "5B21B6"),
+    ("DBEAFE", "1E3A8A", "1E3A8A", "065F46", "BFDBFE", "1E3A8A", "5B21B6"),
+    ("EDE9FE", "5B21B6", "5B21B6", "065F46", "DDD6FE", "4C1D95", "92400E"),
 ]
+# AJUSTE sin MOTIVO: el ledger no sabe por qué se movió ese saldo. Rojo a propósito.
+_AJUSTE_SIN_MOTIVO_FG = "B91C1C"
 _DATA_BOLETAS_PATH_VISTA = _SHARED.parent / "3_boletas" / "inputs" / "DATA_boletas.xlsx"
 _PADRON_PATH_VISTA = _SHARED.parent / "0_padron" / "02_matching" / "outputs" / "padron_reconciliado.xlsx"
 
@@ -552,6 +554,59 @@ def _lookup_nombres() -> dict:
     return out
 
 
+_COLS_POR_MES = 4  # DEUDA · PAGO · AJUSTE · SALDO
+
+
+def _escribir_hoja_ajustes(ws, df: pd.DataFrame, nombres: dict) -> None:
+    """Una fila por AJUSTE, con su MOTIVO completo. La grilla de las hojas por
+    concepto muestra el monto; el porqué vive acá — hay celdas (predio·concepto·mes)
+    con hasta 3 ajustes, así que no entra en el grid sin comprimir algo."""
+    cols = [("MZ", 6), ("LT", 7), ("NOMBRE", 26), ("CONCEPTO", 12), ("MES", 10),
+            ("AJUSTE", 11), ("CLASE", 22), ("SOURCE", 22), ("MOTIVO", 90)]
+
+    _hdr(ws.cell(row=1, column=1), *_SEC_PREDIO_V[:2], "Predio")
+    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=3)
+    _hdr(ws.cell(row=1, column=4), _SEC_EVENTO[0], _SEC_EVENTO[1], "Ajuste")
+    ws.merge_cells(start_row=1, start_column=4, end_row=1, end_column=6)
+    _hdr(ws.cell(row=1, column=7), _SEC_QUIEN[0], _SEC_QUIEN[1], "Por qué")
+    ws.merge_cells(start_row=1, start_column=7, end_row=1, end_column=9)
+    ws.row_dimensions[1].height = 18
+
+    for i, (nombre, ancho) in enumerate(cols, start=1):
+        sec = _SEC_PREDIO_V[:2] if i <= 3 else (_SEC_EVENTO[:2] if i <= 6 else _SEC_QUIEN[:2])
+        _hdr(ws.cell(row=2, column=i), sec[0], sec[1], nombre)
+        ws.column_dimensions[get_column_letter(i)].width = ancho
+    ws.row_dimensions[2].height = 22
+    ws.freeze_panes = "D3"
+
+    aj = df[df["TIPO_EVENTO"].astype(str).str.strip() == "AJUSTE"].copy()
+    if aj.empty:
+        return
+    aj = aj.sort_values(["MZ", "LT", "CONCEPTO", "MES", "TIMESTAMP"])
+
+    for r_off, (_, ev) in enumerate(aj.iterrows()):
+        row = r_off + 3
+        mz, lt = _norm(ev["MZ"]), _norm(ev["LT"])
+        motivo = str(ev["MOTIVO"] if pd.notna(ev["MOTIVO"]) else "").strip()
+        mudo = motivo == ""
+        valores = [mz, lt, nombres.get((mz, lt), ""), str(ev["CONCEPTO"]).strip(),
+                   str(ev["MES"]).strip(), float(ev["AJUSTE"] or 0),
+                   str(ev["CLASE"] if pd.notna(ev["CLASE"]) else "").strip(),
+                   str(ev["SOURCE"] if pd.notna(ev["SOURCE"]) else "").strip(),
+                   "(SIN MOTIVO — falta explicar por qué se movió este saldo)" if mudo else motivo]
+        for i, val in enumerate(valores, start=1):
+            cell = ws.cell(row=row, column=i, value=val)
+            cell.fill = _fill("F4FAFF" if i <= 3 else ("FFFBEB" if i <= 6 else "F9FAFB"))
+            rojo = mudo and i in (7, 9)
+            cell.font = Font(color=_argb(_AJUSTE_SIN_MOTIVO_FG if rojo else "374151"),
+                             bold=(i == 6 or rojo), size=10)
+            cell.alignment = Alignment(horizontal="right" if i == 6 else
+                                       ("center" if i in (1, 2, 4, 5) else "left"),
+                                       vertical="center")
+            if i == 6:
+                cell.number_format = "+#,##0.00;-#,##0.00;0.00"
+
+
 def _escribir_hoja_vista(ws, concepto: str, df_concepto: pd.DataFrame, nombres: dict) -> None:
     predios = sorted({(r["MZ"], r["LT"]) for _, r in df_concepto.iterrows()
                       if _clave_valida(_norm(r["MZ"]), _norm(r["LT"]))})
@@ -560,15 +615,16 @@ def _escribir_hoja_vista(ws, concepto: str, df_concepto: pd.DataFrame, nombres: 
     col_predio = [("MZ", 6, "center"), ("LT", 7, "center"), ("NOMBRE", 26, "left")]
     cols = list(col_predio)
     for mes in meses:
-        cols += [(f"{mes}|DEUDA", 11, "right"), (f"{mes}|PAGO", 11, "right"), (f"{mes}|SALDO", 11, "right")]
+        cols += [(f"{mes}|DEUDA", 11, "right"), (f"{mes}|PAGO", 11, "right"),
+                 (f"{mes}|AJUSTE", 11, "right"), (f"{mes}|SALDO", 11, "right")]
 
     # ── Fila 1: secciones (Predio + 1 por mes) ──
     _hdr(ws.cell(row=1, column=1), *_SEC_PREDIO_V[:2], "Predio")
     ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=3)
     for i, mes in enumerate(meses):
         pal = _PALETAS_MES[i % 3]
-        c1 = 4 + i * 3
-        ws.merge_cells(start_row=1, start_column=c1, end_row=1, end_column=c1 + 2)
+        c1 = 4 + i * _COLS_POR_MES
+        ws.merge_cells(start_row=1, start_column=c1, end_row=1, end_column=c1 + _COLS_POR_MES - 1)
         _hdr(ws.cell(row=1, column=c1), pal[0], pal[1], mes)
     ws.row_dimensions[1].height = 18
 
@@ -578,7 +634,7 @@ def _escribir_hoja_vista(ws, concepto: str, df_concepto: pd.DataFrame, nombres: 
         if i <= 3:
             _hdr(ws.cell(row=2, column=i), *_SEC_PREDIO_V[:2], etiqueta)
         else:
-            mes_idx = (i - 4) // 3
+            mes_idx = (i - 4) // _COLS_POR_MES
             pal = _PALETAS_MES[mes_idx % 3]
             _hdr(ws.cell(row=2, column=i), pal[0], pal[1], etiqueta)
         ws.column_dimensions[get_column_letter(i)].width = ancho
@@ -598,23 +654,45 @@ def _escribir_hoja_vista(ws, concepto: str, df_concepto: pd.DataFrame, nombres: 
         sub_predio = df_concepto[(df_concepto["MZ"] == mz) & (df_concepto["LT"] == lt)]
         for i, mes in enumerate(meses):
             pal = _PALETAS_MES[i % 3]
-            c_deuda, c_pago, c_saldo = 4 + i * 3, 5 + i * 3, 6 + i * 3
+            base = 4 + i * _COLS_POR_MES
+            c_deuda, c_pago, c_ajuste, c_saldo = base, base + 1, base + 2, base + 3
             del_mes = sub_predio[sub_predio["MES"].astype(str) == mes]
 
             if del_mes.empty:
-                for c in (c_deuda, c_pago, c_saldo):
+                for c in (c_deuda, c_pago, c_ajuste, c_saldo):
                     cell = ws.cell(row=row, column=c, value="—")
                     cell.fill = _fill("F3F4F6")
                     cell.font = Font(color=_argb("9CA3AF"), italic=True, size=10)
                     cell.alignment = Alignment(horizontal="center", vertical="center")
                 continue
 
-            deuda = float(del_mes["CARGO"].fillna(0).sum() + del_mes["AJUSTE"].fillna(0).sum())
+            # DEUDA es solo lo que se le CARGÓ. El AJUSTE va aparte: fundirlo acá
+            # (como se hacía hasta el 06/08/2026) hacía que una corrección se
+            # leyera como deuda nueva — P-6 parecía tener un cargo de 58 en julio
+            # que en realidad era el ajuste que tapaba un desfase de mes.
+            deuda = float(del_mes["CARGO"].fillna(0).sum())
             pago = float(del_mes["PAGO"].fillna(0).sum())
+            ajustes = del_mes[del_mes["TIPO_EVENTO"].astype(str).str.strip() == "AJUSTE"]
+            ajuste = float(ajustes["AJUSTE"].fillna(0).sum())
+            sin_motivo = (not ajustes.empty and
+                          ajustes["MOTIVO"].fillna("").astype(str).str.strip().eq("").all())
             saldo = float(del_mes.sort_values("TIMESTAMP").iloc[-1]["SALDO"])
 
             _dat(ws.cell(row=row, column=c_deuda), deuda, "FFFBEB", pal[2], align="right")
             _dat(ws.cell(row=row, column=c_pago), pago, "FFFBEB", pal[3], align="right")
+            cell_a = ws.cell(row=row, column=c_ajuste)
+            if ajustes.empty:
+                cell_a.value = "·"
+                cell_a.fill = _fill("FFFBEB")
+                cell_a.font = Font(color=_argb("D1D5DB"), size=10)
+                cell_a.alignment = Alignment(horizontal="center", vertical="center")
+            else:
+                cell_a.value = ajuste
+                cell_a.fill = _fill("FFFBEB")
+                cell_a.font = Font(color=_argb(_AJUSTE_SIN_MOTIVO_FG if sin_motivo else pal[6]),
+                                   bold=True, size=10)
+                cell_a.alignment = Alignment(horizontal="right", vertical="center")
+                cell_a.number_format = "+#,##0.00;-#,##0.00;0.00"
             cell_s = ws.cell(row=row, column=c_saldo)
             cell_s.value = saldo
             cell_s.fill = _fill(pal[4])
@@ -738,6 +816,8 @@ def generar_vista(ruta: Path | None = None) -> Path:
         df_c = df[df["CONCEPTO"].astype(str).str.strip().str.upper() == concepto]
         _escribir_hoja_vista(ws, concepto, df_c, nombres)
 
+    _escribir_hoja_ajustes(wb.create_sheet("Ajustes"), df, nombres)
+
     if _MEDIDOR_SALDO_PATH_VISTA.exists():
         df_conv = df[df["CONCEPTO"].astype(str).str.strip().str.upper() == "CONVENIO"]
         _escribir_hoja_historial_convenio(wb.create_sheet("CONVENIO_HISTORIAL"), nombres, df_conv)
@@ -784,6 +864,10 @@ def exportar_vista_pdf(ruta_xlsx: Path | None = None, ruta_pdf: Path | None = No
     doc = fitz.open()
 
     for hoja in xl.sheet_names:
+        # "Ajustes" no va al PDF: es texto largo (MOTIVO) y este PDF es la hoja de
+        # saldos para la mesa de cobro, no el expediente de correcciones.
+        if hoja == "Ajustes":
+            continue
         grupos = pd.read_excel(xl, hoja, header=None, nrows=2).iloc[0].ffill().fillna("")
         df = pd.read_excel(xl, hoja, header=1)
         cols = df.columns.tolist()

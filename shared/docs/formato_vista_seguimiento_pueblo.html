@@ -64,7 +64,7 @@
   <span>Owner:</span> shared/seguimiento_repo.py (función <code>generar_vista()</code>) &nbsp;|&nbsp;
   <span>Ruta:</span> shared/vista_seguimiento_pueblo.xlsx &nbsp;|&nbsp;
   <span>Lifecycle:</span> se regenera completa en cada corrida — nunca se edita a mano, es un pivot del registro &nbsp;|&nbsp;
-  <span>Hojas:</span> 4 (MULTA, ACUERDOS, CONVENIO + CONVENIO_HISTORIAL) &nbsp;|&nbsp;
+  <span>Hojas:</span> 5 (MULTA, ACUERDOS, CONVENIO + Ajustes + CONVENIO_HISTORIAL) &nbsp;|&nbsp;
   <span>Fuente:</span> <code>shared/seguimiento_pueblo.xlsx</code> (el registro de eventos, nunca este archivo) · CONVENIO_HISTORIAL lee <code>shared/genesis_inputs/medidor_saldo.xlsx</code>
 </div>
 
@@ -72,7 +72,7 @@
 
 <div class="logica-box">
   <b>Esta es la hoja que el usuario abre y lee</b> — el "estado de cuenta" con el formato que ya usaba a
-  mano: una fila por predio, y un <b>bloque de 3 columnas por mes</b> (DEUDA · PAGO · SALDO) que se agrega
+  mano: una fila por predio, y un <b>bloque de 4 columnas por mes</b> (DEUDA · PAGO · AJUSTE · SALDO) que se agrega
   a la derecha cada mes nuevo. Un vistazo responde "¿cuánto debía, cuánto pagó, cuánto debe ahora, mes a
   mes?" sin reconstruir nada.<br><br>
   <b>Se regenera entera cada vez que se pide</b> — nunca es la fuente de verdad, nunca se edita directo.
@@ -99,9 +99,9 @@
 <table>
   <tr>
     <th class="sec s-predio" colspan="3">Predio</th>
-    <th class="sec s-mes1" colspan="3">2026-07</th>
-    <th class="sec s-mes2" colspan="3">2026-08</th>
-    <th class="sec s-mes3" colspan="3">2026-09</th>
+    <th class="sec s-mes1" colspan="4">2026-07</th>
+    <th class="sec s-mes2" colspan="4">2026-08</th>
+    <th class="sec s-mes3" colspan="4">2026-09</th>
   </tr>
   <tr>
     <th class="col s-predio">MZ</th>
@@ -109,12 +109,15 @@
     <th class="col s-predio">NOMBRE</th>
     <th class="col s-mes1">DEUDA</th>
     <th class="col s-mes1">PAGO</th>
+    <th class="col s-mes1">AJUSTE</th>
     <th class="col s-mes1">SALDO</th>
     <th class="col s-mes2">DEUDA</th>
     <th class="col s-mes2">PAGO</th>
+    <th class="col s-mes2">AJUSTE</th>
     <th class="col s-mes2">SALDO</th>
     <th class="col s-mes3">DEUDA</th>
     <th class="col s-mes3">PAGO</th>
+    <th class="col s-mes3">AJUSTE</th>
     <th class="col s-mes3">SALDO</th>
   </tr>
   <!-- Esteban Reyes, A-6: nace en julio con 900, paga 100 en julio, 79 en agosto, nada en septiembre -->
@@ -124,13 +127,15 @@
     <td class="dat d-predio">Esteban Reyes</td>
     <td class="dat d-mes1-deuda">900.00</td>
     <td class="dat d-mes1-pago">100.00</td>
+    <td class="dat d-mes1-ajuste" style="text-align:center; color:#D1D5DB;">·</td>
     <td class="dat d-mes1-saldo">800.00</td>
     <td class="dat d-mes2-deuda">0.00</td>
     <td class="dat d-mes2-pago">79.00</td>
-    <td class="dat d-mes2-saldo">721.00</td>
+    <td class="dat d-mes2-ajuste" style="text-align:right; font-weight:bold; color:#5B21B6;">-21.00</td>
+    <td class="dat d-mes2-saldo">700.00</td>
     <td class="dat d-mes3-deuda">0.00</td>
-    <td class="dat d-mes3-pago">0.00</td>
-    <td class="dat d-mes3-saldo">721.00</td>
+    <td class="dat d-mes3-ajuste" style="text-align:center; color:#D1D5DB;">·</td>
+    <td class="dat d-mes3-saldo">700.00</td>
   </tr>
   <!-- C-14: no tenía convenio en julio/agosto, nace recién en septiembre (predio nuevo en el registro) -->
   <tr>
@@ -139,12 +144,14 @@
     <td class="dat d-predio">Rosa Guerrero</td>
     <td class="dat d-mes1-deuda" style="text-align:center; font-style:italic; color:#9CA3AF;">—</td>
     <td class="dat d-mes1-pago" style="text-align:center; font-style:italic; color:#9CA3AF;">—</td>
+    <td class="dat d-mes1-ajuste" style="text-align:center; font-style:italic; color:#9CA3AF;">—</td>
     <td class="dat d-mes1-saldo" style="text-align:center; font-style:italic; color:#9CA3AF; background:#F3F4F6;">—</td>
     <td class="dat d-mes2-deuda" style="text-align:center; font-style:italic; color:#9CA3AF;">—</td>
     <td class="dat d-mes2-pago" style="text-align:center; font-style:italic; color:#9CA3AF;">—</td>
+    <td class="dat d-mes2-ajuste" style="text-align:center; font-style:italic; color:#9CA3AF;">—</td>
     <td class="dat d-mes2-saldo" style="text-align:center; font-style:italic; color:#9CA3AF; background:#F3F4F6;">—</td>
     <td class="dat d-mes3-deuda">350.00</td>
-    <td class="dat d-mes3-pago">0.00</td>
+    <td class="dat d-mes3-ajuste" style="text-align:center; color:#D1D5DB;">·</td>
     <td class="dat d-mes3-saldo">350.00</td>
   </tr>
 </table>
@@ -152,12 +159,66 @@
 <h2>Reglas</h2>
 <table>
   <tr style="background:#f9fafb;"><th style="padding:4px 10px;">Regla</th><th style="padding:4px 10px;">Detalle</th></tr>
-  <tr><td>Columnas de mes</td><td>Un bloque de 3 (DEUDA·PAGO·SALDO) por cada <code>MES</code> que exista en el registro para ese CONCEPTO — orden cronológico, izquierda a derecha</td></tr>
-  <tr><td>DEUDA del bloque</td><td><code>Σ CARGO + Σ AJUSTE</code> de ese predio/concepto/mes (mismo cálculo que <code>estado_cuenta()</code> en el repo)</td></tr>
-  <tr><td>PAGO del bloque</td><td><code>Σ PAGO</code> de ese predio/concepto/mes</td></tr>
+  <tr><td>Columnas de mes</td><td>Un bloque de 4 (DEUDA·PAGO·AJUSTE·SALDO) por cada <code>MES</code> que exista en el registro para ese CONCEPTO — orden cronológico, izquierda a derecha</td></tr>
+  <tr><td>DEUDA del bloque</td><td><code>Σ CARGO</code> de ese predio/concepto/mes — <b>solo lo que se le cargó</b>. Hasta el 06/08/2026 era <code>Σ CARGO + Σ AJUSTE</code> y eso hacía que una corrección se leyera como deuda nueva (P-6 mostraba «DEUDA 58» en julio cuando era el ajuste que tapaba un desfase de mes)</td></tr>
+  <tr><td>PAGO del bloque</td><td><code>Σ PAGO</code> de ese predio/concepto/mes. <b>Ojo:</b> no todo PAGO es plata — las filas con <code>CLASE=DECLARACION_SECRETARIA</code> saldan deuda pero no entraron a caja. Para plata usar <code>CLASES_SUMAN_CAJA</code>, no esta columna</td></tr>
+  <tr><td>AJUSTE del bloque</td><td><code>Σ AJUSTE</code> de ese predio/concepto/mes · <code>·</code> gris si no hubo ninguno · <b>rojo</b> si ninguno de los ajustes de esa celda tiene MOTIVO (el ledger no sabe por qué se movió ese saldo) · el porqué está en la hoja <code>Ajustes</code></td></tr>
   <tr><td>SALDO del bloque</td><td>saldo acumulado al cierre de ese mes — igual a <code>get_saldo(mz, lt, concepto, mes)</code></td></tr>
-  <tr><td>Predio sin evento ese mes</td><td>las 3 celdas quedan en <code>—</code> gris itálico (no `0.00` — distingue "no debía nada" de "no había nacido aún en el registro")</td></tr>
+  <tr><td>Predio sin evento ese mes</td><td>las 4 celdas quedan en <code>—</code> gris itálico (no `0.00` — distingue "no debía nada" de "no había nacido aún en el registro")</td></tr>
   <tr><td>Filas</td><td>todo predio que tenga al menos 1 evento para ese CONCEPTO en el registro — ordenado por MZ, LT</td></tr>
+</table>
+
+<h2>Hoja: Ajustes (por qué se movió cada saldo)</h2>
+
+<div class="logica-box">
+  <b>Una fila por cada evento AJUSTE del registro, con su MOTIVO completo.</b> La grilla de las hojas por
+  concepto muestra <i>cuánto</i> se ajustó; esta hoja dice <i>por qué</i>. No se puede poner el motivo en la
+  grilla: hay celdas (predio·concepto·mes) con hasta 3 ajustes distintos, y comprimirlos en una celda
+  perdería justamente lo que hace falta leer.<br><br>
+  Las filas <b>sin MOTIVO</b> salen en rojo con el texto <code>(SIN MOTIVO — falta explicar por qué se movió
+  este saldo)</code>. Son trabajo pendiente, no un estado normal: un AJUSTE es la única corrección que el
+  ledger acepta y su única justificación es lo que escribió quien lo hizo.
+</div>
+
+<table>
+  <tr>
+    <th class="sec s-predio" colspan="3">Predio</th>
+    <th class="sec s-mes1" colspan="3">Ajuste</th>
+    <th class="sec s-predio" colspan="3">Por qué</th>
+  </tr>
+  <tr>
+    <th class="col s-predio">MZ</th>
+    <th class="col s-predio">LT</th>
+    <th class="col s-predio">NOMBRE</th>
+    <th class="col s-mes1">CONCEPTO</th>
+    <th class="col s-mes1">MES</th>
+    <th class="col s-mes1">AJUSTE</th>
+    <th class="col s-predio">CLASE</th>
+    <th class="col s-predio">SOURCE</th>
+    <th class="col s-predio">MOTIVO</th>
+  </tr>
+  <tr>
+    <td class="dat d-predio">F</td>
+    <td class="dat d-predio">12</td>
+    <td class="dat d-predio">Dario Octavio Vega Julca</td>
+    <td class="dat d-mes1-deuda" style="text-align:center;">MULTA</td>
+    <td class="dat d-mes1-deuda" style="text-align:center;">2026-06</td>
+    <td class="dat d-mes1-ajuste" style="text-align:right; font-weight:bold; color:#5B21B6;">+50.00</td>
+    <td class="dat d-predio" style="text-align:left;">REASIGNACION</td>
+    <td class="dat d-predio" style="text-align:left;">manual</td>
+    <td class="dat d-predio" style="text-align:left;">asistió a faena, la directiva no lo registró: la multa no corresponde</td>
+  </tr>
+  <tr>
+    <td class="dat d-predio">Q</td>
+    <td class="dat d-predio">4</td>
+    <td class="dat d-predio">—</td>
+    <td class="dat d-mes1-deuda" style="text-align:center;">ACUERDOS</td>
+    <td class="dat d-mes1-deuda" style="text-align:center;">2026-07</td>
+    <td class="dat d-mes1-ajuste" style="text-align:right; font-weight:bold; color:#B91C1C;">-75.00</td>
+    <td class="dat d-predio" style="text-align:left; color:#B91C1C; font-weight:bold;">SIN_CLASIFICAR</td>
+    <td class="dat d-predio" style="text-align:left;">manual</td>
+    <td class="dat d-predio" style="text-align:left; color:#B91C1C; font-weight:bold;">(SIN MOTIVO — falta explicar por qué se movió este saldo)</td>
+  </tr>
 </table>
 
 <h2>Hoja: CONVENIO_HISTORIAL (consulta — historia completa del medidor, cuota por cuota)</h2>
@@ -224,6 +285,7 @@
   <tr><td>LT</td><td>7</td><td>texto</td></tr>
   <tr><td>NOMBRE</td><td>26</td><td>texto</td></tr>
   <tr><td>DEUDA / PAGO / SALDO (por mes)</td><td>11</td><td>número #,##0.00 · o "—" gris itálico si no hubo evento ese mes</td></tr>
+  <tr><td>AJUSTE (por mes)</td><td>11</td><td>número con signo <code>+#,##0.00;-#,##0.00;0.00</code> · <code>·</code> gris si no hubo ajuste · rojo si ninguno tiene MOTIVO</td></tr>
 </table>
 
 <h2>Freeze panes</h2>
@@ -232,7 +294,7 @@
 <hr style="margin-top:30px; border-color:#e5e7eb;">
 <p style="font-size:11px; color:#9ca3af;">
   Contrato visual aprobado — <code>seguimiento_repo.generar_vista()</code> debe replicar exactamente este formato.<br>
-  Owner: shared/seguimiento_repo.py &nbsp;|&nbsp; Versión: 1.2 (CONVENIO_HISTORIAL con pagos del ledger + saldo actual) &nbsp;|&nbsp; Fecha: 04/07/2026
+  Owner: shared/seguimiento_repo.py &nbsp;|&nbsp; Versión: 1.3 (AJUSTE sale de DEUDA y pasa a columna propia + hoja Ajustes con el MOTIVO) &nbsp;|&nbsp; Fecha: 06/08/2026
 </p>
 
 </body>
