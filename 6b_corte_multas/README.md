@@ -1,5 +1,38 @@
 # 6b_corte_multas
 
+## ⚠ DISEÑO POST-LEDGER — este módulo SE DISUELVE en `6_corte` (Fase 1 cerrada · 2026-07-16)
+
+Bajo el ledger, cortar por multa **no es un módulo aparte**: es el **trigger `multa`** del motor
+de corte unificado en `6_corte`. Hace las mismas 4 operaciones que el corte de agua (riesgo =
+query de saldo · `dominio/politica_corte.evaluar()` · emite CARGO `corte_reconexion` ·
+`registro_cortes[MOTIVO]` · seguimiento @ T2), difiriendo solo en 4 parámetros de la config del
+tenant. Por el lente de escala (política ≠ arquitectura, ver `docs/lente_escala.md`) un módulo
+espejo no se justifica.
+
+**El spec destino manda vive en `6_corte/README.md`** (tabla de triggers). Este archivo describe
+el código **pre-ledger que aún corre** como módulo separado.
+
+Lo que 6b aporta al motor como trigger `multa`:
+```
+CONCEPTOS_SALDO       [MULTA, ACUERDOS]   (CONVENIO excluido)
+UMBRAL_CENTIMOS       0                   → elegibilidad = saldo>0
+PROTEGE_PAGO_PARCIAL  false               (salvado exige saldar todo)
+PENALIDAD_CENTIMOS    {inicial:2000, escala:4000}   (20→40; el S/40 directo fue solo junio 2026)
+SALVADO_CUANDO        saldo_conceptos_cero          (saldar TODA la deuda, no solo la penalidad)
+EN_REVISION protege   sí
+```
+El `DEUDA_MULTA = (MULTA+ACUERDOS) − max(0, pagado−cargo_agua)` de abajo **desaparece**: ese
+"excedente de agua se abona a multa" es la cascada P1→P3→P4 — lo deriva el motor. El writer
+`+40 a PENALIDAD_MULTA` pasa a ser el CARGO `corte_reconexion`.
+
+**Estado:** módulo separado en el código pre-ledger (sigue corriendo single-motivo). La fusión
+en `6_corte` es trabajo de Fase 2 (código). Ver `docs/RETOMAR_dominio_saldo_unico_2026-07-13.md`
+§11 y `docs/arquitectura_pipeline_futuro.html`.
+
+---
+
+## [PRE-LEDGER] Módulo espejo de `6_corte` — código actual
+
 Módulo espejo de `6_corte` que ejecuta el ciclo de penalidad por deuda de multas y acuerdos de asamblea: genera la lista de usuarios con deuda pendiente en multas, aplica la penalidad de S/40, gestiona la ventana de gracia de 2 días y clasifica el resultado final en salvados, cortados físicamente y arrastre al mes siguiente.
 
 > **Hermano de 6_corte.** Misma arquitectura de 3 scripts + phase gate. La diferencia está en la condición de elegibilidad (multa real, no saldo de consumo), la columna que se penaliza (`PENALIDAD_MULTA`) y la condición de salvado (saldar toda la deuda, no solo S/20).

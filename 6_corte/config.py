@@ -21,6 +21,11 @@ PAGOS_EFECTIVO_PATH = ROOT.parent / "4_pagos" / "efectivo" / "outputs" / "pagos_
 # Reclamos (4b_reclamos/outputs) — generar_lista.py cruza por (MZ, LT)
 RECLAMOS_DIR = ROOT.parent / "4b_reclamos" / "outputs"
 
+# Predios sin servicio de agua (1_lecturas/sin_servicio) — nunca son elegibles
+# para corte, no tienen agua que cortar.
+LISTA_SIN_SERVICIO_PATH = (ROOT.parent / "1_lecturas" / "sin_servicio" / "inputs"
+                           / "lista_sin_servicio.xlsx")
+
 def reclamos_path(mes_ano: str) -> Path:
     """reclamos_YYYY-MM.xlsx — lista cruda de reclamos del mes."""
     return RECLAMOS_DIR / f"reclamos_{mes_ano}.xlsx"

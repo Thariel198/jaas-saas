@@ -149,6 +149,25 @@ def _detectar_mes_ano(df: pd.DataFrame) -> str:
     return valores[0]
 
 
+# ── CANDADO — Día 0 ya penalizado ────────────────────────────────────────────
+def _ciclo_ya_penalizado(mes_ano: str, log: logging.Logger) -> bool:
+    """True si aplicar_penalidad.py ya cargó penalidad para este ciclo.
+
+    lista_corte.xlsx es el snapshot Día 0 que seguimiento.py necesita intacto
+    para comparar contra planilla_cobrado del Día 2 (resta algebraica del pago
+    en ventana). Regenerarlo después de que Día 0 ya ocurrió destruye ese ancla
+    sin aviso ni backup — pasó el 2026-07-26 (snapshot del 22/07 perdido,
+    reconstruido a mano desde una copia vieja + audit + reclamos)."""
+    p = config.AUDIT_PENALIDAD_PATH
+    if not p.exists():
+        return False
+    df = pd.read_excel(p, header=1, dtype=str).fillna("")
+    df.columns = [str(c).strip().upper() for c in df.columns]
+    if "MES_ANO" not in df.columns:
+        return False
+    return bool((df["MES_ANO"].astype(str).str.strip() == mes_ano).any())
+
+
 # ── VALIDACIÓN DE INPUTS ─────────────────────────────────────────────────────
 def _validar_input(log: logging.Logger) -> tuple[pd.DataFrame, str]:
     if not config.PLANILLA_COBRADO_PATH.exists():
@@ -265,6 +284,25 @@ def _cargar_cortados_activos(log: logging.Logger) -> set[tuple[str, str]]:
     return excluidos
 
 
+def _cargar_sin_servicio_activos(log: logging.Logger) -> set[tuple[str, str]]:
+    """Retorna set (MZ, LT) de predios sin servicio de agua (1_lecturas/sin_servicio).
+    Nunca son elegibles para corte — no tienen agua que cortar (ej. SIN_MEDIDOR)."""
+    p = config.LISTA_SIN_SERVICIO_PATH
+    if not p.exists():
+        log.info("lista_sin_servicio.xlsx no existe — 0 excluidos por sin-servicio")
+        return set()
+    df = pd.read_excel(p, header=1, dtype=str).fillna("")
+    df.columns = [str(c).strip().upper() for c in df.columns]
+    excluidos: set[tuple[str, str]] = set()
+    for _, f in df.iterrows():
+        mz = _norm_mz(f.get("MZ"))
+        lt = _norm_lt(f.get("LT"))
+        if mz and lt:
+            excluidos.add((mz, lt))
+    log.info(f"lista_sin_servicio.xlsx · {len(excluidos)} excluidos (sin servicio de agua)")
+    return excluidos
+
+
 # ── CARGA DE PAGOS EFECTIVO (MESA + COBRADOR) ────────────────────────────────
 def _cargar_pagos_map(log: logging.Logger) -> dict:
     """Retorna {(mz, lt): (mesa, cobrador)} desde pagos_efectivo.xlsx."""
@@ -316,8 +354,9 @@ def _filtrar_corte(df: pd.DataFrame, mapa_reclamos: dict,
         if (mz, lt) in cortados_activos:
             n_excluidos_cortados += 1
             continue
-        saldo   = round(_float(f.get("SALDO")), 2)
-        mes_ant = round(_float(f.get("MES_ANTERIOR")), 2)
+        saldo      = round(_float(f.get("SALDO")), 2)
+        mes_ant    = round(_float(f.get("MES_ANTERIOR")), 2)
+        monto_yape = round(_float(f.get("MONTO_YAPE")), 2)
 
         if saldo > config.TOL:
             n_saldos_no_cero += 1
@@ -335,11 +374,13 @@ def _filtrar_corte(df: pd.DataFrame, mapa_reclamos: dict,
             ejecutar       = "NO"
             motivo         = "Reclamo en revision"
             n_bloqueados_reclamo += 1
-        elif mesa:
-            # Pagó algo en mesa este mes → se salva del corte, deuda se acumula
+        elif mesa or monto_yape > config.TOL:
+            # Pagó algo este mes (efectivo/mesa O yape) → se salva del corte,
+            # la deuda se acumula. La regla vale para cualquier canal: es injusto
+            # cortar a quien pagó parcial por yape y no a quien pagó parcial en mesa.
             estado_reclamo = "SIN_RECLAMO"
             ejecutar       = "NO"
-            motivo         = "Pago parcial en mesa"
+            motivo         = "Pago parcial en mesa" if mesa else "Pago parcial por yape"
             n_bloqueados_pago += 1
         else:
             estado_reclamo = "SIN_RECLAMO"
@@ -365,7 +406,7 @@ def _filtrar_corte(df: pd.DataFrame, mapa_reclamos: dict,
                     "escribio la columna SALDO correctamente")
 
     n_no = n_bloqueados_reclamo + n_bloqueados_pago
-    log.info(f"Excluidos (servicio ya cortado): {n_excluidos_cortados}")
+    log.info(f"Excluidos (servicio ya cortado o sin servicio de agua): {n_excluidos_cortados}")
     log.info(f"Elegibles · {len(corte)} usuarios "
              f"(SALDO>{config.TOL:.3f} AND MES_ANTERIOR>={config.MES_ANTERIOR_MIN})")
     log.info(f"  · EJECUTAR_CORTE = SI · {len(corte) - n_no}")
@@ -445,8 +486,21 @@ def main() -> None:
     print("\n[1/5] Validando inputs...")
     df, mes_ano = _validar_input(log)
 
+    if _ciclo_ya_penalizado(mes_ano, log) and "--force" not in sys.argv:
+        log.error(f"Ciclo {mes_ano} ya tiene penalidad aplicada (audit_penalidad.xlsx)")
+        raise SystemExit(
+            f"\nBLOQUEADO: el ciclo {mes_ano} ya pasó por aplicar_penalidad.py.\n"
+            f"lista_corte.xlsx es el snapshot Dia 0 — seguimiento.py lo necesita "
+            f"intacto para comparar contra planilla_cobrado del Dia 2.\n"
+            f"Regenerarlo ahora destruye ese snapshot sin poder recuperarlo despues.\n"
+            f"Si estas seguro (ej. seguimiento.py ya corrio y este es un ciclo nuevo "
+            f"que aun no pasa por aplicar_penalidad), corre con --force.\n"
+        )
+
     print("\n[2/5] Cargando cortados activos (registro_cortes.xlsx)...")
     cortados_activos = _cargar_cortados_activos(log)
+    sin_servicio_activos = _cargar_sin_servicio_activos(log)
+    excluidos_previos = cortados_activos | sin_servicio_activos
 
     print(f"\n[3/5] Cargando reclamos del ciclo {mes_ano}...")
     mapa_reclamos = _cargar_reclamos_map(mes_ano, log)
@@ -455,7 +509,7 @@ def main() -> None:
     pagos_map = _cargar_pagos_map(log)
 
     print("\n[5/5] Filtrando elegibles y exportando lista_corte.xlsx...")
-    corte = _filtrar_corte(df, mapa_reclamos, cortados_activos, pagos_map, log)
+    corte = _filtrar_corte(df, mapa_reclamos, excluidos_previos, pagos_map, log)
     _exportar(corte)
     log.info(f"{config.LISTA_CORTE_PATH.name} -> {len(corte)} usuarios")
 
@@ -471,6 +525,8 @@ def main() -> None:
     print(f"     NO por reclamo: {n_no_reclamo} · NO por pago parcial: {n_no_pago}")
     if cortados_activos:
         print(f"  -> {len(cortados_activos)} excluidos (CORTADO o EXONERADO en registro_cortes)")
+    if sin_servicio_activos:
+        print(f"  -> {len(sin_servicio_activos)} excluidos (sin servicio de agua, lista_sin_servicio)")
     if n_si > 0:
         print(f"\n  Siguiente paso: python aplicar_penalidad.py")
         print(f"    (solo procesa filas con EJECUTAR_CORTE = SI)")
