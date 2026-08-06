@@ -39,7 +39,7 @@ _COLUMNAS = [
 
 _EJEMPLO = ["María García", "10/06/2026", "A", "8C", "38.00", "20.00", "18.00", "03/06/2026", "", "", ""]
 
-CATEGORIAS_VALIDAS = ["reclamo", "compromiso", "otros"]
+CATEGORIAS_VALIDAS = ["reclamo", "compromiso", "exoneracion", "otros"]
 
 _HOJAS = ["registro_1", "registro_2", "registro_3"]
 
@@ -104,7 +104,7 @@ def agregar_dropdown_categoria(ws) -> None:
         allow_blank=True,
         showErrorMessage=True,
         errorTitle="CATEGORIA inválida",
-        error="Valores: reclamo, compromiso, otros — o dejar vacío (pago normal).",
+        error="Valores: reclamo, compromiso, exoneracion, otros — o dejar vacío (pago normal).",
     )
     ws.add_data_validation(dv)
     col = get_column_letter(len(_COLUMNAS))

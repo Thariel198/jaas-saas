@@ -136,6 +136,39 @@ _tmp_huerfano = ATOM_TMP.with_name(f".{ATOM_TMP.stem}.tmp{ATOM_TMP.suffix}")
 if _tmp_huerfano.exists():
     _tmp_huerfano.unlink()
 ATOM_TMP.unlink()
+
+# ── 12) Idempotencia de la reconciliación por delta (bug "contador tuerto") ──
+# Reproduce _reconciliar_pagos_pueblo de 5_cobranza: con pagado_fresco fijo, correr
+# la reconciliación N veces debe emitir el ajuste UNA sola vez. Antes del fix el
+# contador miraba solo PAGO y re-emitía el AJUSTE en cada corrida (K-2 → -50).
+import time as _time
+
+def _reconciliar(mz, lt, concepto, mes, pagado_fresco, source="5_cobranza"):
+    """Copia mínima del delta de 5_cobranza con el contador corregido (suma AJUSTE propio)."""
+    ya = (repo.pago_registrado(mz, lt, concepto, mes)
+          + repo.ajuste_reconciliado(mz, lt, concepto, mes, source))
+    delta = round(pagado_fresco - ya, 2)
+    ref = f"recon_{mes}_{concepto}_{mz}_{lt}_{_time.time()}_{delta}"
+    if delta > 0.001:
+        repo.registrar_pago(mz, lt, concepto, mes, delta, source=source, audit_ref=ref)
+    elif delta < -0.001:
+        repo.registrar_ajuste(mz, lt, concepto, mes, delta, source=source, audit_ref=ref,
+                              motivo="corrección: pago recalculado a la baja")
+
+# Escenario: deuda 50, un PAGO sobre-registrado de 25, y el cálculo correcto dice pago=0.
+# La propiedad bajo prueba es IDEMPOTENCIA: correr N veces == correr 1 vez.
+repo.registrar_cargo("Z", "1", "CONVENIO", "2026-07", 50, source="test", audit_ref="idem_cargo")
+repo.registrar_pago("Z", "1", "CONVENIO", "2026-07", 25, source="5_cobranza", audit_ref="idem_pago_excedido")
+_reconciliar("Z", "1", "CONVENIO", "2026-07", pagado_fresco=0)      # corrida 1
+saldo_run1 = repo.get_saldo("Z", "1", "CONVENIO", "2026-07")
+ajuste_run1 = repo.ajuste_reconciliado("Z", "1", "CONVENIO", "2026-07", "5_cobranza")
+for _ in range(2):                                                   # corridas 2 y 3, nada cambió
+    _reconciliar("Z", "1", "CONVENIO", "2026-07", pagado_fresco=0)
+saldo_run3 = repo.get_saldo("Z", "1", "CONVENIO", "2026-07")
+ajuste_run3 = repo.ajuste_reconciliado("Z", "1", "CONVENIO", "2026-07", "5_cobranza")
+check(saldo_run3 == saldo_run1, f"idempotencia: saldo estable entre corrida 1 y 3 ({saldo_run1} vs {saldo_run3})")
+check(ajuste_run3 == ajuste_run1, f"idempotencia: el ajuste no se re-dispara ({ajuste_run1} vs {ajuste_run3})")
+
 print()
 if errores:
     print(f"FALLARON {len(errores)}:")

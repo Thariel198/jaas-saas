@@ -45,6 +45,18 @@ _FALTA = (
 _MESES_ES = ("enero", "febrero", "marzo", "abril", "mayo", "junio",
              "julio", "agosto", "setiembre", "octubre", "noviembre", "diciembre")
 
+# Desde este ciclo, todo output de 4_pagos/5_cobranza nace con el periodo en el
+# nombre. Los ciclos anteriores quedaron con el nombre pelado y hay que poder
+# seguir leyéndolos (re-correr julio, reportes históricos), pero SOLO ellos: si
+# el nombre pelado se aceptara también para el ciclo actual, un mes sin generar
+# leería el archivo del mes pasado — el incidente del 06/07/2026 exacto.
+PRIMER_CICLO_CON_PERIODO = "2026-08"
+
+
+def acepta_legacy(mes_ano: str) -> bool:
+    """True para los ciclos generados antes de la convención con periodo."""
+    return validar(mes_ano) < PRIMER_CICLO_CON_PERIODO
+
 
 def resolver(carpeta: Path, base: str, mes_ano: str, ext: str = ".xlsx",
              legacy_sin_periodo: bool = False) -> Path:

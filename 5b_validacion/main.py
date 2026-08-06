@@ -22,13 +22,27 @@ SHARED     = ROOT.parent / "shared"
 
 CRUDO_DIR         = SHARED / "reporte_mes_crudo"
 ESTADO_CICLO_PATH = SHARED / "reporte_acumulado_procesado" / "estado_ciclo.json"
-YAPE_PATH        = MOD04_YAPE / "pagos_yape_tepago.xlsx"
-YAPE_RET_PATH    = MOD04_YAPE / "pagos_yape_retorno.xlsx"
-YAPE_DEV_PATH    = MOD04_YAPE / "pagos_yape_devolucion.xlsx"
+# Los outputs de pagos llevan el ciclo en el nombre desde 2026-08; para los
+# ciclos anteriores se acepta el nombre pelado (ver shared/ciclo.py).
+import ciclo as ciclo_activo  # noqa: E402
+
+_MES_CICLO = ciclo_activo.activo(default=None, path=SHARED / "ciclo_activo.json")
+
+
+def _pago_path(carpeta, base: str):
+    if _MES_CICLO is None:
+        return carpeta / f"{base}.xlsx"
+    return ciclo_activo.resolver(carpeta, base, _MES_CICLO,
+                                 legacy_sin_periodo=ciclo_activo.acepta_legacy(_MES_CICLO))
+
+
+YAPE_PATH        = _pago_path(MOD04_YAPE, "pagos_yape_tepago")
+YAPE_RET_PATH    = _pago_path(MOD04_YAPE, "pagos_yape_retorno")
+YAPE_DEV_PATH    = _pago_path(MOD04_YAPE, "pagos_yape_devolucion")
 TANQUE_PATH      = MOD04_PAGOS / "aportes_tanque.xlsx"  # canal-agnóstico (DE10) — reemplaza pagos_yape_tanque.xlsx
 BLANCOS_MES_PATH = MOD04_YAPE / "blancos_mes.xlsx"
-PAGASTE_PATH     = MOD04_YAPE / "pagos_yape_pagaste.xlsx"
-EFEC_PATH        = MOD04_EFEC / "pagos_efectivo.xlsx"
+PAGASTE_PATH     = _pago_path(MOD04_YAPE, "pagos_yape_pagaste")
+EFEC_PATH        = _pago_path(MOD04_EFEC, "pagos_efectivo")
 COB_PATH         = MOD04 / "outputs" / "planilla_cobrado.xlsx"
 
 TOLERANCIA = 0.005  # diferencia máxima considerada OK
