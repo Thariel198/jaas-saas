@@ -51,6 +51,8 @@ No es un módulo del pipeline sino el **substrato** permanente que `7_cierre` al
 
 **Reglas puras — `libro_mayor/dominio/`** (Fase 1, spec cerrado 2026-07-14): taxonomía de conceptos, cascada de prioridad P1-P6, política de corte, saldo derivado e identidad determinista, extraídas del código real como funciones **puras** y **tenant-agnósticas** (montos en `int` de céntimos, sin `TOL`, cero I/O). Las importan los dos agregados; el motor de aplicación las invoca. Detalle de las 6 firmas en `docs/RETOMAR_dominio_saldo_unico_2026-07-13.md`.
 
+**Carga inicial — `backfill_ledger/`** (tarea de desarrollo, Fase 2 no empezada): el ledger nace vacío, pero desde oct-2025 ya hay meses de pagos, deudas y cortes en el sistema viejo (`4_pagos`, `seguimiento_pueblo`). `backfill_ledger/` es la **tarea puntual** de sembrar esa historia — no es un módulo del pipeline mensual ni parte del diseño de `libro_mayor/`. Ver `backfill_ledger/README.md`.
+
 **Extracto de cuenta + arquitectura de render** (decisión ⑫, 2026-07-13): el historial multi-mes de un predio ("esto pasó en tu cuenta") es una tool de solo lectura de `estado_cuenta` (`extracto_predio`), distinta de la boleta ("esto debes ahora", 1 mes). **Ningún módulo de negocio imprime**: cada dueño de datos arma sus filas (`3_boletas` la boleta, `estado_cuenta` el extracto) y un servicio **stateless** `render(plantilla, filas) → PDF` las convierte. `3_boletas` **no se renombra** a `3_impresor` — se queda como dueño de datos de la boleta.
 
 ---

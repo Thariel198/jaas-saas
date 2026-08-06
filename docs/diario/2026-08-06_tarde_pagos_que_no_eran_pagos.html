@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2026-08-06 tarde — Pagos que no eran pagos</title>
+<link rel="stylesheet" href="../cuaderno/estilo.css">
+</head>
+<body>
+
+<header class="hero">
+  <p class="crumbs"><a href="index.html">← Diario</a> · 2026-08-06 tarde · continúa la <a href="2026-08-06_limpieza_del_ledger.html">limpieza del ledger</a> de la mañana</p>
+  <p class="eyebrow"><span class="dot"></span>tres cosas figuraban como pago sin serlo: un aporte al tanque, una declaración sin verificar, y un ajuste disfrazado de deuda</p>
+  <h1>Pagos que no eran pagos</h1>
+  <p class="lede">
+    La mañana cerró el ruido que el sistema se había hecho a sí mismo. La tarde encontró el problema de
+    fondo: <b>varias cosas distintas se estaban leyendo como «pago»</b>. Un vecino volvió a deber S/75 que
+    el sistema le había perdonado con plata ajena, un reporte nuevo señaló un culpable inocente, y la vista
+    que todos abren resultó estar mintiendo por diseño desde el principio.
+  </p>
+  <div class="meta-row">
+    <span>fecha: 2026-08-06 (tarde)</span>
+    <span>estado: ejecutado y pusheado · 11 commits</span>
+    <span>1491 → 1486 eventos · vista de 3 a 5 columnas por mes</span>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="modulo-laminas">
+
+    <article class="lamina" style="border:1px solid var(--line);border-radius:8px;background:var(--paper-raised);padding:26px 22px 30px;margin-bottom:18px">
+
+      <div class="sub-h"><span class="qn">①</span> primero: el árbol de git, que llevaba un mes sin tocarse</div>
+      <p>Antes de trabajar había 186 entradas sin commitear — <b>backlog acumulado desde el 10/07</b>, no de
+        la sesión anterior. El paso ① del RETOMAR de la mañana ya estaba hecho en <code>111acfc</code>.</p>
+      <div class="ascii">7 commits temáticos, no uno grande
+
+   e46c84b  libro_mayor/ + obligaciones/ + backfill_ledger/ + docs de diseño
+            (y se retira 7b_historial_pagos, que libro_mayor/caja reemplaza)
+   6a5bd49  6_corte · candado Día 0 + exclusión por lista_sin_servicio
+   5e3bdf3  4_pagos · arqueo de efectivo + entregas de cobrador
+   33684e3  4b_reclamos · 6 reportes nuevos + insumos de la secretaria
+   615fb24  3_boletas · recibos MP- + boletas corregidas del 01/08
+   a027f9e  shared · overlays del ledger (abonos_rezagados, reasignaciones, …)
+   6889499  docs · 22 RETOMAR + PARA_AGOSTO.md + .gitignore/.idea
+
+   fuera de git: 3_boletas/corregidos/ (53 .docx regenerables, ~50 MB)
+                 reporte_*.pdf de la raíz · .idea/</div>
+      <div class="keypoint"><b>Un error propio, detectado después:</b> en <code>a027f9e</code> se commiteó
+        <code>vista_seguimiento_pueblo.xlsx</code> <b>vacía</b>. El diff decía <code>58063 → 16377
+        bytes</code> y no se miró. Lo encontró el usuario abriendo el archivo.</div>
+
+      <div class="sub-h"><span class="qn">②</span> la vista estaba vacía — y no se había perdido nada</div>
+      <div class="ascii">seguimiento_pueblo.xlsx   1491 eventos · INTACTO      ← la fuente
+        │ generar_vista()
+        ▼
+vista_seguimiento_pueblo.xlsx
+   MULTA · ACUERDOS · CONVENIO     2 filas (solo cabecera) · 0 columnas de mes
+   CONVENIO_HISTORIAL            160 filas ✔ (sale de medidor_saldo.xlsx, no del ledger)
+
+   ledger escrito   09:36:14
+   vista generada   09:52:54   ← 16 min DESPUÉS, con el ledger ya completo</div>
+      <p>El caso <code>predios = [] · meses = []</code> de <code>_escribir_hoja_vista</code>. <b>La causa
+        no se pudo determinar</b>: hoy el mismo archivo devuelve los 1491 eventos sin problema. Como la
+        vista es derivada, se regeneró y volvió idéntica a como estaba (325 · 280 · 155). El incidente
+        importa por otra cosa: <b>nadie se habría enterado si el usuario no abre el Excel</b>.</p>
+
+      <div class="sub-h"><span class="qn">③</span> el reporte de corrección de bug</div>
+      <p>Para cerrar los 38 <code>AJUSTE</code> sin <code>MOTIVO</code> uno por uno hacía falta ver, al lado
+        de cada uno, <b>contra qué pago real se contrasta</b>. Reusa las piezas del reporte de re-imputación:
+        paleta de <code>reporte_convenio_multa</code>, historial de <code>reporte_historico</code> y —la
+        clave— <code>referencias_pago</code>, que lee el crudo de yape/efectivo.</p>
+      <div class="ascii">pág 1     resumen por FORMA del bug
+pág 2     los 23 predio-concepto afectados
+pág 3..   1 por predio: historial · REFERENCIA DE PAGO · sus ajustes
+
+   1. PAGO FANTASMA    el ledger acredita más plata de la que entró
+   2. CARGO ANULADO    nunca hubo pago, el ajuste borra la deuda
+   3. PAGO PARCIAL     pagó menos y el resto se ajustó
+   4. PAR QUE NETEA 0  entra y sale, no mueve nada
+   5. GENESIS TARDIA   el cargo se imputó a un mes ya cerrado
+   6. DEUDA REABIERTA  el ajuste dejó saldo vivo</div>
+      <div class="keypoint"><b>La referencia de pago es prueba independiente del ledger.</b> Si el ledger
+        dice dos pagos y el crudo del banco muestra uno, el otro es fantasma. Eso es lo que hizo posible
+        todo lo que sigue.</div>
+
+      <div class="sub-h"><span class="qn">④</span> A-4: el aporte al tanque le pagó el convenio</div>
+      <p>La secretaria ya había reclamado que A-4 debía. <b>Se le ignoró</b> porque el sistema mostraba un
+        pago de S/236 que parecía cubrir todo. Los 236 eran <b>dos yapes distintos</b>:</p>
+      <div class="ascii">07/07 07:20:05  S/136  "mz A lt 4"          → deuda normal
+07/07 07:20:55  S/100  "mz A lt 4 tanque"   → aporte al tanque, NO es deuda
+        │
+        └─ motor_matching identificó el lote pero dejó CONCEPTO vacío
+           ⇒ los 236 entraron juntos y la cascada se los comió como deuda
+
+   con los 136 REALES:  136 − 31 (agua) − 30 (multa) − 75 (acuerdos) = 0
+                        CONVENIO 75 queda sin pagar
+
+   planilla_cobrado   SALDO 75 · PARCIAL   ✔ SIEMPRE tuvo razón
+   ledger             CONVENIO 0           ✗ nunca se enteró</div>
+      <p><code>5_cobranza:1422</code> ya lee <code>aportes_tanque_manuales.xlsx</code> y descuenta el aporte
+        antes de la cascada; el ledger se había escrito antes de esa segregación. Se borraron las 5 filas
+        posteriores a la siembra —2 <code>PAGO</code> fantasma y los 3 <code>AJUSTE</code> con que el
+        sistema se corregía a sí mismo— y quedó el <code>CARGO</code>: saldo 75, la verdad.</p>
+      <div class="keypoint"><b>Consecuencia que no es técnica:</b> A-4 vuelve a deber S/75. Si ya se le dijo
+        que estaba al día, hay que avisarle. Y los otros 3 predios del mismo lote de tanque —C-15, P-7,
+        P-17— <b>no se verificaron en el ledger</b>: dan 0 en la planilla, pero A-4 también daba 0 y estaba
+        mal.</div>
+
+      <div class="sub-h"><span class="qn">⑤</span> F-12: el reporte señaló a un inocente</div>
+      <p>Figuraba como el segundo PAGO FANTASMA, con S/25 de exceso. <b>No era ninguna de las dos cosas</b>,
+        y la causa de sus ajustes estaba escrita completa desde el 31/07 — en
+        <code>reasignaciones_aplicacion.xlsx</code>, no en el ledger.</p>
+      <div class="ascii">EXCESO = Σ PAGO − Σ CARGO = 100 − 75 = 25
+                          │      └─ ignora el AJUSTE −25 de la fórmula → cargo real 50
+                          └───────── ignora el AJUSTE +50 que anula un pago → pago real 50
+         real: 50 − 50 = 0
+
+   las 2 filas PAGO 50 NO son 2 pagos: la primera salió con MES=2026-06,
+   se neutralizó con un AJUSTE +50 ("correccion-etiqueta") y se re-emitió
+   con MES=2026-07 (audit_ref "-v2"). Neto: un pago.</div>
+      <div class="keypoint"><b>La lección del falso positivo:</b> una fórmula mecánica sobre columnas
+        agregadas —<code>pago &gt; cargo</code>— acierta por casualidad cuando no hay ajustes que compensen
+        (A-4) y difama cuando los hay (F-12). El <code>EXCESO</code> del reporte hay que arreglarlo para que
+        reste la columna AJUSTE. Quedó pendiente.</div>
+
+      <div class="sub-h"><span class="qn">⑥</span> P-6 y el saldo corriente que nadie recalcula</div>
+      <p>El usuario preguntó por qué P-6 mostraba «una génesis de 58 en julio» además de la de junio.
+        <b>No había dos deudas: había una, y la vista la duplicaba visualmente.</b> Investigarlo destapó un
+        defecto real de <code>_saldo_previo</code>.</p>
+      <div class="ascii">30/07 11:47  CARGO   58  mes 06  saldo  58   ← génesis tardía, a un mes YA cerrado
+30/07 11:55  PAGO    58  mes 07  saldo −58   ← pagó, pero el saldo se va a negativo
+30/07 14:04  AJUSTE +58  mes 07  saldo   0   ← parche manual para volver a 0
+
+   _saldo_previo ordena ["MES","TIMESTAMP"] y toma la última fila:
+      MES 2026-06 · CARGO 58 · saldo  58 · ts 11:47
+      MES 2026-07 · AJUSTE   · saldo   0 · ts 27/07   ← gana al ordenar por MES
+   ⇒ saldo_previo = 0 → 0 − 58 = −58</div>
+      <div class="keypoint"><b>El patrón:</b> una génesis tardía escribe un CARGO en un mes pasado, pero las
+        filas ya escritas en meses posteriores conservan su <code>SALDO</code> viejo — nadie las recalcula.
+        La deuda retroactiva queda invisible para el saldo corriente. P-6 llegó a 0 por un parche manual,
+        no porque el ledger lo calculara.</div>
+
+      <div class="sub-h"><span class="qn">⑦</span> la vista mentía por diseño, y el usuario lo vio</div>
+      <p>Con P-6 y F-12 sobre la mesa, el usuario propuso separar el ajuste del pago en la vista. <b>Tenía
+        razón, y el problema era más viejo que los dos casos.</b></p>
+      <div class="ascii">// seguimiento_repo.py:612 — desde siempre
+deuda = del_mes["CARGO"].sum() + del_mes["AJUSTE"].sum()
+
+   el AJUSTE se disolvía dentro de "DEUDA" y desaparecía como concepto
+        ↓
+   P-6 mostraba "julio DEUDA 58"  → era el ajuste
+   F-12 recibió un exceso de 25   → por la misma razón</div>
+      <div class="keypoint"><b>Dónde iba el arreglo, y dónde no.</b> El ledger <i>ya</i> tenía las columnas
+        separadas (<code>CARGO · PAGO · AJUSTE · CLASE · MOTIVO</code>). Agregar columnas ahí habría roto el
+        escritor único. La que colapsaba era la vista.</div>
+
+      <div class="sub-h"><span class="qn">⑧</span> PAGO no significa plata — el segundo corte</div>
+      <p>El usuario propuso además <i>«que el reporte tome solo la columna PAGO, que son los pagos
+        reales»</i>. Ahí apareció el matiz que hizo la solución más sólida: <b>no todos los PAGO son
+        plata</b>.</p>
+      <div class="ascii">Σ PAGO del ledger                      S/ 21,025.50
+Σ PAGO que realmente entró a caja      S/ 19,768.50
+                                       ─────────────
+                                       S/  1,257.00   ← 28 DECLARACION_SECRETARIA
+
+   TIPO_EVENTO   cómo se MUEVE el saldo    CARGO sube · PAGO baja · AJUSTE corrige
+   CLASE         qué HECHO fue             el eje que decide si es caja</div>
+      <p>Y la pregunta del usuario —<i>«¿cómo lo vas a partir si no estaba ya partido en el ledger?»</i>—
+        tiene una respuesta que vale anotar: <b>en el ledger está partido como atributo, no como
+        columna</b>. Al pivotear a formato ancho la celda agrega varios eventos y no puede llevar el
+        atributo adentro, así que la dimensión se vuelve eje. Es la operación normal de un pivot.</p>
+      <div class="ascii">570 celdas (predio·concepto·mes) con PAGO
+   542  solo caja        23  solo declarado        5  MIXTAS
+
+   B1-12 · S-1 · S-5 · S-8 · T-7 (julio)     antes      ahora
+      S-1  ACUERDOS julio                    PAGO 75    PAGO 20 · DECLARADO 55
+      T-7  ACUERDOS julio                    PAGO 50    PAGO  5 · DECLARADO 45</div>
+
+      <div class="sub-h"><span class="qn">⑨</span> cómo quedó la vista</div>
+      <div class="ascii">antes   │ DEUDA │ PAGO │ SALDO │                        DEUDA = CARGO + AJUSTE
+ahora   │ DEUDA │ PAGO │ DECLARADO │ AJUSTE │ SALDO │   DEUDA = CARGO
+
+   DEUDA      solo lo que se le CARGÓ
+   PAGO       CLASE ∈ CLASES_SUMAN_CAJA  → sumable para un balance
+   DECLARADO  CLASE fuera                → ámbar: salda deuda, no es caja
+   AJUSTE     ROJO si ninguno de esa celda tiene MOTIVO
+   ·          gris = no pasó nada    ≠    0 = pasó algo que se cancela solo
+
+hoja "Ajustes" nueva     151 filas · una por evento, con CLASE, SOURCE y MOTIVO
+                         completo. No entra en la grilla: hay celdas con hasta 3
+                         ajustes distintos. Las 35 sin motivo salen en rojo.
+                         Fuera del PDF, que es la hoja de saldos para la mesa.</div>
+      <p>El corte sale del mismo <code>CLASES_SUMAN_CAJA</code> que usa el resto del código, así que una
+        clase nueva se acomoda sola. Se alineó también <code>estado_cuenta()</code> —sin consumidores en
+        producción— para que dos pivots del mismo ledger no digan cosas distintas.</p>
+
+      <div class="sub-h"><span class="qn">⑩</span> qué quedó vivo</div>
+      <div class="ascii">PENDIENTE INMEDIATO
+   35 AJUSTE sin MOTIVO en 22 predio-concepto (eran 38 en 23; A-4 se cerró)
+      los 3 de F-12 están listos: el texto ya existe en reasignaciones_aplicacion
+   el EXCESO del reporte de bug ignora la columna AJUSTE → falsos positivos
+
+AVISAR
+   A-4 debe S/75 de convenio (si ya se le dijo que estaba al día)
+   E-12 · L-5 · F-4 · W-5: boleta del 01/08 corta, en septiembre sube sin consumo
+
+NO VERIFICADO
+   C-15 · P-7 · P-17 — mismo lote de tanque que A-4, sin revisar en el ledger
+   planilla_cobrado de F-12 dice 50 y el ledger dice 0 (el redirect corrió en el
+     repo de Julio y se sincronizó a mano) — la boleta salió bien igual
+
+SIGUE VIVO, DE LA MAÑANA
+   5_cobranza/main.py:2320 — el AJUSTE de reversión con el signo invertido
+   motor_matching no marca CONCEPTO=tanque cuando el mensaje lo dice y el lote
+     matchea directo ⇒ el bug de A-4 se repite el mes que viene
+   validar_vista_boletas.py FALLA con 70 desajustes de MULTA — ya fallaba antes,
+     es el desfase DATA_boletas (agosto) vs ledger (cierre junio)</div>
+
+    </article>
+
+  </div>
+
+  <footer class="closing">
+    sesión del 2026-08-06 tarde · commits <code>e46c84b</code> → <code>f790109</code>, todo pusheado<br>
+    la mañana del mismo día está en <a href="2026-08-06_limpieza_del_ledger.html">El ledger solo lleva hechos del negocio</a>
+  </footer>
+</main>
+
+</body>
+</html>
