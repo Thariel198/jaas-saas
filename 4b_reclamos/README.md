@@ -4,7 +4,7 @@ Sub-módulo independiente que gestiona el ciclo de vida completo de los reclamos
 
 ## Qué hace
 
-1. **Detecta** reclamos en `pagos_efectivo.xlsx` (COMENTARIO contiene "reclamo", caso insensible).
+1. **Detecta** reclamos en `pagos_efectivo.xlsx` (COMENTARIO contiene "reclamo", caso insensible) **y** en `inputs/reclamos_manuales.xlsx` — reclamos que llegan por fuera del sistema (secretaria, verbal, WhatsApp), sin cobro asociado. Ambas fuentes se fusionan en un solo checklist.
 2. **Preserva** trabajo manual del supervisor en `reclamos_YYYY-MM.xlsx` entre re-corridas.
 3. **Arrastra** reclamos PENDIENTE/EN_REVISION del mes anterior cuando no tienen match en el mes actual.
 4. **Prepara correcciones**: `resolucion.py` cruza los reclamos clasificados con `DATA_boletas.xlsx` (vía repo) y genera `resolucion_reclamos_YYYY-MM.xlsx` con CAMPO y VALOR_ACTUAL auto-poblados.
@@ -30,7 +30,9 @@ Sub-módulo independiente que gestiona el ciclo de vida completo de los reclamos
 ├── resolucion.py                          # Cruza reclamos clasificados con DATA_boletas (vía repo)
 ├── aplicar_correcciones.py                # ★ Baja VALOR_A_CORREGIR a DATA_boletas vía repo
 ├── validacion_resolucion_correcciones.py  # Verifica RESUELTO → DATA_boletas coinciden
-├── inputs/                                # Vacío — lee de 4_pagos y vía repo
+├── inputs/
+│   └── reclamos_manuales.xlsx             # Writer único humano — reclamos que llegan por fuera
+│                                             (secretaria/WhatsApp/verbal), sin cobro asociado
 ├── outputs/
 │   ├── reclamos_YYYY-MM.xlsx              # Vista operacional mensual (PENDIENTE + EN_REVISION)
 │   ├── resolucion_reclamos_YYYY-MM.xlsx   # Hoja de corrección mensual (input doble: main + aplicar)
@@ -54,6 +56,7 @@ Sub-módulo independiente que gestiona el ciclo de vida completo de los reclamos
 | Recurso | Tipo | Quién lo gobierna |
 |---|---|---|
 | `pagos_efectivo.xlsx` | archivo (lectura) | `4_pagos/efectivo/main.py` |
+| `inputs/reclamos_manuales.xlsx` | archivo (lectura) | Writer único humano — nadie lo regenera |
 | `shared/data_boletas_repo` | módulo (API) | `shared/` — único acceso a `DATA_boletas.xlsx` |
 | `shared/utils_lote` | módulo (utilidad pura) | `shared/` — lee `correcciones_lote.xlsx` de 5_cobranza |
 
@@ -61,8 +64,36 @@ Sub-módulo independiente que gestiona el ciclo de vida completo de los reclamos
 - `repo.get_predio(mz, lt)` — lectura para `resolucion.py` y `validacion_*.py`
 - `repo.apply_correction(...)` — escritura para `aplicar_correcciones.py`
 
+## Resolución de reclamos de dinero → ledger (Fase 2)
+
+Un reclamo puede ser de **dos naturalezas**, y cada una tiene su destino:
+
+| Naturaleza del reclamo | Ejemplo | Dónde se corrige |
+|---|---|---|
+| **Datos del predio** | nombre mal escrito, lote equivocado | `DATA_boletas.xlsx` vía `shared/data_boletas_repo` (hoy) |
+| **Dinero / deuda** | "ya pagué mayo" (blanco), pago mal atribuido, me cobraron de más | `libro_mayor` — hechos al ledger (Fase 2) |
+
+Para los reclamos de **dinero**, 4b **no escribe la deuda ni la aplicación**. Al
+autorizar la resolución, invoca una tool del ledger (writer único intacto); el
+**motor de aplicación** de `libro_mayor/estado_cuenta` re-corre y deriva la
+aplicación que baja el saldo. Esto es la **decisión ⑨** del contrato del ledger
+(ver `libro_mayor/estado_cuenta/README.md`).
+
+| Reclamo resuelto | Tool que invoca 4b | Escribe en |
+|---|---|---|
+| Blanco reclamado (el pago sí es suyo) | `identificar_abono(abono_id, mz, lt, reclamo_id)` | caja (evento identificación) |
+| Pago mal atribuido (fue a otro predio) | `reasignar_abono(abono_id, mz, lt, reclamo_id)` | caja (re-identificación) |
+| Cargo incorrecto (le cobraron de más) | `registrar_ajuste(mz, lt, concepto, monto, reclamo_id)` | estado_cuenta (ajuste) |
+
+- Toda tool recibe `reclamo_id` → la aplicación queda linkeada al pago (`ABONO_ID`)
+  **y** al reclamo que la autorizó.
+- El descuento por blanco **deja de escribirse como columna `BLANCO`/`DEVOLUCION`
+  en la planilla** (esa vía se retira en Fase 2) — pasa a ser una aplicación
+  auditable en el ledger.
+
 ## Reglas clave
 
+- **Reclamos manuales (fuera del sistema):** `inputs/reclamos_manuales.xlsx` (FECHA · MZ · LT · RECLAMO · QUIEN_REPORTA, tipeado por la secretaria) no nace de un cobro, así que no tiene MESA/COBRADOR/MONTO reales. `_cargar_manuales()` los sintetiza (`MESA="MANUAL"`, `FECHA_COBRO=FECHA` del reporte) para producir el mismo shape que `_cargar_detectados()` y reusar sin cambios toda la preservación/arrastre/dedup/trazabilidad de abajo — la clave de identidad es la misma.
 - **Preservación manual:** clave `(MESA, MZ, LT, FECHA_COBRO)`. Nunca sobreescribir RECLAMO, TIPO_RECLAMO, RESOLUCION, ESTADO, FECHA_RESOLUCION que el supervisor llenó.
 - **Un solo archivo para el cierre:** ESTADO + FECHA_RESOLUCION + RESOLUCION se editan únicamente en `resolucion_reclamos.xlsx`. `main.py` los sincroniza hacia `reclamos.xlsx` automáticamente.
 - **Idempotencia:** re-correr sin cambios en inputs produce el mismo output. El repo además garantiza que aplicar el mismo `audit_ref` dos veces es un solo write efectivo.
@@ -126,6 +157,8 @@ Sub-módulo independiente que gestiona el ciclo de vida completo de los reclamos
 - No modifica `pagos_efectivo.xlsx` — solo lo lee.
 - No duplica datos de `3_boletas` ni de `4_pagos`.
 - No bypassea el audit log — toda mutación queda registrada por el repo.
+- **(Fase 2) No escribe aplicaciones ni el saldo del ledger** — invoca las tools
+  de `libro_mayor`; el motor deriva la aplicación. 4b nunca es writer del ledger.
 
 ## Señales de alerta
 

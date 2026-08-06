@@ -87,6 +87,7 @@
     <li>Cada re-corrida de <code>main.py</code> preserva las columnas manuales usando la clave <code>(MESA, MZ, LT, FECHA_COBRO)</code>.</li>
     <li>Cuando el supervisor cambia un estado a <code>RESUELTO</code> o <code>RECHAZADO</code>, la siguiente corrida mueve esa fila a <code>trazabilidad_reclamos.xlsx</code> y la elimina de esta vista.</li>
     <li>Reclamos sin match en el mes actual (arrastres) se incluyen con <code>MES_ANO_ORIGEN</code> del mes en que fueron detectados.</li>
+    <li><b>Dos fuentes de entrada:</b> <code>pagos_efectivo.xlsx</code> (auto-detectado, COMENTARIO="reclamo") y <code>inputs/reclamos_manuales.xlsx</code> (tipeado a mano — reclamos que llegan por fuera del sistema: secretaria, verbal, WhatsApp). Los manuales no tienen cobro real detrás, así que <code>MESA="MANUAL"</code> y <code>MONTO</code> queda vacío — el resto de la fila y su ciclo de vida es idéntico.</li>
   </ul>
 </div>
 
@@ -168,7 +169,33 @@
     <td class="dat d-manual">PENDIENTE</td>
     <td class="dat d-manual"></td>
   </tr>
+  <!-- Fila de reclamos_manuales.xlsx — llegó por fuera del sistema, sin cobro real -->
+  <tr>
+    <td class="dat d-predio">P</td>
+    <td class="dat d-predio">6</td>
+    <td class="dat d-cobro">MANUAL</td>
+    <td class="dat d-cobro">Secretaria</td>
+    <td class="dat d-cobro">15/07/2026</td>
+    <td class="dat d-cobro"></td>
+    <td class="dat d-mes">2026-07</td>
+    <td class="dat d-mes">2026-07</td>
+    <td class="dat d-tipo"></td>
+    <td class="dat d-manual-auto">Reclama que el S/300 es de instalación, no convenio medidor</td>
+    <td class="dat d-manual"></td>
+    <td class="dat d-manual">PENDIENTE</td>
+    <td class="dat d-manual"></td>
+  </tr>
 </table>
+
+<div class="nota">
+  <b>MESA="MANUAL" (fila de <code>reclamos_manuales.xlsx</code>):</b><br>
+  Reclamo que llegó por fuera del sistema (secretaria, verbal, WhatsApp) — no nace de un cobro, así que no hay <code>MESA</code>/<code>COBRADOR</code>/<code>MONTO</code> reales. Se sintetiza <code>MESA="MANUAL"</code> y <code>FECHA_COBRO</code> = fecha en que se reportó, para que reuse la misma clave de identidad y todo el ciclo de vida (preservación, arrastre, trazabilidad) sin cambios.
+</div>
+
+<div class="nota">
+  <b>ORIGEN (columna de auditoría — solo en <code>inputs/reclamos_manuales.xlsx</code>, agregada 2026-07-22):</b><br>
+  Registra de qué canal salió el reclamo: <code>WhatsApp - Jass 2027</code> (grupo), <code>WhatsApp - Yanet villanueva</code>, <code>WhatsApp - janetvillanuevaalegre</code>, o el valor libre que corresponda (ej. "Verbal", "Secretaria"). Junto con <code>QUIEN_REPORTA</code> (quién lo reportó) permite rastrear cada fila de vuelta a su conversación de origen. <b>Solo vive en <code>reclamos_manuales.xlsx</code></b> — <code>main.py</code> no la lee ni la propaga a <code>reclamos_YYYY-MM.xlsx</code> ni a <code>trazabilidad_reclamos.xlsx</code>; es metadata de auditoría del input, no parte del contrato de salida.
+</div>
 
 <div class="nota">
   <b>RECLAMO (columna ámbar-morada):</b><br>
@@ -260,7 +287,7 @@
 <hr style="margin-top:30px; border-color:#e5e7eb;">
 <p style="font-size:11px; color:#9ca3af;">
   Contrato visual aprobado — el código en main.py debe replicar exactamente este formato.<br>
-  Módulo: 4b_reclamos &nbsp;|&nbsp; Versión: 3.0 &nbsp;|&nbsp; Fecha: 14/06/2026
+  Módulo: 4b_reclamos &nbsp;|&nbsp; Versión: 3.1 (+ fuente reclamos_manuales.xlsx) &nbsp;|&nbsp; Fecha: 20/07/2026
 </p>
 
 </body>

@@ -50,8 +50,24 @@ OUTPUTS_DIR = BASE_DIR / "outputs"
 TRAZAB_DIR  = BASE_DIR / "trazabilidad"
 LOGS_DIR    = BASE_DIR / "logs"
 
-# Cruza límites de módulo: pagos_efectivo vive en 4_pagos/efectivo/outputs/
-PAGOS_EFECTIVO_PATH = BASE_DIR.parent / "4_pagos" / "efectivo" / "outputs" / "pagos_efectivo.xlsx"
+# Cruza límites de módulo: pagos_efectivo vive en 4_pagos/efectivo/outputs/ y
+# desde 2026-08 lleva el ciclo en el nombre (ver shared/ciclo.py).
+sys.path.insert(0, str(BASE_DIR.parent / "shared"))
+import ciclo as ciclo_activo  # noqa: E402
+
+_MES_CICLO = ciclo_activo.activo(default=None,
+                                 path=BASE_DIR.parent / "shared" / "ciclo_activo.json")
+_EFEC_DIR = BASE_DIR.parent / "4_pagos" / "efectivo" / "outputs"
+PAGOS_EFECTIVO_PATH = (
+    _EFEC_DIR / "pagos_efectivo.xlsx" if _MES_CICLO is None else
+    ciclo_activo.resolver(_EFEC_DIR, "pagos_efectivo", _MES_CICLO,
+                          legacy_sin_periodo=ciclo_activo.acepta_legacy(_MES_CICLO))
+)
+
+# Reclamos que llegan por fuera del sistema (secretaria, verbal, WhatsApp) — no
+# nacen de un cobro. Writer único humano (nadie lo regenera); se sintetiza
+# MESA/FECHA_COBRO para reusar la misma clave de identidad de _cargar_detectados.
+RECLAMOS_MANUALES_PATH = BASE_DIR / "inputs" / "reclamos_manuales.xlsx"
 
 # ── Paleta (del contrato docs/formato_reclamos.html y formato_trazabilidad_reclamos.html) ────
 
@@ -91,6 +107,9 @@ def _ruta_pagos() -> Path:
 
 def _ruta_resolucion(mes: str) -> Path:
     return OUTPUTS_DIR / f"resolucion_reclamos_{mes}.xlsx"
+
+def _ruta_manuales() -> Path:
+    return RECLAMOS_MANUALES_PATH
 
 def _backup_con_timestamp(mes: str) -> Path | None:
     """
@@ -224,6 +243,53 @@ def _cargar_detectados(mes: str) -> pd.DataFrame:
             det[c] = ""
 
     # Aplicar remapeos de correcciones_lote.xlsx (ej. B-21 → B-14)
+    correcciones = leer_correcciones_lote()
+    if correcciones:
+        for i, row in det.iterrows():
+            key = (_norm(str(row.get("MZ", ""))), _norm(str(row.get("LT", ""))))
+            if key in correcciones:
+                det.at[i, "MZ"] = correcciones[key][0]
+                det.at[i, "LT"] = correcciones[key][1]
+
+    return det[["MZ", "LT", "MESA", "COBRADOR", "FECHA_COBRO", "MONTO",
+                "MES_ANO_DETECTADO", "MES_ANO_ORIGEN",
+                "TIPO_RECLAMO", "RECLAMO", "RESOLUCION", "ESTADO", "FECHA_RESOLUCION"]].reset_index(drop=True)
+
+
+def _cargar_manuales(mes: str) -> pd.DataFrame:
+    """Reclamos tipeados a mano en inputs/reclamos_manuales.xlsx (llegan por fuera
+    del sistema: secretaria, verbal, WhatsApp) — no nacen de un cobro en
+    pagos_efectivo.xlsx, así que no tienen MESA/COBRADOR/MONTO reales. Se
+    sintetizan (MESA="MANUAL", FECHA_COBRO=FECHA del reporte) para producir el
+    mismo shape que _cargar_detectados y reusar sin cambios toda la maquinaria
+    de preservación/arrastre/dedup/trazabilidad (clave = MESA+MZ+LT+FECHA_COBRO).
+    """
+    p = _ruta_manuales()
+    if not p.exists():
+        return pd.DataFrame()
+
+    df = pd.read_excel(p, header=1, dtype=str)
+    df = df.fillna("")
+    df = df[df.get("MZ", "").astype(str).str.strip() != ""]
+    if df.empty:
+        return pd.DataFrame()
+
+    det = pd.DataFrame()
+    det["MZ"]                = df["MZ"]
+    det["LT"]                = df["LT"]
+    det["MESA"]               = "MANUAL"
+    det["COBRADOR"]           = df["QUIEN_REPORTA"] if "QUIEN_REPORTA" in df.columns else ""
+    det["FECHA_COBRO"]        = df["FECHA"] if "FECHA" in df.columns else ""
+    det["MONTO"]              = ""
+    det["MES_ANO_DETECTADO"]  = mes
+    det["MES_ANO_ORIGEN"]     = mes
+    det["TIPO_RECLAMO"]       = ""
+    det["RECLAMO"]            = df["RECLAMO"] if "RECLAMO" in df.columns else ""
+    det["RESOLUCION"]         = ""
+    det["ESTADO"]             = "PENDIENTE"
+    det["FECHA_RESOLUCION"]   = ""
+
+    # Aplicar remapeos de correcciones_lote.xlsx (igual que _cargar_detectados)
     correcciones = leer_correcciones_lote()
     if correcciones:
         for i, row in det.iterrows():
@@ -877,7 +943,10 @@ def main(mes: str) -> None:
     log.info(f"=== 4b_reclamos/main.py — mes {mes} ===")
 
     detectados = _cargar_detectados(mes)
-    log.info(f"Detectados en pagos_efectivo: {len(detectados)}")
+    manuales   = _cargar_manuales(mes)
+    log.info(f"Detectados en pagos_efectivo: {len(detectados)} · manuales (fuera del sistema): {len(manuales)}")
+    if not manuales.empty:
+        detectados = pd.concat([detectados, manuales], ignore_index=True) if not detectados.empty else manuales
 
     # Eventos ya procesados en ciclos anteriores: skip re-detección.
     # Si alguna sub-corrección sigue activa, vendrá por _cargar_arrastres desde
