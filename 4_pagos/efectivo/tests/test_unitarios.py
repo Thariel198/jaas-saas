@@ -196,8 +196,9 @@ def test_mes_de_datos():
 def test_leer_hoja_valida():
     p = TEST_ROOT / "mesa_1.xlsx"
     _crear_mesa(p, {"registro_1": [_fila_mesa("A", "8C", 38.0)]})
-    regs = efectivo.leer_hoja(p, "registro_1")
+    regs, blancos = efectivo.leer_hoja(p, "registro_1")
     assert len(regs) == 1, f"Esperaba 1 registro, llegaron {len(regs)}"
+    assert blancos == []
     r = regs[0]
     assert r["mz"]       == "A"
     assert r["lt"]       == "8C"
@@ -211,15 +212,19 @@ def test_leer_hoja_ignora_invalidos():
     p = TEST_ROOT / "mesa_1.xlsx"
     _crear_mesa(p, {
         "registro_1": [
-            _fila_mesa("A", "8C", 38.0),       # válido
-            _fila_mesa("",  "1",  20.0),       # MZ vacío
-            _fila_mesa("B", "",   20.0),       # LT vacío
-            _fila_mesa("C", "5",  0.0),        # monto_efec = 0 (todo Yape)
+            _fila_mesa("A", "8C", 38.0),            # válido
+            _fila_mesa("",  "1",  20.0),            # MZ vacío → blanco real
+            _fila_mesa("B", "",   20.0),            # LT vacío → blanco real
+            _fila_mesa("C", "5",  0.0),             # monto_efec = 0 (todo Yape)
+            _fila_mesa("BLANCO", "BLANCO", 25.0),   # cobrador tipeó "BLANCO" → blanco real
         ]
     })
-    regs = efectivo.leer_hoja(p, "registro_1")
+    regs, blancos = efectivo.leer_hoja(p, "registro_1")
     assert len(regs) == 1, f"Esperaba 1 válido, llegaron {len(regs)}: {regs}"
     assert regs[0]["mz"] == "A"
+    assert len(blancos) == 3, f"Esperaba 3 blancos (vacío o BLANCO tipeado, con plata), llegaron {len(blancos)}: {blancos}"
+    assert {b["monto"] for b in blancos} == {20.0, 25.0}
+    assert all(b["tipo"] == "EFECTIVO" for b in blancos)
     print("  OK test_leer_hoja_ignora_invalidos")
 
 

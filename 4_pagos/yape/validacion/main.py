@@ -1,4 +1,7 @@
 # =========================IMPORTS===========================
+import json
+import re
+import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -15,7 +18,15 @@ REPORTE_DIR   = SHARED_DIR / "reporte_mes_crudo"
 ACUMULADO_DIR = SHARED_DIR / "reporte_acumulado_procesado"
 OUTPUT_DIR    = BASE_DIR / "outputs"
 
-TEPAGO_FILE  = "pagos_yape_tepago.xlsx"
+# El output del motor lleva el ciclo en el nombre desde 2026-08; para los ciclos
+# anteriores se acepta el nombre pelado (ver shared/ciclo.py).
+sys.path.insert(0, str(SHARED_DIR))
+import ciclo as ciclo_activo  # noqa: E402
+
+_MES_CICLO   = ciclo_activo.activo(default=None, path=SHARED_DIR / "ciclo_activo.json")
+TEPAGO_FILE  = ("pagos_yape_tepago.xlsx" if _MES_CICLO is None else
+                ciclo_activo.resolver(MOTOR_DIR, "pagos_yape_tepago", _MES_CICLO,
+                                      legacy_sin_periodo=ciclo_activo.acepta_legacy(_MES_CICLO)).name)
 BLANCOS_FILE = "blancos_mes.xlsx"
 TIPO_PAGO    = "TE PAGÓ"
 TOLERANCIA   = 0.01
@@ -59,25 +70,67 @@ def parsear_fecha(val) -> str:
     return s
 
 # ========================CARGAR ANCLA======================
+def _ciclos_cerrados() -> set[str]:
+    """Lee estado_ciclo.json → set de 'AAAA-MM' con estado=CERRADO."""
+    p = ACUMULADO_DIR / "estado_ciclo.json"
+    if not p.exists():
+        return set()
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        return set()
+    return {k for k, v in data.items()
+            if isinstance(v, dict) and str(v.get("estado", "")).upper() == "CERRADO"}
+
+
 def cargar_ancla() -> datetime | None:
-    archivos = sorted(ACUMULADO_DIR.glob("*.xlsx"))
+    """
+    Misma regla que motor_matching/main.py::obtener_ancla() — ancla de corte =
+    fecha máxima del ÚLTIMO ciclo CERRADO (estado_ciclo.json), no el archivo más
+    reciente por orden alfabético (los legacy "reporte_..." empiezan con 'r' y
+    ordenaban después de "2026-06_procesado.xlsx", agarrando ancla vieja).
+    """
+    archivos = sorted(
+        p for p in ACUMULADO_DIR.glob("*_procesado.xlsx")
+        if not p.name.startswith("~$")
+    )
     if not archivos:
         print("  ⚠ Sin ancla — se incluirán todos los registros del banco")
         return None
-    archivo = archivos[-1]
+
+    _CICLO_RE = re.compile(r"^(\d{4})-(\d{2})_procesado\.xlsx$")
+    nuevos = [(m.group(1), m.group(2), p) for p in archivos
+              if (m := _CICLO_RE.match(p.name))]
+    if nuevos:
+        cerrados = _ciclos_cerrados()
+        candidatos = [n for n in nuevos if f"{n[0]}-{n[1]}" in cerrados]
+        if candidatos:
+            archivo = max(candidatos)[2]
+        else:
+            archivo = max(nuevos)[2]
+            print("  ⚠ Sin ciclo CERRADO en estado_ciclo.json — usando el _procesado más reciente")
+    else:
+        archivo = archivos[-1]     # era manual pura: solo legacy
     print(f"  Ancla desde: {archivo.name}")
     wb    = load_workbook(archivo, read_only=True, data_only=True)
-    ws    = wb.active
+    ws    = wb["TE_PAGÓ"] if "TE_PAGÓ" in wb.sheetnames else wb.active
     datos = list(ws.values)
     wb.close()
     if len(datos) < 2:
         return None
+    # Detectar cabecera doble (procesado) o simple (formato legado)
     headers = [str(h).strip().lower() if h else "" for h in datos[0]]
     col_f   = next((i for i, h in enumerate(headers) if "fecha" in h), None)
+    if col_f is None and len(datos) > 2:
+        headers     = [str(h).strip().lower() if h else "" for h in datos[1]]
+        col_f       = next((i for i, h in enumerate(headers) if "fecha" in h), None)
+        filas_datos = datos[2:]
+    else:
+        filas_datos = datos[1:]
     if col_f is None:
         return None
     fechas = []
-    for fila in datos[1:]:
+    for fila in filas_datos:
         if not fila or col_f >= len(fila):
             continue
         val = fila[col_f]

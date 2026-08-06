@@ -62,7 +62,7 @@ tr:last-child td{border-bottom:none}
     <div class="tab t2" onclick="show('amb',1)">Ambiguos</div>
     <div class="tab t3" onclick="show('mul',2)">Pagos_multiples</div>
     <div class="tab t4" onclick="show('mix',3)">Maestro_inexacto</div>
-    <div class="tab t5" onclick="show('com',4)">Pagos_comunitarios</div>
+    <div class="tab t5" onclick="show('seg',4)">Segregacion</div>
   </div>
 
   <!-- HOJA 1: SIN_IDENTIFICAR -->
@@ -412,23 +412,23 @@ tr:last-child td{border-bottom:none}
     </div>
   </div>
 
-  <!-- HOJA 5: PAGOS_COMUNITARIOS -->
-  <div id="com" class="sheet">
+  <!-- HOJA 5: SEGREGACION -->
+  <div id="seg" class="sheet">
     <div class="instruc">
-      Desglose de pagos comunitarios (dirigentes/cobradores que agregan el cobro de varios lotes en un solo movimiento) · una fila por lote · ORIGEN+FECHA identifica el depósito padre.<br>
-      <strong>ID_PADRE</strong> = ORIGEN|FECHA del registro padre en la hoja Ambiguos (ESTADO_REGISTRO=PADRE_SEGREGADO) · vincula cada hijo con su movimiento original para reconstruir la cadena en auditoría.<br>
+      Desglose de depósitos que cubren varios lotes en un solo movimiento — <strong>TIPO=comunitario</strong> (dirigente/cobrador agrega el cobro de varios vecinos) o <strong>TIPO=multiple</strong> (un mismo pagante cubre varios lotes o conceptos del mismo lote, ej. techado+campo) · misma mecánica de desglose para ambos, TIPO solo distingue el origen · una fila por lote · ORIGEN+FECHA identifica el depósito padre.<br>
+      <strong>ID_PADRE</strong> = ORIGEN|FECHA del registro padre en la hoja Sin_identificar/Ambiguos (ESTADO_REGISTRO=PADRE_SEGREGADO) · vincula cada hijo con su movimiento original para reconstruir la cadena en auditoría.<br>
       <strong>ESTADO_REGISTRO=HIJO_SEGREGADO</strong> — sí suma en caja · <strong>INCIDENCIA</strong> — la suma de los hijos de un padre no cuadra con el monto original (tolerancia S/0.05), requiere revisión manual.
     </div>
-    <div class="tab-excel" style="background:#FFF7ED;border:0.5px solid #FDBA74;border-bottom:none;color:#9A3412">Pagos_comunitarios</div>
-    <div class="tw"><table style="min-width:1200px">
+    <div class="tab-excel" style="background:#FFF7ED;border:0.5px solid #FDBA74;border-bottom:none;color:#9A3412">Segregacion</div>
+    <div class="tw"><table style="min-width:1250px">
       <thead>
         <tr>
           <th class="num"></th>
           <th class="th-quien gh" colspan="2">¿Quién es?</th>
           <th class="th-sep"></th>
-          <th class="th-banco gh" colspan="3">¿Qué hizo el banco?</th>
+          <th class="th-banco gh" colspan="4">¿Qué hizo el banco?</th>
           <th class="th-sep"></th>
-          <th class="th-res gh" colspan="7">Desglose comunitario</th>
+          <th class="th-res gh" colspan="7">Desglose por lote</th>
           <th class="th-sep"></th>
           <th class="th-cuan gh" colspan="2">¿Cuándo?</th>
         </tr>
@@ -436,7 +436,7 @@ tr:last-child td{border-bottom:none}
           <th class="num"></th>
           <th class="th-quien">USER_ID</th><th class="th-quien">NOMBRE</th>
           <th class="th-sep"></th>
-          <th class="th-banco">ORIGEN</th><th class="th-banco">FECHA</th><th class="th-banco">MONTO_TOTAL</th>
+          <th class="th-banco">ORIGEN</th><th class="th-banco">FECHA</th><th class="th-banco">MONTO_TOTAL</th><th class="th-banco">TIPO</th>
           <th class="th-sep"></th>
           <th class="th-res">MZ</th><th class="th-res">LOTE</th><th class="th-res">MONTO_PARCIAL</th><th class="th-res">MOTIVO</th><th class="th-res">CONCEPTO</th><th class="th-res">ESTADO_REGISTRO</th><th class="th-res">ID_PADRE</th>
           <th class="th-sep"></th>
@@ -448,7 +448,7 @@ tr:last-child td{border-bottom:none}
           <td class="num">1</td>
           <td class="td-quien">U0137</td><td class="td-nombre">DEYSI COSME GARCILAZO</td>
           <td class="td-sep"></td>
-          <td class="td-banco">Janet Vil*</td><td class="td-banco">07/06/2026 10:39:01</td><td class="td-monto">S/450.00</td>
+          <td class="td-banco">Janet Vil*</td><td class="td-banco">07/06/2026 10:39:01</td><td class="td-monto">S/450.00</td><td class="td-res-t">comunitario</td>
           <td class="td-sep"></td>
           <td class="td-res">G</td><td class="td-res">21A</td><td class="td-monto">S/350.00</td>
           <td class="td-res-t">1er cobro</td><td class="td-res-e">—</td>
@@ -461,7 +461,7 @@ tr:last-child td{border-bottom:none}
           <td class="num">2</td>
           <td class="td-quien">U0046</td><td class="td-nombre">JUAN RIOS BLAS</td>
           <td class="td-sep"></td>
-          <td class="td-banco">Janet Vil*</td><td class="td-banco">07/06/2026 10:39:01</td><td class="td-monto">S/450.00</td>
+          <td class="td-banco">Janet Vil*</td><td class="td-banco">07/06/2026 10:39:01</td><td class="td-monto">S/450.00</td><td class="td-res-t">comunitario</td>
           <td class="td-sep"></td>
           <td class="td-res">W</td><td class="td-res">19</td><td class="td-monto">S/100.00</td>
           <td class="td-res-t">cobro máximo</td><td class="td-res-e">—</td>
@@ -470,12 +470,38 @@ tr:last-child td{border-bottom:none}
           <td class="td-sep"></td>
           <td class="td-cuan">2</td><td class="td-cuan">30/06/2026 14:35</td>
         </tr>
+        <tr>
+          <td class="num">3</td>
+          <td class="td-quien">U0289</td><td class="td-nombre">FREDY JIMENEZ MONTALVO</td>
+          <td class="td-sep"></td>
+          <td class="td-banco">Fredy Jim*</td><td class="td-banco">27/06/2026 14:19:09</td><td class="td-monto">S/70.00</td><td class="td-res-t">multiple</td>
+          <td class="td-sep"></td>
+          <td class="td-res">T</td><td class="td-res">3</td><td class="td-monto">S/40.00</td>
+          <td class="td-res-t">mensaje "techado y campo"</td><td class="td-res-t" style="color:#085041">techado</td>
+          <td><span class="badge-estado badge-hijo">HIJO_SEGREGADO</span></td>
+          <td class="td-banco">FREDY JIM*|27/06/2026 14:19:09</td>
+          <td class="td-sep"></td>
+          <td class="td-cuan">2</td><td class="td-cuan">08/07/2026 09:10</td>
+        </tr>
+        <tr>
+          <td class="num">4</td>
+          <td class="td-quien">U0289</td><td class="td-nombre">FREDY JIMENEZ MONTALVO</td>
+          <td class="td-sep"></td>
+          <td class="td-banco">Fredy Jim*</td><td class="td-banco">27/06/2026 14:19:09</td><td class="td-monto">S/70.00</td><td class="td-res-t">multiple</td>
+          <td class="td-sep"></td>
+          <td class="td-res">T</td><td class="td-res">3</td><td class="td-monto">S/30.00</td>
+          <td class="td-res-t">mensaje "techado y campo"</td><td class="td-res-t" style="color:#085041">campo</td>
+          <td><span class="badge-estado badge-hijo">HIJO_SEGREGADO</span></td>
+          <td class="td-banco">FREDY JIM*|27/06/2026 14:19:09</td>
+          <td class="td-sep"></td>
+          <td class="td-cuan">2</td><td class="td-cuan">08/07/2026 09:10</td>
+        </tr>
       </tbody>
     </table></div>
     <div class="legend">
       <div class="leg"><div class="ld" style="background:#FAF5FF;border:0.5px solid #C4B5FD"></div>¿Quién es?</div>
       <div class="leg"><div class="ld" style="background:#F0F8FF;border:0.5px solid #AED6F1"></div>banco</div>
-      <div class="leg"><div class="ld" style="background:#F0FFF8;border:0.5px solid #9FE1CB"></div>desglose comunitario</div>
+      <div class="leg"><div class="ld" style="background:#F0FFF8;border:0.5px solid #9FE1CB"></div>desglose por lote</div>
       <div class="leg"><span class="badge-estado badge-hijo">HIJO_SEGREGADO</span> suma en caja</div>
       <div class="leg"><span class="badge-estado badge-incidencia">INCIDENCIA</span> hijos no cuadran con el padre</div>
     </div>

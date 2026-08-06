@@ -21,7 +21,26 @@ INPUTS_DIR  = BASE_DIR / "inputs"
 OUTPUTS_DIR = BASE_DIR / "outputs"
 TRAZAB_DIR  = BASE_DIR / "trazabilidad"
 DISC_FILE   = OUTPUTS_DIR / "discrepancias.xlsx"
-OUTPUT_FILE = OUTPUTS_DIR / "pagos_efectivo.xlsx"
+SHARED_DIR  = BASE_DIR.parent.parent / "shared"
+USUARIOS_ID_FILE = SHARED_DIR / "usuarios_id.xlsx"
+
+# El output lleva el ciclo en el nombre (pagos_efectivo_YYYY-MM.xlsx). Sin eso,
+# el archivo del mes pasado sobrevive a la copia de carpeta y se ve idéntico a
+# uno recién generado: el 06/07/2026 5_cobranza cobró julio con los pagos de
+# junio y sembró 15 pagos fantasma. Si no hay ciclo declarado (shared/ciclo.py,
+# lo escribe 1_lecturas) se mantiene el nombre viejo, para no romper una corrida
+# suelta en un repo que todavía no lo tiene.
+sys.path.insert(0, str(SHARED_DIR))
+import ciclo as ciclo_activo  # noqa: E402
+
+_MES_CICLO  = ciclo_activo.activo(default=None, path=SHARED_DIR / "ciclo_activo.json")
+OUTPUT_FILE = OUTPUTS_DIR / (f"pagos_efectivo_{_MES_CICLO}.xlsx" if _MES_CICLO
+                             else "pagos_efectivo.xlsx")
+
+# Escritor de blancos_mes: mismo formato que usa yape (solo el ciclo actual,
+# se sobreescribe cada corrida — sin acumulado cruzado entre canales).
+sys.path.insert(0, str(BASE_DIR.parent / "yape" / "motor_matching"))
+from exportar_motor import exportar_blancos_mes  # noqa: E402
 
 HOJAS_VALIDAS = ["registro_1", "registro_2", "registro_3"]
 
@@ -40,17 +59,19 @@ PE = {
     "meta": ("F3E8FF", "5B21B6", "FAF5FF"),   # CICLO_CORRECCION (trazabilidad)
 }
 
-_CONCEPTO_BG  = {"tanque": "FFF7ED", "honorario": "F5F3FF", "gasto": "ECFDF5", "comunitario": "FEF9E7"}
-_CONCEPTO_TXT = {"tanque": "9A3412", "honorario": "5B21B6", "gasto": "065F46", "comunitario": "7D6608"}
+_CONCEPTO_BG  = {"tanque": "FFF7ED", "honorario": "F5F3FF", "gasto": "ECFDF5", "comunitario": "FEF9E7", "deuda_directiva": "EBF5FB"}
+_CONCEPTO_TXT = {"tanque": "9A3412", "honorario": "5B21B6", "gasto": "065F46", "comunitario": "7D6608", "deuda_directiva": "1A5276"}
 
 # discrepancias — secciones
 DC = {
+    "quien": ("F4ECF7", "5B21B6", "FAF5FF"),  # ID, NOMBRE — mismo violeta que motor_matching
     "id":    ("EBF5FB", "1A5276", "F4FAFF"),  # MZ, LT
     "mesa":  ("FEF9E7", "7D6608", "FFFDF5"),  # MESA
     "disc":  ("FEF2F2", "991B1B", "FFF5F5"),  # COBRADOR_X, MONTO_X
     "cobro": ("E9F7EF", "1E5C3A", "F4FBF7"),  # MESA, COBRADOR, MONTO, FECHA (hoja pago_multi_mesa)
     "res":   ("ECFDF5", "065F46", "F0FFF8"),  # RESOLUCION, MONTO_CORRECTO
 }
+DC_QUIEN_VACIO = "9CA3AF"   # txt ID/NOMBRE cuando no hay match en usuarios_id.xlsx
 DC_RES_LLENO  = "D1FAE5"   # bg RESOLUCION cuando tiene valor
 DC_MONTO_DISC = "B91C1C"   # txt montos discrepantes (más saturado)
 
@@ -124,6 +145,42 @@ def _to_datetime(val):
         except ValueError:
             pass
     return s
+
+
+_cache_usuarios_id = None
+
+def _cargar_usuarios_id() -> dict:
+    """Cache (MZ,LT) -> (USER_ID, NOMBRE) desde shared/usuarios_id.xlsx.
+    Mismo mecanismo que buscar_uid() en motor_matching (yape)."""
+    global _cache_usuarios_id
+    if _cache_usuarios_id is not None:
+        return _cache_usuarios_id
+    mapa = {}
+    if USUARIOS_ID_FILE.exists():
+        wb = load_workbook(USUARIOS_ID_FILE, read_only=True, data_only=True)
+        ws = wb.active
+        rows = list(ws.iter_rows(values_only=True))
+        wb.close()
+        if len(rows) >= 2:
+            headers = {str(h).strip().upper(): i for i, h in enumerate(rows[0]) if h}
+            for fila in rows[1:]:
+                if not fila:
+                    continue
+                def _get(col):
+                    i = headers.get(col)
+                    return str(fila[i]).strip() if i is not None and i < len(fila) and fila[i] else ""
+                uid, nom = _get("USER_ID"), _get("NOMBRE")
+                for mz_c, lt_c in (("MZ", "LOTE"), ("MZ2", "LOTE2")):
+                    mz, lt = _get(mz_c).upper(), _get(lt_c)
+                    if uid and mz and lt:
+                        mapa[(mz, lt)] = (uid, nom)
+    _cache_usuarios_id = mapa
+    return mapa
+
+
+def buscar_quien(mz: str, lt: str) -> tuple[str, str]:
+    """(USER_ID, NOMBRE) para un predio, o ("","") si no está registrado todavía."""
+    return _cargar_usuarios_id().get((_norm(mz), _norm(lt)), ("", ""))
 
 
 def _leer_hoja_traz(path: Path, hoja: str) -> list:
@@ -322,23 +379,24 @@ def _es_reclamo(categoria: str, comentario: str) -> bool:
     return "reclamo" in comentario.lower()
 
 
-def leer_hoja(path: Path, hoja: str) -> list:
-    """Lee una hoja de mesa_N.xlsx. Devuelve lista de registros válidos."""
+def leer_hoja(path: Path, hoja: str) -> tuple:
+    """Lee una hoja de mesa_N.xlsx. Devuelve (registros válidos, blancos reales)."""
     wb = load_workbook(path, read_only=True, data_only=True)
     if hoja not in wb.sheetnames:
         wb.close()
-        return []
+        return [], []
     ws = wb[hoja]
     filas = list(ws.values)
     wb.close()
 
     if len(filas) < 4:   # secciones + columnas + ejemplo + al menos 1 dato
-        return []
+        return [], []
 
     # Fila 1 = secciones, Fila 2 = columnas, Fila 3 = ejemplo guía, Fila 4+ = datos
     headers = [str(h).strip().upper() if h else "" for h in filas[1]]
     cobrador_default = ""
     registros = []
+    blancos = []
 
     for fila in filas[3:]:
         if not fila or all(c is None for c in fila):
@@ -349,7 +407,23 @@ def leer_hoja(path: Path, hoja: str) -> list:
         monto_efec = _monto(row.get("MONTO_EFECTIVO"))
         coment     = str(row.get("COMENTARIO") or "").strip()
         categoria  = str(row.get("CATEGORIA") or "").strip().lower()
-        if not mz or not lt:
+        cobrador   = str(row.get("COBRADOR") or cobrador_default).strip()
+        fecha_raw  = row.get("FECHA")
+        if isinstance(fecha_raw, datetime):
+            fecha = fecha_raw.strftime("%d/%m/%Y")
+        else:
+            fecha = str(fecha_raw or "").strip()
+        if not mz or not lt or mz == "BLANCO" or lt == "BLANCO":
+            # Blanco real: celda vacía (error de digitación) o el cobrador
+            # escribió literalmente "BLANCO" (no sabe de quién es el predio).
+            # Antes se perdía en silencio o se procesaba como predio falso
+            # "BLANCO/BLANCO" (bug B6) — ahora se rutea a blancos_mes.xlsx.
+            if monto_efec > 0 and cobrador and fecha:
+                blancos.append({
+                    "tipo": "EFECTIVO", "origen": cobrador, "destino": "",
+                    "monto": monto_efec, "mensaje": coment, "fecha": fecha,
+                    "motivo": "marcado como blanco (efectivo)",
+                })
             continue
         # Reclamos sin pago (MONTO_EFECTIVO=0 + CATEGORIA=reclamo) pasan
         # para que 4b_reclamos los detecte vía pagos_efectivo.xlsx.
@@ -367,13 +441,7 @@ def leer_hoja(path: Path, hoja: str) -> list:
                 f"  [{path.name}/{hoja}] MZ={mz} LT={lt}: "
                 f"MONTO_EFECTIVO({monto_efec})+MONTO_YAPE({monto_yape}) ≠ MONTO({monto_total})"
             )
-        cobrador  = str(row.get("COBRADOR") or cobrador_default).strip()
         concepto  = str(row.get("CONCEPTO") or "").strip().lower()
-        fecha_raw = row.get("FECHA")
-        if isinstance(fecha_raw, datetime):
-            fecha = fecha_raw.strftime("%d/%m/%Y")
-        else:
-            fecha = str(fecha_raw or "").strip()
         registros.append({
             "llave":      _llave(mz, lt),
             "mz":         mz,
@@ -386,21 +454,23 @@ def leer_hoja(path: Path, hoja: str) -> list:
             "comentario": coment,
         })
 
-    return registros
+    return registros, blancos
 
 
-def leer_mesas() -> list:
-    """Devuelve lista de mesas con sus registros por hoja."""
+def leer_mesas() -> tuple:
+    """Devuelve (mesas con sus registros por hoja, blancos reales de todas las mesas)."""
     mesas = []
+    blancos_totales = []
     for n in range(1, 8):
         path = INPUTS_DIR / f"mesa_{n}.xlsx"
         if not path.exists():
             continue
         hojas = {}
         for hoja in HOJAS_VALIDAS:
-            regs = leer_hoja(path, hoja)
+            regs, blancos = leer_hoja(path, hoja)
             if regs:
                 hojas[hoja] = regs
+            blancos_totales.extend(blancos)
         if hojas:
             mesas.append({"nombre": f"mesa_{n}", "hojas": hojas})
 
@@ -408,7 +478,7 @@ def leer_mesas() -> list:
         raise FileNotFoundError(
             f"No se encontró ningún mesa_N.xlsx con datos en {INPUTS_DIR}"
         )
-    return mesas
+    return mesas, blancos_totales
 
 
 # ── Cross-check por mesa ─────────────────────────────────────────────────────
@@ -1026,6 +1096,7 @@ def exportar_discrepancias(disc_rows: list, multi_mesa_rows: list) -> int:
 def _hoja_discrepancias(ws, rows: list, preservados: dict = None):
     preservados = preservados or {}
     secciones = [
+        ("¿Quién es?",                    2, "quien"),
         ("¿Cuál es el predio?",           2, "id"),
         ("¿De qué mesa?",                 1, "mesa"),
         ("¿Qué dijo cada cobrador?",      6, "disc"),
@@ -1042,6 +1113,8 @@ def _hoja_discrepancias(ws, rows: list, preservados: dict = None):
     ws.row_dimensions[1].height = 18
 
     cols = [
+        ("ID",             "quien",10, "center"),
+        ("NOMBRE",         "quien",24, "left"),
         ("MZ",             "id",   8,  "center"),
         ("LT",             "id",   8,  "center"),
         ("MESA",           "mesa", 10, "center"),
@@ -1063,7 +1136,10 @@ def _hoja_discrepancias(ws, rows: list, preservados: dict = None):
     for ri, d in enumerate(rows, start=3):
         key  = (_norm(d.get("mz","")), _norm(d.get("lt","")), str(d.get("mesa","")).strip())
         prev = preservados.get(key, {})
+        uid, nom = buscar_quien(d.get("mz",""), d.get("lt",""))
         valores = [
+            uid or "—",
+            nom or "sin ID registrado",
             d.get("mz",         ""),
             d.get("lt",         ""),
             d.get("mesa",       ""),
@@ -1080,7 +1156,9 @@ def _hoja_discrepancias(ws, rows: list, preservados: dict = None):
             bg_h, txt_h, bg_data = DC[sec]
             val = valores[ci - 1]
 
-            if nombre in ("MONTO_A", "MONTO_B", "MONTO_C") and val != "":
+            if nombre in ("ID", "NOMBRE") and not uid:
+                _dat(ws.cell(row=ri, column=ci), val, bg_data, DC_QUIEN_VACIO, align=align)
+            elif nombre in ("MONTO_A", "MONTO_B", "MONTO_C") and val != "":
                 _dat(ws.cell(row=ri, column=ci), val, bg_data, DC_MONTO_DISC,
                      align=align, bold=True, fmt='"S/ "#,##0.00')
             elif nombre == "RESOLUCION":
@@ -1106,6 +1184,7 @@ def _hoja_disc_pago_multi_mesa(ws, rows: list, preservados: dict = None):
     """
     preservados = preservados or {}
     secciones = [
+        ("¿Quién es?",                    2, "quien"),
         ("¿Cuál es el predio?",           2, "id"),
         ("¿Qué se registró?",             4, "cobro"),
         ("Resolución — supervisor llena", 3, "res"),
@@ -1122,6 +1201,8 @@ def _hoja_disc_pago_multi_mesa(ws, rows: list, preservados: dict = None):
 
     cols = [
         # (nombre, sección, ancho, align, fmt)
+        ("ID",          "quien", 10, "center", None),
+        ("NOMBRE",      "quien", 24, "left",   None),
         ("MZ",          "id",    8,  "center", None),
         ("LT",          "id",    8,  "center", None),
         ("MESA",        "cobro", 12, "center", None),
@@ -1141,10 +1222,13 @@ def _hoja_disc_pago_multi_mesa(ws, rows: list, preservados: dict = None):
     for ri, r in enumerate(rows, start=3):
         key  = (_norm(r.get("mz","")), _norm(r.get("lt","")), str(r.get("mesa","")).strip())
         prev = preservados.get(key, {})
+        uid, nom = buscar_quien(r.get("mz",""), r.get("lt",""))
         for ci, (nombre, sec, _, align, fmt) in enumerate(cols, start=1):
             bg_h, txt_h, bg_data = DC[sec]
 
-            if   nombre == "MZ":          val = r.get("mz", "")
+            if   nombre == "ID":          val = uid or "—"
+            elif nombre == "NOMBRE":      val = nom or "sin ID registrado"
+            elif nombre == "MZ":          val = r.get("mz", "")
             elif nombre == "LT":          val = r.get("lt", "")
             elif nombre == "MESA":        val = r.get("mesa", "")
             elif nombre == "COBRADOR":    val = r.get("cobrador", "")
@@ -1155,7 +1239,9 @@ def _hoja_disc_pago_multi_mesa(ws, rows: list, preservados: dict = None):
             elif nombre == "OK":          val = prev.get("ok", "")
             else:                         val = ""
 
-            if nombre == "OK":
+            if nombre in ("ID", "NOMBRE") and not uid:
+                _dat(ws.cell(row=ri, column=ci), val, bg_data, DC_QUIEN_VACIO, align=align)
+            elif nombre == "OK":
                 v_low = str(val).strip().lower()
                 if v_low == "si":
                     bg_use = TR_OK_BG
@@ -1414,7 +1500,7 @@ def main():
 
     # ── 1. Leer inputs ───────────────────────────────────────────────────────
     log.info("Cargando mesas...")
-    mesas = leer_mesas()
+    mesas, blancos = leer_mesas()
     log.info(f"  {len(mesas)} mesa(s) con datos: {[m['nombre'] for m in mesas]}")
     for m in mesas:
         hojas_info = {h: len(r) for h, r in m["hojas"].items()}
@@ -1532,6 +1618,14 @@ def main():
         log.info(f"     solo_un_cobrador:           {len(solo_cob)} filas")
     else:
         log.info(f"     solo_un_cobrador:           preservadas del Ciclo 1")
+
+    # ── 8b. Exportar blancos (efectivo con MZ/LT vacío) ──────────────────────
+    if blancos:
+        wb_mes = exportar_blancos_mes(blancos, ciclo)
+        wb_mes.save(OUTPUTS_DIR / "blancos_mes.xlsx")
+        log.info(f"  -> {len(blancos)} blanco(s) -> blancos_mes.xlsx")
+    else:
+        (OUTPUTS_DIR / "blancos_mes.xlsx").unlink(missing_ok=True)
 
     # ── 9. Resumen final ─────────────────────────────────────────────────────
     log.info("══════════════════════════════════════")

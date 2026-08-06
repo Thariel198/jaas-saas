@@ -971,5 +971,161 @@ class TestCargaReportes3Tupla(unittest.TestCase):
         self.assertIn("origen", mapa)
 
 
+# ── Fix 19: Segregacion generalizada (comunitario|multiple) ───────────────────
+#
+# Bug real: un pago que cubre varios lotes/conceptos y que el regex de mensaje
+# NO detecta como múltiple, no tenía forma de marcarse a mano — se perdía en
+# cada corrida. Se generalizó el motor de "Pagos_comunitarios" (que sí persistía)
+# a un primitivo único "Segregacion" con TIPO=comunitario|multiple. Estos tests
+# cubren: (1) el flag ahora funciona también desde Sin_identificar, no solo
+# Ambiguos, y (2) TIPO viaja del padre a cada hijo a través del ciclo completo.
+
+def _wb_sin_identificar_ok(filas: list) -> Workbook:
+    """Workbook con hoja Sin_identificar en formato cabecera-doble (pendientes.xlsx)."""
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Sin_identificar"
+    ws.append(["GRUPOS"])
+    ws.append([
+        "TIPO", "ORIGEN", "DESTINO", "MONTO", "MENSAJE", "FECHA", "",
+        "MZ", "LOTE", "CONCEPTO", "MOTIVO", "",
+        "OK",
+    ])
+    for row in filas:
+        ws.append(row)
+    return wb
+
+
+def _fila_si_segregacion(origen="Rosa Q*", monto=60.0, fecha="21/06/2026 09:14:22",
+                          concepto="multiple", ok="SI") -> list:
+    return [
+        "TE PAGÓ", origen, "Janet V*", monto, "letrina y su hermana", fecha, "",
+        "", "", concepto, "no está en maestro", "",
+        ok,
+    ]
+
+
+class TestSegregacionSinIdentificar(unittest.TestCase):
+    """Antes de este fix, CONCEPTO=comunitario|multiple en Sin_identificar se
+    descartaba en silencio (la fila caía en 'if not mz: continue' sin leer
+    CONCEPTO). Ahora dispara el mismo flag que Ambiguos."""
+
+    def test_multiple_ok_si_pasa_a_padre_segregado(self):
+        wb = _wb_sin_identificar_ok([_fila_si_segregacion(concepto="multiple")])
+        result = main._leer_validados_sin_identificar_segregacion(wb)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["estado_registro"], "PADRE_SEGREGADO")
+        self.assertEqual(result[0]["concepto"], "multiple")
+        self.assertEqual(result[0]["origen"], "Rosa Q*")
+
+    def test_comunitario_ok_si_pasa_a_padre_segregado(self):
+        wb = _wb_sin_identificar_ok([_fila_si_segregacion(concepto="comunitario")])
+        result = main._leer_validados_sin_identificar_segregacion(wb)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["estado_registro"], "PADRE_SEGREGADO")
+
+    def test_concepto_libre_no_es_segregacion(self):
+        """CONCEPTO de texto libre (gasto/motivo normal) no entra por esta rama —
+        esa sigue siendo responsabilidad de corr_simples."""
+        wb = _wb_sin_identificar_ok([_fila_si_segregacion(concepto="alquiler local")])
+        result = main._leer_validados_sin_identificar_segregacion(wb)
+        self.assertEqual(result, [])
+
+    def test_ok_no_excluido(self):
+        wb = _wb_sin_identificar_ok([_fila_si_segregacion(concepto="multiple", ok="NO")])
+        result = main._leer_validados_sin_identificar_segregacion(wb)
+        self.assertEqual(result, [])
+
+    def test_leer_correcciones_diverge_a_corr_comunitarios_con_tipo(self):
+        """Integración: CONCEPTO=multiple en Sin_identificar termina en
+        corr_comunitarios con tipo='multiple' — NO en corr_simples, donde antes
+        se perdía silenciosamente."""
+        import tempfile
+        wb = _wb_sin_identificar_ok([_fila_si_segregacion(concepto="multiple")])
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            (tmp / "trazabilidad").mkdir()
+            pend_dir = tmp / "correcciones"
+            pend_dir.mkdir()
+            wb.save(str(pend_dir / "pendientes.xlsx"))
+            with patch("main.BASE_DIR", tmp), patch("main.CORRECCIONES_DIR", pend_dir):
+                resultado = main.leer_correcciones({})
+        (corr_simples, _corr_amb, _corr_mult, validados_ambiguos,
+         _val_mix, _corr_pag, corr_comunitarios, _com_resueltos) = resultado
+        clave = "ROSA Q*|21/06/2026 09:14:22"
+        self.assertNotIn(clave, corr_simples)
+        self.assertIn(clave, corr_comunitarios)
+        self.assertEqual(corr_comunitarios[clave]["tipo"], "multiple")
+        padres = [r for r in validados_ambiguos if r.get("estado_registro") == "PADRE_SEGREGADO"]
+        self.assertEqual(len(padres), 1)
+        self.assertEqual(padres[0]["concepto"], "multiple")
+
+
+class TestSegregacionHojaDesglose(unittest.TestCase):
+    """Hoja Segregacion (pendientes.xlsx) — TIPO viaja del padre a cada hijo."""
+
+    def test_tipo_multiple_leido_desde_desglose(self):
+        from exportar_motor import exportar_pendientes_diseño
+        dep = {"origen": "Fredy Jim*", "mensaje": "techado y campo",
+               "fecha": "27/06/2026 14:19:09", "monto_total": 70.0, "tipo": "multiple"}
+        wb = exportar_pendientes_diseño([], [], [], [], pagos_comunitarios=[dep])
+        self.assertIn("Segregacion", wb.sheetnames)
+        ws = wb["Segregacion"]
+        headers = [c.value for c in ws[2]]
+        def col(nombre): return headers.index(nombre) + 1
+        ws.cell(row=3, column=col("MZ"), value="T")
+        ws.cell(row=3, column=col("LOTE"), value="3")
+        ws.cell(row=3, column=col("MONTO_PARCIAL"), value=40.0)
+        ws.cell(row=3, column=col("CONCEPTO"), value="techado")
+        ws.cell(row=3, column=col("OK"), value="SI")
+        result = main._leer_hoja_comunitarios(wb)
+        clave = "FREDY JIM*|27/06/2026 14:19:09"
+        self.assertIn(clave, result)
+        self.assertEqual(result[clave][0]["tipo"], "multiple")
+        self.assertEqual(result[clave][0]["concepto"], "techado")
+
+    def test_tipo_default_comunitario_si_falta_columna(self):
+        """Fila sin columna TIPO (schema anterior a este fix) → default comunitario."""
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Segregacion"
+        ws.append(["GRUPOS"])
+        ws.append(["ORIGEN", "FECHA", "MONTO_TOTAL", "MZ", "LOTE", "MONTO_PARCIAL", "MOTIVO", "CONCEPTO", "OK"])
+        ws.append(["Raquel Avil*", "07/06/2026 10:39:56", 152.0, "G", "3", 50.0, "cobro junio", "", "SI"])
+        result = main._leer_hoja_comunitarios(wb)
+        clave = "RAQUEL AVIL*|07/06/2026 10:39:56"
+        self.assertEqual(result[clave][0]["tipo"], "comunitario")
+
+
+class TestSegregacionAcumuladaTraz(unittest.TestCase):
+    """_leer_acum_pagos_comunitarios_traz — re-siembra entre corridas leyendo
+    la hoja Segregacion (renombrada de Pagos_comunitarios) de trazabilidad."""
+
+    def test_lee_hoja_segregacion_con_tipo(self):
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Segregacion"
+        ws.append(["GRUPOS"])
+        ws.append(["MZ", "LOTE", "MONTO_PARCIAL", "MOTIVO", "CONCEPTO", "ESTADO_REGISTRO", "ID_PADRE", "TIPO"])
+        ws.append(["T", "3", 40.0, "mensaje techado y campo", "techado", "HIJO_SEGREGADO",
+                    "FREDY JIM*|27/06/2026 14:19:09", "multiple"])
+        result = main._leer_acum_pagos_comunitarios_traz(wb)
+        clave = "FREDY JIM*|27/06/2026 14:19:09"
+        self.assertIn(clave, result)
+        self.assertEqual(result[clave][0]["tipo"], "multiple")
+
+    def test_tipo_default_comunitario_trazabilidad_historica(self):
+        """Trazabilidad de un mes anterior a este fix, sin columna TIPO."""
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Segregacion"
+        ws.append(["GRUPOS"])
+        ws.append(["MZ", "LOTE", "MONTO_PARCIAL", "ESTADO_REGISTRO", "ID_PADRE"])
+        ws.append(["G", "3", 50.0, "HIJO_SEGREGADO", "JANET VIL*|07/06/2026 10:39:01"])
+        result = main._leer_acum_pagos_comunitarios_traz(wb)
+        clave = "JANET VIL*|07/06/2026 10:39:01"
+        self.assertEqual(result[clave][0]["tipo"], "comunitario")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

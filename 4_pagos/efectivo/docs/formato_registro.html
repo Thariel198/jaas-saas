@@ -129,7 +129,7 @@
   ¿Quién cobró y cuándo lo registró? → ¿Dónde vive el usuario? → ¿Cuánto cobró en total, de ese total cuánto fue en efectivo y cuánto por Yape, y en qué fecha pagó? → ¿Alguna nota? → ¿Qué tipo de pago? → ¿Qué pasó en mesa?<br><br>
   <strong>COMENTARIO</strong> es texto 100% libre — ya no clasifica nada.
   <strong>CONCEPTO</strong> dice qué es la plata (vacío = agua). <strong>CATEGORIA</strong>
-  dice qué evento ocurrió en mesa (<code>reclamo</code> / <code>compromiso</code> / <code>otros</code> / vacío = pago normal) —
+  dice qué evento ocurrió en mesa (<code>reclamo</code> / <code>compromiso</code> / <code>exoneracion</code> / <code>otros</code> / vacío = pago normal) —
   <code>4b_reclamos</code> detecta reclamos por esta columna, no por palabras en el comentario.<br><br>
   Cada archivo representa una mesa física. Las hojas <code>registro_2</code> y <code>registro_3</code>
   son opcionales — aparecen solo si hay 2.° o 3.° cobrador en esa mesa.
@@ -326,9 +326,9 @@
   </div>
   <div class="rule-card">
     <strong>CATEGORIA — qué pasó en mesa</strong>
-    Dropdown: <code>reclamo</code> · <code>compromiso</code> · <code>otros</code> · vacío = pago normal.
+    Dropdown: <code>reclamo</code> · <code>compromiso</code> · <code>exoneracion</code> · <code>otros</code> · vacío = pago normal.
     <code>reclamo</code> lo detecta <code>4b_reclamos</code> (con o sin pago; sin pago → MONTO 0).
-    <code>compromiso</code>/<code>otros</code> quedan registrados en <code>pagos_efectivo.xlsx</code>.
+    <code>compromiso</code>/<code>exoneracion</code>/<code>otros</code> quedan registrados en <code>pagos_efectivo.xlsx</code>.
     No afecta el cálculo de plata.
   </div>
 </div>
@@ -347,7 +347,7 @@
   <tr><td><code>FECHA</code></td><td>14</td><td>¿Cuánto y cuándo? — <code>FEF9E7 / 7D6608</code></td></tr>
   <tr><td><code>COMENTARIO</code></td><td>30</td><td>¿Alguna nota? — <code>F4ECF7 / 5B21B6</code></td></tr>
   <tr><td><code>CONCEPTO</code></td><td>14</td><td>¿Qué tipo? — <code>FFF7ED / 9A3412</code></td></tr>
-  <tr><td><code>CATEGORIA</code></td><td>14</td><td>¿Qué pasó? — <code>FCE4EC / 880E4F</code> · dropdown <code>reclamo,compromiso,otros</code></td></tr>
+  <tr><td><code>CATEGORIA</code></td><td>14</td><td>¿Qué pasó? — <code>FCE4EC / 880E4F</code> · dropdown <code>reclamo,compromiso,exoneracion,otros</code></td></tr>
 </table>
 <p style="font-size:11px; color:#888; margin-top:8px;">
   Fila 1 (secciones): altura 20px · negrita · texto centrado.<br>

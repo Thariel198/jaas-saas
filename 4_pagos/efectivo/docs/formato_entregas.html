@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>entregas.xlsx — contrato visual</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+  :root { --font-sans: 'IBM Plex Sans', sans-serif; --font-mono: 'IBM Plex Mono', monospace; --border: #dee2e6; --bg2: #f8f9fa; --text3: #adb5bd; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font-sans); background: #fff; padding: 28px; font-size: 13px; color: #111; }
+  .title { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+  .sub   { font-size: 12px; color: #888; margin-bottom: 8px; }
+  .historia { font-size: 11px; color: #555; margin-bottom: 16px; background: #f8f9fa; border-left: 3px solid #dee2e6; padding: 7px 12px; border-radius: 0 5px 5px 0; }
+  .historia strong { color: #333; }
+  .banner { font-size: 11px; color: #7D6608; margin-bottom: 16px; background: #FEF9E7; border: 1px solid #F9E79F; border-left: 3px solid #B7770D; padding: 8px 12px; border-radius: 0 5px 5px 0; }
+  .banner strong { color: #7D6608; }
+  .banner code { font-family: var(--font-mono); font-size: 10px; background: #fff; padding: 1px 4px; border-radius: 3px; }
+
+  .tab-wrap { display: inline-block; margin-bottom: -1px; }
+  .tab { display: inline-flex; align-items: center; gap: 6px; background: #FEF3C7; border: 0.5px solid #FDE68A; border-bottom: none; border-radius: 6px 6px 0 0; padding: 5px 14px; font-size: 12px; font-weight: 500; color: #92400E; font-family: var(--font-mono); }
+  .tw { border: 0.5px solid var(--border); border-radius: 0 8px 8px 8px; overflow-x: auto; margin-bottom: 16px; }
+  table { border-collapse: collapse; font-size: 10px; font-family: var(--font-sans); }
+  th, td { padding: 5px 8px; border-bottom: 0.5px solid var(--border); border-right: 0.5px solid var(--border); white-space: nowrap; vertical-align: middle; }
+  .num { width: 22px; background: var(--bg2); color: var(--text3); font-size: 9px; font-family: var(--font-mono); text-align: center; padding: 4px 2px; }
+  .th-sep, .td-sep { width: 5px; background: var(--bg2); border-right: 2px solid var(--border); padding: 0; }
+  .gh { font-size: 9px; font-weight: 600; text-align: center; letter-spacing: 0.05em; text-transform: uppercase; padding: 4px 8px; }
+  th.col { font-size: 9px; font-weight: 600; font-family: var(--font-mono); text-align: center; padding: 4px 8px; }
+
+  /* ¿Quién y cuándo? (azul) */
+  .gh-w { background: #EBF5FB; color: #1A5276; } .th-w { background: #EBF5FB; color: #1A5276; }
+  .td-w { background: #F4FAFF; color: #1A5276; font-family: var(--font-mono); text-align: center; }
+  /* ¿Cuánto recibió? (verde) */
+  .gh-m { background: #E9F7EF; color: #1E5C3A; } .th-m { background: #E9F7EF; color: #1E5C3A; }
+  .td-m { background: #F4FBF7; color: #1E5C3A; font-family: var(--font-mono); text-align: right; }
+  .neg { color: #991B1B; }
+  /* ¿Corrección? (rosa) */
+  .gh-c { background: #FCE4EC; color: #880E4F; } .th-c { background: #FCE4EC; color: #880E4F; }
+  .td-c { background: #FDF2F8; color: #880E4F; font-style: italic; }
+  /* Auditoría (gris) */
+  .gh-a { background: #F3F4F6; color: #374151; } .th-a { background: #F3F4F6; color: #374151; }
+  .td-a { background: #F9FAFB; color: #374151; font-family: var(--font-mono); text-align: center; font-size: 9px; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 24px; align-items: center; }
+  .ld-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #555; }
+  .ld { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; border: 0.5px solid rgba(0,0,0,.12); }
+  .section-title { font-size: 12px; font-weight: 600; color: #333; margin-bottom: 10px; margin-top: 20px; }
+  .rule-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin-bottom: 20px; }
+  .rule-card { border: 0.5px solid var(--border); border-radius: 6px; padding: 10px 12px; font-size: 11px; color: #555; line-height: 1.6; }
+  .rule-card strong { display: block; font-size: 9px; font-weight: 700; margin-bottom: 5px; color: #333; text-transform: uppercase; letter-spacing: 0.05em; }
+  .rule-card code { font-family: var(--font-mono); font-size: 10px; background: #f3f3f3; padding: 1px 4px; border-radius: 2px; }
+  .widths-table { border-collapse: collapse; font-size: 11px; }
+  .widths-table th, .widths-table td { border: 0.5px solid var(--border); padding: 4px 10px; text-align: left; }
+  .widths-table th { background: var(--bg2); font-weight: 600; font-size: 10px; }
+  .widths-table code { font-family: var(--font-mono); font-size: 10px; }
+</style>
+</head>
+<body>
+
+<p class="title">entregas.xlsx — contrato visual</p>
+<p class="sub">Hoja única: <strong>Entregas</strong> · log append-only · escritor único: <code style="font-family:'IBM Plex Mono',monospace">entregas_repo.py</code></p>
+
+<div class="banner">
+  <strong>Este archivo NO se edita a mano.</strong> Lo escribe solo <code>entregas_repo.py</code> (vía el CLI <code>registrar_entrega.py</code>).
+  Una fila = un movimiento físico. Nunca se modifica ni se borra una fila ya escrita — corregir es appendear otra fila con el delta.
+  En SaaS, un endpoint POST llama a la misma función <code>registrar_entrega()</code>.
+</div>
+
+<p class="historia">
+  <strong>Historia (izquierda → derecha):</strong>
+  ¿Quién entregó y qué día? → ¿Cuánto efectivo y cuánto yape? → ¿Es una corrección? → ¿Quién lo registró y cuándo? (auditoría)<br><br>
+  <strong>FECHA</strong> = el día que pagó el usuario (misma clave con la que <code>arqueo.py</code> agrupa las mesas).
+  <strong>EFECTIVO / YAPE</strong> son montos del movimiento — positivos en una entrega normal, pueden ser negativos en una corrección.
+  <strong>MOTIVO</strong> va vacío en la entrega normal y lleno solo cuando la fila corrige a una anterior.
+  <code>arqueo.py</code> SUMA todas las filas de un mismo <code>(FECHA, COBRADOR)</code>: dos entregas del mismo día suman, y una corrección con delta ajusta el total.
+</p>
+
+<div class="legend">
+  <div class="ld-item"><div class="ld" style="background:#EBF5FB;border-color:#AED6F1"></div>¿Quién y cuándo?</div>
+  <div class="ld-item"><div class="ld" style="background:#E9F7EF;border-color:#A9DFBF"></div>¿Cuánto recibió?</div>
+  <div class="ld-item"><div class="ld" style="background:#FCE4EC;border-color:#F9A8D4"></div>¿Corrección?</div>
+  <div class="ld-item"><div class="ld" style="background:#F3F4F6;border-color:#D1D5DB"></div>Auditoría</div>
+</div>
+
+<div class="tab-wrap"><div class="tab">Entregas</div></div>
+<div class="tw">
+<table>
+  <tr>
+    <th class="num" rowspan="2"></th>
+    <th class="gh gh-w" colspan="2">¿Quién y cuándo?</th>
+    <th class="th-sep" rowspan="2"></th>
+    <th class="gh gh-m" colspan="2">¿Cuánto recibió?</th>
+    <th class="th-sep" rowspan="2"></th>
+    <th class="gh gh-c" colspan="1">¿Corrección?</th>
+    <th class="th-sep" rowspan="2"></th>
+    <th class="gh gh-a" colspan="3">Auditoría</th>
+  </tr>
+  <tr>
+    <th class="col th-w">FECHA</th>
+    <th class="col th-w">COBRADOR</th>
+    <th class="col th-m">EFECTIVO</th>
+    <th class="col th-m">YAPE</th>
+    <th class="col th-c">MOTIVO</th>
+    <th class="col th-a">SOURCE</th>
+    <th class="col th-a">AUDIT_REF</th>
+    <th class="col th-a">TIMESTAMP</th>
+  </tr>
+
+  <!-- entrega normal -->
+  <tr>
+    <td class="num">1</td>
+    <td class="td-w">03/07/2026</td>
+    <td class="td-w">Pedro Quispe</td>
+    <td class="td-sep"></td>
+    <td class="td-m">450.00</td>
+    <td class="td-m">120.00</td>
+    <td class="td-sep"></td>
+    <td class="td-c"></td>
+    <td class="td-sep"></td>
+    <td class="td-a">cli_registrar_entrega</td>
+    <td class="td-a">ENT-20260703-pedro-1</td>
+    <td class="td-a">2026-07-03 18:22:10</td>
+  </tr>
+
+  <!-- segunda entrega del mismo día → suma -->
+  <tr>
+    <td class="num">2</td>
+    <td class="td-w">03/07/2026</td>
+    <td class="td-w">Pedro Quispe</td>
+    <td class="td-sep"></td>
+    <td class="td-m">80.00</td>
+    <td class="td-m">0.00</td>
+    <td class="td-sep"></td>
+    <td class="td-c"></td>
+    <td class="td-sep"></td>
+    <td class="td-a">cli_registrar_entrega</td>
+    <td class="td-a">ENT-20260703-pedro-2</td>
+    <td class="td-a">2026-07-03 20:05:44</td>
+  </tr>
+
+  <!-- corrección: María declaró 450, era 540 → delta +90 -->
+  <tr>
+    <td class="num">3</td>
+    <td class="td-w">03/07/2026</td>
+    <td class="td-w">María García</td>
+    <td class="td-sep"></td>
+    <td class="td-m">90.00</td>
+    <td class="td-m">0.00</td>
+    <td class="td-sep"></td>
+    <td class="td-c">correccion tipeo: efectivo era 540</td>
+    <td class="td-sep"></td>
+    <td class="td-a">cli_registrar_entrega</td>
+    <td class="td-a">ENT-20260703-maria-corr1</td>
+    <td class="td-a">2026-07-04 09:12:03</td>
+  </tr>
+
+  <!-- corrección negativa: se sobredeclaró -->
+  <tr>
+    <td class="num">4</td>
+    <td class="td-w">04/07/2026</td>
+    <td class="td-w">Ana Mamani</td>
+    <td class="td-sep"></td>
+    <td class="td-m neg">-20.00</td>
+    <td class="td-m">0.00</td>
+    <td class="td-sep"></td>
+    <td class="td-c">correccion: se contó S/20 de más</td>
+    <td class="td-sep"></td>
+    <td class="td-a">cli_registrar_entrega</td>
+    <td class="td-a">ENT-20260704-ana-corr1</td>
+    <td class="td-a">2026-07-05 08:40:19</td>
+  </tr>
+</table>
+</div>
+
+<p class="section-title">Reglas de las columnas</p>
+<div class="rule-grid">
+  <div class="rule-card">
+    <strong>FECHA</strong>
+    Día que pagó el usuario, no el día que la tesorera registró. Es la clave con la que <code>arqueo.py</code> cruza contra la suma de las mesas.
+  </div>
+  <div class="rule-card">
+    <strong>EFECTIVO · YAPE</strong>
+    Montos del movimiento. Entrega normal: positivos. Corrección: el delta (positivo si faltó declarar, negativo si se declaró de más).
+  </div>
+  <div class="rule-card">
+    <strong>MOTIVO</strong>
+    Vacío en entrega normal. Lleno solo en filas de corrección — explica por qué existe una fila con delta. Análogo a <code>AJUSTE</code> en <code>seguimiento_pueblo</code>.
+  </div>
+  <div class="rule-card">
+    <strong>SOURCE · AUDIT_REF</strong>
+    Idempotencia: mismo <code>(SOURCE, AUDIT_REF)</code> no se registra dos veces. Re-correr el CLI con el mismo evento no duplica la fila.
+  </div>
+  <div class="rule-card">
+    <strong>TIMESTAMP</strong>
+    Cuándo se escribió la fila (lo pone el repo, no el humano). Solo auditoría — no interviene en el cuadre.
+  </div>
+</div>
+
+<p class="section-title">Reglas de formato — openpyxl (entregas_repo.py)</p>
+<table class="widths-table">
+  <tr><th>Columna</th><th>Ancho</th><th>Tipo Python</th><th>Formato celda</th><th>Alineación</th></tr>
+  <tr><td><code>FECHA</code></td><td>14</td><td>date</td><td><code>"DD/MM/YYYY"</code></td><td>centro</td></tr>
+  <tr><td><code>COBRADOR</code></td><td>22</td><td>str</td><td>— (texto)</td><td>izquierda</td></tr>
+  <tr><td><code>EFECTIVO</code></td><td>12</td><td>float</td><td><code>"#,##0.00"</code></td><td>derecha</td></tr>
+  <tr><td><code>YAPE</code></td><td>12</td><td>float</td><td><code>"#,##0.00"</code></td><td>derecha</td></tr>
+  <tr><td><code>MOTIVO</code></td><td>30</td><td>str · vacío = entrega normal</td><td>— (texto)</td><td>izquierda</td></tr>
+  <tr><td><code>SOURCE</code></td><td>24</td><td>str</td><td>— (texto)</td><td>centro</td></tr>
+  <tr><td><code>AUDIT_REF</code></td><td>28</td><td>str</td><td>— (texto)</td><td>izquierda</td></tr>
+  <tr><td><code>TIMESTAMP</code></td><td>20</td><td>str</td><td>— (texto)</td><td>centro</td></tr>
+</table>
+<p style="font-size:11px; color:#888; margin-top:8px;">
+  Fila 1 (secciones) y fila 2 (columnas): negrita, altura 18px y 22px. Datos desde fila 3. Freeze en <code>A3</code>.
+  El repo appendea en <code>ws.max_row + 1</code> — nunca sobrescribe filas existentes.
+</p>
+
+<p class="section-title">Paleta de colores — openpyxl</p>
+<table class="widths-table">
+  <tr><th>Sección</th><th>Header bg</th><th>Header text</th><th>Data bg</th></tr>
+  <tr><td>¿Quién y cuándo?</td><td><code>EBF5FB</code></td><td><code>1A5276</code></td><td><code>F4FAFF</code></td></tr>
+  <tr><td>¿Cuánto recibió?</td><td><code>E9F7EF</code></td><td><code>1E5C3A</code></td><td><code>F4FBF7</code></td></tr>
+  <tr><td>¿Corrección?</td><td><code>FCE4EC</code></td><td><code>880E4F</code></td><td><code>FDF2F8</code></td></tr>
+  <tr><td>Auditoría</td><td><code>F3F4F6</code></td><td><code>374151</code></td><td><code>F9FAFB</code></td></tr>
+</table>
+
+</body>
+</html>

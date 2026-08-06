@@ -39,12 +39,29 @@ CORRECCIONES_DIR = BASE_DIR / "correcciones"
 OUTPUT_DIR       = BASE_DIR / "outputs"
 
 MAESTRO_FILE      = "maestro_yape.xlsx"
-OUTPUT_FILE       = "pagos_yape_tepago.xlsx"
-PAGASTE_FILE      = "pagos_yape_pagaste.xlsx"
-DEVOLUCION_FILE   = "pagos_yape_devolucion.xlsx"
-RETORNO_FILE      = "pagos_yape_retorno.xlsx"
+
+# Los 4 outputs de pagos llevan el ciclo en el nombre (pagos_yape_tepago_YYYY-MM
+# .xlsx). Sin eso, el archivo del mes pasado sobrevive a la copia de carpeta y
+# se ve idéntico a uno recién generado: el 06/07/2026 5_cobranza cobró el ciclo
+# de julio leyendo el tepago que todavía era el de junio (66 filas, las mismas
+# que junio) y sembró 15 pagos fantasma. Si no hay ciclo declarado
+# (shared/ciclo.py, lo escribe 1_lecturas) se mantienen los nombres viejos.
+sys.path.insert(0, str(SHARED_DIR))
+import ciclo as ciclo_activo  # noqa: E402
+
+_MES_CICLO = ciclo_activo.activo(default=None, path=SHARED_DIR / "ciclo_activo.json")
+_suf = f"_{_MES_CICLO}" if _MES_CICLO else ""
+
+OUTPUT_FILE       = f"pagos_yape_tepago{_suf}.xlsx"
+PAGASTE_FILE      = f"pagos_yape_pagaste{_suf}.xlsx"
+DEVOLUCION_FILE   = f"pagos_yape_devolucion{_suf}.xlsx"
+RETORNO_FILE      = f"pagos_yape_retorno{_suf}.xlsx"
 PENDIENTES_FILE       = "pendientes.xlsx"
+FORZAR_COMUNITARIO_FILE = "forzar_comunitario.xlsx"
+FORZAR_MZLT_FILE = "forzar_mzlt.xlsx"
 CONCEPTO_COMUNITARIO  = "comunitario"
+CONCEPTO_MULTIPLE     = "multiple"
+CONCEPTOS_SEGREGACION = (CONCEPTO_COMUNITARIO, CONCEPTO_MULTIPLE)
 BLANCOS_FILE      = SHARED_DIR / "blancos_acumulados.xlsx"
 TIPO_PAGO         = "TE PAGÓ"
 
@@ -152,10 +169,25 @@ def limpiar_monto(val) -> float:
         return 0.0
 
 # ====================ANCLA DE CORTE=========================
+def _ciclos_cerrados() -> set[str]:
+    """Lee estado_ciclo.json → set de 'AAAA-MM' con estado=CERRADO."""
+    p = SHARED_DIR / "reporte_acumulado_procesado" / "estado_ciclo.json"
+    if not p.exists():
+        return set()
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        return set()
+    return {k for k, v in data.items()
+            if isinstance(v, dict) and str(v.get("estado", "")).upper() == "CERRADO"}
+
+
 def obtener_ancla() -> datetime | None:
     """
-    Lee reporte_acumulado_crudo/ — toma el archivo más reciente
-    y extrae la fecha máxima de sus registros como ancla de corte.
+    Ancla de corte = fecha máxima del ÚLTIMO ciclo CERRADO (estado_ciclo.json),
+    no del archivo más reciente en disco. cargar_reportes filtra `fecha > ancla`,
+    así que la ancla debe ser el fin del último mes ya cerrado — todos los pagos
+    posteriores son nuevos y se procesan en el ciclo en curso.
     """
     archivos = sorted(
         p for p in SHARED_DIR.joinpath("reporte_acumulado_procesado").glob("*_procesado.xlsx")
@@ -165,9 +197,28 @@ def obtener_ancla() -> datetime | None:
         print(f"  ⚠ No hay archivos procesados en reporte_acumulado_procesado/ — sin ancla de corte")
         return None
 
-    # Tomar el más reciente por nombre (AAAA-MM_procesado.xlsx)
-    archivo = archivos[-1]
-    print(f"  Reporte procesado más reciente: {archivo.name}")
+    # El ciclo más reciente es el del formato nuevo AAAA-MM_procesado.xlsx (junio en
+    # adelante). Los legacy reporte_..._procesado.xlsx son de la era manual y SIEMPRE
+    # son más viejos, pero su nombre empieza con 'r' y ordenaba después de "2026-06"
+    # en un sorted() alfabético — por eso [-1] agarraba el legacy viejo (bug del ancla).
+    _CICLO_RE = re.compile(r"^(\d{4})-(\d{2})_procesado\.xlsx$")
+    nuevos = [(m.group(1), m.group(2), p) for p in archivos
+              if (m := _CICLO_RE.match(p.name))]
+    if nuevos:
+        # Elegir el AAAA-MM más alto que esté CERRADO. Si se tomara el más alto en
+        # disco a secas, el ciclo en curso (ABIERTO) ya tiene su propio _procesado y
+        # su fecha máxima auto-avanzaría la ancla, descartando los pagos del propio
+        # mes en curso (bug K3/K4: pagos 16/06–07/07 se perdían con ancla=07/07).
+        cerrados = _ciclos_cerrados()
+        candidatos = [n for n in nuevos if f"{n[0]}-{n[1]}" in cerrados]
+        if candidatos:
+            archivo = max(candidatos)[2]
+        else:
+            archivo = max(nuevos)[2]
+            print("  ⚠ Sin ciclo CERRADO en estado_ciclo.json — usando el _procesado más reciente")
+    else:
+        archivo = archivos[-1]     # era manual pura: solo legacy
+    print(f"  Reporte procesado (ancla): {archivo.name}")
 
     wb = load_workbook(archivo, read_only=True, data_only=True)
     # Leer hoja TE_PAGÓ si existe (primera hoja del procesado)
@@ -401,12 +452,20 @@ def cargar_maestro() -> tuple[dict, dict]:
     return indice, indice_ambiguo
 
 def cargar_planilla() -> tuple[dict, set]:
-    archivos = list(PLANILLA_DIR.glob("*.xlsx"))
+    archivos = [p for p in PLANILLA_DIR.glob("*.xlsx") if not p.name.startswith("~$")]
     if not archivos:
         print(f"  ⚠ No hay planilla en {PLANILLA_DIR} — se omite cruce de deuda")
         return {}, set()
 
-    archivo = archivos[0]
+    # Elegir la planilla del ciclo más reciente (planilla_AAAA-MM.xlsx). Antes usaba
+    # archivos[0] (sin ordenar) y podía agarrar cualquiera — incluido el marcador
+    # "junio_existente" (15 bytes de texto, NO un xlsx) que queda en la carpeta al
+    # archivar la planilla vieja y hacía crashear la lectura con BadZipFile. Se filtra
+    # por el formato AAAA-MM y se toma el (AAAA, MM) más alto; lo que no matchea queda afuera.
+    _PLAN_RE = re.compile(r"^planilla_(\d{4})-(\d{2})\.xlsx$")
+    ciclos = [(m.group(1), m.group(2), p) for p in archivos
+              if (m := _PLAN_RE.match(p.name))]
+    archivo = max(ciclos)[2] if ciclos else archivos[0]
     print(f"  Leyendo planilla: {archivo.name}")
 
     wb    = load_workbook(archivo, read_only=True, data_only=True)
@@ -791,13 +850,13 @@ def _leer_acum_maestro_inexacto_traz(wb) -> list:
 
 
 def _leer_acum_pagos_comunitarios_traz(wb) -> dict:
-    """Lee hoja Pagos_comunitarios de trazabilidad → hijos (HIJO_SEGREGADO) acumulados.
-    Agrupa por ID_PADRE (= ORIGEN|FECHA del padre) → list[{mz, lote, monto_parcial, motivo, concepto}].
+    """Lee hoja Segregacion de trazabilidad → hijos (HIJO_SEGREGADO) acumulados.
+    Agrupa por ID_PADRE (= ORIGEN|FECHA del padre) → list[{mz, lote, monto_parcial, motivo, concepto, tipo}].
     Re-siembra comunitarios_resueltos entre corridas para que un desglose ya trazado
     no dependa de que la fila siga viva en pendientes.xlsx."""
-    if "Pagos_comunitarios" not in wb.sheetnames:
+    if "Segregacion" not in wb.sheetnames:
         return {}
-    filas = list(wb["Pagos_comunitarios"].values)
+    filas = list(wb["Segregacion"].values)
     if len(filas) < 3:
         return {}
     headers = [str(h).strip().upper() if h else "" for h in filas[1]]
@@ -807,7 +866,7 @@ def _leer_acum_pagos_comunitarios_traz(wb) -> dict:
     i_mz      = idx("MZ");            i_lote   = idx("LOTE")
     i_parcial = idx("MONTO_PARCIAL"); i_motivo = idx("MOTIVO")
     i_conc    = idx("CONCEPTO");      i_estr   = idx("ESTADO_REGISTRO")
-    i_padre   = idx("ID_PADRE")
+    i_padre   = idx("ID_PADRE");      i_tipo   = idx("TIPO")
     if i_padre is None or i_mz is None or i_lote is None:
         return {}
     grupos: dict[str, list] = {}
@@ -825,7 +884,9 @@ def _leer_acum_pagos_comunitarios_traz(wb) -> dict:
         monto_parcial = limpiar_monto(fila[i_parcial]) if i_parcial is not None and i_parcial < len(fila) and fila[i_parcial] else 0.0
         motivo  = str(fila[i_motivo]).strip()         if i_motivo is not None and i_motivo < len(fila) and fila[i_motivo] else ""
         concepto= str(fila[i_conc]).strip().lower()   if i_conc   is not None and i_conc   < len(fila) and fila[i_conc] and str(fila[i_conc]).strip().lower() not in ("nan","none","") else ""
-        grupos.setdefault(id_padre, []).append({"mz": mz, "lote": lote, "monto_parcial": round(monto_parcial, 2), "motivo": motivo, "concepto": concepto})
+        # TIPO no existía en trazabilidad histórica (pre-migración) → default comunitario.
+        tipo    = str(fila[i_tipo]).strip().lower()   if i_tipo   is not None and i_tipo   < len(fila) and fila[i_tipo] and str(fila[i_tipo]).strip().lower() not in ("nan","none","") else CONCEPTO_COMUNITARIO
+        grupos.setdefault(id_padre, []).append({"mz": mz, "lote": lote, "monto_parcial": round(monto_parcial, 2), "motivo": motivo, "concepto": concepto, "tipo": tipo})
     return grupos
 
 
@@ -929,11 +990,11 @@ def _leer_hoja_pendientes_ok(wb, nombre_hoja: str) -> dict:
 
 def _leer_hoja_comunitarios(wb) -> dict:
     """
-    Lee hoja Pagos_comunitarios de pendientes (OK=SI).
-    Agrupa filas por ORIGEN_UPPER|FECHA → list[{mz, lote, monto_parcial, motivo}].
+    Lee hoja Segregacion de pendientes (OK=SI).
+    Agrupa filas por ORIGEN_UPPER|FECHA → list[{mz, lote, monto_parcial, motivo, concepto, tipo}].
     Valida que la suma de MONTO_PARCIAL == MONTO_TOTAL por depósito.
     """
-    nombre = "Pagos_comunitarios"
+    nombre = "Segregacion"
     if nombre not in wb.sheetnames:
         return {}
     filas = list(wb[nombre].values)
@@ -948,6 +1009,7 @@ def _leer_hoja_comunitarios(wb) -> dict:
     i_origen   = idx("ORIGEN")
     i_fecha    = idx("FECHA")
     i_total    = idx("MONTO_TOTAL")
+    i_tipo     = idx("TIPO")
     i_mz       = idx("MZ")
     i_lote     = idx("LOTE")
     i_parcial  = idx("MONTO_PARCIAL")
@@ -974,13 +1036,14 @@ def _leer_hoja_comunitarios(wb) -> dict:
         clave = f"{origen}|{fecha}"
         monto_total   = limpiar_monto(fila[i_total])   if i_total   is not None and i_total   < len(fila) and fila[i_total]   else 0.0
         monto_parcial = limpiar_monto(fila[i_parcial]) if i_parcial is not None and i_parcial < len(fila) and fila[i_parcial] else 0.0
+        tipo    = str(fila[i_tipo]).strip().lower()   if i_tipo     is not None and i_tipo     < len(fila) and fila[i_tipo]     and str(fila[i_tipo]).strip().lower() not in ("nan","none","") else CONCEPTO_COMUNITARIO
         mz      = str(fila[i_mz]).strip().upper()    if i_mz       is not None and i_mz       < len(fila) and fila[i_mz]       else ""
         lote    = str(fila[i_lote]).strip()           if i_lote     is not None and i_lote     < len(fila) and fila[i_lote]     else ""
         motivo  = str(fila[i_motivo]).strip()         if i_motivo   is not None and i_motivo   < len(fila) and fila[i_motivo]   else ""
         concepto= str(fila[i_concepto]).strip().lower() if i_concepto is not None and i_concepto < len(fila) and fila[i_concepto] and str(fila[i_concepto]).strip().lower() not in ("nan","none","") else ""
         if not mz or not lote or monto_parcial <= 0:
             continue
-        grupos.setdefault(clave, []).append({"mz": mz, "lote": lote, "monto_parcial": round(monto_parcial, 2), "motivo": motivo, "concepto": concepto})
+        grupos.setdefault(clave, []).append({"mz": mz, "lote": lote, "monto_parcial": round(monto_parcial, 2), "motivo": motivo, "concepto": concepto, "tipo": tipo})
         totales[clave] = monto_total
 
     # Validar suma parciales == total
@@ -988,7 +1051,7 @@ def _leer_hoja_comunitarios(wb) -> dict:
         suma = round(sum(l["monto_parcial"] for l in lotes), 2)
         total = round(totales.get(clave, 0.0), 2)
         if total > 0 and abs(suma - total) > 0.05:
-            print(f"  ⚠ Pagos_comunitarios {clave[:40]}: suma parciales {suma} ≠ total {total}")
+            print(f"  ⚠ Segregacion {clave[:40]}: suma parciales {suma} ≠ total {total}")
     return grupos
 
 
@@ -1152,10 +1215,10 @@ def _leer_validados_ambiguos(wb) -> list:
         conc_vacio = not concepto or concepto.upper() in ("NAN", "NONE")
         if mz_vacio and conc_vacio:
             continue
-        # CONCEPTO=comunitario: el padre SÍ se traza (ancla durable), pero como
-        # PADRE_SEGREGADO — no suma en caja, solo permite reconstruir el estado
-        # "ya clasificado como comunitario" entre corridas.
-        es_comunitario = concepto.lower() == "comunitario"
+        # CONCEPTO=comunitario|multiple: el padre SÍ se traza (ancla durable), pero
+        # como PADRE_SEGREGADO — no suma en caja, solo permite reconstruir el estado
+        # "ya clasificado" entre corridas. TIPO viaja en el propio CONCEPTO.
+        es_segregado = concepto.lower() in CONCEPTOS_SEGREGACION
         resultado.append({
             "user_id":    str(fila[i_uid]).strip()    if i_uid  is not None and i_uid  < len(fila) and fila[i_uid]  else "",
             "nombre":     str(fila[i_nom]).strip()    if i_nom  is not None and i_nom  < len(fila) and fila[i_nom]  else "",
@@ -1167,7 +1230,59 @@ def _leer_validados_ambiguos(wb) -> list:
             "mz_final":   "" if mz_vacio else mz,
             "lote_final": "" if mz_vacio else lote,
             "concepto":   "" if conc_vacio else concepto,
-            "estado_registro": "PADRE_SEGREGADO" if es_comunitario else "REGISTRO_NORMAL",
+            "estado_registro": "PADRE_SEGREGADO" if es_segregado else "REGISTRO_NORMAL",
+        })
+    return resultado
+
+
+def _leer_validados_sin_identificar_segregacion(wb) -> list:
+    """Lee pendientes Hoja Sin_identificar (OK=SI) filtrando solo
+    CONCEPTO=comunitario|multiple — el caso donde el pago no pasó por el maestro
+    pero igual cubre varios lotes. Devuelve entradas con la misma forma que
+    _leer_validados_ambiguos (candidatos vacíos, sin sugerencia de maestro) para
+    que el padre se trace en la misma hoja Ambiguos de trazabilidad — es el único
+    lugar donde vive el mecanismo PADRE_SEGREGADO, sin importar de qué hoja de
+    pendientes vino el flag."""
+    if "Sin_identificar" not in wb.sheetnames:
+        return []
+    filas = list(wb["Sin_identificar"].values)
+    if len(filas) < 3:
+        return []
+    headers = [str(h).strip().upper() if h else "" for h in filas[1]]
+
+    def idx(nombre):
+        try: return headers.index(nombre)
+        except: return None
+
+    i_orig = idx("ORIGEN"); i_mnt = idx("MONTO")
+    i_msg  = idx("MENSAJE"); i_fec = idx("FECHA")
+    i_conc = idx("CONCEPTO"); i_ok = idx("OK")
+    if i_orig is None or i_ok is None:
+        return []
+
+    resultado = []
+    for fila in filas[2:]:
+        if not fila:
+            continue
+        ok_val = str(fila[i_ok]).strip().upper() if i_ok < len(fila) and fila[i_ok] else ""
+        if ok_val != "SI":
+            continue
+        concepto = str(fila[i_conc]).strip() if i_conc is not None and i_conc < len(fila) and fila[i_conc] else ""
+        if concepto.lower() not in CONCEPTOS_SEGREGACION:
+            continue
+        origen = str(fila[i_orig]).strip() if i_orig < len(fila) and fila[i_orig] else ""
+        if not origen or origen.upper() in ("NAN", "NONE", ""):
+            continue
+        resultado.append({
+            "user_id": "", "nombre": "",
+            "origen":  origen,
+            "monto":   limpiar_monto(fila[i_mnt]) if i_mnt is not None and i_mnt < len(fila) and fila[i_mnt] else 0.0,
+            "mensaje": str(fila[i_msg]).strip() if i_msg is not None and i_msg < len(fila) and fila[i_msg] else "",
+            "fecha":   str(fila[i_fec]).strip() if i_fec is not None and i_fec < len(fila) and fila[i_fec] else "",
+            "candidatos": "",
+            "mz_final": "", "lote_final": "",
+            "concepto": concepto.lower(),
+            "estado_registro": "PADRE_SEGREGADO",
         })
     return resultado
 
@@ -1231,6 +1346,72 @@ def _leer_validados_maestro_inexacto(wb, planilla: dict) -> list:
     return resultado
 
 
+def _leer_forzar_comunitario(ruta: Path) -> dict:
+    """Lee correcciones/forzar_comunitario.xlsx — lista humana de ORIGEN|FECHA que
+    matchearían por nombre contra el maestro (ej. dirigente/cobrador que también es
+    un vecino real) pero que en realidad son un cobro comunitario. Se fuerza el pago
+    a pendiente_comunitario ANTES de cualquier intento de match, evitando que se
+    identifique automáticamente sin pasar por Segregacion."""
+    if not ruta.exists():
+        return {}
+    wb = load_workbook(ruta, read_only=True, data_only=True)
+    ws = wb.active
+    headers = [str(c.value).strip().upper() if c.value else "" for c in ws[1]]
+    if "ORIGEN" not in headers or "FECHA" not in headers:
+        wb.close()
+        return {}
+    i_origen = headers.index("ORIGEN")
+    i_fecha  = headers.index("FECHA")
+    i_motivo = headers.index("MOTIVO") if "MOTIVO" in headers else None
+    i_tipo   = headers.index("TIPO")   if "TIPO"   in headers else None
+    resultado = {}
+    for fila in ws.iter_rows(min_row=2, values_only=True):
+        origen = str(fila[i_origen]).strip() if fila[i_origen] else ""
+        fecha  = str(fila[i_fecha]).strip()  if fila[i_fecha]  else ""
+        if not origen or not fecha:
+            continue
+        motivo = str(fila[i_motivo]).strip()      if i_motivo is not None and fila[i_motivo] else ""
+        tipo   = str(fila[i_tipo]).strip().lower() if i_tipo   is not None and fila[i_tipo]   else CONCEPTO_COMUNITARIO
+        clave = f"{origen.upper()}|{fecha}"
+        resultado[clave] = {"origen": origen, "fecha": fecha, "monto": 0.0, "tipo": tipo, "motivo": motivo}
+    wb.close()
+    return resultado
+
+
+def _leer_forzar_mzlt(ruta: Path) -> dict:
+    """Lee correcciones/forzar_mzlt.xlsx — lista humana de ORIGEN|FECHA cuyo MZ/LOTE
+    parseado del mensaje es incorrecto por error de digitación del propio pagante
+    (no ambigüedad de matching). Fuerza la reasignación de ESA transacción puntual,
+    sin tocar otros pagos del mismo MZ/LOTE origen ni destino — a diferencia de
+    correcciones_lote.xlsx (5_cobranza), que remapea el lote completo."""
+    if not ruta.exists():
+        return {}
+    wb = load_workbook(ruta, read_only=True, data_only=True)
+    ws = wb.active
+    headers = [str(c.value).strip().upper() if c.value else "" for c in ws[1]]
+    if not {"ORIGEN", "FECHA", "MZ_CORRECTO", "LOTE_CORRECTO"} <= set(headers):
+        wb.close()
+        return {}
+    i_origen = headers.index("ORIGEN")
+    i_fecha  = headers.index("FECHA")
+    i_mz     = headers.index("MZ_CORRECTO")
+    i_lote   = headers.index("LOTE_CORRECTO")
+    i_motivo = headers.index("MOTIVO") if "MOTIVO" in headers else None
+    resultado = {}
+    for fila in ws.iter_rows(min_row=2, values_only=True):
+        origen = str(fila[i_origen]).strip() if fila[i_origen] else ""
+        fecha  = str(fila[i_fecha]).strip()  if fila[i_fecha]  else ""
+        mz     = str(fila[i_mz]).strip().upper() if fila[i_mz] else ""
+        lote   = limpiar_lote(fila[i_lote]) if fila[i_lote] else ""
+        if not origen or not fecha or not mz or not lote:
+            continue
+        motivo = str(fila[i_motivo]).strip() if i_motivo is not None and fila[i_motivo] else ""
+        clave = f"{origen.upper()}|{fecha}"
+        resultado[clave] = {"origen": origen, "fecha": fecha, "mz": mz, "lote": lote, "motivo": motivo}
+    wb.close()
+    return resultado
+
+
 def leer_correcciones(planilla: dict = None) -> tuple[dict, dict, dict, list, list]:
     """
     Lee correcciones_acumuladas.xlsx + pendientes.xlsx.
@@ -1244,8 +1425,8 @@ def leer_correcciones(planilla: dict = None) -> tuple[dict, dict, dict, list, li
     corr_simples               = {}
     corr_ambiguos              = {}
     corr_multiples             = {}
-    corr_comunitarios          = {}   # ORIGEN|FECHA → {origen, fecha, monto} — flagged, aún sin desglose
-    comunitarios_resueltos     = {}   # ORIGEN|FECHA → list[{mz, lote, monto_parcial}] — OK=SI en Pagos_comunitarios
+    corr_comunitarios          = {}   # ORIGEN|FECHA → {origen, fecha, monto, tipo} — flagged, aún sin desglose
+    comunitarios_resueltos     = {}   # ORIGEN|FECHA → list[{mz, lote, monto_parcial, tipo}] — OK=SI en Segregacion
     validados_ambiguos         = []
     validados_maestro_inexacto = []
     corr_pagaste               = {}
@@ -1260,12 +1441,15 @@ def leer_correcciones(planilla: dict = None) -> tuple[dict, dict, dict, list, li
             validados_maestro_inexacto = _leer_acum_maestro_inexacto_traz(wb_acum)
             comunitarios_resueltos     = _leer_acum_pagos_comunitarios_traz(wb_acum)
             # Re-sembrar corr_comunitarios desde el padre trazado (PADRE_SEGREGADO) —
-            # ancla durable: el pago sigue "ya clasificado comunitario" aunque la fila
-            # Ambiguos ya no esté viva en pendientes.xlsx.
+            # ancla durable: el pago sigue "ya clasificado" (comunitario|multiple)
+            # aunque la fila Sin_identificar/Ambiguos ya no esté viva en pendientes.xlsx.
             for r in validados_ambiguos:
                 if r.get("estado_registro") in ("PADRE_SEGREGADO", "INCIDENCIA"):
                     clave = f"{r['origen'].upper()}|{r['fecha']}"
-                    corr_comunitarios[clave] = {"origen": r["origen"], "fecha": r["fecha"], "monto": r["monto"]}
+                    corr_comunitarios[clave] = {
+                        "origen": r["origen"], "fecha": r["fecha"], "monto": r["monto"],
+                        "tipo":   r.get("concepto") or CONCEPTO_COMUNITARIO,
+                    }
             # Persistir correcciones de maestro_inexacto en corr_simples: la trazabilidad
             # Maestro_inexacto es el único lugar donde queda registro de MZ-LOTE validados,
             # ya que exportar_trazabilidad las excluye del sheet Sin_identificar.
@@ -1306,8 +1490,17 @@ def leer_correcciones(planilla: dict = None) -> tuple[dict, dict, dict, list, li
             # Hoja Sin_identificar — filtrar por OK=SI
             nuevas_si = _leer_hoja_pendientes_ok(wb_pend, "Sin_identificar")
             for k, v in nuevas_si.items():
-                mz   = v.get("mz","")
-                lote = v.get("lote","")
+                mz       = v.get("mz","")
+                lote     = v.get("lote","")
+                concepto = v.get("concepto","")
+                if concepto and concepto.strip().lower() in CONCEPTOS_SEGREGACION:
+                    corr_comunitarios[k] = {
+                        "origen": k.split("|")[0],
+                        "fecha":  k.split("|", 1)[1] if "|" in k else "",
+                        "monto":  v.get("monto", 0.0),
+                        "tipo":   concepto.strip().lower(),
+                    }
+                    continue  # no está en maestro ni tiene MZ+LOTE — espera desglose en Segregacion
                 if not mz or mz in ("NAN","NONE",""):
                     continue
                 if mz == "BLANCO":
@@ -1332,13 +1525,14 @@ def leer_correcciones(planilla: dict = None) -> tuple[dict, dict, dict, list, li
                 lote    = v.get("lote","")
                 concepto = v.get("concepto","")
                 if concepto and concepto.upper() not in ("NAN","NONE",""):
-                    if concepto.lower() == CONCEPTO_COMUNITARIO:
+                    if concepto.lower() in CONCEPTOS_SEGREGACION:
                         corr_comunitarios[k] = {
                             "origen": k.split("|")[0],
                             "fecha":  k.split("|", 1)[1] if "|" in k else "",
                             "monto":  v.get("monto", 0.0),
+                            "tipo":   concepto.lower(),
                         }
-                        continue  # no va a corr_simples — espera desglose en Pagos_comunitarios
+                        continue  # no va a corr_simples — espera desglose en Segregacion
                     if k not in corr_simples:
                         n_nuevas += 1
                     v["_fuente"] = "ambiguo"
@@ -1385,6 +1579,14 @@ def leer_correcciones(planilla: dict = None) -> tuple[dict, dict, dict, list, li
                 if clave not in claves_amb:
                     validados_ambiguos.append(r)
                     claves_amb.add(clave)
+            # Padres comunitario|multiple flaggeados desde Sin_identificar (sin maestro) —
+            # se trazan en la misma hoja Ambiguos por ser el único lugar con el mecanismo
+            # PADRE_SEGREGADO, sin importar de qué hoja de pendientes vino el flag.
+            for r in _leer_validados_sin_identificar_segregacion(wb_pend):
+                clave = f"{r['origen'].upper()}|{r['fecha']}"
+                if clave not in claves_amb:
+                    validados_ambiguos.append(r)
+                    claves_amb.add(clave)
 
             claves_mix = {f"{r['origen'].upper()}|{r['fecha']}" for r in validados_maestro_inexacto}
             for r in _leer_validados_maestro_inexacto(wb_pend, planilla):
@@ -1398,7 +1600,7 @@ def leer_correcciones(planilla: dict = None) -> tuple[dict, dict, dict, list, li
                 if clave not in corr_pagaste:
                     corr_pagaste[clave] = v
 
-            # Hoja Pagos_comunitarios — desgloses OK=SI nuevos de este ciclo.
+            # Hoja Segregacion — desgloses OK=SI nuevos de este ciclo.
             # Se MERGEA (no reemplaza) sobre lo ya sembrado desde trazabilidad —
             # un padre resuelto en un ciclo previo no debe perder sus hijos aunque
             # la fila ya no esté viva en este pendientes.
@@ -1431,6 +1633,12 @@ def leer_correcciones(planilla: dict = None) -> tuple[dict, dict, dict, list, li
             print(f"  ⚠ Comunitario INCIDENCIA {clave[:40]}: hijos {suma} ≠ padre {r['monto']}")
         else:
             r["estado_registro"] = "PADRE_SEGREGADO"
+
+    forzados = _leer_forzar_comunitario(CORRECCIONES_DIR / FORZAR_COMUNITARIO_FILE)
+    nuevos_forzados = [k for k in forzados if k not in corr_comunitarios]
+    corr_comunitarios.update(forzados)
+    if nuevos_forzados:
+        print(f"  ⚑ Forzados a comunitario (forzar_comunitario.xlsx): {len(nuevos_forzados)}")
 
     n_si   = len(corr_simples)
     n_amb  = len(corr_ambiguos)
@@ -1519,13 +1727,15 @@ def ejecutar_matching(df: pd.DataFrame, mapa: dict,
                       ciclo: int = 1,
                       indice_ambiguo: dict = None,
                       corr_comunitarios: dict = None,
-                      comunitarios_resueltos: dict = None) -> list:
+                      comunitarios_resueltos: dict = None,
+                      forzar_mzlt: dict = None) -> list:
     if corr_simples           is None: corr_simples           = {}
     if corr_ambiguos          is None: corr_ambiguos          = {}
     if corr_multiples         is None: corr_multiples         = {}
     if indice_ambiguo         is None: indice_ambiguo         = {}
     if corr_comunitarios      is None: corr_comunitarios      = {}
     if comunitarios_resueltos is None: comunitarios_resueltos = {}
+    if forzar_mzlt            is None: forzar_mzlt            = {}
     if mzs_validas            is None: mzs_validas            = set(k[0] for k in planilla.keys()) if planilla else set()
     todos = []
 
@@ -1543,12 +1753,40 @@ def ejecutar_matching(df: pd.DataFrame, mapa: dict,
 
         base = {"origen": origen, "monto_pago": monto_pago, "mensaje": mensaje, "fecha": fecha}
 
+        # ── Forzado manual de MZ/LOTE (forzar_mzlt.xlsx) — prioridad máxima:
+        # corrige error de digitación del pagante en ESA transacción puntual,
+        # no un defecto del matching (a diferencia de corr_comunitarios/ambiguos).
+        if corr_key in forzar_mzlt:
+            fz = forzar_mzlt[corr_key]
+            mz_f, lote_f = fz["mz"], fz["lote"]
+            datos_f  = planilla.get((mz_f, lote_f), {})
+            deuda_f  = datos_f.get("deuda_total", 0.0)
+            mes_ant_f = datos_f.get("mes_anterior", 0.0)
+            uid_f, nom_f = buscar_uid(mz_f, lote_f)
+            if deuda_f > 0:
+                dif_f = round(monto_pago - deuda_f, 2)
+                ep_f  = "exacto" if dif_f == 0 else ("exceso" if dif_f > 0 else "parcial")
+            else:
+                dif_f = 0.0; ep_f = "sin deuda en planilla"
+            todos.append({**base,
+                "user_id": uid_f, "nombre": nom_f or datos_f.get("nombre", ""),
+                "mz": mz_f, "lote": lote_f,
+                "nivel_confianza": "correccion_mzlt",
+                "deuda_total": deuda_f, "mes_anterior": mes_ant_f,
+                "diferencia": dif_f, "estado_pago": ep_f,
+                "fuente": "correccion_mzlt",
+                "motivo": fz.get("motivo", ""),
+                "estado": "identificado",
+            })
+            continue
+
         # ── Comunitarios resueltos: emitir una fila por lote ────────────
         if corr_key in comunitarios_resueltos:
             for item in comunitarios_resueltos[corr_key]:
                 mz_c  = item["mz"];  lote_c = item["lote"]
                 mp    = item["monto_parcial"]
                 concepto_c = item.get("concepto", "")
+                tipo_c     = item.get("tipo", CONCEPTO_COMUNITARIO)
                 datos_c = planilla.get((mz_c, lote_c), {})
                 deuda_c = datos_c.get("deuda_total", 0.0)
                 dif_c   = round(mp - deuda_c, 2) if deuda_c else 0.0
@@ -1565,6 +1803,7 @@ def ejecutar_matching(df: pd.DataFrame, mapa: dict,
                     "diferencia": dif_c, "estado_pago": ep_c,
                     "fuente": "comunitario", "motivo": item.get("motivo", ""),
                     "concepto": concepto_c,
+                    "tipo_segregacion": tipo_c,
                     "estado": "identificado",
                     "estado_registro": "HIJO_SEGREGADO",
                     "id_padre": corr_key,
@@ -1577,8 +1816,10 @@ def ejecutar_matching(df: pd.DataFrame, mapa: dict,
                 "user_id": "", "nombre": "", "mz": "", "lote": "",
                 "nivel_confianza": "", "deuda_total": "", "mes_anterior": "",
                 "diferencia": "", "estado_pago": "comunitario",
-                "fuente": "comunitario", "motivo": "pendiente desglose",
+                "fuente": "comunitario",
+                "motivo": corr_comunitarios[corr_key].get("motivo") or "pendiente desglose",
                 "estado": "pendiente_comunitario",
+                "tipo_segregacion": corr_comunitarios[corr_key].get("tipo", CONCEPTO_COMUNITARIO),
             })
             continue
 
@@ -1620,9 +1861,22 @@ def ejecutar_matching(df: pd.DataFrame, mapa: dict,
                     "concepto":"BLANCO","motivo":"marcado como blanco","estado":"identificado"})
                 continue
             elif _conc_ok:
+                # CONCEPTO con un lote real (ej. "tanque" + MZ/LOTE): se preserva
+                # MZ/LOTE/USER_ID/NOMBRE para que consolidar_tanque sepa QUIÉN aportó.
+                # estado_pago="concepto" → 5_cobranza NO lo toma como pago de agua.
+                # Si no hay lote (concepto puro, gasto JASS) → MZ/LOTE vacíos como antes.
+                _mz   = str(corr_simple.get("mz", "")).strip().upper()
+                _lote = limpiar_lote(corr_simple.get("lote", ""))
+                _es_lote = bool(_mz) and _mz not in ("BLANCO", "NAN", "NONE") and bool(_lote)
+                if _es_lote:
+                    uid_c, nom_c = buscar_uid(_mz, _lote)
+                    nom_c = nom_c or planilla.get((_mz, _lote), {}).get("nombre", "")
+                else:
+                    uid_c, nom_c = "", ""
                 todos.append({
                     **base,
-                    "user_id": "", "nombre": "", "mz": "", "lote": "",
+                    "user_id": uid_c, "nombre": nom_c,
+                    "mz": _mz if _es_lote else "", "lote": _lote if _es_lote else "",
                     "nivel_confianza": "correccion",
                     "deuda_total": "", "mes_anterior": "",
                     "diferencia": "", "estado_pago": "concepto",
@@ -1933,8 +2187,10 @@ def _leer_pendientes_preservados(ruta_pend: Path) -> dict:
 
 
 def _leer_comunitarios_preservados(ruta_pend: Path) -> dict:
-    """Lee filas de Pagos_comunitarios sin OK=SI del pendientes anterior.
-    Retorna ORIGEN_UPPER|FECHA → list[row_dict] para inyectarlas en el próximo pendientes."""
+    """Lee filas de Segregacion sin OK=SI del pendientes anterior.
+    Retorna ORIGEN_UPPER|FECHA → list[row_dict] para inyectarlas en el próximo pendientes.
+    TIPO no se preserva acá — se re-inyecta siempre desde el padre (corr_comunitarios),
+    igual que ORIGEN/FECHA/MONTO_TOTAL."""
     result: dict = {}
     if not ruta_pend.exists():
         return result
@@ -1942,10 +2198,10 @@ def _leer_comunitarios_preservados(ruta_pend: Path) -> dict:
         wb = load_workbook(ruta_pend, read_only=True, data_only=True)
     except Exception:
         return result
-    if "Pagos_comunitarios" not in wb.sheetnames:
+    if "Segregacion" not in wb.sheetnames:
         wb.close()
         return result
-    filas = list(wb["Pagos_comunitarios"].values)
+    filas = list(wb["Segregacion"].values)
     wb.close()
     if len(filas) < 3:
         return result
@@ -2034,7 +2290,8 @@ def exportar_pendientes(todos: list, pagaste_pendientes: list = None):
     ]
 
     comunitarios_pendientes = [
-        {"origen": r["origen"], "mensaje": r.get("mensaje", ""), "fecha": r["fecha"], "monto_total": r["monto_pago"]}
+        {"origen": r["origen"], "mensaje": r.get("mensaje", ""), "fecha": r["fecha"],
+         "monto_total": r["monto_pago"], "tipo": r.get("tipo_segregacion", CONCEPTO_COMUNITARIO)}
         for r in todos
         if r.get("fuente") == "comunitario" and r.get("estado") == "pendiente_comunitario"
     ]
@@ -2259,12 +2516,16 @@ def main():
 
     print("\n[7] Leyendo correcciones manuales...")
     corr_simples, corr_ambiguos, corr_multiples, validados_ambiguos, validados_maestro_inexacto, corr_pagaste, corr_comunitarios, comunitarios_resueltos = leer_correcciones(planilla)
+    forzar_mzlt = _leer_forzar_mzlt(CORRECCIONES_DIR / FORZAR_MZLT_FILE)
+    if forzar_mzlt:
+        print(f"  ⚑ Forzados MZ/LOTE (forzar_mzlt.xlsx): {len(forzar_mzlt)}")
 
     print("\n[8] Ejecutando matching (TE PAGÓ)...")
     todos = ejecutar_matching(df, mapa, indice, planilla,
                               corr_simples, corr_ambiguos, corr_multiples,
                               mzs_validas, ciclo, indice_ambiguo,
-                              corr_comunitarios, comunitarios_resueltos)
+                              corr_comunitarios, comunitarios_resueltos,
+                              forzar_mzlt)
 
     for reg in todos:
         if not reg.get("user_id") and reg.get("mz") and reg.get("lote"):

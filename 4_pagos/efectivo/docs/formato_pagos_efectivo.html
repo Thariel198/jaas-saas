@@ -153,7 +153,7 @@
   <strong>Historia (izquierda → derecha):</strong>
   ¿Dónde vive? → ¿Cuánto pagó y cuándo? → ¿De qué mesa vino? → ¿Qué tan confiable es el registro? → ¿Quién cobró? → ¿Qué tipo de pago? → ¿Qué pasó en mesa? → ¿Alguna nota?<br><br>
   El campo <strong>CONCEPTO</strong> clasifica el tipo de pago: vacío = agua (mayoría), <code>tanque</code>, <code>honorario</code>, <code>gasto</code>. <code>5_cobranza</code> excluye del cálculo de agua todo pago con CONCEPTO no vacío.<br><br>
-  El campo <strong>CATEGORIA</strong> registra el evento de mesa: vacío = pago normal, <code>reclamo</code>, <code>compromiso</code>, <code>otros</code>.
+  El campo <strong>CATEGORIA</strong> registra el evento de mesa: vacío = pago normal, <code>reclamo</code>, <code>compromiso</code>, <code>exoneracion</code>, <code>otros</code>.
   <code>4b_reclamos</code> detecta reclamos por <code>CATEGORIA=reclamo</code> — ya no por la palabra "reclamo" en COMENTARIO
   (fallback de transición jul-2026: si CATEGORIA está vacía y el comentario contiene "reclamo", se trata como reclamo con warning).
   No afecta el cálculo de plata.<br><br>

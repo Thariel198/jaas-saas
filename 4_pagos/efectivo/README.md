@@ -12,6 +12,12 @@ Una vez por mes, después de que todos los cobradores han entregado sus registro
 de correr `5_cobranza`. Si quedan discrepancias sin resolver, el módulo puede correrse
 de nuevo hasta que `discrepancias.xlsx` desaparezca.
 
+> **Alimenta el ledger `libro_mayor/caja` (Fase 2):** `pagos_efectivo.xlsx` es una **fuente de
+> ABONOS**. `libro_mayor/caja/importar_efectivo.py` lo lee post-cierre y genera un abono por
+> pago. La clave natural del `ABONO_ID` es `(jass, MESA, COBRADOR, FECHA, MONTO, MZ, LT)`
+> — esas columnas deben existir en el output y no cambiar de nombre. Ver el contrato en
+> `libro_mayor/caja/README.md`.
+
 ---
 
 ## Estructura de carpetas
@@ -22,11 +28,14 @@ de nuevo hasta que `discrepancias.xlsx` desaparezca.
 │   ├── mesa_1.xlsx          ← hojas: registro_1, [registro_2], [registro_3]
 │   ├── mesa_2.xlsx
 │   ├── ...
-│   └── mesa_7.xlsx
+│   ├── mesa_7.xlsx
+│   ├── entregas_hoja.xlsx   ← la tesorera la llena a mano (staging físico)
+│   └── entregas.xlsx        ← log append-only (lo escribe entregas_repo, NO se edita a mano)
 ├── outputs/
 │   ├── pagos_efectivo.xlsx       ← resultado limpio → 5_cobranza
 │   ├── discrepancias.xlsx        ← temporal, desaparece al resolverse todo
-│   └── reclamos_YYYY-MM.xlsx     ← vista operacional de reclamos del mes
+│   ├── reclamos_YYYY-MM.xlsx     ← vista operacional de reclamos del mes
+│   └── arqueo_YYYY-MM.xlsx       ← cuadre papel vs tesorera, por día y cobrador
 ├── trazabilidad/
 │   ├── consolidado_YYYY-MM.xlsx        ← todo lo procesado (permanente)
 │   ├── incidencias_YYYY-MM.xlsx        ← anomalías del mes (permanente)
@@ -36,13 +45,20 @@ de nuevo hasta que `discrepancias.xlsx` desaparezca.
 ├── docs/
 │   ├── diagrama_efectivo.html
 │   ├── diagrama_reclamos.html
+│   ├── diagrama_flujo_arqueo.html
 │   ├── arquitectura_efectivo.html
 │   ├── formato_pagos_efectivo.html
 │   ├── formato_reclamos.html
-│   └── formato_trazabilidad_reclamos.html
+│   ├── formato_trazabilidad_reclamos.html
+│   ├── formato_entregas.html
+│   └── formato_arqueo.html
 ├── tests/
 ├── main.py
 ├── reclamos.py
+├── entregas_repo.py         ← escritor único de entregas.xlsx (append-only)
+├── importar_entregas.py     ← crea entregas_hoja.xlsx y la vuelca al ledger (flujo B)
+├── registrar_entrega.py     ← CLI alterno: registrar una entrega directo por consola
+├── arqueo.py                ← cruza mesas vs entregas → arqueo_YYYY-MM.xlsx
 └── crear_templates.py
 ```
 
@@ -67,11 +83,11 @@ Columnas de cada hoja — schema v3 (todas requeridas salvo COMENTARIO, CONCEPTO
 | FECHA            | fecha   | Fecha del pago (puede diferir del cobro) |
 | COMENTARIO       | texto   | Nota libre, opcional — no clasifica nada |
 | CONCEPTO         | texto   | Qué es la plata: vacío=agua · tanque · honorario · gasto · comunitario |
-| CATEGORIA        | texto   | Qué pasó en mesa (dropdown): vacío=pago normal · reclamo · compromiso · otros |
+| CATEGORIA        | texto   | Qué pasó en mesa (dropdown): vacío=pago normal · reclamo · compromiso · exoneracion · otros |
 
 `CONCEPTO` rutea el dinero (5_cobranza excluye del cálculo de agua todo pago con
 CONCEPTO no vacío). `CATEGORIA` marca eventos de mesa y no afecta montos:
-`reclamo` lo detecta `4b_reclamos`; `compromiso`/`otros` quedan registrados y
+`reclamo` lo detecta `4b_reclamos`; `compromiso`/`exoneracion`/`otros` quedan registrados y
 filtrables en `pagos_efectivo.xlsx`. Contrato visual: `docs/formato_registro.html`.
 Migración v2→v3: `migrar_formato_v3.py` (backup en `backup/migracion_2026-07/`).
 
@@ -147,6 +163,9 @@ python main.py
 | `trazabilidad/incidencias_YYYY-MM.xlsx` | permanente | si hay anomalías | nunca |
 | `trazabilidad/trazabilidad_reclamos.xlsx` | permanente | primera vez que hay reclamos cerrados | nunca — solo crece |
 | `inputs/mesa_N.xlsx` | manual — sagrado | el cobrador lo llena | nunca se borra sin backup |
+| `inputs/entregas_hoja.xlsx` | manual — staging | 1a corrida de `importar_entregas.py` | nunca se borra sin backup |
+| `inputs/entregas.xlsx` | permanente — append-only | primera entrega importada | nunca — solo crece, nunca se edita |
+| `outputs/arqueo_YYYY-MM.xlsx` | mensual | cada corrida de `arqueo.py` | nunca (se regenera) |
 
 ---
 
@@ -193,6 +212,82 @@ directamente en `outputs/reclamos_YYYY-MM.xlsx`. Ese trabajo se preserva en cada
 
 - Vista del mes con >50 filas PENDIENTE → revisar si el filtro captura demasiados falsos positivos.
 - Trazabilidad crece pero vista del mes no baja → ningún reclamo se está cerrando; problema de proceso.
+
+---
+
+## Arqueo de caja
+
+Valida que el dinero que cada cobrador **anotó en su mesa** (papel) sea igual al que
+**la tesorera recibió** físicamente — efectivo y yape, por día y por cobrador. Responde
+"¿cuadra la caja?" y, cuando no, "¿a quién le reclamo cuánto?".
+
+### Las dos fuentes
+
+```
+mesa_1..7.xlsx (papel del cobrador)      entregas.xlsx (declaración de la tesorera)
+  Σ MONTO_EFECTIVO / MONTO_YAPE            Σ EFECTIVO / YAPE
+  por (FECHA, COBRADOR)                    por (FECHA, COBRADOR)
+            └──────────► arqueo.py ◄───────────┘
+                    arqueo_YYYY-MM.xlsx
+```
+
+- **FECHA** = el día que pagó el usuario (no el día que se registró). Misma clave en las dos fuentes.
+- **Efectivo esperado** = Σ `MONTO_EFECTIVO` bruto de las mesas. No se netea nada — la plata llega
+  primero a la tesorera; nadie gasta antes de entregar (`CONCEPTO=gasto` no interviene en el cuadre).
+- **Yape**: el usuario yapea a la cuenta del cobrador, el cobrador reenvía a la cuenta de la tesorera,
+  la tesorera registra el monto. Se cuadra por cobrador → `DIF_YAPE ≠ 0` dice a quién reclamar.
+
+### Registrar entregas — flujo B (Excel físico + import)
+
+Hay dos archivos, con roles distintos:
+
+| Archivo | Quién escribe | Rol |
+|---|---|---|
+| `inputs/entregas_hoja.xlsx` | la tesorera, a mano | staging físico — llena una fila por entrega |
+| `inputs/entregas.xlsx` | solo `entregas_repo.py` | ledger append-only — nunca se edita a mano |
+
+La tesorera llena `entregas_hoja.xlsx` como si fuera una mesa; `importar_entregas.py` vuelca
+cada fila al ledger append-only. El Excel es la superficie de captura; el ledger es la fuente
+de verdad event-sourced (el arqueo pliega sus eventos → `RECIBIDO = Σ filas`). Mismo patrón que
+`shared/seguimiento_repo.py`.
+
+```bash
+python importar_entregas.py    # 1a vez: crea entregas_hoja.xlsx. Luego: importa lo pendiente.
+```
+
+- **Fila 3** = ejemplo guía (se ignora). Datos desde la fila 4.
+- **Idempotente** por `(SOURCE, AUDIT_REF = HOJA-fecha-cobrador-rN)` — re-importar no duplica.
+  La columna `IMPORTADO` marca lo ya volcado; re-correr es seguro aunque no se guarde la marca.
+- **Segunda entrega el mismo día** = otra fila; `arqueo.py` SUMA las filas de cada `(FECHA, COBRADOR)`.
+- **Corrección** = fila con `MOTIVO` lleno; ahí `EFECTIVO`/`YAPE` son el **total correcto** y el
+  import appendea el **delta** (nunca edita el ledger). La tesorera no hace la resta.
+
+Alterno rápido por consola (una entrega suelta, sin abrir Excel): `python registrar_entrega.py --fecha … --cobrador … --efectivo … --yape …`.
+
+Este diseño es el que escala a SaaS: mañana un endpoint POST reemplaza al import y llama a la
+misma función `registrar_entrega()` — cambia quién la invoca, no el ledger ni la lógica.
+
+### Correr el arqueo
+
+```bash
+python arqueo.py --mes 2026-07
+```
+
+Lee las mesas crudas (no `pagos_efectivo.xlsx`, cuyo dedupe cross-cobrador distorsionaría el
+total físico por cobrador) y `entregas.xlsx`, agrupa por `(FECHA, COBRADOR)` y compara.
+
+### Estados del cuadre
+
+| ESTADO | Significado | Acción |
+|--------|-------------|--------|
+| `CUADRA` | `DIF_EFECTIVO = 0` y `DIF_YAPE = 0` | ninguna |
+| `DESCUADRE` | hay papel y entrega, alguna DIF ≠ 0 | reclamar al cobrador el monto de la DIF |
+| `SIN_ENTREGA` | hay papel, la tesorera no declaró ese día/cobrador | que la tesorera registre la entrega |
+| `SIN_MESA` | la tesorera declaró, no hay mesa ese día | el cobrador no registró lo que entregó |
+
+`DIF = RECIBIDO − PAPEL`: negativo = falta (entregó menos de lo anotado), positivo = sobra.
+
+Contratos: `docs/formato_entregas.html`, `docs/formato_arqueo.html`, `docs/diagrama_flujo_arqueo.html`.
 
 ---
 

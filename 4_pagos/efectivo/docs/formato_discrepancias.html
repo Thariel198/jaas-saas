@@ -61,6 +61,13 @@
   .gh  { font-size: 9px; font-weight: 600; text-align: center; letter-spacing: 0.05em; text-transform: uppercase; padding: 4px 8px; }
   th.col { font-size: 9px; font-weight: 600; font-family: var(--font-mono); text-align: center; padding: 4px 8px; }
 
+  /* ── ¿Quién es? (violeta — mismo color que USER_ID/NOMBRE en motor_matching) ── */
+  .gh-quien { background: #F4ECF7; color: #5B21B6; }
+  .th-quien { background: #F4ECF7; color: #5B21B6; }
+  .td-quien-id     { background: #FAF5FF; color: #5B21B6; font-family: var(--font-mono); text-align: center; }
+  .td-quien-nombre { background: #FAF5FF; color: #5B21B6; }
+  .td-quien-vacio  { background: #f8f9fa; color: #ccc; font-style: italic; text-align: center; font-size: 9px; }
+
   /* ── ¿Cuál es el predio? (azul) ── */
   .gh-id  { background: #EBF5FB; color: #1A5276; }
   .th-id  { background: #EBF5FB; color: #1A5276; }
@@ -138,11 +145,15 @@
   · Hoja <strong>discrepancias</strong>: columna <strong>RESOLUCION</strong> (acepta_a / acepta_b / corrige).<br>
   · Hoja <strong>pago_multi_mesa</strong>: columna <strong>OK</strong> (si / rechaza / dejar vacío = pendiente).<br>
   Las resoluciones quedan en <code>trazabilidad/trazabilidad_{mes}.xlsx</code> (hojas <code>discrepancias_resueltas</code> y <code>pago_multi_mesa_resueltas</code>).
-  Cuando ambas hojas están completamente resueltas el archivo se elimina automáticamente.
+  Cuando ambas hojas están completamente resueltas el archivo se elimina automáticamente.<br>
+  <strong>ID / NOMBRE</strong> — columnas de sistema (no las llena el supervisor), primera cosa que ve al abrir el archivo.
+  Lookup por (MZ,LT) contra <code>shared/usuarios_id.xlsx</code> — mismo mecanismo que <code>buscar_uid</code> en motor_matching.
+  Si el predio no tiene ID registrado todavía → <code>—</code> en gris itálico.
 </p>
 
 <!-- ── Leyenda ── -->
 <div class="legend">
+  <div class="ld-item"><div class="ld" style="background:#F4ECF7;border-color:#D8B4FE"></div>¿Quién es?</div>
   <div class="ld-item"><div class="ld" style="background:#EBF5FB;border-color:#AED6F1"></div>¿Cuál es el predio?</div>
   <div class="ld-item"><div class="ld" style="background:#FEF9E7;border-color:#F9E79F"></div>¿De qué mesa?</div>
   <div class="ld-item"><div class="ld" style="background:#FEF2F2;border-color:#FECACA"></div>¿Qué dijo cada cobrador?</div>
@@ -167,6 +178,8 @@
   <!-- Fila 1: secciones -->
   <tr>
     <th class="num" rowspan="2"></th>
+    <th class="gh gh-quien" colspan="2">¿Quién es?</th>
+    <th class="th-sep"     rowspan="2"></th>
     <th class="gh gh-id"   colspan="2">¿Cuál es el predio?</th>
     <th class="th-sep"     rowspan="2"></th>
     <th class="gh gh-mesa" colspan="1">¿De qué mesa?</th>
@@ -177,6 +190,8 @@
   </tr>
   <!-- Fila 2: columnas -->
   <tr>
+    <th class="col th-quien">ID</th>
+    <th class="col th-quien">NOMBRE</th>
     <th class="col th-id">MZ</th>
     <th class="col th-id">LT</th>
     <th class="col th-mesa">MESA</th>
@@ -193,6 +208,8 @@
   <!-- sin resolver, 2 cobradores -->
   <tr>
     <td class="num">3</td>
+    <td class="td-quien-id">U0142</td><td class="td-quien-nombre">Ana Mamani Ticona</td>
+    <td class="td-sep"></td>
     <td class="td-id">C</td><td class="td-id">5</td>
     <td class="td-sep"></td>
     <td class="td-mesa">mesa_3</td>
@@ -206,6 +223,8 @@
   <!-- sin resolver, 3 cobradores -->
   <tr>
     <td class="num">4</td>
+    <td class="td-quien-id">U0089</td><td class="td-quien-nombre">Rosa Condori Apaza</td>
+    <td class="td-sep"></td>
     <td class="td-id">A</td><td class="td-id">12</td>
     <td class="td-sep"></td>
     <td class="td-mesa">mesa_5</td>
@@ -216,9 +235,11 @@
     <td class="td-sep"></td>
     <td class="td-res-vacio">← llenar</td><td class="td-res-vacio"></td>
   </tr>
-  <!-- resuelta con acepta_a -->
+  <!-- sin ID todavía (predio nuevo, aún no en usuarios_id.xlsx) -->
   <tr>
     <td class="num">5</td>
+    <td class="td-quien-vacio">—</td><td class="td-quien-vacio">sin ID registrado</td>
+    <td class="td-sep"></td>
     <td class="td-id">B</td><td class="td-id">8</td>
     <td class="td-sep"></td>
     <td class="td-mesa">mesa_2</td>
@@ -233,6 +254,8 @@
   <!-- resuelta con corrige -->
   <tr>
     <td class="num">6</td>
+    <td class="td-quien-id">U0234</td><td class="td-quien-nombre">Juana Roque Mamani</td>
+    <td class="td-sep"></td>
     <td class="td-id">D</td><td class="td-id">2</td>
     <td class="td-sep"></td>
     <td class="td-mesa">mesa_6</td>
@@ -285,6 +308,8 @@
   <!-- Fila 1: secciones -->
   <tr>
     <th class="num" rowspan="2"></th>
+    <th class="gh gh-quien" colspan="2">¿Quién es?</th>
+    <th class="th-sep"      rowspan="2"></th>
     <th class="gh gh-id"    colspan="2">¿Cuál es el predio?</th>
     <th class="th-sep"      rowspan="2"></th>
     <th class="gh gh-cobro" colspan="4">¿Qué se registró?</th>
@@ -293,6 +318,8 @@
   </tr>
   <!-- Fila 2: columnas -->
   <tr>
+    <th class="col th-quien">ID</th>
+    <th class="col th-quien">NOMBRE</th>
     <th class="col th-id">MZ</th>
     <th class="col th-id">LT</th>
     <th class="col th-cobro">MESA</th>
@@ -307,6 +334,8 @@
   <!-- Grupo 1: predio D-11 en 2 mesas — pendiente -->
   <tr>
     <td class="num">3</td>
+    <td class="td-quien-id">U0058</td><td class="td-quien-nombre">María Martina Peña Vega</td>
+    <td class="td-sep"></td>
     <td class="td-id">D</td><td class="td-id">11</td>
     <td class="td-sep"></td>
     <td class="td-cobro">mesa_2</td>
@@ -320,6 +349,8 @@
   </tr>
   <tr>
     <td class="num">4</td>
+    <td class="td-quien-id">U0058</td><td class="td-quien-nombre">María Martina Peña Vega</td>
+    <td class="td-sep"></td>
     <td class="td-id">D</td><td class="td-id">11</td>
     <td class="td-sep"></td>
     <td class="td-cobro">mesa_5</td>
@@ -335,6 +366,8 @@
   <!-- Grupo 2: A-7B — uno acepta (predio correcto), otro rechaza -->
   <tr>
     <td class="num">5</td>
+    <td class="td-quien-id">U0071</td><td class="td-quien-nombre">Wagner Trujillo Rosales</td>
+    <td class="td-sep"></td>
     <td class="td-id">A</td><td class="td-id">7B</td>
     <td class="td-sep"></td>
     <td class="td-cobro">mesa_1</td>
@@ -348,6 +381,8 @@
   </tr>
   <tr>
     <td class="num">6</td>
+    <td class="td-quien-id">U0071</td><td class="td-quien-nombre">Wagner Trujillo Rosales</td>
+    <td class="td-sep"></td>
     <td class="td-id">A</td><td class="td-id">7B</td>
     <td class="td-sep"></td>
     <td class="td-cobro">mesa_3</td>
@@ -363,6 +398,8 @@
   <!-- Grupo 3: B-4 — ok con corrección de predio -->
   <tr>
     <td class="num">7</td>
+    <td class="td-quien-vacio">—</td><td class="td-quien-vacio">sin ID registrado</td>
+    <td class="td-sep"></td>
     <td class="td-id">B</td><td class="td-id">4</td>
     <td class="td-sep"></td>
     <td class="td-cobro">mesa_4</td>
@@ -376,6 +413,8 @@
   </tr>
   <tr>
     <td class="num">8</td>
+    <td class="td-quien-vacio">—</td><td class="td-quien-vacio">sin ID registrado</td>
+    <td class="td-sep"></td>
     <td class="td-id">B</td><td class="td-id">4</td>
     <td class="td-sep"></td>
     <td class="td-cobro">mesa_6</td>
@@ -453,6 +492,8 @@
 <p class="section-title">Reglas de formato — openpyxl — hoja discrepancias</p>
 <table class="widths-table">
   <tr><th>Columna</th><th>Ancho</th><th>Nota</th></tr>
+  <tr><td><code>ID</code></td><td>10</td><td>centro · lookup (MZ,LT) contra usuarios_id.xlsx · <code>—</code> si no hay match</td></tr>
+  <tr><td><code>NOMBRE</code></td><td>24</td><td>izquierda · mismo lookup que ID</td></tr>
   <tr><td><code>MZ</code></td><td>8</td><td>centro</td></tr>
   <tr><td><code>LT</code></td><td>8</td><td>centro</td></tr>
   <tr><td><code>MESA</code></td><td>10</td><td>centro</td></tr>
@@ -465,6 +506,8 @@
 <p class="section-title">Reglas de formato — openpyxl — hoja pago_multi_mesa</p>
 <table class="widths-table">
   <tr><th>Columna</th><th>Ancho</th><th>Nota</th></tr>
+  <tr><td><code>ID</code></td><td>10</td><td>centro · lookup (MZ,LT) contra usuarios_id.xlsx · <code>—</code> si no hay match</td></tr>
+  <tr><td><code>NOMBRE</code></td><td>24</td><td>izquierda · mismo lookup que ID</td></tr>
   <tr><td><code>MZ</code></td><td>8</td><td>centro</td></tr>
   <tr><td><code>LT</code></td><td>8</td><td>centro</td></tr>
   <tr><td><code>MESA</code></td><td>12</td><td>centro</td></tr>

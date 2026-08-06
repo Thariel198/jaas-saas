@@ -518,9 +518,9 @@ def exportar_pendientes_diseño(sin_resolver: list, ambiguos: list = None,
             ws4.row_dimensions[ri].height = 18
         _aplicar_anchos(ws4, cols_pag, anchos_pag)
 
-    # ── Hoja 5: Pagos_comunitarios ────────────────────────────
+    # ── Hoja 5: Segregacion ────────────────────────────────────
     if pagos_comunitarios:
-        ws5 = wb.create_sheet("Pagos_comunitarios")
+        ws5 = wb.create_sheet("Segregacion")
         ws5.freeze_panes = "A3"
 
         C_MAN_H = "E1F5EE"; C_MAN_C = "F0FFF8"; C_MAN_T = "065F46"
@@ -528,16 +528,16 @@ def exportar_pendientes_diseño(sin_resolver: list, ambiguos: list = None,
 
         # Fila 1: grupos
         grupos_com = [
-            (2, 5, "← banco — no editar",        C_BAN_H, C_BAN_T),
-            (7,11, "← tú completas (una fila por lote)", C_MAN_H, C_MAN_T),
-            (13,13,"✓",                           C_VAL_H, C_VAL_T),
+            (2, 6, "← banco/flag — no editar",   C_BAN_H, C_BAN_T),
+            (8,12, "← tú completas (una fila por lote)", C_MAN_H, C_MAN_T),
+            (14,14,"✓",                           C_VAL_H, C_VAL_T),
         ]
         for cs, ce, texto, bg, txt in grupos_com:
             ws5.merge_cells(start_row=1, start_column=cs, end_row=1, end_column=ce)
             c = ws5.cell(row=1, column=cs, value=texto)
             _cel(c, bg, txt, bold=True, align="center", size=8)
-        ws5.column_dimensions[get_column_letter(6)].width  = 1
-        ws5.column_dimensions[get_column_letter(12)].width = 1
+        ws5.column_dimensions[get_column_letter(7)].width  = 1
+        ws5.column_dimensions[get_column_letter(13)].width = 1
         ws5.row_dimensions[1].height = 16
 
         # Fila 2: columnas
@@ -546,18 +546,21 @@ def exportar_pendientes_diseño(sin_resolver: list, ambiguos: list = None,
             (3,  "MENSAJE",       C_BAN_H, C_BAN_T, 32),
             (4,  "FECHA",         C_BAN_H, C_BAN_T, 22),
             (5,  "MONTO_TOTAL",   C_BAN_H, C_BAN_T, 13),
-            (7,  "MZ",            C_MAN_H, C_MAN_T,  7),
-            (8,  "LOTE",          C_MAN_H, C_MAN_T,  7),
-            (9,  "MONTO_PARCIAL", C_MAN_H, C_MAN_T, 14),
-            (10, "MOTIVO",        C_MAN_H, C_MAN_T, 28),
-            (11, "CONCEPTO",      C_MAN_H, C_MAN_T, 12),
-            (13, "OK",            C_VAL_H, C_VAL_T,  7),
+            (6,  "TIPO",          C_BAN_H, C_BAN_T, 13),
+            (8,  "MZ",            C_MAN_H, C_MAN_T,  7),
+            (9,  "LOTE",          C_MAN_H, C_MAN_T,  7),
+            (10, "MONTO_PARCIAL", C_MAN_H, C_MAN_T, 14),
+            (11, "MOTIVO",        C_MAN_H, C_MAN_T, 28),
+            (12, "CONCEPTO",      C_MAN_H, C_MAN_T, 12),
+            (14, "OK",            C_VAL_H, C_VAL_T,  7),
         ]
         for col, nombre, bg, txt, ancho in cols_com:
             c = ws5.cell(row=2, column=col, value=nombre)
             _cel(c, bg, txt, bold=True, align="center")
             ws5.column_dimensions[get_column_letter(col)].width = ancho
         ws5.row_dimensions[2].height = 18
+
+        cols_banco = ("ORIGEN", "FECHA", "MONTO_TOTAL", "TIPO")
 
         # Datos — filas preservadas del run anterior, o una fila en blanco si es nuevo
         ri = 3
@@ -572,6 +575,7 @@ def exportar_pendientes_diseño(sin_resolver: list, ambiguos: list = None,
                         "MENSAJE":       dep.get("mensaje", ""),
                         "FECHA":         dep.get("fecha", ""),
                         "MONTO_TOTAL":   dep.get("monto_total", ""),
+                        "TIPO":          dep.get("tipo", "comunitario"),
                         "MZ":            prow.get("mz", ""),
                         "LOTE":          prow.get("lote", ""),
                         "MONTO_PARCIAL": prow.get("monto_parcial", ""),
@@ -580,7 +584,7 @@ def exportar_pendientes_diseño(sin_resolver: list, ambiguos: list = None,
                         "OK":            "",
                     }
                     for col, nombre, bg, txt, _ in cols_com:
-                        es_banco = nombre in ("ORIGEN", "FECHA", "MONTO_TOTAL")
+                        es_banco = nombre in cols_banco
                         c = ws5.cell(row=ri, column=col, value=vals[nombre])
                         _cel(c, C_BAN_C if es_banco else C_MAN_C,
                              C_BAN_T if es_banco else C_MAN_T,
@@ -595,10 +599,11 @@ def exportar_pendientes_diseño(sin_resolver: list, ambiguos: list = None,
                     "MENSAJE":      dep.get("mensaje",  ""),
                     "FECHA":        dep.get("fecha",    ""),
                     "MONTO_TOTAL":  dep.get("monto_total", ""),
+                    "TIPO":         dep.get("tipo", "comunitario"),
                     "MZ": "", "LOTE": "", "MONTO_PARCIAL": "", "MOTIVO": "", "CONCEPTO": "", "OK": "",
                 }
                 for col, nombre, bg, txt, _ in cols_com:
-                    es_banco = nombre in ("ORIGEN", "FECHA", "MONTO_TOTAL")
+                    es_banco = nombre in cols_banco
                     c = ws5.cell(row=ri, column=col, value=vals[nombre])
                     _cel(c, C_BAN_C if es_banco else C_MAN_C,
                          C_BAN_T if es_banco else C_MAN_T,
@@ -652,7 +657,7 @@ def exportar_blancos_mes(blancos: list, ciclo: int) -> Workbook:
     for ri, reg in enumerate(blancos, start=3):
         msg_raw = str(reg.get("mensaje", "")).strip()
         valores = {
-            "TIPO":    "TE PAGÓ",
+            "TIPO":    reg.get("tipo", "TE PAGÓ"),
             "ORIGEN":  reg.get("origen",  ""),
             "DESTINO": reg.get("destino", ""),
             "MONTO":   reg.get("monto_pago", reg.get("monto", "")),
@@ -1528,10 +1533,10 @@ def exportar_trazabilidad(ruta, corr_simples: dict, validados_ambiguos: list,
 
     _aplicar_anchos(ws4, cols_mix_traz, anchos_mix_traz)
 
-    # ── Hoja 5: Pagos_comunitarios ────────────────────────────
+    # ── Hoja 5: Segregacion ────────────────────────────────────
     if comunitarios_resueltos_list:
         C_COM_H = "FFF7ED"; C_COM_T = "9A3412"
-        ws5 = wb.create_sheet("Pagos_comunitarios")
+        ws5 = wb.create_sheet("Segregacion")
         ws5.freeze_panes = "A3"
 
         cols_com_traz = [
@@ -1541,6 +1546,7 @@ def exportar_trazabilidad(ruta, corr_simples: dict, validados_ambiguos: list,
             ("ORIGEN",         C_BAN_C, C_BAN_T, True,  "left"),
             ("FECHA",          C_BAN_C, C_BAN_T, True,  "left"),
             ("MONTO_TOTAL",    C_BAN_C, MONTO_T, True,  "right"),
+            ("TIPO",           C_BAN_C, C_BAN_T, True,  "left"),
             "__SEP__",
             ("MZ",             C_UBI_C, C_UBI_T, True,  "center"),
             ("LOTE",           C_UBI_C, C_UBI_T, True,  "center"),
@@ -1556,9 +1562,9 @@ def exportar_trazabilidad(ruta, corr_simples: dict, validados_ambiguos: list,
         grupos_com_traz = [
             ("¿QUIÉN ES?",          2, C_ID_H,  C_ID_T),
             None,
-            ("¿QUÉ HIZO EL BANCO?", 3, C_BAN_H, C_BAN_T),
+            ("¿QUÉ HIZO EL BANCO?", 4, C_BAN_H, C_BAN_T),
             None,
-            ("DESGLOSE COMUNITARIO",7, C_COM_H, C_COM_T),
+            ("DESGLOSE POR LOTE",   7, C_COM_H, C_COM_T),
             None,
             ("¿CUÁNDO?",            2, C_CUA_H, C_CUA_T),
         ]
@@ -1566,7 +1572,7 @@ def exportar_trazabilidad(ruta, corr_simples: dict, validados_ambiguos: list,
 
         anchos_com_traz = {
             "USER_ID":10, "NOMBRE":26,
-            "ORIGEN":28, "FECHA":20, "MONTO_TOTAL":13,
+            "ORIGEN":28, "FECHA":20, "MONTO_TOTAL":13, "TIPO":13,
             "MZ":6, "LOTE":7, "MONTO_PARCIAL":14, "MOTIVO":28, "CONCEPTO":12,
             "ESTADO_REGISTRO":16, "ID_PADRE":28,
             "CICLO":7, "FECHA_CORRECCION":16,
@@ -1580,6 +1586,7 @@ def exportar_trazabilidad(ruta, corr_simples: dict, validados_ambiguos: list,
                 "ORIGEN":            reg.get("origen", ""),
                 "FECHA":             reg.get("fecha", ""),
                 "MONTO_TOTAL":       reg.get("monto_total", ""),
+                "TIPO":              reg.get("tipo_segregacion", "comunitario"),
                 "MZ":                reg.get("mz", ""),
                 "LOTE":              reg.get("lote", ""),
                 "MONTO_PARCIAL":     reg.get("monto_parcial", ""),

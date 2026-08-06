@@ -53,13 +53,13 @@ tr:last-child td{border-bottom:none}
 <div id="w">
   <div class="instruc">
     <strong>Sin_identificar</strong> — sin mensaje ni maestro · TE PAGÓ y PAGASTE · tú pones MZ+LOTE o CONCEPTO o BLANCO.<br>
-    <strong>Ambiguos</strong> — maestro encontró 2+ candidatos · sistema sugiere el mejor · tú confirmas o corriges · MZ+LOTE o CONCEPTO · marca OK · si es pago de directivo con varios lotes: escribe <strong>CONCEPTO=comunitario</strong> + OK=SI → el padre queda trazado como ancla (no suma en caja) y aparecerá en Pagos_comunitarios para desglosar.<br>
+    <strong>Ambiguos</strong> — maestro encontró 2+ candidatos · sistema sugiere el mejor · tú confirmas o corriges · MZ+LOTE o CONCEPTO · marca OK · si el depósito cubre varios lotes: escribe <strong>CONCEPTO=comunitario</strong> (directivo cobró por varios vecinos) o <strong>CONCEPTO=multiple</strong> (un mismo pagante cubre varios lotes/conceptos, ej. techado+campo) + OK=SI → el padre queda trazado como ancla (no suma en caja) y aparecerá en Segregacion para desglosar.<br>
     <strong>Maestro_inexacto</strong> — maestro encontró 1 candidato pero diff ≠ 0 · tú confirmas o corriges · MZ+LOTE o CONCEPTO · marca OK.<br>
     <strong>Pagaste</strong> — pagos PAGASTE que el banco registró · si fue devolución a un lote: escribe MZ+LOTE y <strong>CONCEPTO=devolucion</strong> (pago adelantado devuelto completo) → <code>pagos_yape_devolucion.xlsx</code> · o <strong>CONCEPTO=retorno</strong> (exceso devuelto) → <code>pagos_yape_retorno.xlsx</code> · si fue gasto JASS escribe CONCEPTO → quedará solo en <code>pagos_yape_pagaste.xlsx</code> · marca OK.<br>
-    <strong>Pagos_comunitarios</strong> — directivo depositó cobros de varios lotes sin detalle · generado automáticamente cuando marcas CONCEPTO=comunitario en Ambiguos · copia tantas filas como lotes cubre el depósito · llena MZ+LOTE+MONTO_PARCIAL en cada una · la suma de MONTO_PARCIAL debe igualar MONTO_TOTAL · ORIGEN+FECHA (con hora:min:seg) identifica el depósito · marca OK cuando el desglose esté completo.<br>
-    <strong>Regla:</strong> CONCEPTO=devolucion o retorno + MZ+LOTE → split en archivo correspondiente · CONCEPTO=comunitario → bandeja comunitaria · CONCEPTO otro valor → se ignora MZ+LOTE (gasto JASS) · nunca CONCEPTO vacío con MZ+LOTE (warning en log).<br>
+    <strong>Segregacion</strong> — un depósito cubre varios lotes sin detalle (directivo cobrando por vecinos, o un vecino pagando por varios de sus lotes/conceptos) · generado automáticamente cuando marcas <strong>CONCEPTO=comunitario</strong> o <strong>CONCEPTO=multiple</strong> en Sin_identificar o Ambiguos · copia tantas filas como lotes cubre el depósito · llena MZ+LOTE+MONTO_PARCIAL(+CONCEPTO si aplica, ej. "techado") en cada una · la suma de MONTO_PARCIAL debe igualar MONTO_TOTAL · ORIGEN+FECHA (con hora:min:seg) identifica el depósito · marca OK cuando el desglose esté completo. TIPO viaja desde el padre a cada hijo — es la misma mecánica de desglose para ambos casos, TIPO solo distingue el origen para reporte y auditoría.<br>
+    <strong>Regla:</strong> CONCEPTO=devolucion o retorno + MZ+LOTE → split en archivo correspondiente · CONCEPTO=comunitario o multiple → bandeja Segregacion · CONCEPTO otro valor → se ignora MZ+LOTE (gasto JASS) · nunca CONCEPTO vacío con MZ+LOTE (warning en log).<br>
     <strong>Preservación:</strong> si llenas MZ+LOTE o CONCEPTO pero <em>no</em> marcas OK, el sistema conserva tu trabajo en la siguiente corrida. Solo las filas con OK=SI se consolidan al historial permanente (<code>trazabilidad/correcciones_acumuladas.xlsx</code>).<br>
-    <strong>Comunitario entre corridas:</strong> el padre (ESTADO_REGISTRO=PADRE_SEGREGADO en trazabilidad) se re-lee en cada corrida — aunque la fila Ambiguos ya no esté en este pendientes, el sistema reconstruye Pagos_comunitarios desde trazabilidad y preserva el desglose parcial que ya llenaste, sin pedirte repetir el trabajo.<br>
+    <strong>Segregación entre corridas:</strong> el padre (ESTADO_REGISTRO=PADRE_SEGREGADO en trazabilidad) se re-lee en cada corrida — aunque la fila Sin_identificar/Ambiguos ya no esté en este pendientes, el sistema reconstruye Segregacion desde trazabilidad y preserva el desglose parcial que ya llenaste, sin pedirte repetir el trabajo.<br>
     <strong>Backup automático:</strong> antes de cada regeneración el motor guarda el archivo anterior en <code>correcciones/backup/pendientes_AAAAMMDD_HHMMSS.xlsx</code>.
   </div>
 
@@ -68,7 +68,7 @@ tr:last-child td{border-bottom:none}
     <div class="tab t2" onclick="show('amb',1)">Ambiguos</div>
     <div class="tab t3" onclick="show('mix',2)">Maestro_inexacto</div>
     <div class="tab t4" onclick="show('pag',3)">Pagaste</div>
-    <div class="tab t5" onclick="show('com',4)">Pagos_comunitarios</div>
+    <div class="tab t5" onclick="show('seg',4)">Segregacion</div>
   </div>
 
   <!-- HOJA 1: Sin_identificar -->
@@ -110,6 +110,17 @@ tr:last-child td{border-bottom:none}
           <td class="td-sep"></td>
           <td class="td-man-e">—</td><td class="td-man-e">—</td><td class="td-conc">alquiler local</td>
           <td class="td-mot">reunión confirmó</td>
+          <td class="td-sep"></td><td class="td-val"><span class="ok-si">SI</span></td>
+        </tr>
+        <tr><td colspan="13" class="caso">TE PAGÓ · sin mensaje ni maestro · cubre varios lotes/conceptos del mismo pagante · escribe CONCEPTO=multiple → va a Segregacion</td></tr>
+        <tr>
+          <td class="num">2b</td>
+          <td><span class="tipo-te">TE PAGÓ</span></td>
+          <td class="td-banco">Rosa Quisp*</td><td class="td-banco">Janet Vil*</td>
+          <td class="td-monto">S/60.00</td><td class="td-msg">letrina y su hermana</td><td class="td-banco">21/06/2026 09:14:22</td>
+          <td class="td-sep"></td>
+          <td class="td-man-e">—</td><td class="td-man-e">—</td><td class="td-conc">multiple</td>
+          <td class="td-mot">no está en maestro · vecino confirmó que paga por 2 lotes → desglosar en Segregacion</td>
           <td class="td-sep"></td><td class="td-val"><span class="ok-si">SI</span></td>
         </tr>
         <tr><td colspan="13" class="caso">TE PAGÓ · no sabe quién es · escribe BLANCO</td></tr>
@@ -245,6 +256,40 @@ tr:last-child td{border-bottom:none}
           <td class="td-sep"></td>
           <td class="td-man-e">—</td><td class="td-man-e">—</td>
           <td class="td-conc">devolución Rosa Coronado</td><td class="td-mot">no es pago de lote</td>
+          <td class="td-sep"></td>
+          <td class="td-val"><span class="ok-si">SI</span></td>
+        </tr>
+        <tr><td colspan="22" class="caso">directivo depositó cobro de varios vecinos junto · escribe <strong>CONCEPTO=comunitario</strong> · deja MZ+LOTE vacíos → el depósito completo pasa a Segregacion para desglosar lote por lote</td></tr>
+        <tr>
+          <td class="num">4</td>
+          <td class="td-quien">—</td><td class="td-nombre">VECINO INFORMÓ</td>
+          <td class="td-sep"></td>
+          <td><span class="tipo-te">TE PAGÓ</span></td>
+          <td class="td-banco">Janet Vil*</td><td class="td-banco">Janet Vil*</td>
+          <td class="td-monto">S/152.00</td><td class="td-msg">geral cobro de agua</td><td class="td-banco">07/06/2026 10:39:01</td>
+          <td class="td-sep"></td>
+          <td class="td-sug-c">G</td><td class="td-sug-c">3</td>
+          <td class="td-sug">G-3(123,+29) · W-19(89,+63)</td>
+          <td class="td-sep"></td>
+          <td class="td-man-e">—</td><td class="td-man-e">—</td>
+          <td class="td-conc">comunitario</td><td class="td-mot">cobro de agua del sector (Yerald)</td>
+          <td class="td-sep"></td>
+          <td class="td-val"><span class="ok-si">SI</span></td>
+        </tr>
+        <tr><td colspan="22" class="caso">mismo pagante cubre 2 conceptos del mismo lote (o 2 lotes distintos) en 1 depósito · el mensaje no trae el patrón "MzX LtY" que el regex reconoce · escribe <strong>CONCEPTO=multiple</strong> · deja MZ+LOTE vacíos → pasa a Segregacion</td></tr>
+        <tr>
+          <td class="num">5</td>
+          <td class="td-quien">U0289</td><td class="td-nombre">FREDY JIMENEZ MONTALVO</td>
+          <td class="td-sep"></td>
+          <td><span class="tipo-te">TE PAGÓ</span></td>
+          <td class="td-banco">Fredy Jim*</td><td class="td-banco">Janet Vil*</td>
+          <td class="td-monto">S/70.00</td><td class="td-msg">techado y campo</td><td class="td-banco">27/06/2026 14:19:09</td>
+          <td class="td-sep"></td>
+          <td class="td-sug-c">T</td><td class="td-sug-c">3</td>
+          <td class="td-sug">T-3(40,+30) · P-15(0,+70)</td>
+          <td class="td-sep"></td>
+          <td class="td-man-e">—</td><td class="td-man-e">—</td>
+          <td class="td-conc">multiple</td><td class="td-mot">un pagante, dos conceptos → desglosar en Segregacion</td>
           <td class="td-sep"></td>
           <td class="td-val"><span class="ok-si">SI</span></td>
         </tr>
@@ -388,62 +433,97 @@ tr:last-child td{border-bottom:none}
     </table></div>
   </div>
 
-  <!-- HOJA 5: Pagos_comunitarios -->
-  <div id="com" class="sheet">
-    <div class="tw"><table style="min-width:1050px">
+  <!-- HOJA 5: Segregacion -->
+  <div id="seg" class="sheet">
+    <div class="tw"><table style="min-width:1150px">
       <thead>
         <tr>
           <th class="num" rowspan="2"></th>
-          <th class="th-banco gh" colspan="3">← banco — no editar</th>
+          <th class="th-banco gh" colspan="5">← banco/flag — no editar</th>
           <th class="th-sep" rowspan="2"></th>
-          <th class="th-man gh" colspan="4">← tú completas (una fila por lote)</th>
+          <th class="th-man gh" colspan="5">← tú completas (una fila por lote)</th>
           <th class="th-sep" rowspan="2"></th>
           <th class="th-val gh" rowspan="2">OK</th>
         </tr>
         <tr>
           <th class="th-banco">ORIGEN</th>
+          <th class="th-banco">MENSAJE</th>
           <th class="th-banco">FECHA</th>
           <th class="th-banco">MONTO_TOTAL</th>
+          <th class="th-banco">TIPO</th>
           <th class="th-man">MZ</th><th class="th-man">LOTE</th>
-          <th class="th-man">MONTO_PARCIAL</th><th class="th-man">MOTIVO</th>
+          <th class="th-man">MONTO_PARCIAL</th><th class="th-man">CONCEPTO</th><th class="th-man">MOTIVO</th>
         </tr>
       </thead>
       <tbody>
-        <tr><td colspan="11" class="caso">directivo depositó S/152 · cubre 3 lotes · operador copia la fila 3 veces y llena cada una · suma parciales = MONTO_TOTAL</td></tr>
+        <tr><td colspan="14" class="caso">TIPO=comunitario · directivo depositó S/152 · cubre 3 lotes · operador copia la fila 3 veces y llena cada una · suma parciales = MONTO_TOTAL</td></tr>
         <tr>
           <td class="num">1</td>
           <td class="td-banco">Raquel Avil*</td>
+          <td class="td-msg">geral cobro de agua</td>
           <td class="td-banco" style="font-size:10px">07/06/2026 10:39:56</td>
           <td class="td-monto">S/152.00</td>
+          <td class="td-sug-c">comunitario</td>
           <td class="td-sep"></td>
           <td class="td-man">G</td><td class="td-man">3</td>
-          <td class="td-man">50.00</td><td class="td-mot">cobro junio Yerald</td>
+          <td class="td-man">50.00</td><td class="td-man-e">—</td><td class="td-mot">cobro junio Yerald</td>
           <td class="td-sep"></td>
           <td class="td-val"><span class="ok-si">SI</span></td>
         </tr>
         <tr>
           <td class="num">2</td>
           <td class="td-banco">Raquel Avil*</td>
+          <td class="td-msg">geral cobro de agua</td>
           <td class="td-banco" style="font-size:10px">07/06/2026 10:39:56</td>
           <td class="td-monto">S/152.00</td>
+          <td class="td-sug-c">comunitario</td>
           <td class="td-sep"></td>
           <td class="td-man">G</td><td class="td-man">21A</td>
-          <td class="td-man">50.00</td><td class="td-mot">cobro junio Yerald</td>
+          <td class="td-man">50.00</td><td class="td-man-e">—</td><td class="td-mot">cobro junio Yerald</td>
           <td class="td-sep"></td>
           <td class="td-val"><span class="ok-si">SI</span></td>
         </tr>
         <tr>
           <td class="num">3</td>
           <td class="td-banco">Raquel Avil*</td>
+          <td class="td-msg">geral cobro de agua</td>
           <td class="td-banco" style="font-size:10px">07/06/2026 10:39:56</td>
           <td class="td-monto">S/152.00</td>
+          <td class="td-sug-c">comunitario</td>
           <td class="td-sep"></td>
           <td class="td-man">G</td><td class="td-man">7</td>
-          <td class="td-man">52.00</td><td class="td-mot">cobro junio Yerald · último absorbe diferencia</td>
+          <td class="td-man">52.00</td><td class="td-man-e">—</td><td class="td-mot">cobro junio Yerald · último absorbe diferencia</td>
           <td class="td-sep"></td>
           <td class="td-val"><span class="ok-si">SI</span></td>
         </tr>
-        <tr><td colspan="11" class="caso">antes de marcar OK · verifica que 50+50+52 = 152 · si no cuadra el motor lo rechazará con warning en log</td></tr>
+        <tr><td colspan="14" class="caso">TIPO=multiple · Fredy Jim* depositó S/70 · cubre 2 conceptos del MISMO lote (T-3) · CONCEPTO distingue cada uno</td></tr>
+        <tr>
+          <td class="num">4</td>
+          <td class="td-banco">Fredy Jim*</td>
+          <td class="td-msg">techado y campo</td>
+          <td class="td-banco" style="font-size:10px">27/06/2026 14:19:09</td>
+          <td class="td-monto">S/70.00</td>
+          <td class="td-sug-c">multiple</td>
+          <td class="td-sep"></td>
+          <td class="td-man">T</td><td class="td-man">3</td>
+          <td class="td-man">40.00</td><td class="td-conc">techado</td><td class="td-mot">mensaje "techado y campo"</td>
+          <td class="td-sep"></td>
+          <td class="td-val"><span class="ok-si">SI</span></td>
+        </tr>
+        <tr>
+          <td class="num">5</td>
+          <td class="td-banco">Fredy Jim*</td>
+          <td class="td-msg">techado y campo</td>
+          <td class="td-banco" style="font-size:10px">27/06/2026 14:19:09</td>
+          <td class="td-monto">S/70.00</td>
+          <td class="td-sug-c">multiple</td>
+          <td class="td-sep"></td>
+          <td class="td-man">T</td><td class="td-man">3</td>
+          <td class="td-man">30.00</td><td class="td-conc">campo</td><td class="td-mot">mensaje "techado y campo"</td>
+          <td class="td-sep"></td>
+          <td class="td-val"><span class="ok-si">SI</span></td>
+        </tr>
+        <tr><td colspan="14" class="caso">antes de marcar OK · verifica que la suma de MONTO_PARCIAL = MONTO_TOTAL · si no cuadra el motor lo rechazará con warning en log</td></tr>
       </tbody>
     </table></div>
   </div>

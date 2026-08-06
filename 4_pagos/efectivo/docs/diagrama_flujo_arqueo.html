@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>arqueo — diagrama de flujo</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'IBM Plex Sans', sans-serif; background: #fff; padding: 24px; }
+
+  .title { font-size: 18px; font-weight: 600; color: #111; margin-bottom: 4px; }
+  .sub   { font-size: 12px; color: #888; margin-bottom: 28px; }
+
+  .diagram {
+    display: grid;
+    grid-template-columns: 220px 40px 230px 40px 250px;
+    grid-template-rows: auto;
+    align-items: start;
+    gap: 0;
+  }
+
+  .arrow {
+    text-align: center; font-size: 22px; color: #bbb; font-weight: 300;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    padding-top: 90px;
+  }
+  .arrow-label { font-size: 9px; color: #aaa; letter-spacing: .04em; text-transform: uppercase; }
+
+  .inputs-col { display: flex; flex-direction: column; gap: 8px; }
+
+  .input-box {
+    border-radius: 7px; padding: 8px 10px;
+    font-size: 11px;
+  }
+  .input-box.manual { background: #FEF9E7; border: 1px solid #F9E79F; }
+  .input-box.auto   { background: #EBF5FB; border: 1px solid #AED6F1; }
+
+  .input-box .src {
+    font-size: 9px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .05em; margin-bottom: 3px;
+  }
+  .input-box.manual .src { color: #7D6608; }
+  .input-box.auto   .src { color: #1A5276; }
+
+  .input-box .fname {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; font-weight: 600; color: #111; margin-bottom: 4px;
+  }
+  .input-box .cols {
+    font-size: 9px; color: #666; font-family: 'IBM Plex Mono', monospace; line-height: 1.6;
+  }
+
+  .group-label {
+    font-size: 10px; color: #999; padding: 2px 0 4px; letter-spacing: .03em;
+  }
+
+  .writer-chain { display: flex; flex-direction: column; align-items: center; gap: 2px; margin: 2px 0; }
+  .writer-actor { font-size: 10px; color: #7D6608; font-style: italic; }
+  .writer-down  { font-size: 12px; color: #B7770D; font-weight: 600; }
+  .writer-box {
+    background: #FFF7ED; border: 1px solid #FDBA74; border-radius: 6px;
+    padding: 5px 10px; text-align: center;
+    font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; color: #9A3412;
+  }
+  .writer-sub { font-family: 'IBM Plex Sans', sans-serif; font-size: 8px; font-weight: 400; color: #B7770D; margin-top: 2px; }
+
+  .process-box {
+    background: #E9F7EF; border: 2px solid #1E8449;
+    border-radius: 10px; padding: 14px 16px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .process-title {
+    font-size: 13px; font-weight: 700; color: #1E5C3A;
+    text-align: center; border-bottom: 1px solid #A9DFBF;
+    padding-bottom: 8px; margin-bottom: 2px;
+  }
+  .process-rule {
+    font-size: 10px; color: #1E5C3A;
+    background: #fff; border-radius: 5px;
+    padding: 5px 8px; border-left: 3px solid #1E8449;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .process-rule .label {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 9px; font-weight: 700; color: #888;
+    text-transform: uppercase; letter-spacing: .04em;
+    display: block; margin-bottom: 2px;
+  }
+
+  .output-col { display: flex; flex-direction: column; gap: 8px; }
+
+  .output-box { border-radius: 7px; overflow: hidden; background: #F3E8FF; border: 1px solid #C4B5FD; }
+  .output-header {
+    color: #fff; font-size: 11px; font-weight: 600;
+    padding: 7px 10px; background: #5B21B6;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .output-section { padding: 6px 10px; border-bottom: 1px solid #C4B5FD; }
+  .output-section:last-child { border-bottom: none; }
+  .output-section-title {
+    font-size: 9px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .05em; margin-bottom: 3px; color: #5B21B6;
+  }
+  .output-col-item {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; color: #111; line-height: 1.7;
+  }
+
+  .estado-pill {
+    display: inline-block; font-size: 9px; font-weight: 700;
+    padding: 1px 6px; border-radius: 10px; margin: 1px 2px 1px 0;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .e-cuadra    { background: #D5F5E3; color: #1E5C3A; }
+  .e-descuadre { background: #FEE2E2; color: #991B1B; }
+  .e-sinent    { background: #FEF9C3; color: #7D6608; }
+  .e-sinmesa   { background: #DBEAFE; color: #1A5276; }
+
+  .lifecycle-tag {
+    display: inline-block; font-size: 9px; font-weight: 700;
+    padding: 1px 6px; border-radius: 10px; margin-top: 4px;
+    background: #D5F5E3; color: #1E5C3A;
+  }
+
+  .consumer {
+    background: #F8F9FA; border: 1px dashed #ced4da;
+    border-radius: 7px; padding: 8px 10px;
+    text-align: center;
+    font-size: 11px; color: #666; font-weight: 500;
+  }
+  .consumer .sub-c { font-size: 10px; color: #999; font-weight: 400; margin-top: 2px; }
+
+  .note {
+    margin-top: 20px;
+    background: #F8F9FA; border: 1px solid #dee2e6;
+    border-left: 3px solid #6c757d;
+    border-radius: 0 6px 6px 0;
+    padding: 7px 12px; font-size: 11px; color: #555;
+  }
+  .note strong { color: #333; }
+  .note code {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; background: #fff; padding: 1px 4px; border-radius: 3px;
+  }
+</style>
+</head>
+<body>
+
+<p class="title">4_pagos/efectivo — arqueo (diagrama de flujo)</p>
+<p class="sub">Entrada: mesas del cobrador + declaración de la tesorera · Salida: cuadre por día y cobrador</p>
+
+<div class="diagram">
+
+  <!-- INPUTS -->
+  <div class="inputs-col">
+
+    <p class="group-label">inputs/ — dos fuentes independientes</p>
+
+    <div class="input-box auto">
+      <div class="src">lo dice el papel</div>
+      <div class="fname">mesa_1 … mesa_7.xlsx</div>
+      <div class="cols">
+        COBRADOR · FECHA<br>
+        MONTO_EFECTIVO · MONTO_YAPE
+      </div>
+    </div>
+
+    <div class="writer-chain">
+      <div class="writer-actor">tesorera dicta el monto</div>
+      <div class="writer-down">↓</div>
+      <div class="writer-box">registrar_entrega.py<div class="writer-sub">CLI · SaaS: un POST llama la misma función</div></div>
+      <div class="writer-down">↓ APPEND</div>
+    </div>
+
+    <div class="input-box manual">
+      <div class="src">writer único · append-only</div>
+      <div class="fname">entregas.xlsx</div>
+      <div class="cols">
+        FECHA · COBRADOR<br>
+        EFECTIVO · YAPE · MOTIVO<br>
+        SOURCE · AUDIT_REF · TIMESTAMP
+      </div>
+    </div>
+
+    <div style="font-size:10px; color:#999; margin-top:4px; padding: 0 2px;">
+      Nunca se edita a mano. Una fila = un movimiento.
+      Corrección = otra fila con el delta (MOTIVO). arqueo SUMA
+      las filas de cada (FECHA, COBRADOR).
+    </div>
+
+  </div>
+
+  <!-- ARROW IN -->
+  <div class="arrow">
+    <span>→</span>
+    <span class="arrow-label">agrupa<br>por día</span>
+  </div>
+
+  <!-- PROCESS -->
+  <div class="process-box">
+    <div class="process-title">arqueo.py</div>
+
+    <div class="process-rule">
+      <span class="label">Clave de cruce</span>
+      (FECHA, COBRADOR)<br>
+      FECHA = día que pagó el usuario
+    </div>
+
+    <div class="process-rule">
+      <span class="label">Efectivo esperado</span>
+      Σ MONTO_EFECTIVO bruto<br>
+      de las 7 mesas, ese día+cobrador
+    </div>
+
+    <div class="process-rule">
+      <span class="label">Yape esperado</span>
+      Σ MONTO_YAPE del papel<br>
+      vs YAPE_RECIBIDO de la tesorera
+    </div>
+
+    <div class="process-rule">
+      <span class="label">Compara</span>
+      PAPEL vs RECIBIDO<br>
+      por cada moneda, por separado
+    </div>
+  </div>
+
+  <!-- ARROW OUT -->
+  <div class="arrow">
+    <span>→</span>
+  </div>
+
+  <!-- OUTPUTS -->
+  <div class="output-col">
+
+    <div class="output-box">
+      <div class="output-header">arqueo_YYYY-MM.xlsx</div>
+      <div class="output-section">
+        <div class="output-section-title">Columnas</div>
+        <div class="output-col-item">FECHA · COBRADOR</div>
+        <div class="output-col-item">EFECTIVO_PAPEL · EFECTIVO_RECIBIDO · DIF_EFECTIVO</div>
+        <div class="output-col-item">YAPE_PAPEL · YAPE_RECIBIDO · DIF_YAPE</div>
+        <div class="output-col-item">ESTADO</div>
+      </div>
+      <div class="output-section">
+        <div class="output-section-title">Valores de ESTADO</div>
+        <span class="estado-pill e-cuadra">CUADRA</span>
+        <span class="estado-pill e-descuadre">DESCUADRE</span>
+        <span class="estado-pill e-sinent">SIN_ENTREGA</span>
+        <span class="estado-pill e-sinmesa">SIN_MESA</span>
+      </div>
+      <div class="output-section">
+        <span class="lifecycle-tag">100% regenerado · sin columnas humanas</span>
+      </div>
+    </div>
+
+    <div class="consumer">
+      Tesorera / supervisor
+      <div class="sub-c">revisa DESCUADRE y reclama al cobrador — sin consumidor automático downstream</div>
+    </div>
+
+  </div>
+
+</div>
+
+<div class="note">
+  <strong>ESTADO — cuándo aplica cada uno:</strong><br>
+  <code>CUADRA</code> — DIF_EFECTIVO = 0 y DIF_YAPE = 0.<br>
+  <code>DESCUADRE</code> — hay papel y hay entrega, pero alguna DIF ≠ 0 (el monto exacto queda en las columnas DIF).<br>
+  <code>SIN_ENTREGA</code> — el cobrador registró plata en su mesa pero la tesorera no tiene fila para ese (FECHA, COBRADOR).<br>
+  <code>SIN_MESA</code> — la tesorera declaró una entrega para un (FECHA, COBRADOR) que no aparece en ninguna mesa.<br><br>
+  <strong>Fuera de alcance (confirmado en conversación):</strong> CONCEPTO=gasto no se resta del efectivo esperado —
+  la plata siempre llega primero a la tesorera, nadie gasta antes de entregar. No modelado.
+</div>
+
+</body>
+</html>

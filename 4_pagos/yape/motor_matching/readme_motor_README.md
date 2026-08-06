@@ -2,8 +2,16 @@
 
 Identifica a qué MZ-LOTE corresponde cada pago Yape descargado del banco.
 Corre en ciclos hasta que todos los pagos estén identificados (pendientes = 0).
-Solo `Sin_identificar` requiere intervención manual — Ambiguos y Pagos_multiples
-se resuelven automáticamente.
+`Sin_identificar` requiere intervención manual. Ambiguos se resuelve automáticamente
+salvo cuando marcás `CONCEPTO=comunitario` o `CONCEPTO=multiple` — ahí el depósito
+pasa a la hoja `Segregacion` para desglosarlo por lote. Pagos_multiples (detectado
+por regex en el mensaje) se resuelve automáticamente.
+
+> **Alimenta el ledger `libro_mayor/caja` (Fase 2):** el `*_procesado.xlsx` es una **fuente de
+> ABONOS**. `libro_mayor/caja/importar_yape.py` lo lee post-cierre. La clave natural del `ABONO_ID`
+> es `(jass, ORIGEN, TIMESTAMP)` — **predio-agnóstica**: un yape que paga varios lotes es
+> **un solo abono** (`MONTO = MONTO_PAGO`, el depósito completo); el reparto por lote son
+> APLICACIONES en `libro_mayor/estado_cuenta`, no abonos separados. Ver el contrato en `libro_mayor/caja/README.md`.
 
 ---
 
@@ -81,7 +89,9 @@ El sistema intenta identificar cada pago TE PAGÓ en este orden:
 P. Sin identificar                   → va a pendientes.xlsx · único caso manual
 ```
 
-> Ambiguos y Pagos_multiples nunca van a pendientes — el sistema los resuelve solo.
+> Ambiguos y Pagos_multiples se resuelven solos — salvo que marques
+> `CONCEPTO=comunitario|multiple` en Sin_identificar o Ambiguos: ahí el depósito
+> pasa a `Segregacion` y sí requiere que desgloses manualmente por lote.
 
 Los PAGASTE se separan automáticamente en `Devoluciones/pagos_yape_pagaste.xlsx`
 para que tú los revises y confirmes.
@@ -285,12 +295,45 @@ Una fila por candidato. MZ_FINAL y LOTE_FINAL se repiten en todas las filas del 
 ### Hoja Pagos_multiples
 
 Una fila por lote. ORIGEN y MONTO_TOTAL se repiten por cada lote del mismo pago.
+Se llena automáticamente cuando el MENSAJE trae 2+ patrones MZ-LOTE reconocibles
+por regex (ej. `"MzE Lt7, MzP Lt11A"`) — no requiere intervención manual.
 
 | Grupo | Columnas |
 |-------|----------|
 | ¿Quién es? | USER_ID · NOMBRE |
 | ¿Qué hizo el banco? | ORIGEN · MONTO_TOTAL · MENSAJE · FECHA |
 | Asignación por lote | MZ · LOTE · DEUDA · MONTO_ASIGNADO · DIFF |
+| ¿Cuándo? | CICLO · FECHA_CORRECCION |
+
+### Hoja Segregacion
+
+Motor único para depósitos que cubren varios lotes cuando el regex de mensaje
+NO alcanza a resolverlos (mensaje ausente, ambiguo o sin el patrón esperado).
+Se dispara marcando `CONCEPTO=comunitario` (dirigente/cobrador agregando el
+cobro de varios vecinos) o `CONCEPTO=multiple` (un mismo pagante cubre varios
+lotes o conceptos del mismo lote, ej. techado+campo) en Sin_identificar o
+Ambiguos, con OK=SI. El campo `TIPO` distingue el origen — misma mecánica de
+desglose para ambos: el padre queda trazado como ancla (`PADRE_SEGREGADO`, no
+suma en caja) y vos copiás una fila por lote en `Segregacion`, llenando
+MZ+LOTE+MONTO_PARCIAL (+CONCEPTO si aplica) hasta que la suma iguale
+MONTO_TOTAL. Cada hijo queda `HIJO_SEGREGADO` (sí suma en caja) enlazado al
+padre por `ID_PADRE`. Si el desglose queda incompleto al cerrar el ciclo, la
+próxima corrida relee el padre desde trazabilidad y preserva lo ya llenado —
+no repetís trabajo.
+
+**También se dispara sin pasar por Sin_identificar/Ambiguos** cuando el ORIGEN
+matchea por nombre contra el maestro (ej. dirigente/cobrador que también es un
+vecino real) y el motor lo daría por identificado automáticamente. Para esos
+casos, agregás la fila `ORIGEN | FECHA | MOTIVO | TIPO` a mano en
+`correcciones/forzar_comunitario.xlsx` (ORIGEN+FECHA igual a como aparecen en
+el reporte del banco) — el motor la intercepta antes de cualquier match y la
+manda directo a `Segregacion`, preservando el `MOTIVO` que escribiste.
+
+| Grupo | Columnas |
+|-------|----------|
+| ¿Quién es? | USER_ID · NOMBRE |
+| ¿Qué hizo el banco? | ORIGEN · FECHA · MONTO_TOTAL · TIPO |
+| Desglose por lote | MZ · LOTE · MONTO_PARCIAL · MOTIVO · CONCEPTO · ESTADO_REGISTRO · ID_PADRE |
 | ¿Cuándo? | CICLO · FECHA_CORRECCION |
 
 ---
@@ -357,7 +400,9 @@ Lo leen 5_cobranza para descuentos y 5b_validacion para conciliación.
 
 - **No valida que el dinero cuadre** — eso lo hace `5b_validacion/`
 - **No carga la planilla** — eso lo hace `5_cobranza/cargar_planilla/`
-- **No resuelve Ambiguos ni Pagos_multiples manualmente** — se resuelven solos
+- **No resuelve Ambiguos ni Pagos_multiples manualmente** — se resuelven solos,
+  salvo el caso `CONCEPTO=comunitario|multiple` que sí requiere desglose manual
+  en `Segregacion`
 - **No corrige pagos ya identificados** — eso lo hace `6b_override/`
 
 ---
