@@ -38,3 +38,12 @@ _tmp_*
 
 # Repo independiente (Thariel198/-00_padron)
 0_padron/
+
+# Recibos/boletas regenerables por script (generar_corregidos.py) — ~50 MB
+3_boletas/corregidos/
+
+# Reportes PDF generados que se sueltan en la raíz
+/reporte_*.pdf
+
+# IDE
+**/.idea/

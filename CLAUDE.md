@@ -4,6 +4,16 @@ Reglas operativas que aplican en toda sesión. Detalle y contexto en `docs/metod
 
 ---
 
+## Lente de escala — leer al iniciar sesión (OBLIGATORIO)
+
+Al iniciar cada sesión en este proyecto: leer `docs/lente_escala.md` y confirmar en
+la primera respuesta con la frase **"ya leí el lente y lo voy a usar para mis
+recomendaciones"**. Toda recomendación de diseño/arquitectura se hace con ese lente
+(de lo general a lo específico · 25k JASS · ≤10k predios c/u · política ≠ arquitectura →
+un motor config-driven, valores por manifiesto de tenant, no hardcodeados).
+
+---
+
 ## Pipeline del proyecto
 
 El orden y estado de los módulos está documentado en `README.md` —
@@ -76,6 +86,7 @@ Todas las columnas Excel — sin importar si las llenó un humano o el sistema �
 7. **Actualizar README al mismo tiempo que la estructura.** Si un cambio agrega, elimina, reordena o cambia el estado de un módulo, actualizar el pipeline en README.md como parte de ese mismo trabajo — no como tarea aparte ni pendiente para después.
 8. **Verificar sincronía del README al cerrar sesión.** Antes de cerrar, confirmar que README.md refleje la estructura real de módulos actual. Si hay desajuste, corregirlo antes de actualizar memoria/pendientes.
 9. **Preservación cableada antes de agregar una columna humana a un output regenerado.** Si un `main.py` regenera un archivo y se le agrega una columna que llena un humano, la preservación (3 capas: backup + leer decisión previa + reaplicar por clave) es parte del mismo diseño, no un parche posterior. Si no se puede preservar, no agregar esa columna a un output regenerable — va a un input propio. (El bug B5 fue exactamente esto: columna manual pisada por regeneración ciega.)
+10. **`LEER_ANTES.md` en la raíz del repo/pipeline antes de tocar cualquier módulo, cuando hay un evento activo que rompe el flujo normal.** Un evento activo = plata/datos que saltan de un ciclo o repo a otro, un repo cerrado con limpieza pendiente, o cualquier situación que un lector nuevo (humano o agente) no puede inferir leyendo un solo módulo. Un `README.md` de módulo documenta cómo funciona ese módulo; un `LEER_ANTES.md` de raíz documenta lo excepcional que atraviesa varios módulos o repos. Se crea al detectar el evento, no al final de la sesión, y se borra cuando el evento se cierra (todas las filas de su tabla de estado quedan ejecutadas).
 
 ---
 

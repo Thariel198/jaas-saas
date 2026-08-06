@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>El contador tuerto: idempotencia en reconciliación por delta | jass_system</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f8f9fa; color: #1a1a2e; font-size: 14px; }
+
+  /* ── Portada ── */
+  .portada { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%);
+             color: white; padding: 48px 60px 36px; }
+  .portada .eyebrow { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: #a8b2d8; margin-bottom: 16px; }
+  .portada h1 { font-size: 34px; font-weight: 700; line-height: 1.2; margin-bottom: 12px; }
+  .portada h1 span { color: #e94560; }
+  .portada .subtitle { font-size: 16px; color: #a8b2d8; max-width: 780px; line-height: 1.6; }
+  .portada .meta { display: flex; gap: 40px; margin-top: 28px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); flex-wrap: wrap; }
+  .portada .meta-item label { display: block; font-size: 10px; letter-spacing: 2px; color: #a8b2d8; text-transform: uppercase; margin-bottom: 4px; }
+  .portada .meta-item span { font-size: 13px; color: white; font-weight: 500; }
+
+  /* ── Secciones ── */
+  .sec { padding: 34px 60px; }
+  .sec h2 { font-size: 20px; margin-bottom: 14px; }
+  .sec p { color: #444; line-height: 1.75; max-width: 840px; margin-bottom: 12px; }
+  .sec p .term { font-weight: 700; color: #0f3460; }
+  code { font-family: 'Cascadia Code','Courier New',monospace; font-size: 12.5px; background: #eef1f6; padding: 1px 5px; border-radius: 4px; color: #0f3460; }
+
+  .principio { background: #f0f4ff; border-top: 2px solid #d4dcf5; border-bottom: 2px solid #d4dcf5; }
+  .principio .box-principio { background: #1a1a2e; color: white; border-radius: 10px; padding: 22px 26px; max-width: 840px; margin-top: 8px; line-height: 1.7; }
+  .principio .box-principio b { color: #7ee0b8; }
+  .principio .box-principio code { background: rgba(255,255,255,.1); color: #ffd166; }
+
+  .ctx-sec { background: #f4f0fb; border-top: 3px solid #6a4bbd; }
+  .ctx-sec h2 { color: #4527a0; }
+  .error-sec { background: #fff5f5; border-top: 3px solid #e74c3c; }
+  .error-sec h2 { color: #c0392b; }
+  .sol-sec   { background: #f2fbf4; border-top: 3px solid #2e7d32; }
+  .sol-sec h2 { color: #1b5e20; }
+
+  /* ── Diagrama de cajas ── */
+  .diag { display: flex; flex-direction: column; align-items: center; gap: 4px; margin: 24px 0 8px; }
+  .row { display: flex; align-items: stretch; justify-content: center; gap: 26px; flex-wrap: wrap; }
+  .box { border-radius: 10px; padding: 12px 16px; min-width: 180px; text-align: center;
+         box-shadow: 0 2px 8px rgba(0,0,0,0.10); position: relative; }
+  .box .mod  { font-size: 13px; font-weight: 700; }
+  .box .file { font-family: 'Cascadia Code','Courier New',monospace; font-size: 11px; margin-top: 4px; opacity: 0.92; }
+  .box .tag  { font-size: 10px; letter-spacing: .5px; text-transform: uppercase; margin-top: 6px; opacity: .8; }
+
+  .b-mod   { background: #1976d2; color: white; }
+  .b-file  { background: white; color: #1a1a2e; border: 2px solid #cfd8e6; }
+  .b-ledger{ background: #ede7f6; color: #4527a0; border: 2px solid #b39ddb; }
+  .b-calc  { background: #fff8e1; color: #7a5c00; border: 2px dashed #e0a800; }
+  .b-result{ background: #e8f5e9; color: #1b5e20; border: 2px solid #81c784; }
+
+  .arrow { display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 11px; color: #555; padding: 2px 0; }
+  .arrow .line { font-size: 20px; line-height: 1; }
+  .arrow .lbl { font-size: 10px; letter-spacing: .3px; }
+
+  /* ── Panel de eventos (ledger) ── */
+  .ledger-demo { display: flex; gap: 22px; flex-wrap: wrap; margin-top: 20px; }
+  .ledger-card { background: white; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,.08); overflow: hidden; flex: 1; min-width: 320px; }
+  .ledger-card h4 { font-size: 12px; letter-spacing: 1px; text-transform: uppercase; padding: 12px 16px; color: white; }
+  .ledger-card.good h4 { background: #2e7d32; }
+  .ledger-card.bad  h4 { background: #c0392b; }
+  table.evt { width: 100%; border-collapse: collapse; font-size: 12px; }
+  table.evt th, table.evt td { padding: 7px 12px; text-align: right; border-bottom: 1px solid #eef1f6; font-family: 'Cascadia Code',monospace; }
+  table.evt th { background: #f4f6fa; color: #555; font-size: 10.5px; letter-spacing: .5px; text-transform: uppercase; text-align: right; }
+  table.evt td.ev { text-align: left; font-weight: 700; }
+  table.evt td.cargo { color: #6a4bbd; }
+  table.evt td.pago  { color: #1b5e20; }
+  table.evt td.aju   { color: #c0392b; }
+  table.evt td.saldo { font-weight: 700; }
+  table.evt tr.dup   { background: #fff0f0; }
+  table.evt tr.dup td.aju::after { content: " ⟲ duplicado"; font-size: 9px; color: #c0392b; letter-spacing: 0; }
+  table.evt .neg { color: #c0392b; }
+
+  /* ── Loop de convergencia/divergencia ── */
+  .loops { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin-top: 24px; }
+  .loop { background: white; border-radius: 10px; padding: 18px 20px; border-top: 5px solid; box-shadow: 0 2px 10px rgba(0,0,0,.06); }
+  .loop.conv { border-color: #2e7d32; }
+  .loop.div  { border-color: #c0392b; }
+  .loop h4 { font-size: 14px; margin-bottom: 4px; }
+  .loop.conv h4 { color: #1b5e20; } .loop.div h4 { color: #c0392b; }
+  .loop .sub { font-size: 11px; color: #888; margin-bottom: 12px; }
+  .loop .runs { font-family: 'Cascadia Code',monospace; font-size: 11.5px; line-height: 1.9; }
+  .loop .runs .lbl { color: #999; }
+  .loop .runs b.ok  { color: #1b5e20; }
+  .loop .runs b.bad { color: #c0392b; }
+  .loop .verdict { margin-top: 12px; padding: 8px 12px; border-radius: 6px; font-size: 12px; font-weight: 700; }
+  .loop.conv .verdict { background: #e8f5e9; color: #1b5e20; }
+  .loop.div  .verdict { background: #ffebee; color: #c0392b; }
+
+  /* ── Línea de tiempo del bug ── */
+  .timeline { background: #1a1a2e; border-radius: 10px; padding: 20px 24px; margin-top: 20px; max-width: 880px; }
+  .timeline .step { display: flex; align-items: baseline; gap: 14px; padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,.07); }
+  .timeline .step:last-child { border-bottom: none; }
+  .timeline .t { font-family: 'Cascadia Code',monospace; font-size: 11px; color: #7ea6e0; min-width: 150px; }
+  .timeline .d { font-size: 12.5px; color: #dde; line-height: 1.5; }
+  .timeline .d b { color: #ffd166; }
+  .timeline .bad  { color: #ff6b6b; font-weight: 700; }
+  .timeline .good { color: #7ee0b8; font-weight: 700; }
+
+  /* ── why grid ── */
+  .why { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 22px; max-width: 920px; }
+  .why-box { background: white; border-radius: 8px; padding: 16px 18px; border-left: 4px solid; }
+  .why-box h4 { font-size: 12px; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
+  .why-box p { font-size: 12.5px; line-height: 1.6; color: #444; margin: 0; }
+  .why-cause h4 { color: #c0392b; } .why-cause { border-color: #e74c3c; }
+  .why-fix   h4 { color: #1b5e20; } .why-fix   { border-color: #2e7d32; }
+
+  /* ── código antes/después ── */
+  .codecmp { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 20px; max-width: 940px; }
+  .codeblk { border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+  .codeblk .hd { padding: 8px 14px; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; font-weight: 700; color: white; }
+  .codeblk.bad .hd { background: #c0392b; } .codeblk.good .hd { background: #2e7d32; }
+  .codeblk pre { background: #0d1117; color: #d6deeb; padding: 14px 16px; font-family: 'Cascadia Code',monospace; font-size: 11.5px; line-height: 1.7; overflow-x: auto; }
+  .codeblk pre .c { color: #6a9955; } .codeblk pre .k { color: #ff7b72; } .codeblk pre .hl { color: #ffd166; font-weight: 700; }
+
+  .dist { background: #fffde7; border-top: 4px solid #f9a825; border-bottom: 4px solid #f9a825; }
+  .dist-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 920px; margin-top: 8px; }
+  .dist-box { background: white; border-radius: 8px; padding: 16px 20px; border-left: 5px solid; }
+  .dist-box h4 { font-size: 14px; margin-bottom: 6px; }
+  .dist-box p { font-size: 12.5px; line-height: 1.6; color: #444; margin: 0; }
+  .dist-w { border-color: #2e7d32; } .dist-w h4 { color: #2e7d32; }
+  .dist-r { border-color: #c0392b; } .dist-r h4 { color: #c0392b; }
+
+  .cierre { background: #1a1a2e; color: #cdd; padding: 30px 60px; }
+  .cierre h2 { color: white; font-size: 16px; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 14px; }
+  .cierre .regla { background: rgba(255,255,255,.05); border-left: 4px solid #7ee0b8; padding: 14px 18px; border-radius: 4px; margin-bottom: 10px; font-size: 13px; line-height: 1.7; }
+  .cierre .regla b { color: #7ee0b8; }
+</style>
+</head>
+<body>
+
+<div class="portada">
+  <div class="eyebrow">Aprendizaje de arquitectura · jass_system</div>
+  <h1>El contador tuerto: <span>por qué un ajuste se re-dispara en cada corrida</span></h1>
+  <div class="subtitle">Cuando un proceso se re-corre entero y reconcilia "por delta", solo es seguro si su
+    contador de "lo ya hecho" ve <b>todo</b> lo que ese proceso produce. Este documento explica, con el caso
+    real del saldo de CONVENIO que se hizo negativo, por qué los PAGO eran idempotentes y los AJUSTE no —
+    y cómo un contador que mira solo la mitad rompe la idempotencia.</div>
+  <div class="meta">
+    <div class="meta-item"><label>Fecha</label><span>2026-07-09</span></div>
+    <div class="meta-item"><label>Principio</label><span>Idempotencia por delta</span></div>
+    <div class="meta-item"><label>Caso real</label><span>K-2 CONVENIO saldo = −50 falso</span></div>
+    <div class="meta-item"><label>Alcance</label><span>18 predios · MULTA/ACUERDOS/CONVENIO</span></div>
+  </div>
+</div>
+
+<!-- ── EL PRINCIPIO ── -->
+<div class="sec principio">
+  <h2>El principio en una frase</h2>
+  <p>Un proceso es <span class="term">idempotente</span> cuando correrlo dos veces deja el mismo resultado
+     que correrlo una vez. Si <code>5_cobranza</code> se re-corre y no cambió nada, el registro no debería
+     moverse ni un centavo.</p>
+  <div class="box-principio">
+    Reconciliar <b>por delta</b> = <code>lo que DEBERÍA estar − lo que YA está = lo que falta agregar</code>.<br>
+    Esto es idempotente <b>solo si</b> "lo que YA está" (el contador) mide <b>exactamente</b> lo mismo que el
+    proceso escribe. Si el proceso escribe dos tipos de evento pero el contador solo cuenta uno,
+    el otro <b>nunca se da por hecho</b> y se vuelve a escribir en cada corrida.
+  </div>
+</div>
+
+<!-- ── CONTEXTO ── -->
+<div class="sec ctx-sec">
+  <h2>Contexto — cómo funciona <code>seguimiento_pueblo</code> (lo mínimo para entender el bug)</h2>
+  <p><span class="term">seguimiento_pueblo</span> es un libro contable <b>event-sourced</b> y <b>append-only</b>:
+     nunca se edita una fila, solo se agregan eventos. El saldo <b>no se guarda</b> — se <b>deriva</b> sumando
+     los eventos en orden. Hay tres tipos de evento:</p>
+
+  <div class="diag">
+    <div class="row">
+      <div class="box b-ledger"><div class="mod">CARGO &nbsp;+</div><div class="tag">nace deuda</div></div>
+      <div class="box b-result"><div class="mod">PAGO &nbsp;−</div><div class="tag">se paga algo</div></div>
+      <div class="box b-file" style="border-color:#e0a800;background:#fff8e1;color:#7a5c00;"><div class="mod">AJUSTE &nbsp;±</div><div class="tag">corrección</div></div>
+    </div>
+    <div class="row"><div class="arrow"><span class="line">↓</span><span class="lbl">se derivan a</span></div></div>
+    <div class="row">
+      <div class="box b-mod" style="min-width:520px;background:#0f3460;">
+        <div class="mod">SALDO(predio, concepto, mes) = Σ CARGO − Σ PAGO ± Σ AJUSTE</div>
+        <div class="tag">nunca se escribe · siempre se recalcula desde los eventos</div>
+      </div>
+    </div>
+  </div>
+
+  <p style="margin-top:20px;"><b>El punto clave para el bug:</b> como es append-only, <code>5_cobranza</code>
+     <b>no puede borrar</b> un pago mal anotado. En vez de eso <b>recalcula el mes entero</b> en cada corrida
+     y reconcilia por delta: compara lo que debería haber pagado el predio contra lo que ya figura, y agrega
+     solo la diferencia. Cuando la diferencia es <b>positiva</b> agrega un <b>PAGO</b>; cuando es
+     <b>negativa</b> agrega un <b>AJUSTE</b>. Es este segundo caso el que no era idempotente.</p>
+</div>
+
+<!-- ══════════ EL ERROR ══════════ -->
+<div class="sec error-sec">
+  <h2>① El error — el contador solo mira los PAGO</h2>
+  <p>El corazón de la reconciliación (<code>5_cobranza/main.py</code> · <code>_reconciliar_pagos_pueblo</code>) es:</p>
+
+  <div class="codecmp">
+    <div class="codeblk bad">
+      <div class="hd">✘ como estaba</div>
+<pre><span class="k">ya</span>    = repo.<span class="hl">pago_registrado</span>(...)   <span class="c"># Σ PAGO — ¡solo PAGO!</span>
+<span class="k">delta</span> = pagado_fresco − ya
+
+<span class="k">if</span> delta &gt; 0:  registrar_<span class="hl">PAGO</span>(delta)
+<span class="k">elif</span> delta &lt; 0: registrar_<span class="hl">AJUSTE</span>(delta)</pre>
+    </div>
+    <div class="codeblk good">
+      <div class="hd">el detalle fatal</div>
+<pre><span class="c"># seguimiento_repo.py:303</span>
+<span class="k">def</span> pago_registrado(...):
+    <span class="c">"""Σ PAGO ya registrado</span>
+<span class="c">       — NO incluye AJUSTE."""</span>
+    ...
+    <span class="k">return</span> sub[<span class="hl">"PAGO"</span>].sum()</pre>
+    </div>
+  </div>
+
+  <p style="margin-top:22px;">El contador <code>ya</code> es <b>tuerto</b>: cuenta los PAGO pero es ciego a los
+     AJUSTE. Como la fórmula emite <b>ambos</b> tipos, el resultado depende de cuál emitió:</p>
+
+  <div class="loops">
+    <div class="loop conv">
+      <h4>Branch PAGO → se retroalimenta → converge</h4>
+      <div class="sub">emite PAGO · el contador cuenta PAGO</div>
+      <div class="runs">
+        <span class="lbl">Corrida 1:</span> ya=0 → delta=+25 → <b class="ok">emite PAGO 25</b><br>
+        <span class="lbl">Corrida 2:</span> ya=<b class="ok">25</b> → delta=0 → <b class="ok">no emite nada</b><br>
+        <span class="lbl">Corrida 3:</span> ya=25 → delta=0 → nada
+      </div>
+      <div class="verdict">✔ IDEMPOTENTE — el contador VE lo que este branch produjo</div>
+    </div>
+    <div class="loop div">
+      <h4>Branch AJUSTE → el contador no lo ve → diverge</h4>
+      <div class="sub">emite AJUSTE · el contador NO cuenta AJUSTE</div>
+      <div class="runs">
+        <span class="lbl">Corrida 1:</span> ya=25 → delta=−25 → <b class="bad">emite AJUSTE −25</b><br>
+        <span class="lbl">Corrida 2:</span> ya=<b class="bad">25</b> ← ignora el ajuste → delta=−25 → <b class="bad">AJUSTE −25 otra vez</b><br>
+        <span class="lbl">Corrida 3:</span> ya=25 → delta=−25 → <b class="bad">AJUSTE −25 otra vez…</b>
+      </div>
+      <div class="verdict">✘ NO IDEMPOTENTE — resta 25 en CADA corrida, sin fin</div>
+    </div>
+  </div>
+
+  <p style="margin-top:24px;"><b>Qué pasó con K-2 (CONVENIO), paso a paso:</b></p>
+  <div class="timeline">
+    <div class="step"><span class="t">siembra 2026-06</span><span class="d">CARGO 75 → <b>saldo 75</b></span></div>
+    <div class="step"><span class="t">pago junio</span><span class="d">PAGO 25 → <b>saldo 50</b></span></div>
+    <div class="step"><span class="t">correccion_genesis</span><span class="d">AJUSTE −25 (bug de convenio, arreglado aparte) → <b>saldo 25</b></span></div>
+    <div class="step"><span class="t">pago julio (registrado)</span><span class="d">PAGO 25 → <b>saldo 0</b> <span class="good">✔ hasta acá bien</span></span></div>
+    <div class="step"><span class="t">Jul-08 16:27 · run A</span><span class="d">recon ve pago_fresco &lt; PAGO anotado → AJUSTE −25 → <b>saldo −25</b> <span class="bad">✘ ya raro</span></span></div>
+    <div class="step"><span class="t">Jul-09 05:33 · run B</span><span class="d">se re-corre, <b>nada cambió</b>, pero el contador no ve el AJUSTE anterior → AJUSTE −25 <b>de nuevo</b> → <b>saldo −50</b> <span class="bad">✘ MAL</span></span></div>
+    <div class="step"><span class="t">hoy</span><span class="d">K-2 figura con saldo <b>−50</b>: dos AJUSTE idénticos de <code>5_cobranza</code>. Y no es solo K-2 — <b>18 predios</b> con la misma firma en MULTA/ACUERDOS/CONVENIO (dos tandas gemelas: Jul-08 16:22 y Jul-09 05:31).</span></div>
+  </div>
+
+  <div class="why">
+    <div class="why-box why-cause">
+      <h4>Causa raíz</h4>
+      <p>La idempotencia de una reconciliación por delta descansa <b>enteramente</b> en su contador. El
+         contador <code>pago_registrado</code> mide <b>solo PAGO</b>, pero el proceso escribe PAGO
+         <b>y</b> AJUSTE. El branch PAGO cierra el lazo por casualidad (lo que escribe es justo lo que el
+         contador cuenta); el branch AJUSTE escribe algo que su propio contador es incapaz de ver, así que
+         "lo ya hecho" nunca sube y el delta negativo se repite en cada corrida.</p>
+    </div>
+    <div class="why-box why-cause">
+      <h4>Por qué no lo cazó la señal de alerta previa</h4>
+      <p>El doc de diseño ya avisaba: <i>"si el saldo queda negativo sin un AJUSTE explícito → pago
+         duplicado"</i>. Pero acá el negativo <b>sí</b> viene de un AJUSTE explícito — solo que duplicado por
+         no ser idempotente. La señal apuntaba a un síntoma vecino y no cubría este. Un saldo negativo
+         merece sospecha <b>venga de donde venga</b>, incluido un AJUSTE.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ LA SOLUCIÓN ══════════ -->
+<div class="sec sol-sec">
+  <h2>② La solución — que el contador vea el NETO que la reconciliación dejó</h2>
+  <p>El arreglo no es "agregarle lógica de idempotencia al AJUSTE". Es <b>arreglar el contador</b>: que
+     <code>ya</code> mida el neto real que <b>esta reconciliación</b> aportó =
+     <code>Σ PAGO + Σ AJUSTE(source='5_cobranza')</code>. Con eso, los dos branches quedan idempotentes con
+     la <b>misma</b> fórmula, porque el contador ya ve todo lo que ellos producen.</p>
+
+  <div class="codecmp">
+    <div class="codeblk good">
+      <div class="hd">✔ como debe quedar</div>
+<pre><span class="k">ya</span> = pago_registrado(...) \
+   + <span class="hl">ajuste_reconciliado(..., '5_cobranza')</span>
+<span class="k">delta</span> = pagado_fresco − ya</pre>
+    </div>
+    <div class="codeblk good">
+      <div class="hd">el branch AJUSTE ahora converge</div>
+<pre><span class="c"># Corrida 1</span> ya=25+0   =25 → delta=−25 → AJUSTE −25
+<span class="c"># Corrida 2</span> ya=25+(−25)=0 → delta=0  → <span class="hl">nada ✔</span></pre>
+    </div>
+  </div>
+
+  <div class="why">
+    <div class="why-box why-fix">
+      <h4>Cuál es el cambio (mínimo)</h4>
+      <p>Agregar en <code>seguimiento_repo.py</code> una función <code>ajuste_reconciliado(mz,lt,concepto,mes,source)</code>
+         — espejo de <code>pago_registrado</code> pero sumando AJUSTE filtrados por <code>source</code>. En
+         <code>5_cobranza/main.py</code>, componer <code>ya = pago + ajuste_reconciliado(...,'5_cobranza')</code>.
+         Dos líneas de intención, sin tocar el patrón append-only.</p>
+    </div>
+    <div class="why-box why-fix">
+      <h4>El filtro por <code>source</code> es obligatorio</h4>
+      <p>NO se pueden sumar <b>todos</b> los AJUSTE. El de <code>correccion_genesis_formula</code> (−25) corrige
+         la <b>deuda</b>, no el <b>pago</b>: incluirlo en el contador de pagos descuadraría el delta. El
+         contador debe ver solo los AJUSTE que <b>la propia reconciliación</b> escribió — por eso se filtra
+         por <code>source='5_cobranza'</code>. Un contador idempotente cuenta lo que <b>él mismo</b> produjo,
+         ni más ni menos.</p>
+    </div>
+  </div>
+
+  <p style="margin-top:22px;"><b>Ojo — dos frentes independientes:</b> el fix de código evita
+     <b>nuevos</b> duplicados, pero <b>no</b> repara los saldos ya torcidos (los 18 predios). Ésos se limpiaron
+     en una pasada aparte de remediación: con backup, se <b>borraron las 36 filas AJUSTE de
+     <code>source=5_cobranza</code></b> (artefactos del bug, no eventos de negocio reales — se verificó que al
+     quitarlas todos los saldos vuelven a ≥ 0). El append-only protege los eventos reales, no los del bug.</p>
+</div>
+
+<!-- ── DISTINCIÓN CLAVE ── -->
+<div class="sec dist">
+  <h2>La distinción que resuelve todo</h2>
+  <p>Es tentador leer el bug como "a PAGO le pusieron idempotencia y a AJUSTE se olvidaron". Falso: es la
+     <b>misma</b> fórmula para los dos. Lo que difiere es si el contador <b>ve</b> lo que cada branch escribe.</p>
+  <div class="dist-grid">
+    <div class="dist-box dist-w">
+      <h4>✔ PAGO — idempotente por accidente afortunado</h4>
+      <p>El branch escribe PAGO y el contador (<code>pago_registrado</code>) casualmente cuenta PAGO. El lazo
+         se cierra: lo que emite, lo vuelve a ver, y el delta cae a 0. Funcionaba, pero <b>por suerte</b>,
+         no por diseño explícito.</p>
+    </div>
+    <div class="dist-box dist-r">
+      <h4>✘ AJUSTE — el contador es ciego a su propia salida</h4>
+      <p>El branch escribe AJUSTE, un tipo de evento que el contador no cuenta. El lazo queda abierto: emite,
+         no lo ve, y vuelve a emitir. Diverge sin freno. El bug no está en el AJUSTE — está en el
+         <b>contador tuerto</b> que lo alimenta.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ── CIERRE ── -->
+<div class="cierre">
+  <h2>Reglas para recordar</h2>
+  <div class="regla"><b>1.</b> Una reconciliación <b>por delta</b> es idempotente <b>solo si</b> su contador de "lo ya hecho" mide <b>exactamente todo</b> lo que el proceso escribe. Un contador que ve la mitad rompe la idempotencia de la otra mitad.</div>
+  <div class="regla"><b>2.</b> Si un proceso emite <b>varios tipos de evento</b> (PAGO y AJUSTE), el contador debe sumarlos <b>todos</b> — no solo el "camino feliz". Preguntá siempre: <i>"¿el contador ve cada cosa que este proceso produce?"</i></div>
+  <div class="regla"><b>3.</b> Cuenta <b>lo que vos mismo produjiste</b>, ni más ni menos: filtrá por <code>source</code>. Sumar eventos de otro origen (génesis) descuadra; ignorar los propios re-dispara.</div>
+  <div class="regla"><b>4.</b> Un <b>saldo negativo</b> merece sospecha venga de donde venga — incluido un AJUSTE explícito. La ausencia de una alerta no es prueba de que está bien.</div>
+  <div class="regla"><b>5.</b> El fix de código frena el sangrado <b>futuro</b>; los datos ya corruptos en un registro append-only se limpian con una <b>remediación aparte</b>. Son dos tareas, no una.</div>
+</div>
+
+</body>
+</html>

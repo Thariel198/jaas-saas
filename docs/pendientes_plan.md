@@ -41,7 +41,7 @@
 | # | Descripción | Módulo | Complejidad |
 |---|---|---|---|
 | D1 | `2_planilla/inputs/` tiene todos los subdirectorios vacíos (corte, deuda_anterior, multas, convenios, acuerdos_asamblea). Para ciclo 2026-07 estos arrastres deben copiarse desde sus módulos fuente antes de correr `main.py` | `2_planilla` | Mecánica |
-| D2 | Dos pagos en blanco (O-6: S/107 y R-7: S/24) quedan sin dueño asignado. Sus dueños deben reclamar en ciclo 2026-07 — ya documentado en `deciciones/efectivo_2026-06_conflictos_lotes.md` | `4_pagos/efectivo` | Mecánica — proceso ya definido |
+| D2 | Pago en blanco (O-6: S/107) queda sin dueño asignado. Su dueño debe reclamar en ciclo 2026-07 — ya documentado en `deciciones/efectivo_2026-06_conflictos_lotes.md` | `4_pagos/efectivo` | Mecánica — proceso ya definido |
 | D3 | `1_lecturas` produjo `orden_verificacion_2026-07.pdf` con 15 bloqueantes de campo. El operario debe resolverlos antes del siguiente ciclo de correcciones | `1_lecturas` | Mecánica — operativa de campo |
 ---
 

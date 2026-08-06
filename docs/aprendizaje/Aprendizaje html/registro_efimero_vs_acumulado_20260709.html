@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Registro efímero vs acumulado | jass_system</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f8f9fa; color: #1a1a2e; font-size: 14px; }
+
+  .portada { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%);
+             color: white; padding: 48px 60px 36px; }
+  .portada .eyebrow { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: #a8b2d8; margin-bottom: 16px; }
+  .portada h1 { font-size: 34px; font-weight: 700; line-height: 1.2; margin-bottom: 12px; }
+  .portada h1 span { color: #e94560; }
+  .portada .subtitle { font-size: 16px; color: #a8b2d8; max-width: 760px; line-height: 1.6; }
+  .portada .meta { display: flex; gap: 40px; margin-top: 28px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); }
+  .portada .meta-item label { display: block; font-size: 10px; letter-spacing: 2px; color: #a8b2d8; text-transform: uppercase; margin-bottom: 4px; }
+  .portada .meta-item span { font-size: 13px; color: white; font-weight: 500; }
+
+  .sec { padding: 34px 60px; }
+  .sec h2 { font-size: 20px; margin-bottom: 14px; }
+  .sec p { color: #444; line-height: 1.75; max-width: 820px; margin-bottom: 12px; }
+  .sec p .term { font-weight: 700; color: #0f3460; }
+
+  .principio { background: #f0f4ff; border-top: 2px solid #d4dcf5; border-bottom: 2px solid #d4dcf5; }
+  .principio .box-principio { background: #1a1a2e; color: white; border-radius: 10px; padding: 22px 26px; max-width: 820px; margin-top: 8px; }
+  .principio .box-principio b { color: #7ee0b8; }
+
+  .error-sec { background: #fff5f5; border-top: 3px solid #e74c3c; }
+  .error-sec h2 { color: #c0392b; }
+  .sol-sec   { background: #f2fbf4; border-top: 3px solid #2e7d32; }
+  .sol-sec h2 { color: #1b5e20; }
+
+  .diag { display: flex; flex-direction: column; align-items: center; gap: 4px; margin: 24px 0 8px; }
+  .row { display: flex; align-items: stretch; justify-content: center; gap: 26px; flex-wrap: wrap; }
+  .box { border-radius: 10px; padding: 12px 16px; min-width: 190px; text-align: center;
+         box-shadow: 0 2px 8px rgba(0,0,0,0.10); position: relative; }
+  .box .mod  { font-size: 13px; font-weight: 700; }
+  .box .file { font-family: 'Cascadia Code','Courier New',monospace; font-size: 11px; margin-top: 4px; opacity: 0.92; }
+  .box .tag  { font-size: 10px; letter-spacing: .5px; text-transform: uppercase; margin-top: 6px; opacity: .8; }
+
+  .b-mod   { background: #1976d2; color: white; }
+  .b-file  { background: white; color: #1a1a2e; border: 2px solid #cfd8e6; }
+  .b-shared{ background: #fff8e1; color: #7a5c00; border: 2px dashed #e0a800; }
+  .b-ledger{ background: #ede7f6; color: #4527a0; border: 2px solid #b39ddb; }
+  .b-result{ background: #e8f5e9; color: #1b5e20; border: 2px solid #81c784; }
+  .b-lost  { background: #ffebee; color: #c0392b; border: 2px solid #e74c3c; }
+
+  .arrow { display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 11px; color: #555; padding: 2px 0; }
+  .arrow .line { font-size: 20px; line-height: 1; }
+  .arrow.write .line { color: #c0392b; }
+  .arrow.read  .line { color: #2e7d32; }
+  .arrow .lbl { font-size: 10px; letter-spacing: .3px; }
+  .arrow.write .lbl { color: #c0392b; font-weight: 700; }
+  .arrow.read  .lbl { color: #2e7d32; font-weight: 700; }
+
+  .clash { background: #ffebee; border: 2px solid #e74c3c; color: #c0392b; border-radius: 10px;
+           padding: 10px 16px; font-size: 12px; font-weight: 700; text-align: center; margin-top: 6px; }
+  .win  { background: #e8f5e9; border: 2px solid #2e7d32; color: #1b5e20; border-radius: 10px;
+           padding: 10px 16px; font-size: 12px; font-weight: 700; text-align: center; margin-top: 6px; }
+
+  .why { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 22px; max-width: 900px; }
+  .why-box { background: white; border-radius: 8px; padding: 16px 18px; border-left: 4px solid; }
+  .why-box h4 { font-size: 12px; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
+  .why-box p { font-size: 12.5px; line-height: 1.6; color: #444; margin: 0; }
+  .why-cause h4 { color: #c0392b; } .why-cause { border-color: #e74c3c; }
+  .why-fix   h4 { color: #1b5e20; } .why-fix   { border-color: #2e7d32; }
+
+  .timeline { background: #1a1a2e; border-radius: 10px; padding: 20px 24px; margin-top: 20px; max-width: 860px; }
+  .timeline .step { display: flex; align-items: baseline; gap: 14px; padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,.07); }
+  .timeline .step:last-child { border-bottom: none; }
+  .timeline .t { font-family: 'Cascadia Code',monospace; font-size: 11px; color: #7ea6e0; min-width: 118px; }
+  .timeline .d { font-size: 12.5px; color: #dde; line-height: 1.5; }
+  .timeline .d b { color: #ffd166; }
+  .timeline .bad  { color: #ff6b6b; font-weight: 700; }
+  .timeline .good { color: #7ee0b8; font-weight: 700; }
+
+  .dist { background: #fffde7; border-top: 4px solid #f9a825; border-bottom: 4px solid #f9a825; }
+  .axes { width: 100%; max-width: 900px; border-collapse: collapse; margin-top: 12px; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+  .axes th, .axes td { padding: 12px 16px; text-align: left; font-size: 12.5px; border-bottom: 1px solid #eee; }
+  .axes th { background: #1a1a2e; color: white; font-size: 11px; letter-spacing: .5px; text-transform: uppercase; }
+  .axes td.reg { font-weight: 700; color: #0f3460; }
+  .axes .si  { color: #1b5e20; font-weight: 700; }
+  .axes .no  { color: #777; }
+  .axes .bug { color: #c0392b; font-weight: 700; }
+  .axes tr:last-child td { border-bottom: none; }
+
+  .cierre { background: #1a1a2e; color: #cdd; padding: 30px 60px; }
+  .cierre h2 { color: white; font-size: 16px; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 14px; }
+  .cierre .regla { background: rgba(255,255,255,.05); border-left: 4px solid #7ee0b8; padding: 14px 18px; border-radius: 4px; margin-bottom: 10px; font-size: 13px; line-height: 1.7; }
+  .cierre .regla b { color: #7ee0b8; }
+</style>
+</head>
+<body>
+
+<div class="portada">
+  <div class="eyebrow">Aprendizaje de arquitectura · jass_system</div>
+  <h1>Registro efímero vs acumulado: <span>por qué un ledger que se regenera cada mes pierde la historia sin avisar</span></h1>
+  <div class="subtitle">Un registro que se reconstruye desde las vistas del mes actual borra los meses viejos
+    cada vez que se cierra el ciclo — silenciosamente. Este documento explica el "Gap" con un caso real
+    (los aportes al tanque) y el patrón que lo evita (el ledger de deuda de la directiva),
+    y separa los <b>dos ejes independientes</b> del diseño de un registro.</div>
+  <div class="meta">
+    <div class="meta-item"><label>Fecha</label><span>2026-07-09</span></div>
+    <div class="meta-item"><label>Principio</label><span>Append-only acumulado</span></div>
+    <div class="meta-item"><label>Caso real</label><span>tanque pierde meses · deuda_directiva no</span></div>
+  </div>
+</div>
+
+<!-- ── EL PRINCIPIO ── -->
+<div class="sec principio">
+  <h2>El principio en una frase</h2>
+  <p>Si un registro debe <span class="term">durar entre meses</span>, no puede <span class="term">regenerarse</span>
+     desde las vistas del mes actual — porque esas vistas se resetean al cerrar el ciclo, y con ellas se va la
+     historia. Debe ser <span class="term">append-only</span>: leer lo que ya había y agregar lo nuevo.</p>
+  <div class="box-principio">
+    <b>REGENERAR</b> (leer el mes · escribir de cero · pisar) → sirve para un working del mes, muere en el cierre.<br>
+    <b>APPEND</b> (leer lo previo · agregar lo nuevo · dedup) → sobrevive el cierre, guarda todos los meses.<br>
+    La pregunta que decide: <b>¿este dato tiene que existir el mes que viene?</b> Si sí → append-only.
+  </div>
+</div>
+
+<!-- ══════════ ① EL ERROR ══════════ -->
+<div class="sec error-sec">
+  <h2>① El error — el registro efímero (aportes al tanque)</h2>
+  <p><span class="term">consolidar_tanque.py</span> arma <code>aportes_tanque.xlsx</code> cosechando
+     <code>CONCEPTO=tanque</code> de <code>pagos_yape_tepago.xlsx</code> + <code>pagos_efectivo.xlsx</code> —
+     las vistas del <b>mes actual</b>. Cada corrida lo <b>escribe de cero</b>. Parece inofensivo… hasta el cierre.</p>
+
+  <div class="diag">
+    <div class="row">
+      <div class="box b-file"><div class="mod">pagos_yape_tepago.xlsx</div><div class="tag">vista del mes</div></div>
+      <div class="box b-file"><div class="mod">pagos_efectivo.xlsx</div><div class="tag">vista del mes</div></div>
+    </div>
+    <div class="row"><div class="arrow read"><span class="line">↓</span><span class="lbl">COSECHA CONCEPTO=tanque</span></div></div>
+    <div class="row">
+      <div class="box b-mod"><div class="mod">consolidar_tanque.py</div><div class="tag">regenera de cero</div></div>
+    </div>
+    <div class="row"><div class="arrow write"><span class="line">↓</span><span class="lbl">ESCRIBE (pisa el archivo entero)</span></div></div>
+    <div class="row">
+      <div class="box b-shared" style="min-width:320px;">
+        <div class="mod">4_pagos/outputs/aportes_tanque.xlsx</div>
+        <div class="tag">⚠ solo el mes actual · sin CICLO</div>
+      </div>
+    </div>
+    <div class="clash">Al cerrar el ciclo, las vistas del mes se resetean → la próxima corrida escribe SOLO el mes nuevo → los meses viejos desaparecen del archivo vivo</div>
+  </div>
+
+  <p style="margin-top:22px;"><b>Cómo se pierde la historia, paso a paso:</b></p>
+  <div class="timeline">
+    <div class="step"><span class="t">junio</span><span class="d">consolidar_tanque → aportes_tanque = <b>aportes de junio</b> <span class="good">✔</span></span></div>
+    <div class="step"><span class="t">7_cierre junio</span><span class="d">resetea mesa_* y regenera las vistas para julio → las fuentes del tanque quedan <b>vacías/nuevas</b></span></div>
+    <div class="step"><span class="t">julio</span><span class="d">consolidar_tanque re-corre sobre julio → aportes_tanque = <b>solo aportes de julio</b> <span class="bad">✘ junio se perdió del archivo vivo</span></span></div>
+    <div class="step"><span class="t">¿acumulado?</span><span class="d">no existe en ningún archivo. Reconstruíble desde <code>archivo/2026-06/pagos_yape_tepago</code>, pero <b>nadie lo suma</b></span></div>
+  </div>
+
+  <div class="why">
+    <div class="why-box why-cause">
+      <h4>Causa raíz</h4>
+      <p>El registro <b>deriva su estado completo de una fuente que es efímera</b> (la vista del mes).
+         Regenerar desde una fuente que se resetea = heredar su amnesia. No hay bug en el código de
+         consolidar_tanque; el bug está en <b>de dónde saca su verdad</b>: del presente, no del acumulado.</p>
+    </div>
+    <div class="why-box why-cause">
+      <h4>Por qué "hacer backup en el cierre" NO lo arregla</h4>
+      <p>Congelar una foto por mes en <code>archivo/YYYY-MM/</code> preserva el crudo, sí — pero deja el
+         total <b>fragmentado en N archivos</b> que nadie reagrega. La pregunta "¿cuánto se juntó para el
+         tanque en total?" sigue sin respuesta directa. La foto es auditoría, no acumulador.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ ② LA SOLUCIÓN ══════════ -->
+<div class="sec sol-sec">
+  <h2>② La solución — append-only acumulado (deuda de la directiva)</h2>
+  <p>Mismo tipo de dato (pagos de un concepto), pero <span class="term">consolidar_deuda_directiva.py</span>
+     no regenera: <b>lee el ledger existente</b>, agrega solo los pagos nuevos (<b>dedup</b> por
+     <code>canal·referencia·monto·fecha</code>), estampa <code>CICLO</code>, y vive en <code>shared/</code>
+     — que 7_cierre <b>no toca</b>. Sobrevive el cierre.</p>
+
+  <div class="diag">
+    <div class="row">
+      <div class="box b-file"><div class="mod">vistas del mes</div><div class="tag">yape + efectivo</div></div>
+      <div class="box b-ledger" style="min-width:300px;"><div class="mod">shared/deuda_directiva.xlsx</div><div class="file">meses previos ya guardados</div><div class="tag">ledger acumulado</div></div>
+    </div>
+    <div class="row">
+      <div class="arrow read"><span class="line">↘</span><span class="lbl">cosecha lo nuevo</span></div>
+      <div class="arrow read"><span class="line">↙</span><span class="lbl">LEE lo previo</span></div>
+    </div>
+    <div class="row">
+      <div class="box b-mod"><div class="mod">consolidar_deuda_directiva.py</div><div class="tag">previo + nuevo · dedup</div></div>
+    </div>
+    <div class="row"><div class="arrow write"><span class="line">↓</span><span class="lbl">ESCRIBE (append, nunca pisa historia)</span></div></div>
+    <div class="row">
+      <div class="box b-result" style="min-width:320px;">
+        <div class="mod">shared/deuda_directiva.xlsx</div>
+        <div class="file">CICLO 2026-06 + 2026-07 + 2026-08 …</div>
+        <div class="tag">todos los meses juntos</div>
+      </div>
+    </div>
+    <div class="win">7_cierre solo resetea mesa_*/correcciones y limpia 5_cobranza/outputs — NO toca shared/ → el ledger persiste intacto</div>
+  </div>
+
+  <div class="why">
+    <div class="why-box why-fix">
+      <h4>Cuál es la solución</h4>
+      <p>Tres piezas juntas: <b>(1)</b> append-only (leer previo + agregar), <b>(2)</b> columna <code>CICLO</code>
+         (para filtrar por mes sin perder los otros), <b>(3)</b> vivir en <code>shared/</code>, fuera del
+         barrido del cierre. Las tres o ninguna: sin CICLO no distinguís meses; sin shared te lo limpia el cierre;
+         sin append pisás la historia.</p>
+    </div>
+    <div class="why-box why-fix">
+      <h4>La trampa del "espejo"</h4>
+      <p>deuda_directiva nació como <b>espejo de tanque</b>. Copiar un patrón <b>hereda sus bugs latentes</b>:
+         de haberlo copiado tal cual, habría heredado el Gap. Lo atajamos preguntando "¿esto tiene que durar
+         entre meses?" <b>antes</b> de codificar. Copiar un patrón exige auditar qué defecto arrastra, no solo
+         qué resuelve.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ── LA DISTINCIÓN: DOS EJES ── -->
+<div class="sec dist">
+  <h2>La distinción que resuelve todo — son dos ejes independientes</h2>
+  <p>Es fácil confundir "no necesita vista humana" con "está bien". Son <b>preguntas distintas</b>. Un registro
+     se diseña en dos ejes que no se implican entre sí:</p>
+  <table class="axes">
+    <tr>
+      <th>Registro</th>
+      <th>Eje A · ¿vista humana derivada?</th>
+      <th>Eje B · ¿acumula entre meses?</th>
+    </tr>
+    <tr>
+      <td class="reg">seguimiento_pueblo</td>
+      <td class="si">SÍ — hay estado derivado (saldo por persona) que el humano no ve en las filas crudas</td>
+      <td class="si">SÍ — append-only</td>
+    </tr>
+    <tr>
+      <td class="reg">deuda_directiva</td>
+      <td class="no">NO — lista plana de pagos, cada fila ya es legible</td>
+      <td class="si">SÍ — append-only ✔</td>
+    </tr>
+    <tr>
+      <td class="reg">aportes_tanque</td>
+      <td class="no">NO — lista plana, no necesita vista</td>
+      <td class="bug">NO — se regenera y se sobreescribe ✘ (el Gap)</td>
+    </tr>
+  </table>
+  <p style="margin-top:16px;"><b>Eje A</b> (¿vista?) depende de si hay <b>estado derivado</b> o varios tipos de evento.
+     Una lista plana de un solo evento (aporte, pago) no necesita vista: el registro <i>es</i> la vista.
+     <b>Eje B</b> (¿acumula?) depende de si el dato <b>debe durar</b> entre ciclos. Tanque acierta en A
+     (no necesita vista) pero falla en B (pierde meses). Que no necesite vista <b>no</b> significa que esté sano.</p>
+</div>
+
+<!-- ── CIERRE ── -->
+<div class="cierre">
+  <h2>Reglas para recordar</h2>
+  <div class="regla"><b>1.</b> Antes de codificar un registro, preguntá <b>"¿este dato tiene que existir el mes que viene?"</b>. Si sí → append-only acumulado, nunca regenerar desde la vista del mes.</div>
+  <div class="regla"><b>2.</b> Un acumulador vive en <code>shared/</code> (fuera del barrido de 7_cierre), lleva columna <b>CICLO</b>, y hace <b>append con dedup</b> (leer previo + agregar nuevo). Las tres piezas o ninguna.</div>
+  <div class="regla"><b>3.</b> Congelar fotos por mes en <code>archivo/</code> es <b>auditoría</b>, no acumulador. Preserva el crudo pero deja el total fragmentado — no responde "¿cuánto en total?".</div>
+  <div class="regla"><b>4.</b> Diseñá el registro en <b>dos ejes independientes</b>: ¿necesita vista humana derivada? y ¿acumula entre meses? Acertar en uno no implica acertar en el otro.</div>
+  <div class="regla"><b>5.</b> Copiar un patrón (<b>"espejo de X"</b>) hereda sus <b>bugs latentes</b>, no solo lo que resuelve. Auditá qué defecto arrastra antes de replicarlo.</div>
+</div>
+
+</body>
+</html>
