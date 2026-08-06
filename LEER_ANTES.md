@@ -1,3 +1,95 @@
+# LEER ANTES — A-4 vuelve a deber S/75 de CONVENIO: su aporte al tanque se lo había pagado (06/08/2026)
+
+**Si A-4 (Yolanda Espinoza Jaimes) figuraba al día en CONVENIO y ahora debe S/75: es
+correcto, y hay que avisarle.** El ledger la daba por pagada con plata que nunca fue
+para su deuda. La secretaria ya había reclamado que A-4 debía; se le ignoró porque el
+sistema mostraba un pago de S/236 que parecía cubrir todo.
+
+## Qué pasó
+
+```
+07/07 07:20:05  yape S/136  mensaje "mz A lt 4"          → deuda normal
+07/07 07:20:55  yape S/100  mensaje "mz A lt 4 tanque"   → aporte al tanque, NO es deuda
+        │
+        └─ motor_matching identificó el lote pero dejó CONCEPTO vacío
+           (ESTADO_PAGO = "sin deuda en planilla")
+                │
+                └─ los 236 entraron juntos y la cascada de 5_cobranza se
+                   los comió como pago de deuda → CONVENIO quedó "pagado"
+```
+
+Es el mismo bug de `CONCEPTO` vacío que documentan más abajo las auditorías de junio y
+julio (E-1 con S/100, y los S/550 de C-15 · P-7 · A-4 · P-17).
+
+## La cuenta que lo prueba
+
+```
+deuda de julio (planilla_cobrado)          plata REAL de deuda: 136
+   agua 5 + mant. 3 + mes ant. 23 =  31    136 − 31 (agua)        = 105
+   MULTA                             30          − 30 MULTA       =  75
+   ACUERDOS                          75          − 75 ACUERDOS    =   0
+   CONVENIO                          75          CONVENIO 75 sin pagar
+                                    ───
+                                    211    planilla dice SALDO 75 · PARCIAL  ✔
+```
+
+`planilla_cobrado` **siempre tuvo razón**: `5_cobranza/main.py:1422` ya lee
+`shared/aportes_tanque_manuales.xlsx` y descuenta el aporte antes de la cascada. Quien
+nunca se enteró fue el ledger, que se había escrito antes de esa segregación.
+
+## Qué se borró
+
+```
+SE BORRÓ (5 filas de A-4 · CONVENIO)              criterio: corrige un error del
+   08/07 16:22  PAGO   +75  5_cobranza            sistema sobre sí mismo
+   13/07 05:51  AJUSTE −75  5_cobranza            (el mismo del 06/08)
+   13/07 06:16  PAGO   +75  5_cobranza   ← el mismo pago contado de nuevo
+   25/07 14:51  AJUSTE −75  5_cobranza
+   27/07 17:07  AJUSTE +225 correccion_manual (fix_race_condition_yape_20260713)
+
+SE CONSERVÓ
+   el CARGO de la siembra (75)  → saldo CONVENIO = 75, la verdad
+   MULTA 30 y ACUERDOS 75, que SÍ entran dentro de los 136 reales
+```
+
+Ledger: 1491 → 1486 eventos · **0 saldos negativos en todo el pueblo**.
+`vista_seguimiento_pueblo` regenerada.
+
+## Backups
+
+**El error está en TODOS los backups** — se escribió el 08/07 y el backup más viejo es
+del 03/08:
+
+```
+seguimiento_pueblo_pre_clase_20260803_112318.xlsx      ← el primero que existe, ya con el error
+seguimiento_pueblo_pre_A4_convenio_20260806_153740.xlsx ← justo antes de esta corrección
+```
+
+Las 5 filas, con sus `AUDIT_REF`, timestamps y saldos, están en el segundo. Para
+reconstruir la historia de cómo llegó a estar mal, sirve cualquiera de los dos.
+
+## Lo que sigue vivo
+
+```
+① el arreglo de fondo NO está hecho: motor_matching sigue sin llenar CONCEPTO=tanque
+   cuando el mensaje lo dice y el lote matchea directo. Ver la sección "auditoría del
+   ciclo julio" más abajo, § "Arreglo de fondo".
+
+② los otros 3 del mismo lote de tanque (C-15, P-7, P-17) NO se revisaron en el ledger.
+   Sus saldos en planilla_cobrado dieron 0, así que probablemente no tengan este
+   problema — pero no está verificado contra seguimiento_pueblo.xlsx.
+
+③ AVISAR A A-4: debe S/75 de convenio. Si ya se le dijo que estaba al día, es un
+   cambio que ella va a notar.
+```
+
+## Cómo se cierra este evento
+
+Cuando A-4 esté avisada, los otros 3 predios de tanque estén verificados en el ledger
+y `motor_matching` marque `CONCEPTO` por mensaje, borrar esta sección.
+
+---
+
 # LEER ANTES — los pagos que declaró la secretaria y el ruido que generaron (06/08/2026)
 
 **Si buscás en `shared/seguimiento_pueblo.xlsx` los ajustes de julio de B1-12, D-1, F1-5,
