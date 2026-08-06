@@ -19,8 +19,8 @@ Backup de `DATA_boletas.xlsx` antes de cualquier parche:
 
 # CHECKLIST — estado de cada corrección en el registro real
 
-**Actualizado: 2026-08-03.** Una fila por predio+concepto: **36 correcciones sobre
-27 predios** (un predio puede tener 2-3 conceptos tocados). La verdad de qué se
+**Actualizado: 2026-08-03.** Una fila por predio+concepto: **37 correcciones sobre
+28 predios** (un predio puede tener 2-3 conceptos tocados). La verdad de qué se
 parchó salió del diff `DATA_boletas_pre_correccion_20260801.xlsx` ⟷
 `DATA_boletas.xlsx`, no de la lista de fotos (26 fotos, 12 quedaron en
 "VERIFICAR, no cambiar aún").
@@ -53,31 +53,31 @@ precursor es el que actúa.
 | [ ] | YA_PAGO | B-8 | ACUERDOS | 5 | 0 | — | al dia (secretaria) |
 | [ ] | YA_PAGO | B-8 | CONVENIO | 75 | 0 | — | al dia (secretaria) |
 | [ ] | YA_PAGO | B-8 | MES_ANTERIOR | n/a | 0 | — | agua — va a ajustes_cargo, no al ledger |
-| [ ] | REASIGNACION | G-4 | CONVENIO | 75 | 0 | — | pago S/50 por fuera + 25 desde MULTA |
-| [ ] | REASIGNACION | G-4 | MULTA | 25 | 50 | — | recibe los 25 que salen de CONVENIO |
+| [x] | REASIGNACION | G-4 | CONVENIO | 0 | 0 | abonos_rezagados + reasignaciones_aplicacion | S/50 por fuera (ABONO_REZAGADO, suma a caja) + 25 desde MULTA |
+| [x] | REASIGNACION | G-4 | MULTA | 50 | 50 | reasignaciones_aplicacion | recibe los 25 que salen de CONVENIO |
 | [ ] | REASIGNACION | G-14 | CONVENIO | 38 | 0 | — | 25 desde MULTA + S/50 efectivo a la secretaria |
 | [ ] | REASIGNACION | G-14 | MULTA | 0 | 50 | — | origen NO explicado por la directiva |
 | [ ] | REASIGNACION | G-14 | ACUERDOS | 21 | 50 | — | origen NO explicado (21 -> 50) |
 | [x] | CARGO_NUEVO | M-12 | CONVENIO | 80 | 80 | genesis_tardia | ⚠ NO es de este expediente — ver nota abajo |
 | [x] | REASIGNACION | E-14A | ACUERDOS | 0 | 0 | genesis_tardia | lote fantasma: no existe en el padron — cargo movido a E-14B |
 | [x] | REASIGNACION | E-14B | ACUERDOS | 75 | 75 | reidentificacion_cargo | recibe el cargo de E-14A (Juan Saavedra). NO era cargo nuevo |
-| [ ] | BUG_SIGNO | A-8 | CONVENIO | -50 | 50 | — | pago fantasma 06/07 + reversion con signo invertido |
-| [ ] | BUG_SIGNO | B-5 | ACUERDOS | -25 | 25 | — | idem — ver nota de Pompeyo al final |
-| [ ] | BUG_SIGNO | B-5 | CONVENIO | -50 | 50 | — | idem — ver nota de Pompeyo al final |
-| [ ] | BUG_SIGNO | C-1 | ACUERDOS | -25 | 25 | — | idem |
-| [ ] | BUG_SIGNO | C-1 | CONVENIO | -50 | 50 | — | idem |
-| [ ] | BUG_SIGNO | C-7 | CONVENIO | -25 | 25 | — | idem |
-| [ ] | BUG_SIGNO | E-12 | CONVENIO | -16 | 26 | — | idem |
-| [ ] | BUG_SIGNO | I-11 | CONVENIO | -25 | 25 | — | idem |
-| [ ] | BUG_SIGNO | I-16 | MULTA | -18 | 18 | — | idem |
-| [ ] | BUG_SIGNO | I-16 | ACUERDOS | 47 | 75 | — | no era negativo (47) pero igual incorrecto |
-| [ ] | BUG_SIGNO | J-3 | CONVENIO | -30 | 50 | — | idem |
-| [ ] | BUG_SIGNO | K-17 | CONVENIO | -25 | 25 | — | idem |
-| [ ] | BUG_SIGNO | K-2 | CONVENIO | -25 | 25 | — | idem |
-| [ ] | BUG_SIGNO | P-12 | CONVENIO | -50 | 50 | — | idem |
-| [ ] | BUG_SIGNO | H-16 | ACUERDOS | 47 | 75 | — | mismo bug, se escapo del filtro (47 no es negativo) |
+| [x] | BUG_SIGNO | A-8 | CONVENIO | 50 | 50 | — | pago fantasma 06/07 + reversion con signo invertido |
+| [x] | BUG_SIGNO | B-5 | ACUERDOS | 25 | 25 | — | idem — ver nota de Pompeyo abajo |
+| [x] | BUG_SIGNO | B-5 | CONVENIO | 50 | 50 | — | idem — ver nota de Pompeyo abajo |
+| [x] | BUG_SIGNO | C-1 | ACUERDOS | 25 | 25 | — | idem |
+| [x] | BUG_SIGNO | C-1 | CONVENIO | 50 | 50 | — | idem |
+| [x] | BUG_SIGNO | C-7 | CONVENIO | 25 | 25 | — | idem |
+| [x] | BUG_SIGNO | E-12 | CONVENIO | 26 | 26 | — | idem |
+| [x] | BUG_SIGNO | I-11 | CONVENIO | 25 | 25 | — | idem |
+| [x] | BUG_SIGNO | I-16 | MULTA | 18 | 18 | — | idem |
+| [x] | BUG_SIGNO | I-16 | ACUERDOS | 75 | 75 | — | no era negativo (47) pero igual incorrecto |
+| [x] | BUG_SIGNO | J-3 | CONVENIO | 50 | 50 | — | idem |
+| [x] | BUG_SIGNO | K-17 | CONVENIO | 25 | 25 | — | idem |
+| [x] | BUG_SIGNO | K-2 | CONVENIO | 25 | 25 | — | idem |
+| [x] | BUG_SIGNO | P-12 | CONVENIO | 50 | 50 | — | idem |
+| [x] | BUG_SIGNO | H-16 | ACUERDOS | 75 | 75 | — | mismo bug, se escapo del filtro (47 no es negativo) |
 
-**TOTAL 37 · hechas 7 · pendientes 30** (2026-08-03)
+**TOTAL 37 · hechas 24 · pendientes 13** (2026-08-03, tras cerrar G-4)
 
 ## ⚠ E-14B no era una contradicción — era un lote fantasma
 
@@ -120,31 +120,60 @@ MANTENIMIENTO el 28/07 y la directiva confirmó el 01/08 que van en CONVENIO.
 Hecho el 03/08: fila de `genesis_tardia` apagada (`MES_ANO_APLICA` → vacío, nunca
 se había aplicado) + fila nueva de CONVENIO inerte + `registrar_cargo` en el ledger.
 
-## Qué bloquea a los 31 pendientes
+## BUG_SIGNO (15) — HECHO el 2026-08-03, pero el codigo sigue roto
+
+Los 15 saldos se restauraron al CARGO real (S/914 de deuda que vuelve a existir —
+no es plata que entra). **Cero saldos negativos en todo el ledger.**
+`CLASE=CORRECCION_SISTEMA`, `source=manual`.
+
+La restauracion es estable: `ajuste_reconciliado` filtra por `SOURCE`, asi que un
+AJUSTE con `source=manual` no entra en el `ya` de la reconciliacion y una
+re-corrida de julio no lo deshace.
+
+**Lo que NO se arreglo:** `5_cobranza/main.py:2320` sigue emitiendo el ajuste de
+reversion con el signo invertido, porque la columna `AJUSTE` carga dos
+convenciones opuestas — `ajuste_reconciliado` (:2313) la lee como CREDITO,
+`_registrar` (`seguimiento_repo:280`) la aplica como DEUDA. El bug solo amenaza
+ciclos futuros (julio esta congelado), pero va a volver a fabricar negativos
+cuando corra `5_cobranza` de agosto. Dos caminos, ninguno decidido:
 
 ```
-YA_PAGO (10)      necesita la BUSQUEDA del pago primero:
-                    se encuentra          -> reidentificacion, NO suma a caja
-                    no se encuentra + cobrador nombrado -> cobro al cobrador
-                    no se encuentra sin cobrador        -> exoneracion
-                  buscar en 7_cierre/archivo/2026-06 y 2026-07 (congelados,
-                  en git desde el commit d58ece3) + blancos_efectivo +
-                  arrastre_devolucion (pool de exceso no reclamado: 2.205,50)
+ ① _registrar deja AJUSTE con signo de CREDITO (saldo -= monto)
+      + coherente con PAGO y con ajuste_reconciliado
+      - invierte el sentido de los AJUSTE manuales ya escritos
+        (los -20/-75/-30 de exoneracion pasarian a SUMAR deuda)
 
-BUG_SIGNO (15)    NO es un reclamo: es 5_cobranza/main.py:2320, que emite el
-                  ajuste de reversion con el signo invertido porque la columna
-                  AJUSTE carga dos convenciones opuestas (ajuste_reconciliado
-                  la lee como credito, _registrar la aplica como deuda).
-                  Parchar los 15 a mano deja el bug armado para el proximo
-                  --force. Arreglar el codigo ANTES de tocar estas filas.
+ ② ajuste_reconciliado invierte el signo al acumular, _registrar no cambia
+      + no toca ninguna fila de las 1.584 existentes
+      - la correccion queda escondida en la funcion de idempotencia
+```
 
-REASIGNACION (5)  G-14: la directiva no explico el origen de MULTA 0->50 ni de
-                  ACUERDOS 21->50. Confirmar antes de escribir.
+## Qué bloquea a los 13 pendientes
 
-E-14B (1)         no tiene NINGUN evento en el ledger (saldo 0 real, no
-                  condonado). Cargar +75 crea una deuda que nunca existio.
-                  La directiva tiene que decir si el pago que se creia hecho
-                  no existio, o si se cobro de mas el 01/08.
+```
+YA_PAGO (10)      la BUSQUEDA ya se hizo (03/08, contra los ciclos congelados
+                  en 7_cierre/archivo/). Resultado: NINGUNO de los 8 casos
+                  tiene un pago que coincida con el monto declarado; los pagos
+                  que aparecen son de agua del ciclo, ya aplicados.
+                  PERO 4 tienen nota de mesa contemporanea que corrobora:
+                    F-7  "Cancelo total"                (2026-07, Wagner)
+                    B-8  "Reclamo. Ya pague mes anterior, techado y ca..."
+                    F-10 "Multa exonerada, faena permanente"
+                    T-14 "Mes pasado pago 100 restaban 28..."
+                    K-9  "Pago medidor total"
+                  Sin corroborar: K-8 · D-6 · F-1.
+                  Propuesta: los 9 de pueblo con CLASE=DECLARACION (no suman a
+                  caja: la plata ya entro y ya se conto como exceso sin
+                  atribuir) + B-8 MES_ANTERIOR a ajustes_cargo.
+                  FALTA DECIDIR: si se le pregunta a Wagner por D-6 antes.
+
+REASIGNACION (3)  G-4 CERRADO el 03/08 (los S/50 por fuera entraron como
+                  ABONO_REZAGADO -- plata real que nunca se registro -- y los
+                  25 como reasignacion MULTA->CONVENIO).
+                  Queda solo G-14 (3 filas): la directiva NO explico el origen
+                  de MULTA 0->50 ni de ACUERDOS 21->50, solo el resultado final.
+                  Confirmar con ella antes de escribir. Su ledger sigue intacto
+                  (CONVENIO 38 - MULTA 0 - ACUERDOS 21, ultimas filas del 04-08/07).
 ```
 
 ---
@@ -403,8 +432,20 @@ Total=158.
 **Valores corregidos (boleta de hoy):** Convenio=0, Multa=50, Techado y
 campo=50, Total=108.
 
-**Pendiente:** el mes que viene, aplicar en `seguimiento_pueblo.xlsx` lo que
-corresponda para dejar CONVENIO=0, MULTA=50, ACUERDOS=50 de G-4.
+**✔ HECHO el 2026-08-03** — CONVENIO=0, MULTA=50, ACUERDOS=50 (ACUERDOS nunca se
+tocó, ya estaba en 50). Se escribieron los dos lados:
+
+```
+precursor                                    ledger (seguimiento_pueblo)
+reasignaciones_aplicacion  MULTA→CONVENIO 25  AJUSTE MULTA    +25 → 50   REASIGNACION
+                           (MES_ANO vacío)    AJUSTE CONVENIO −25 → 50   REASIGNACION
+abonos_rezagados  G-4 50 convenio efectivo    AJUSTE CONVENIO −50 →  0   ABONO_REZAGADO
+```
+
+Los S/50 van como **ABONO_REZAGADO y no DECLARACION**: se buscaron el 03/08 contra
+los ciclos congelados de `7_cierre/archivo/` y no aparecen en mesas, yape, blancos
+ni en el pool de exceso — es plata real de la JASS que nunca entró al registro, así
+que sí suma a caja.
 
 ---
 

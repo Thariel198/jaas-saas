@@ -21,6 +21,7 @@
 # Uso:  py boletas_sin_servicio.py   (desde 3_boletas/)
 # =============================================================
 
+import glob
 import re
 import sys
 import unicodedata
@@ -43,9 +44,24 @@ IMG_DIR = OUT_DIR / "Imagenes"
 
 DATA_BOLETAS_PATH = INPUT_DIR / "DATA_boletas.xlsx"
 PLANTILLA_PATH = INPUT_DIR / "PLANTILLA_boletas.docx"
-ARRASTRE_PATH = BASE_DIR.parent / "5_cobranza" / "outputs" / "arrastre_consolidado_2026-06.xlsx"
 
-MES_CIERRE = "2026-06"
+def _mes_anterior(mes: str) -> str:
+    y, m = mes.split("-")
+    y, m = int(y), int(m)
+    m -= 1
+    if m == 0:
+        m, y = 12, y - 1
+    return f"{y:04d}-{m:02d}"
+
+def _detectar_mes_ciclo() -> str:
+    """Mes del ciclo actual, detectado desde la planilla_YYYY-MM.xlsx más reciente."""
+    matches = sorted(glob.glob(str(BASE_DIR.parent / "2_planilla" / "outputs" / "planilla_*.xlsx")))
+    if not matches:
+        return "2026-06"  # fallback si no hay ninguna
+    return Path(matches[-1]).stem.replace("planilla_", "")
+
+MES_CIERRE = _mes_anterior(_detectar_mes_ciclo())
+ARRASTRE_PATH = BASE_DIR.parent / "5_cobranza" / "outputs" / f"arrastre_consolidado_{MES_CIERRE}.xlsx"
 NOMBRE_JAAS = "JUNTA ADMINISTRATIVA DE SERVICIOS DE SANEAMIENTO"
 SECTOR = "P.J. TUPAC AMARU"
 TELEFONO = "948 227 636"

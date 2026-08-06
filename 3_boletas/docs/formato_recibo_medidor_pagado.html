@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Contrato de formato — recibos de MEDIDOR PAGADO</title>
+<style>
+  body { font-family: Arial, sans-serif; font-size: 13px; margin: 30px; color: #1f2937; }
+  h1   { font-size: 18px; color: #065F46; border-bottom: 2px solid #065F46; padding-bottom: 6px; }
+  h2   { font-size: 14px; color: #374151; margin-top: 28px; border-left: 4px solid #6b7280; padding-left: 8px; }
+  p    { margin: 6px 0; }
+  .meta { background:#f3f4f6; border:1px solid #d1d5db; border-radius:4px; padding:10px 14px; margin-bottom:18px; }
+  .meta span { font-weight:bold; }
+  .tag { display:inline-block; font-size:10px; font-weight:bold; padding:1px 8px; border-radius:10px; }
+  .tag.pdf   { background:#D1FAE5; color:#065F46; }
+  .tag.regen { background:#DBEAFE; color:#1E3A8A; }
+  .nota { background:#fffbeb; border:1px solid #fcd34d; border-radius:4px;
+          padding:8px 12px; margin:12px 0; font-size:12px; }
+  .logica-box { background:#ECFDF5; border:1px solid #6EE7B7; border-radius:4px;
+                padding:10px 14px; margin:12px 0; font-size:12px; }
+  .logica-box b { color:#065F46; }
+  code { background:#f3f4f6; padding:1px 5px; border-radius:3px; font-size:11px; }
+
+  /* ---------- mockup del PDF (1 página A5 vertical) ---------- */
+  .pagina { width: 420px; border: 2px solid #9ca3af; border-radius: 4px; padding: 22px 26px;
+            margin: 14px 0; background: #fff; box-shadow: 2px 2px 8px rgba(0,0,0,.15); }
+  .enc { display:flex; align-items:center; gap:12px; border-bottom: 2px solid #065F46; padding-bottom: 10px; }
+  .logo-box { width:58px; height:58px; border:1px dashed #9ca3af; border-radius:50%;
+              display:flex; align-items:center; justify-content:center; font-size:9px; color:#6b7280; flex:0 0 auto; }
+  .enc-txt { font-size:10px; line-height:1.35; }
+  .enc-txt .jass { font-weight:bold; font-size:11px; }
+  .nro { margin-left:auto; text-align:right; font-size:10px; }
+  .nro b { font-size:13px; color:#B91C1C; }
+  .titulo-doc { text-align:center; font-size:14px; font-weight:bold; color:#065F46;
+                margin:14px 0 4px; letter-spacing:.5px; }
+  .subtitulo { text-align:center; font-size:10px; color:#6b7280; margin-bottom:12px; }
+  .datos { font-size:11px; margin: 10px 0; }
+  .datos td { padding: 2px 6px; }
+  .datos .lbl { color:#6b7280; font-weight:bold; white-space:nowrap; }
+  .pagos { border-collapse: collapse; margin: 10px auto; font-size:11px; width: 88%; }
+  .pagos th { background:#065F46; color:#fff; padding:4px 10px; font-size:10px; }
+  .pagos td { border:1px solid #d1d5db; padding:3px 10px; }
+  .pagos .mon { text-align:right; font-family:'Courier New', monospace; }
+  .pagos .tot td { background:#D1FAE5; font-weight:bold; }
+  .cancelado { display:flex; align-items:center; justify-content:center; gap:14px; margin: 14px 0 6px; }
+  .sello { border: 3px solid #065F46; color:#065F46; font-weight:bold; font-size:16px;
+           padding: 6px 18px; border-radius: 6px; transform: rotate(-4deg); letter-spacing: 2px; }
+  .carita { width:44px; height:44px; border:1px dashed #9ca3af; border-radius:50%;
+            display:flex; align-items:center; justify-content:center; font-size:9px; color:#6b7280; }
+  .pie { border-top:1px solid #d1d5db; margin-top:12px; padding-top:8px; font-size:9px;
+         color:#6b7280; text-align:center; line-height:1.5; }
+</style>
+</head>
+<body>
+
+<h1>Recibos de MEDIDOR PAGADO — constancia de cancelación
+    <span class="tag pdf" style="font-size:11px; margin-left:8px;">PDF directo (PyMuPDF)</span>
+    <span class="tag regen" style="font-size:11px;">regenerable — derivado de la vista</span>
+</h1>
+
+<div class="meta">
+  <span>Owner:</span> <code>3_boletas/recibos_medidor_pagado.py</code> (script nuevo) &nbsp;|&nbsp;
+  <span>Fuente:</span> <code>shared/vista_seguimiento_pueblo.xlsx</code> · hoja <code>CONVENIO_HISTORIAL</code> (header=1, lectura en vivo) &nbsp;|&nbsp;
+  <span>Filtro:</span> <code>SALDO ACTUAL == 0</code> → hoy <b>72 de 154</b> &nbsp;|&nbsp;
+  <span>Outputs:</span> <code>Outputs/Medidor_pagado/RECIBO_MP_NNN_MZ_LT.pdf</code> + <code>Imagenes/MZ_LT_NOMBRE.jpg</code> (para WhatsApp, 150 dpi) + <code>CONSOLIDADO_MEDIDOR_PAGADO.pdf</code> + <code>data_recibos_medidor_pagado.xlsx</code>
+</div>
+
+<h2>Propósito</h2>
+<div class="logica-box">
+  <b>Papel de constancia para el socio que ya canceló su medidor (S/100).</b> La mesa lo entrega como
+  comprobante: muestra la deuda original, el detalle de lo que pagó mes a mes (según el historial de la
+  vista) y el saldo en cero con sello CANCELADO. No es una boleta de cobro — no tiene agua, mantenimiento
+  ni vencimiento.
+</div>
+
+<h2>Mockup del PDF (1 página A5 vertical por socio)</h2>
+
+<div class="pagina">
+  <div class="enc">
+    <div class="logo-box">logo_jaas<br>.png</div>
+    <div class="enc-txt">
+      <div class="jass">JUNTA ADMINISTRATIVA DE SERVICIOS DE SANEAMIENTO</div>
+      <div>P.J. TUPAC AMARU</div>
+      <div>Tel. 948 227 636</div>
+    </div>
+    <div class="nro">CONSTANCIA<br><b>N° MP-014</b></div>
+  </div>
+
+  <div class="titulo-doc">CONSTANCIA DE CANCELACIÓN — MEDIDOR</div>
+  <div class="subtitulo">Convenio de medidor · deuda original S/ 100.00</div>
+
+  <table class="datos">
+    <tr><td class="lbl">SOCIO:</td><td>JULIA AGAMA CUZCO</td></tr>
+    <tr><td class="lbl">PREDIO:</td><td>Mz. A &nbsp;Lt. 5</td></tr>
+    <tr><td class="lbl">FECHA DE EMISIÓN:</td><td>05/07/2026</td></tr>
+  </table>
+
+  <table class="pagos">
+    <tr><th>MES</th><th>PAGO</th></tr>
+    <tr><td>MAR-26</td><td class="mon">S/ 25.00</td></tr>
+    <tr><td>ABR-26</td><td class="mon">S/ 25.00</td></tr>
+    <tr><td>MAY-26</td><td class="mon">S/ 25.00</td></tr>
+    <tr><td>JUN-26</td><td class="mon">S/ 25.00</td></tr>
+    <tr class="tot"><td>TOTAL PAGADO</td><td class="mon">S/ 100.00</td></tr>
+    <tr class="tot"><td>SALDO</td><td class="mon">S/ 0.00</td></tr>
+  </table>
+
+  <div class="cancelado">
+    <div class="sello">CANCELADO</div>
+    <div class="carita">carita_feliz<br>.png</div>
+  </div>
+
+  <div class="pie">
+    Detalle según registro de seguimiento del pueblo al cierre 2026-06.<br>
+    Conserve esta constancia como comprobante de la cancelación de su medidor.
+  </div>
+</div>
+
+<h2>Reglas de generación</h2>
+<div class="nota">
+  <b>1 · Universo:</b> filas de <code>CONVENIO_HISTORIAL</code> con <code>SALDO ACTUAL == 0</code>.
+  Solo medidor — inscripción, multa y acuerdos no entran ni bloquean.<br>
+  <b>2 · Detalle de pagos:</b> columnas de mes del historial (<code>DIC-25 … MAY-26</code> del snapshot
+  + <code>PAGO JUN-26</code> del registro). Solo se listan meses con pago &gt; 0; NaN y 0 se omiten.<br>
+  <b>3 · Sobrepago:</b> se EXCLUYE por default (solo recibe constancia quien pagó EXACTO su deuda; la
+  vista clampea el saldo a 0, por eso no basta el filtro de saldo). Excepción manual: claves en
+  <code>EXCESO_APROBADO</code> (hoy A-1, pagó S/175) se emiten con los pagos CAPEADOS a la deuda
+  (muestra S/100, no S/175) y van AL FINAL de la serie para no correr la numeración ya emitida.
+  El exceso real se corrige aparte en el ledger.<br>
+  <b>4 · Numeración:</b> serie propia <code>MP-001 … MP-072</code> en orden de predio
+  (<code>_clave_orden</code>, igual que las boletas) — NO consume la serie de recibos del ciclo
+  (17471…18033).<br>
+  <b>5 · Motor:</b> PDF directo con PyMuPDF (fitz) — sin Word/COM, ~segundos para los 72. Consolidado
+  único con PyPDF2 (mismo patrón que <code>boletas_sin_servicio.py</code>).<br>
+  <b>6 · Regenerable:</b> <code>Outputs/Medidor_pagado/</code> se puede borrar y regenerar; la verdad
+  vive en <code>seguimiento_pueblo.xlsx</code> + génesis. Sin columnas humanas → sin capas de preservación.
+</div>
+
+</body>
+</html>

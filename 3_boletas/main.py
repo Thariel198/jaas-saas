@@ -7,7 +7,7 @@ import pandas as pd
 import shutil
 import fitz
 from pathlib import Path
-from docxtpl import DocxTemplate, InlineImage
+from docxtpl import DocxTemplate, InlineImage, RichText
 from docx2pdf import convert
 from docx.shared import Mm
 from PyPDF2 import PdfMerger
@@ -19,6 +19,7 @@ OUTPUT_DIR=BASE_DIR/"Outputs"
 IMAGES_DIR=OUTPUT_DIR/"Imagenes"
 
 DATA_BOLETAS_PATH=INPUT_DIR/"DATA_boletas.xlsx"
+PENDIENTES_CONVENIO_MULTAS_PATH=INPUT_DIR/"pendientes_convenio_multas.xlsx"
 PLANTILLA_BOLETAS_PATH=INPUT_DIR/"PLANTILLA_boletas.docx"
 IMG_LOGO_JAAS_PATH=INPUT_DIR/"logo_jaas.png"
 IMG_CARITA_TRISTE_PATH=INPUT_DIR/"carita_triste.png"
@@ -57,6 +58,35 @@ def load_data():
     data_boletas_df = pd.read_excel(DATA_BOLETAS_PATH, sheet_name=SHEET_DATA_BOLETAS)
     data_boletas_df = data_boletas_df.dropna(subset=["NUMERO DE RECIBO", "NOMBRES"]).reset_index(drop=True)
     return data_boletas_df
+
+# CONCEPTO (pendientes_convenio_multas.xlsx) -> campo del contexto de la boleta
+CONCEPTO_A_CAMPO_BOLETA = {"CONVENIO": "con", "MULTA": "mul", "ACUERDOS_ASAMBLEA": "cd", "MES_ANTERIOR": "tman"}
+
+def _norm_mz(v):
+    return str(v).strip().upper()
+
+def _norm_lt(v):
+    s = str(v).strip()
+    if s.endswith(".0"):
+        s = s[:-2]
+    return s.upper()
+
+def load_pendientes_convenio_multas():
+    """Predios con CONVENIO/MULTA/ACUERDOS_ASAMBLEA en verificacion (overlay que reemplaza
+    el monto por la palabra Verificando al imprimir; no toca DATA_boletas.xlsx)."""
+    if not PENDIENTES_CONVENIO_MULTAS_PATH.exists():
+        return {}
+    df = pd.read_excel(PENDIENTES_CONVENIO_MULTAS_PATH, header=1, dtype=str).fillna("")
+    pendientes = {}
+    for _, row in df.iterrows():
+        mz = _norm_mz(row.get("MZ", ""))
+        lt = _norm_lt(row.get("LT", ""))
+        concepto = str(row.get("CONCEPTO", "")).strip().upper()
+        estado = str(row.get("ESTADO", "")).strip().upper()
+        if not mz or not lt or concepto not in CONCEPTO_A_CAMPO_BOLETA:
+            continue
+        pendientes[(mz, lt, concepto)] = estado
+    return pendientes
 
 #=====================VALIDACION DE DATOS====================
 def validate_data(df: pd.DataFrame):
@@ -125,6 +155,7 @@ def group_data(df: pd.DataFrame):
 #=================GENERACION DE DOCUMENTOS===================
 def generate_boletas(grouped, limit=None):
     total = grouped.ngroups  # número total de recibos
+    pendientes_verificando = load_pendientes_convenio_multas()
 
     for i, (recibo, data) in enumerate(grouped):
 
@@ -213,6 +244,25 @@ def generate_boletas(grouped, limit=None):
             "logo_jaas": logo_jaas,
         }
 
+        # Overlay: CONVENIO/MULTA/ACUERDOS_ASAMBLEA en verificacion -> imprime "Verificando"
+        # en vez del monto, y se resta del Total/Importe a pagar (no se cobra este
+        # ciclo mientras el reclamo esta en revision). No toca DATA_boletas.
+        clave_mz, clave_lt = _norm_mz(mz), _norm_lt(lt)
+        for concepto, campo in CONCEPTO_A_CAMPO_BOLETA.items():
+            if pendientes_verificando.get((clave_mz, clave_lt, concepto)) == "VERIFICANDO":
+                monto_en_revision = context[campo]
+                try:
+                    context["ip"] = context["ip"] - float(monto_en_revision)
+                except (TypeError, ValueError):
+                    pass
+                # Fuente mas chica: "Verificando" no entra en 1 linea en la columna
+                # angosta (~1.23in) al tamano normal (20pt) y desborda la boleta a
+                # una 2da pagina invisible. 12pt (sz=24, medio-puntos) si entra.
+                context[campo] = RichText("Verificando", size=24)
+
+        if isinstance(context["ip"], float) and context["ip"] == int(context["ip"]):
+            context["ip"] = int(context["ip"])
+
         doc.render(context)
         doc.save(output_docx)
 
@@ -254,9 +304,21 @@ def merge_pdfs(output_dir: Path):
         merger = PdfMerger()
         for pdf in pdfs:
             merger.append(str(pdf))
-        merger.write(str(output_dir / nombre))
+        destino = output_dir / nombre
+        merger.write(str(destino))
         merger.close()
-        print(f"[OK] {nombre}: {len(pdfs)} boletas")
+
+        # Word embebe una copia de las fuentes en CADA boleta — al fusionar 500+
+        # quedan cientos de copias redundantes (subset_fonts las funde en una sola
+        # por fuente, ~90% menos peso). Sin esto el consolidado no entra en WhatsApp.
+        tmp = output_dir / f"{nombre}.tmp"
+        doc = fitz.open(str(destino))
+        doc.subset_fonts()
+        doc.save(str(tmp), garbage=4, deflate=True, clean=True)
+        doc.close()
+        tmp.replace(destino)
+
+        print(f"[OK] {nombre}: {len(pdfs)} boletas ({destino.stat().st_size / 1024 / 1024:.1f} MB)")
 
 #======================FUNCION PRINCIPAL====================
 def main():

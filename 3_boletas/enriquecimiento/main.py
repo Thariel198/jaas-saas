@@ -1,3 +1,4 @@
+import glob
 import logging
 import re
 from datetime import datetime
@@ -13,8 +14,17 @@ ROOT          = Path(__file__).parent
 PLANILLA_DIR  = ROOT.parent.parent / "2_planilla"
 BOLETAS_DIR   = ROOT.parent
 
+def _detectar_planilla_path() -> Path:
+    """Usa la planilla_YYYY-MM.xlsx más reciente en 2_planilla/outputs/."""
+    matches = sorted(glob.glob(str(PLANILLA_DIR / "outputs" / "planilla_*.xlsx")))
+    if not matches:
+        return PLANILLA_DIR / "outputs" / "planilla_2026-07.xlsx"  # fallback si no hay ninguna
+    if len(matches) > 1:
+        logging.warning(f"Múltiples archivos de planilla — usando el más reciente: {matches[-1]}")
+    return Path(matches[-1])
+
 CONFIG_PATH   = ROOT / "inputs" / "config_mes.xlsx"
-PLANILLA_PATH = PLANILLA_DIR / "outputs" / "planilla_2026-07.xlsx"
+PLANILLA_PATH = _detectar_planilla_path()
 OUTPUT_PATH   = BOLETAS_DIR / "inputs" / "DATA_boletas.xlsx"
 LOG_PATH      = ROOT / "inputs" / "run.log"
 

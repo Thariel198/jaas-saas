@@ -152,6 +152,14 @@ TOTAL_A_PAGAR        = MES_ACTUAL + MANTENIMIENTO
 > **Nota sobre BLANCO y DEVOLUCION:** al generar la planilla valen 0. Cuando 5\_cobranza
 > aplica un blanco o registra una devolución, escribe el monto como valor negativo
 > en esa celda y Excel recalcula TOTAL\_A\_PAGAR automáticamente (fórmula Excel, no valor fijo).
+>
+> **⚠ Se retiran en Fase 2 (decisión ⑨ del ledger):** estas dos columnas son un
+> descuento manual en un archivo regenerable — se pisan al regenerar y nunca cuadran
+> en `5b_validacion`. Cuando exista `libro_mayor/estado_cuenta`, el descuento por
+> blanco reclamado o por exceso deja de ser una celda de la planilla y pasa a ser una
+> **aplicación auditable** en el ledger, linkeada al `ABONO_ID` del pago y al
+> `reclamo_id` que la autorizó. La boleta mostrará el saldo ya corregido leyendo el
+> ledger, no esta columna. Ver `libro_mayor/estado_cuenta/README.md`.
 
 ---
 
@@ -182,6 +190,38 @@ Una sola hoja llamada `Planilla`. Columnas en este orden exacto:
 | 19 | `MONTO_EFECTIVO` | **vacío** | lo llena 5_cobranza |
 | 20 | `ESTADO` | **vacío** | lo llena 5_cobranza |
 | 21 | `FECHA_PAGO` | **vacío** | lo llena 5_cobranza |
+
+---
+
+## Alimentación del ledger `libro_mayor/estado_cuenta` (Fase 2)
+
+> **Estado:** diseñado, se implementa en Fase 2. En Fase 1 estos cargos salen vacíos;
+> el schema del contrato ya los contempla.
+
+`2_planilla` es una **fuente de CARGOS** del ledger de cuenta corriente. Al generar la
+planilla del mes emite a `libro_mayor/estado_cuenta` un cargo por cada obligación de
+**agua**, **mantenimiento** y **corte** (nombres canónicos del contrato — el feeder traduce
+sus columnas viejas al emitir, ver `dominio/taxonomia`):
+
+```
+  planilla_YYYY-MM  ──►  cuenta_repo.registrar_cargo(
+                            jass_id, mz, lt,
+                            concepto = "AGUA" | "MANTENIMIENTO" | "CORTE_RECONEXION",
+                            sub_concepto = "",        # estos conceptos no tienen sub
+                            mes_cargo = MES_ANO,
+                            monto,
+                            source = "2_planilla")
+```
+
+Reglas de compatibilidad con el contrato del ledger (ver `libro_mayor/estado_cuenta/README.md`):
+- **Solo emite HECHOS (cargos). NO aplica pagos** — el reparto abono→cargo lo hace el
+  **motor de aplicación** de `libro_mayor/estado_cuenta`, que es el único que ve caja y deuda juntas.
+- Cada cargo lleva `JASS_ID` y `MES_CARGO = MES_ANO` (el mes en que nació la deuda).
+- **Emite un cargo por concepto** (AGUA y MANTENIMIENTO son 2 conceptos distintos de P1,
+  no se fusionan): `AGUA` = `MES_ACTUAL` (col 8) · `MANTENIMIENTO` = col 9 · `CORTE_RECONEXION`
+  = col 11 (cuando aplica). Ninguno lleva `SUB_CONCEPTO`.
+- Idempotente por `CARGO_ID` determinista = `sha256[:8](JASS_ID, MZ, LT, CONCEPTO,
+  SUB_CONCEPTO, MES_CARGO)`: regenerar la planilla no duplica el cargo.
 
 ---
 
