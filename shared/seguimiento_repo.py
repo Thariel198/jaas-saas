@@ -8,8 +8,8 @@ API PÚBLICA:
     get_saldo(mz, lt, concepto, mes)          → float
     get_saldos_bulk(concepto, mes)            → dict {(mz,lt): saldo} (todos los predios, 1 sola lectura)
     pago_registrado(mz, lt, concepto, mes)    → float (Σ PAGO ya anotado — para reconciliación por delta)
-    estado_cuenta(mz, lt, concepto)           → DataFrame (pivot ancho: DEUDA·PAGO·SALDO por mes, 1 predio)
-    generar_vista(ruta=None)                  → Path (vista_seguimiento_pueblo.xlsx, 3 hojas + historial, TODOS los predios)
+    estado_cuenta(mz, lt, concepto)           → DataFrame (pivot ancho: DEUDA·PAGO·DECLARADO·AJUSTE·SALDO por mes, 1 predio)
+    generar_vista(ruta=None)                  → Path (vista_seguimiento_pueblo.xlsx, 3 hojas + Ajustes + historial, TODOS los predios)
     exportar_vista_pdf(...)                   → Path (vista_seguimiento_pueblo.pdf, imprimible para la mesa)
 
 INVARIANTES:
@@ -496,11 +496,33 @@ def estado_cuenta(mz, lt, concepto) -> pd.DataFrame:
     filas = []
     for mes in meses:
         del_mes = sub[sub["MES"].astype(str) == mes]
-        deuda = float(del_mes["CARGO"].fillna(0).sum() + del_mes["AJUSTE"].fillna(0).sum())
-        pago  = float(del_mes["PAGO"].fillna(0).sum())
+        deuda = float(del_mes["CARGO"].fillna(0).sum())
+        pago, declarado = _partir_pago(del_mes)
+        ajuste = float(del_mes["AJUSTE"].fillna(0).sum())
         saldo = float(del_mes.iloc[-1]["SALDO"])
-        filas.append({"MES": mes, "DEUDA": deuda, "PAGO": pago, "SALDO": saldo})
-    return pd.DataFrame(filas, columns=["MES", "DEUDA", "PAGO", "SALDO"])
+        filas.append({"MES": mes, "DEUDA": deuda, "PAGO": pago,
+                      "DECLARADO": declarado, "AJUSTE": ajuste, "SALDO": saldo})
+    return pd.DataFrame(filas, columns=["MES", "DEUDA", "PAGO", "DECLARADO", "AJUSTE", "SALDO"])
+
+
+def _partir_pago(del_mes: pd.DataFrame) -> tuple[float, float]:
+    """(plata que entró, plata solo declarada) de un bloque de eventos.
+
+    En el ledger los dos son TIPO_EVENTO=PAGO — mueven el saldo igual. Lo que los
+    distingue es la CLASE, y eso es un atributo de la fila, no una columna. Al
+    pivotear a formato ancho la celda agrega varios eventos y no hay dónde llevar
+    ese atributo, así que la dimensión se convierte en dos columnas.
+
+    No es cosmético: a agosto/2026 son S/1,257 en 28 filas DECLARACION_SECRETARIA
+    (la secretaria dice que ya pagó, sin verificar de dónde salió la plata), y hay
+    5 celdas que mezclan las dos cosas en el mismo mes. El corte sale de
+    CLASES_SUMAN_CAJA, el mismo que usa el resto del código."""
+    pagos = del_mes[del_mes["TIPO_EVENTO"].astype(str).str.strip() == "PAGO"]
+    if pagos.empty:
+        return 0.0, 0.0
+    es_caja = pagos["CLASE"].fillna("").astype(str).str.strip().str.upper().isin(CLASES_SUMAN_CAJA)
+    return (float(pagos[es_caja]["PAGO"].fillna(0).sum()),
+            float(pagos[~es_caja]["PAGO"].fillna(0).sum()))
 
 
 def deudores(concepto, minimo: float = 0.0) -> pd.DataFrame:
@@ -522,11 +544,12 @@ def deudores(concepto, minimo: float = 0.0) -> pd.DataFrame:
 VISTA_PATH = _SHARED / "vista_seguimiento_pueblo.xlsx"
 
 _SEC_PREDIO_V = ("EBF5FB", "1A5276", "F4FAFF", "1A5276")
-# (header_bg, header_fg, deuda_fg, pago_fg, saldo_bg, saldo_fg, ajuste_fg) — cicla cada 3 meses
+# (header_bg, header_fg, deuda_fg, pago_fg, saldo_bg, saldo_fg, ajuste_fg, declarado_fg)
+# — cicla cada 3 meses
 _PALETAS_MES = [
-    ("FEF3C7", "92400E", "92400E", "065F46", "FDE68A", "78350F", "5B21B6"),
-    ("DBEAFE", "1E3A8A", "1E3A8A", "065F46", "BFDBFE", "1E3A8A", "5B21B6"),
-    ("EDE9FE", "5B21B6", "5B21B6", "065F46", "DDD6FE", "4C1D95", "92400E"),
+    ("FEF3C7", "92400E", "92400E", "065F46", "FDE68A", "78350F", "5B21B6", "B45309"),
+    ("DBEAFE", "1E3A8A", "1E3A8A", "065F46", "BFDBFE", "1E3A8A", "5B21B6", "B45309"),
+    ("EDE9FE", "5B21B6", "5B21B6", "065F46", "DDD6FE", "4C1D95", "92400E", "B45309"),
 ]
 # AJUSTE sin MOTIVO: el ledger no sabe por qué se movió ese saldo. Rojo a propósito.
 _AJUSTE_SIN_MOTIVO_FG = "B91C1C"
@@ -554,7 +577,7 @@ def _lookup_nombres() -> dict:
     return out
 
 
-_COLS_POR_MES = 4  # DEUDA · PAGO · AJUSTE · SALDO
+_COLS_POR_MES = 5  # DEUDA · PAGO · DECLARADO · AJUSTE · SALDO
 
 
 def _escribir_hoja_ajustes(ws, df: pd.DataFrame, nombres: dict) -> None:
@@ -616,7 +639,8 @@ def _escribir_hoja_vista(ws, concepto: str, df_concepto: pd.DataFrame, nombres: 
     cols = list(col_predio)
     for mes in meses:
         cols += [(f"{mes}|DEUDA", 11, "right"), (f"{mes}|PAGO", 11, "right"),
-                 (f"{mes}|AJUSTE", 11, "right"), (f"{mes}|SALDO", 11, "right")]
+                 (f"{mes}|DECLARADO", 12, "right"), (f"{mes}|AJUSTE", 11, "right"),
+                 (f"{mes}|SALDO", 11, "right")]
 
     # ── Fila 1: secciones (Predio + 1 por mes) ──
     _hdr(ws.cell(row=1, column=1), *_SEC_PREDIO_V[:2], "Predio")
@@ -655,11 +679,12 @@ def _escribir_hoja_vista(ws, concepto: str, df_concepto: pd.DataFrame, nombres: 
         for i, mes in enumerate(meses):
             pal = _PALETAS_MES[i % 3]
             base = 4 + i * _COLS_POR_MES
-            c_deuda, c_pago, c_ajuste, c_saldo = base, base + 1, base + 2, base + 3
+            c_deuda, c_pago, c_decl = base, base + 1, base + 2
+            c_ajuste, c_saldo = base + 3, base + 4
             del_mes = sub_predio[sub_predio["MES"].astype(str) == mes]
 
             if del_mes.empty:
-                for c in (c_deuda, c_pago, c_ajuste, c_saldo):
+                for c in (c_deuda, c_pago, c_decl, c_ajuste, c_saldo):
                     cell = ws.cell(row=row, column=c, value="—")
                     cell.fill = _fill("F3F4F6")
                     cell.font = Font(color=_argb("9CA3AF"), italic=True, size=10)
@@ -671,7 +696,7 @@ def _escribir_hoja_vista(ws, concepto: str, df_concepto: pd.DataFrame, nombres: 
             # leyera como deuda nueva — P-6 parecía tener un cargo de 58 en julio
             # que en realidad era el ajuste que tapaba un desfase de mes.
             deuda = float(del_mes["CARGO"].fillna(0).sum())
-            pago = float(del_mes["PAGO"].fillna(0).sum())
+            pago, declarado = _partir_pago(del_mes)
             ajustes = del_mes[del_mes["TIPO_EVENTO"].astype(str).str.strip() == "AJUSTE"]
             ajuste = float(ajustes["AJUSTE"].fillna(0).sum())
             sin_motivo = (not ajustes.empty and
@@ -680,6 +705,18 @@ def _escribir_hoja_vista(ws, concepto: str, df_concepto: pd.DataFrame, nombres: 
 
             _dat(ws.cell(row=row, column=c_deuda), deuda, "FFFBEB", pal[2], align="right")
             _dat(ws.cell(row=row, column=c_pago), pago, "FFFBEB", pal[3], align="right")
+            cell_d = ws.cell(row=row, column=c_decl)
+            if declarado <= TOL_SALDO:
+                cell_d.value = "·"
+                cell_d.fill = _fill("FFFBEB")
+                cell_d.font = Font(color=_argb("D1D5DB"), size=10)
+                cell_d.alignment = Alignment(horizontal="center", vertical="center")
+            else:
+                cell_d.value = declarado
+                cell_d.fill = _fill("FFFBEB")
+                cell_d.font = Font(color=_argb(pal[7]), bold=True, size=10)
+                cell_d.alignment = Alignment(horizontal="right", vertical="center")
+                cell_d.number_format = "#,##0.00"
             cell_a = ws.cell(row=row, column=c_ajuste)
             if ajustes.empty:
                 cell_a.value = "·"

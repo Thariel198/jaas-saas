@@ -55,10 +55,14 @@ check(repo.get_saldo("C", "14", "MULTA", "2026-08") == -50.0, "ajuste sin cargo 
 ec = repo.estado_cuenta("A", "6", "CONVENIO")
 print(ec.to_string())
 check(len(ec) == 2, f"estado_cuenta tiene 2 meses (julio, agosto), obtuve {len(ec)}")
-check(ec.iloc[0]["MES"] == "2026-07" and ec.iloc[0]["DEUDA"] == 900.0 and ec.iloc[0]["PAGO"] == 100.0 and ec.iloc[0]["SALDO"] == 800.0,
-      "fila julio: DEUDA=900 PAGO=100 SALDO=800")
-check(ec.iloc[1]["MES"] == "2026-08" and ec.iloc[1]["DEUDA"] == 0.0 and ec.iloc[1]["PAGO"] == 79.0 and ec.iloc[1]["SALDO"] == 721.0,
-      "fila agosto: DEUDA=0 PAGO=79 SALDO=721")
+check(list(ec.columns) == ["MES", "DEUDA", "PAGO", "DECLARADO", "AJUSTE", "SALDO"],
+      f"estado_cuenta separa DECLARADO y AJUSTE, obtuve {list(ec.columns)}")
+check(ec.iloc[0]["MES"] == "2026-07" and ec.iloc[0]["DEUDA"] == 900.0 and ec.iloc[0]["PAGO"] == 100.0
+      and ec.iloc[0]["DECLARADO"] == 0.0 and ec.iloc[0]["SALDO"] == 800.0,
+      "fila julio: DEUDA=900 PAGO=100 DECLARADO=0 SALDO=800")
+check(ec.iloc[1]["MES"] == "2026-08" and ec.iloc[1]["DEUDA"] == 0.0 and ec.iloc[1]["PAGO"] == 79.0
+      and ec.iloc[1]["DECLARADO"] == 0.0 and ec.iloc[1]["SALDO"] == 721.0,
+      "fila agosto: DEUDA=0 PAGO=79 DECLARADO=0 SALDO=721")
 
 # 8) deudores
 d = repo.deudores("CONVENIO", minimo=100)
@@ -73,8 +77,9 @@ except ValueError:
 
 # 10) generar_vista — 3 hojas por concepto + Ajustes (+ CONVENIO_HISTORIAL si
 # existe el snapshot de génesis), doble header, dash para mes sin evento.
-# Desde el 06/08/2026 cada mes son 4 columnas: DEUDA · PAGO · AJUSTE · SALDO.
-# El AJUSTE ya no se suma dentro de DEUDA — una corrección se leía como deuda nueva.
+# Desde el 06/08/2026 cada mes son 5 columnas: DEUDA · PAGO · DECLARADO · AJUSTE ·
+# SALDO. El AJUSTE ya no se suma dentro de DEUDA (una corrección se leía como deuda
+# nueva) y el PAGO se parte por CLASES_SUMAN_CAJA: DECLARADO salda deuda pero no es plata.
 VISTA_TMP = ROOT / "shared" / "_tmp_test_vista.xlsx"
 repo.generar_vista(VISTA_TMP)
 check(VISTA_TMP.exists(), "generar_vista crea el archivo")
@@ -89,16 +94,16 @@ check(set(wb.sheetnames) == esperadas, f"hojas = {sorted(esperadas)}, obtuve {wb
 ws = wb["CONVENIO"]
 check(ws["A2"].value == "MZ" and ws["B2"].value == "LT" and ws["C2"].value == "NOMBRE", "fila 2 = MZ/LT/NOMBRE")
 check(ws["A1"].value == "Predio", "fila 1 col A = sección Predio")
-check(ws["D1"].value == "2026-07" and ws["H1"].value == "2026-08", "secciones de mes = 2026-07, 2026-08")
-check(ws["D2"].value == "DEUDA" and ws["E2"].value == "PAGO" and ws["F2"].value == "AJUSTE"
-      and ws["G2"].value == "SALDO", "sub-columnas mes 1 = DEUDA/PAGO/AJUSTE/SALDO")
+check(ws["D1"].value == "2026-07" and ws["I1"].value == "2026-08", "secciones de mes = 2026-07, 2026-08")
+check([ws[f"{c}2"].value for c in "DEFGH"] == ["DEUDA", "PAGO", "DECLARADO", "AJUSTE", "SALDO"],
+      f'sub-columnas mes 1 = DEUDA/PAGO/DECLARADO/AJUSTE/SALDO, obtuve {[ws[f"{c}2"].value for c in "DEFGH"]}')
 
 # fila 3 = A-6 (único predio de CONVENIO en este test) — sin ajustes: la celda va "·"
 check(ws["A3"].value == "A" and ws["B3"].value == "6", "fila 3 = predio A-6")
-check(ws["D3"].value == 900.0 and ws["E3"].value == 100.0 and ws["F3"].value == "·"
-      and ws["G3"].value == 800.0, "julio: DEUDA=900 PAGO=100 AJUSTE=· SALDO=800")
-check(ws["H3"].value == 0.0 and ws["I3"].value == 79.0 and ws["J3"].value == "·"
-      and ws["K3"].value == 721.0, "agosto: DEUDA=0 PAGO=79 AJUSTE=· SALDO=721")
+check([ws[f"{c}3"].value for c in "DEFGH"] == [900.0, 100.0, "·", "·", 800.0],
+      f'julio: DEUDA=900 PAGO=100 DECLARADO=· AJUSTE=· SALDO=800, obtuve {[ws[f"{c}3"].value for c in "DEFGH"]}')
+check([ws[f"{c}3"].value for c in "IJKLM"] == [0.0, 79.0, "·", "·", 721.0],
+      f'agosto: DEUDA=0 PAGO=79 DECLARADO=· AJUSTE=· SALDO=721, obtuve {[ws[f"{c}3"].value for c in "IJKLM"]}')
 check(ws.freeze_panes == "D3", "freeze_panes = D3")
 
 # hoja Ajustes — el AJUSTE de C-14 del paso 6 tiene que estar, con su MOTIVO
