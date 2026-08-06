@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>jass_system — Diario</title>
+<link rel="stylesheet" href="../cuaderno/estilo.css">
+</head>
+<body>
+
+<header class="hero">
+  <p class="eyebrow"><span class="dot"></span>jass_system · diario</p>
+  <h1>Qué resolvimos cada día, y por qué esa solución</h1>
+  <p class="lede">
+    Bitácora cronológica, no por módulo — eso vive en <a href="../cuaderno/index.html">docs/cuaderno/</a>.
+    Acá queda registrada la tarea del día, la decisión tomada cuando hubo más de un camino, y el
+    razonamiento detrás — para no tener que reconstruirlo de memoria en la próxima sesión.
+  </p>
+  <div class="meta-row">
+    <span>arranque: 2026-07-22</span>
+    <span>1 archivo por mes</span>
+    <span>no reemplaza README (verdad del código) ni docs/cuaderno (el porqué de arquitectura)</span>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="modgrid">
+
+    <a class="modcard cimientos" href="situacion_actual_sistema.html">
+      <div class="mk">📌 snapshot · no cronológico</div>
+      <h3>Situación actual de nuestro sistema</h3>
+      <p>Cómo calcula deuda 5_cobranza hoy, quién escribe qué, y por qué arrastre_consolidado y seguimiento_pueblo son dos fuentes de verdad sin puente entre ellas.</p>
+      <div class="count on">actualizado 2026-07-31</div>
+    </a>
+
+    <a class="modcard cimientos" href="2026-08-06_limpieza_del_ledger.html">
+      <div class="mk">2026 · ago · 06</div>
+      <h3>El ledger solo lleva hechos del negocio</h3>
+      <p>Se borran 96 filas que eran rastro de bugs del sistema, no hechos: el pago fantasma del 06/07 y el ruido alrededor de los pagos que declaró la secretaria. Criterio de qué se borra y qué no, CLASE DECLARACION_SECRETARIA, y los dos arreglos de código (filtro por SOURCE y aviso de exceso sin tope).</p>
+      <div class="count on">ejecutado · 1589 → 1491 eventos · commit 9ce2a3a</div>
+    </a>
+
+    <a class="modcard cimientos" href="2026-08-05_pagos_de_junio_cobrados_en_julio.html">
+      <div class="mk">2026 · ago · 05</div>
+      <h3>Los pagos de junio que se cobraron en julio</h3>
+      <p>Empezó como «K-9 tiene un pago fantasma» (era un path roto que fallaba en silencio) y terminó en la causa raíz de los 15 pagos fantasma: una corrida del 06/07 leyó el archivo de yape de junio. La solución: el mes lo declara 1_lecturas y los outputs de pago llevan el periodo en el nombre.</p>
+      <div class="count on">ejecutado · commit c29de82 + push</div>
+    </a>
+
+    <a class="modcard cimientos" href="2026-08-03_solucion_precursor_mas_ledger.html">
+      <div class="mk">2026 · ago · 03</div>
+      <h3>Solución: precursor + ledger, uno cuenta la historia, el otro hace el cambio</h3>
+      <p>Resuelve el ruteo del plan del 02/08. Siempre se escriben los dos, atados por AUDIT_REF; MES_ANO_APLICA vacío decide cuál actúa para no contar dos veces. Incluye por qué un precursor no corrige el ledger solo, y el bug de signo detrás de los 13 saldos negativos.</p>
+      <div class="count off">regla aprobada · sin ejecutar</div>
+    </a>
+
+    <a class="modcard cimientos" href="2026-08-02_plan_reconciliacion_reclamos.html">
+      <div class="mk">2026 · ago · 02</div>
+      <h3>Plan: bajar los 25 parches del 01/08 al ledger real</h3>
+      <p>Las boletas cobradas el 01/08 se corrigieron solo en DATA_boletas. Plan agrupado por acción (6 bloques), inventario de las 2 capas de herramientas, y por qué re-correr 2_planilla no es opcional.</p>
+      <div class="count off">superado en el ruteo por la lámina del 03/08</div>
+    </a>
+
+    <a class="modcard" href="2026-07.html">
+      <div class="mk">2026 · jul</div>
+      <h3>Julio 2026</h3>
+      <p>Reclamos WhatsApp · overrides_padron.xlsx · pendientes_convenio_multas (boletas) · reorden de la cascada del ledger (CA1, caso C-1) · patrón de exceso mal clasificado (tanque/instalación/medidor).</p>
+      <div class="count on">2 días registrados</div>
+    </a>
+
+  </div>
+
+  <footer class="closing">
+    entrada nueva cuando el usuario pide loguear algo, o cuando se detecta el cierre de una tarea (se confirma antes de escribir)<br>
+    formato: mismo CSS que docs/cuaderno — no es una lámina de arquitectura, es bitácora de trabajo
+  </footer>
+</main>
+
+</body>
+</html>

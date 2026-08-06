@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2026-08-05 — Los pagos de junio que se cobraron en julio</title>
+<link rel="stylesheet" href="../cuaderno/estilo.css">
+</head>
+<body>
+
+<header class="hero">
+  <p class="crumbs"><a href="index.html">← Diario</a> · 2026-08-05 · sigue en la entrada del <a href="2026-08-06_limpieza_del_ledger.html">06/08</a></p>
+  <p class="eyebrow"><span class="dot"></span>empezó como «K-9 tiene un pago fantasma» y terminó en un incidente de 15 predios</p>
+  <h1>Los pagos de junio que se cobraron en julio</h1>
+  <p class="lede">
+    El día arrancó mirando una sola página de un PDF. Terminó con la causa raíz de los 15 pagos
+    fantasma de julio identificada al céntimo, y con el mes del ciclo dejando de ser una adivinanza:
+    ahora lo <b>declara</b> <code>1_lecturas</code> y los archivos de pago llevan el periodo en el nombre.
+  </p>
+  <div class="meta-row">
+    <span>fecha: 2026-08-05</span>
+    <span>estado: ejecutado y pusheado · commit c29de82</span>
+    <span>verificado contra el run.log del 06/07, la planilla de junio y los archivos de 4_pagos</span>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="modulo-laminas">
+
+    <article class="lamina" style="border:1px solid var(--line);border-radius:8px;background:var(--paper-raised);padding:26px 22px 30px;margin-bottom:18px">
+
+      <div class="sub-h"><span class="qn">①</span> el falso pago fantasma de K-9</div>
+      <p>La sospecha inicial era que <code>reporte_reimputacion_cascada</code> mostraba un pago inventado:
+        K-9 aparecía con <b>S/30 de multa en junio y ninguna referencia de pago debajo</b>. No era un
+        fantasma: era un <b>archivo que el reporte no encontraba y callaba</b>.</p>
+      <div class="ascii">EL REPO DE JUNIO SE HABÍA MUDADO Y NADIE SE ENTERÓ
+
+   lo que buscaba el código        C:\...\PycharmProjects\jass_system - junio\...
+   dónde estaba de verdad          C:\...\PycharmProjects\Junio\jass_system - junio\...
+                                                          ↑ carpeta nueva
+
+   reporte_historico.py:177         if exists() else DataFrame()   → sigue en silencio
+   reporte_referencias_pago.py:144  if not exists: continue        → sigue en silencio
+
+   efecto: las 216 páginas del PDF salían sin consumo/mantenimiento en junio
+           y sin una sola línea de "referencia de pago" de ese mes</div>
+      <div class="keypoint"><b>Y volvió a pasar en la misma sesión:</b> a mitad del día el archivo se
+        renombró a mano (<code>planilla_cobrado.xlsx</code> → <code>planilla_cobrado_junio.xlsx</code>) y
+        el path se rompió otra vez. Dos apagones silenciosos el mismo día, por el mismo motivo.</div>
+      <p>Con el path corregido, K-9 de junio quedó así: <b>consumo 8 + multa 30 = S/38</b>, pagados en
+        <b>efectivo el 05/06 a Janet Villanueva</b>. El pago existía; lo que faltaba era poder verlo.</p>
+
+      <div class="sub-h"><span class="qn">②</span> lo que el barrido sí encontró: 17 pagos sin respaldo</div>
+      <p>Ya con el reporte confiable, se barrieron los 208 predios comparando, mes a mes, lo aplicado
+        contra la referencia de pago. <b>Cero descuadres entre octubre 2025 y junio 2026.</b> Todos los
+        casos, sin excepción, en <b>julio</b>.</p>
+      <div class="ascii">21 casos al primer barrido → 17 tras sumar los overlays a la referencia
+
+   4 de los 21 NO eran fantasmas: eran ABONOS REZAGADOS (S-5, D-16, D1-6, L-4)
+   plata real que Wagner Trujillo retuvo en junio y se regularizó en efectivo,
+   invisible para el PDF porque la "referencia de pago" solo leía yape y efectivo
+   del ciclo — nunca los overlays de shared/
+
+   arreglado: abonos_rezagados y blancos_efectivo ahora salen en la referencia</div>
+      <div class="keypoint"><b>Censo de overlays que quedó hecho:</b> de los 10 que lee
+        <code>5_cobranza</code>, <b>5 representan plata</b> (abonos_rezagados 30 · blancos_efectivo 1 ·
+        devoluciones_aplicadas 2 · reidentificacion 6 · aportes_tanque_manuales 8, que además se
+        <i>resta</i>) y el resto mueve deuda. Solo los dos primeros se agregaron al reporte; los otros
+        tres quedaron pendientes porque reidentificación tiene dos lados y el tanque no salda deuda.</div>
+
+      <div class="sub-h"><span class="qn">③</span> la causa raíz: una corrida, un archivo viejo</div>
+      <p>Los 15 casos restantes no eran 15 incidentes. Eran <b>uno solo</b>. El
+        <code>run.log</code> de <code>5_cobranza</code> lo dice sin ambigüedad.</p>
+      <div class="ascii">06/07/2026 14:08-14:13 · UNA corrida
+   "Inputs OK · planilla = planilla_2026-07.xlsx"     ← la planilla estaba BIEN
+   "Pagos Yape → 65 filas · 1 sin identificar"        ← 65+1 = 66 = EL ARCHIVO DE JUNIO
+   "Pagos Efectivo → 215 filas"                       ← ése sí era de julio
+
+        4_pagos/yape/motor_matching/outputs/pagos_yape_tepago.xlsx
+        todavía era el de junio: 4_pagos aún no se había re-corrido para julio
+
+                              ▼
+        los pagos de JUNIO se aplicaron contra la deuda de JULIO
+        15 predios · TODOS habían pagado por yape en junio · ninguno por efectivo
+                              ▼
+09/07  se actualiza el crudo y se re-corre 4_pagos
+31/07  5_cobranza recalcula, ya no encuentra esos pagos y los revierte
+       …con el signo invertido (main.py:2320) → saldos negativos</div>
+      <div class="keypoint"><b>El test que lo confirmó:</b> el monto de cada fantasma tenía que ser
+        <code>pago de junio − agua de julio</code>, topado por la deuda del predio. <b>Cuadró exacto en
+        14 de 15</b> (el único distinto, C-1, tiene dos exoneraciones de multa cargadas el 23/07 que
+        cambian su deuda). Los montos parecían arbitrarios —1, 5, 8, 14, 25, 40, 46, 50, 75— y los
+        produce todos la misma fórmula.</div>
+
+      <div class="sub-h"><span class="qn">④</span> por qué el sistema no podía darse cuenta</div>
+      <div class="ascii">EL PIPELINE SE COPIA POR MES → LA COPIA TRAE LOS OUTPUTS DEL MES ANTERIOR
+
+   carpeta Junio ──copia──► carpeta Julio ──copia──► carpeta activa (agosto)
+                     │
+                     └─ cada módulo pisa esos outputs RECIÉN CUANDO CORRE
+                        entre la copia y la corrida, el archivo viejo se ve
+                        exactamente igual que uno fresco
+
+   5_cobranza lee 4_pagos "en vivo" para no usar copias stale (main.py:49-52)
+   pero solo valida que el archivo EXISTA (main.py:471), no de qué mes es
+
+   y el mes del ciclo se adivinaba, en dos lugares, con la misma heurística frágil:
+      2_planilla   mes = Path(matches[-1])...        ← "el último alfabético"
+      5_cobranza   sorted(PLAN_DIR.glob(...))[-1]    ← idem
+
+   con planilla_2026-06, -07 y -08 conviviendo en shared/planilla_mes,
+   "el último" no es "el que estoy cobrando": una corrida de 5_cobranza
+   ese día habría cobrado AGOSTO con los pagos de julio</div>
+
+      <div class="sub-h"><span class="qn">⑤</span> la solución: declarar el mes y ponerlo en el nombre</div>
+      <p>El dato nunca faltó — la plantilla del operario ya trae la columna <code>MES_ANO</code>. Lo que
+        faltaba era <b>declararlo en un lugar</b> y que todos lo leyeran.</p>
+      <div class="ascii">plantilla del operario (columna MES_ANO, 575 filas = 2026-08)
+      │  1_lecturas exige que TODAS las filas sean del mismo mes
+      ▼
+shared/ciclo_activo.json   { "mes_ano": "2026-08", "origen": "1_lecturas/…" }
+      │
+      ├──► 2_planilla    usa ese mes · si faltan las lecturas de ese mes, corta
+      └──► 5_cobranza    exige planilla_2026-08.xlsx · se acabó el sorted()[-1]
+
+Y los outputs de pago llevan el periodo, con una frontera explícita:
+
+   PRIMER_CICLO_CON_PERIODO = "2026-08"     (shared/ciclo.py)
+   ciclo ≥ 2026-08   solo acepta pagos_yape_tepago_2026-08.xlsx
+                     si 4_pagos no corrió, 5_cobranza CORTA
+   ciclo ≤ 2026-07   acepta el nombre pelado — re-correr julio sigue funcionando</div>
+      <div class="keypoint"><b>Probado en los dos modos:</b> con ciclo 2026-08 y <code>4_pagos</code> sin
+        correr, <code>5_cobranza</code> corta con <i>«Falta pagos_yape_tepago_2026-08.xlsx → Correr
+        4_pagos/yape/motor_matching para este ciclo»</i>. Con ciclo 2026-07, los cinco lectores resuelven
+        los nombres viejos y encuentran los archivos. <b>El incidente del 06/07 ya no puede repetirse.</b></div>
+
+      <div class="sub-h"><span class="qn">⑥</span> lo que quedó sin resolver ese día</div>
+      <div class="ascii">S/28 de deuda perdida     L-5 +16 · W-5 +10 · F-4 +2
+                          el bug les mordió dos veces y nadie escribió la corrección
+                          (los otros 12 se habían restaurado el 03/08)
+
+el bug de signo vive     5_cobranza/main.py:2320 sigue emitiendo la reversión con el
+                          signo al revés — volvería a fabricar negativos en agosto
+
+3 overlays sin mostrar   devoluciones_aplicadas · reidentificacion · aportes_tanque
+
+fallos preexistentes     test_cobranza (trazabilidad 6 vs 5) y los 2 del motor de yape
+                          verificados contra HEAD: ya fallaban antes de tocar nada</div>
+
+    </article>
+
+  </div>
+
+  <footer class="closing">
+    sesión del 2026-08-05 · commit <code>c29de82</code> + push (11 commits acumulados)<br>
+    la limpieza del ledger que salió de este hallazgo está en la entrada del <a href="2026-08-06_limpieza_del_ledger.html">06/08</a>
+  </footer>
+</main>
+
+</body>
+</html>

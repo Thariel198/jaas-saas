@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Diario — julio 2026</title>
+<link rel="stylesheet" href="../cuaderno/estilo.css">
+</head>
+<body>
+
+<header class="hero">
+  <p class="crumbs"><a href="index.html">← Diario</a> · julio 2026</p>
+  <p class="eyebrow"><span class="dot"></span>bitácora mensual</p>
+  <h1>Julio 2026</h1>
+  <p class="lede">Un día por sección, colapsable — y dentro de cada día, una tarea por sección,
+    también colapsable (mismo patrón que las láminas de <code>libro_mayor</code>). Cada tarea trae
+    qué se hizo, la decisión si hubo más de un camino, y el porqué.</p>
+</header>
+
+<main class="wrap">
+  <div class="modulo-laminas">
+
+    <!-- ══════════ DÍA · 2026-07-22 ══════════ -->
+    <details id="2026-07-22">
+      <summary><span>📅 22/07/2026</span><span class="sub-count">reclamos WhatsApp · overrides_padron.xlsx · verificación de reclamos manuales · penalidad de corte · gancho de boletas</span></summary>
+
+      <article class="lamina">
+        <div class="anchor">
+          <span><span class="pin">📍</span> 4b_reclamos · 0_padron</span>
+        </div>
+
+        <details>
+          <summary><span>tarea 1 · rastreo — Buscar reclamos de Yanet/Janet en WhatsApp</span><span class="sub-count">resuelto</span></summary>
+          <div class="tarea-body">
+            <p>Se extrajeron los 3 exports de <code>4b_reclamos/recursos/*.zip</code> (grupo "Jass 2027",
+              chats individuales con Yanet villanueva y janetvillanuevaalegre) y se filtraron mensajes que
+              pedían corregir una MZ por reclamo del usuario. Resultado: <strong>20 reclamos concretos</strong>
+              con MZ/LT identificado, del 6/7 al 20/7/2026 — casi todos en el grupo, 3 en los chats
+              individuales (F1-4, D1-3, B-19) con más detalle numérico que en el grupo.</p>
+          </div>
+        </details>
+
+        <details>
+          <summary><span>tarea 2 · nueva columna en input existente — ORIGEN en reclamos_manuales.xlsx</span><span class="sub-count">resuelto</span></summary>
+          <div class="tarea-body">
+            <div class="keypoint"><b>Decisión:</b> agregar columna <code>ORIGEN</code> (canal: WhatsApp -
+              Jass 2027 / Yanet villanueva / janetvillanuevaalegre), separada de <code>QUIEN_REPORTA</code>
+              (que ya existía para "quién" — ej. "Secretaria"). <b>Por qué:</b> QUIEN_REPORTA no distingue
+              canal; sin ORIGEN, un reclamo cargado a mano no es rastreable de vuelta a la conversación de
+              origen. Propuesto en consola antes de tocar el archivo (regla de nueva columna en módulo
+              existente) — aprobado, luego cargadas 15 filas nuevas (2 ya existían: M-12, P-6).</div>
+            <p>Corrida de <code>4b_reclamos/main.py --mes 2026-07</code>: 17 filas MANUAL incorporadas a
+              <code>reclamos_2026-07.xlsx</code> (87 filas totales, 76 activas). Confirmado con freno de
+              modelo antes de correr — tarea de Haiku en sesión Sonnet, usuario autorizó seguir igual.</p>
+          </div>
+        </details>
+
+        <details>
+          <summary><span>tarea 3 · hallazgo de arquitectura — M-12 es cambio de identidad, no un reclamo cualquiera</span><span class="sub-count">resuelto — decisión de diseño</span></summary>
+          <div class="tarea-body">
+            <p>Del reclamo M-12 (Yanet, 20/7): "cambia nomás a nombre del Sr. Ramón, es acuerdo entre
+              ellos" — Wilder confirmó que <strong>no</strong> es reasignación de lote, solo el nombre del
+              dueño cambió. Esto no se resuelve en <code>4b_reclamos</code> (que corrige montos/conceptos de
+              deuda) sino en <code>0_padron</code> (identidad del predio).</p>
+
+            <div class="sub-h"><span class="qn">① split</span> el pedido junta dos capas distintas</div>
+            <div class="ascii">            PEDIDO: "M-12 → Ramón Requez"
+                        │
+        ┌───────────────┴────────────────┐
+        ▼                                 ▼
+  ① NOMBRE DEL DUEÑO              ② DEUDA QUE ASUME
+  (Iglesia → Ramón)              (266 pagado + multa/faena/
+                                  reunión + consumo)
+        │                                 │
+        ▼                                 ▼
+  CAPA IDENTIDAD                  CAPA LEDGER (libro_mayor)
+  (0_padron)                      ────────────────────────
+  ──────────────                  · los CARGOS ya viven en M-12
+  · atributo del predio           · llave = (JASS, MZ, LT, concepto…)
+  · el ledger NUNCA                 NUNCA por NOMBRE  (S1, I4)
+    llavea por NOMBRE             · Ramón "hereda" = el acuerdo
+  · se corrige en el padrón         entre ellos → NADA que tocar</div>
+
+            <div class="sub-h"><span class="qn">② por qué</span> el ledger ni se entera del cambio de nombre</div>
+            <div class="ascii">   HOY (pre-ledger)              AGOSTO (post-ledger / backfill)
+   ────────────────             ──────────────────────────────
+   0_padron renombra M-12        backfill re-deriva la historia
+        │                        desde datos llaveados por PREDIO
+        ▼                                │
+   padron_reconciliado                   ▼
+   M-12 = "Ramón"                 CARGO_ID / ABONO_ID =
+        │                         sha256(JASS,MZ,LT,concepto,mes)
+        ▼                         → IDÉNTICOS antes y después
+   boletas muestran "Ramón"         del cambio de nombre
+                                          │
+                                          ▼
+                                 estado_cuenta (render stateless)
+                                 lee el NOMBRE del padrón al momento
+                                 → muestra "Ramón", historia intacta</div>
+
+            <div class="sub-h"><span class="qn">③ límite</span> ¿cuándo "cambiar propietario" SÍ toca el ledger?</div>
+            <div class="ascii">   ¿El nuevo dueño hereda la deuda del predio?
+                  │
+        ┌─────────┴──────────┐
+        SÍ  (M-12)            NO (borrón y cuenta nueva)
+        │                     │
+        ▼                     ▼
+   nada en el ledger    hecho CONDONACIÓN / AJUSTE sobre el predio
+   (cargos siguen        (esto SÍ es evento del ledger — pero se
+    en M-12)             llama "condonar deuda", NO "cambiar dueño")</div>
+            <div class="keypoint"><b>Conclusión:</b> "cambiar propietario" nunca es un hecho de libro_mayor —
+              meter un hecho <code>cambiar_propietario</code> metería identidad-persona en un ledger
+              predio-céntrico (viola S1/I4) y es sobreingeniería para un caso que el padrón ya resuelve.
+              Se descompone en nombre (0_padron, permanente) + política de deuda (a lo sumo un <code>ajuste</code>,
+              ya existente, solo si el nuevo dueño NO hereda la deuda — no es el caso de M-12).</div>
+          </div>
+        </details>
+
+        <details>
+          <summary><span>tarea 4 · hallazgo colateral — 0_padron/override.xlsx está roto</span><span class="sub-count">pendiente — deuda anotada, no bloqueante</span></summary>
+          <div class="tarea-body">
+            <div class="card hueco-card">
+              <p><code>aplicar_override.py</code> apunta a <code>03_llenado/outputs/padron_secundario_corregido.xlsx</code>,
+              que no existe — el pipeline real es <code>01_limpieza → 02_matching → padron_reconciliado.xlsx</code>
+              (hoja única <code>cobranza</code>). Coincide con lo que ya marcaba la memoria del caso C1-9
+              ("el override no alcanza"). No se arregló hoy — queda anotado como deuda aparte, no bloqueaba
+              la tarea de M-12 porque se construyó un mecanismo nuevo y separado.</p>
+            </div>
+          </div>
+        </details>
+
+        <details>
+          <summary><span>tarea 5 · diseño + build — overrides_padron.xlsx + aplicar_overrides.py</span><span class="sub-count">resuelto y verificado con datos reales</span></summary>
+          <div class="tarea-body">
+            <p>Mecanismo nuevo para corregir identidad del padrón (nombre) sin que <code>02_matching</code>
+              lo pise en la próxima regeneración desde COFOPRI. Overlay, no mutación de una vez — mismo
+              principio que el overlay de penalidades en <code>5_cobranza</code> (B7 Fase 2, 2026-07-01).</p>
+
+            <div class="sub-h"><span class="qn">decisión</span> MES_VIGENCIA: ¿obligatorio u opcional?</div>
+            <div class="three">
+              <div class="box">
+                <span class="box-title">opcional (vacío = ahora)</span>
+                <span class="box-sub">menos fricción a primera vista</span>
+                <ul><li>un re-run del mes actual aplica el override YA</li>
+                  <li>exactamente el bug que se quería evitar: boleta ya facturada cambia</li>
+                  <li>sin ancla temporal → el backfill de agosto no sabe cuándo ubicarlo</li></ul>
+              </div>
+              <div class="box green">
+                <span class="box-title">obligatorio ✓ elegido</span>
+                <span class="box-sub">cada fila = hecho fechado</span>
+                <ul><li>gate protege meses ya facturados por construcción</li>
+                  <li>misma forma que CARGO_ID/ABONO_ID del ledger (replayable)</li>
+                  <li>costo real: cero — el usuario ya piensa en meses ("el siguiente mes")</li></ul>
+              </div>
+              <div class="box brass">
+                <span class="box-title">por qué importa AHORA</span>
+                <span class="box-sub">no es preferencia estética</span>
+                <ul><li>agosto = backfill de libro_mayor, re-deriva replayando hechos fechados</li>
+                  <li>un override sin fecha sería la única pieza no replayable</li>
+                  <li>revertir la decisión después = migrar datos; declararla ahora = gratis</li></ul>
+              </div>
+            </div>
+
+            <div class="sub-h"><span class="qn">flujo</span> end-to-end · reclamo → override → gate → padrón</div>
+            <div class="ascii"> JULIO — llega el reclamo
+ ══════════════════════════
+ Yanet: "M-12 → Ramón"  (Jass 2027, 20/7)
+        │
+        ▼
+ 4b_reclamos/reclamos_2026-07   ← se registra, ESTADO=RESUELTO
+        │  el supervisor lo traduce a 1 fila de override
+        ▼
+ ┌─────────────────────────────────────────────────┐
+ │ overrides_padron.xlsx   (append-only, humano)    │
+ │  MZ=M LT=12  ACCION=CORREGIR_CAMPO CAMPO=NOMBRE  │
+ │  VALOR_NUEVO=RAMON REQUEZ MENDOZA                │
+ │  FECHA_REGISTRO=2026-07-20   ← cuándo lo tipeé   │
+ │  MES_VIGENCIA=2026-08        ← desde cuándo rige │
+ │  ESTADO=ACTIVO                                   │
+ └─────────────────────────────────────────────────┘
+        │
+        │   ¿alguien re-corre el pipeline en JULIO?
+        ▼
+   ┌─────────────────────────────┐
+   │ GATE: MES_VIGENCIA ≤ ciclo? │
+   │  2026-08 ≤ 2026-07 ?  NO    │
+   └─────────────────────────────┘
+        │
+        ▼
+   DORMIDO → boletas de julio INTACTAS   ✅ (mes ya facturado, no se toca)
+
+
+ AGOSTO — arranca el ciclo
+ ══════════════════════════
+ 01_limpieza → 02_matching → padron_reconciliado
+        │                    (regenerado desde COFOPRI, PISA todo lo manual)
+        ▼
+ aplicar_overrides.py
+   ┌─────────────────────────────┐
+   │ GATE: MES_VIGENCIA ≤ ciclo? │
+   │  2026-08 ≤ 2026-08 ?  SÍ    │
+   └─────────────────────────────┘
+        │  overlay por llave (MZ,LT,CAMPO) · idempotente
+        ▼
+ padron_reconciliado   M-12 = "Ramón"   ← re-aplicado sobre el padrón fresco
+        │
+        ▼
+ 1_lecturas → 2_planilla → boletas de agosto   ("Ramón")  ✅</div>
+
+            <div class="sub-h"><span class="qn">por qué</span> el gate protege el mes actual</div>
+            <div class="ascii">   OPCIONAL (vacío = ahora)              OBLIGATORIO (MES_VIGENCIA=2026-08)
+   ───────────────────────              ─────────────────────────────────
+   re-run de julio                       re-run de julio
+        │                                     │
+        ▼                                     ▼
+   aplica YA → M-12 cambia EN julio     GATE: 08 ≤ 07? NO → dormido
+        │                                     │
+        ▼                                     ▼
+   ❌ boleta de julio ya facturada        ✅ julio intacto, espera agosto
+      queda inconsistente</div>
+
+            <div class="sub-h"><span class="qn">cruce</span> cómo lo replaya el backfill de agosto</div>
+            <div class="ascii"> libro_mayor/backfill — re-deriva la historia replayando hechos FECHADOS
+ ══════════════════════════════════════════════════════════════════════
+
+   overrides_padron (cada fila = hecho con MES_VIGENCIA)
+        │
+        ▼
+   replay en orden temporal:
+     2026-08 → M-12 pasa a "Ramón"
+        │
+        ▼
+   ┌───────────────────────────────────────────────┐
+   │ CARGO_ID / ABONO_ID = sha256(JASS,MZ,LT,…)    │  ← NUNCA por nombre
+   │ → IDÉNTICOS antes y después del cambio         │
+   └───────────────────────────────────────────────┘
+        │
+        ▼
+   estado_cuenta (render stateless)
+   lee el NOMBRE del padrón vigente → muestra "Ramón"
+   la plata (cargos/abonos) sigue pegada a M-12, intacta</div>
+
+            <p><strong>Build:</strong> <code>0_padron/overrides_padron.xlsx</code> (input, writer único
+              humano, append-only) + <code>0_padron/aplicar_overrides.py</code> (overlay sobre
+              <code>padron_reconciliado.xlsx</code>, backup previo, trazabilidad append-only). Contrato
+              documentado antes de codificar: <code>0_padron/docs/formato_overrides_padron.html</code>.</p>
+
+            <p><strong>Prueba con datos reales</strong> (3 filas: M-12, F1-6, F1-7):</p>
+            <div class="ascii">--mes 2026-07 → 3 DORMIDO         (padrón de julio intacto)
+--mes 2026-08 → 3 APLICADO        (padrón de agosto corregido)
+--mes 2026-08 (2ª vez) → 3 REDUNDANTE   (idempotente, no reescribe)</div>
+            <div class="keypoint"><b>Hallazgo colateral que confirma el reclamo:</b> F1-6 tenía a
+              "Efraín Candacho" y F1-7 a "César Alfredo Viru Gaspar" — <em>invertidos</em>, tal como decía
+              el chat. No era solo el reclamo diciéndolo, el dato lo probaba.</div>
+          </div>
+        </details>
+
+        <details>
+          <summary><span>tarea 6 · meta — Este diario</span><span class="sub-count">resuelto</span></summary>
+          <div class="tarea-body">
+            <p>Se crea <code>docs/diario/</code> (separado de <code>docs/cuaderno/</code>, que está
+              organizado estrictamente por módulo — un diario cronológico no encaja en ese eje). Reusa el
+              mismo <code>estilo.css</code>. No depende de <code>docs/pendientes_plan.md</code>: se escribe
+              cuando el usuario lo pide, o cuando se detecta que una tarea cerró (se confirma antes de
+              anotar, no se asume).</p>
+          </div>
+        </details>
+
+        <details>
+          <summary><span>tarea 7 · corrección de identidad — G-9, apellidos invertidos</span><span class="sub-count">resuelto</span></summary>
+          <div class="tarea-body">
+            <div class="ascii">G-9: "RODRIGO SAAVEDRA TRUJILLO" → "RODRIGO TRUJILLO SAAVEDRA"
+   overrides_padron.xlsx · CORREGIR_CAMPO NOMBRE · vigente 2026-08
+   (mismo patrón que M-12/F1-6/F1-7 — dormido hasta agosto)</div>
+          </div>
+        </details>
+
+        <details>
+          <summary><span>tarea 8 · corrección de identidad sin suficiente info — M-19</span><span class="sub-count">M-19 — guardado sin confirmar, archivo bloqueado</span></summary>
+          <div class="tarea-body">
+            <div class="ascii">M-19: RECLAMO = "Cambio nombre" — sin decir a qué nombre
+   → RECHAZADO (no hay dato suficiente para un override)
+   ⚠ el guardado quedó BLOQUEADO por archivo abierto — no se confirmó
+     que se haya guardado. Revisar al abrir la sesión siguiente.</div>
+          </div>
+        </details>
+
+        <details>
+          <summary><span>tarea 9 · verificación exhaustiva — reclamos manuales contra los datos reales</span><span class="sub-count">3 casos sin respaldo — anotados, no inventados</span></summary>
+          <div class="tarea-body">
+            <p>Se retomaron los 11 reclamos "resueltos por confianza" de la tarea 5 (revertidos a
+              PENDIENTE) y se verificaron contra <code>planilla_cobrado.xlsx</code> + fuentes crudas
+              (efectivo/yape, junio y julio, procesado y crudo) + los 4 precursores. Método: nunca
+              declarar resuelto sin encontrar el pago en algún archivo.</p>
+            <div class="ascii">Por cada reclamo:
+  ¿el monto que dice haber pagado aparece en ALGUNA fuente (julio o junio)?
+        │
+   ┌────┴────┐
+   SÍ         NO
+   │           │
+   ▼           ▼
+ RESUELTO   PENDIENTE — anotar en memoria para preguntar
+ (con cita  al cobrador/secretaria, no inventar la respuesta
+  del archivo)</div>
+            <div class="keypoint"><b>Hallazgos por lote (memoria detallada en <code>project_b19_f1-4_multas_sin_respaldo.md</code>):</b>
+              B-19 → multa S/50 sin ningún pago en 2 meses, su yape decía "LT 15" (typo, ya corregido a B-19)
+              pero el monto de la multa nunca apareció · F1-4 → S/101 en efectivo que dice haber pagado
+              NO existe en ningún archivo, ningún mes · G-23 → sí tuvo acción real: <code>EXONERADO</code>
+              en <code>registro_cortes.xlsx</code> el mismo día del reclamo (15/7), pero la deuda de S/22
+              sigue viva · Z-14 → sin ninguna acción tomada, único pago en su historia es S/13 de mayo,
+              <b>está en riesgo activo</b> (<code>EJECUTAR_CORTE=SI</code> en la lista vigente) · D1-3 →
+              confirmado RESUELTO de verdad (yape corregido D1-1→D1-3 vía <code>correcciones_lote.xlsx</code>,
+              matemática exacta) · N-6 → el sistema ya está bien, pagó solo consumo como confirmó Wagner,
+              el resto es compromiso legítimo, no error.</div>
+          </div>
+        </details>
+
+        <details>
+          <summary><span>tarea 10 · ejecución (freno de modelo, autorizado) — penalidad de corte, 7 usuarios +S/20</span><span class="sub-count">ejecutado — falta re-correr 5_cobranza</span></summary>
+          <div class="tarea-body">
+            <p><code>6_corte/aplicar_penalidad.py</code> no corría desde el 23-24 de junio. Se corrió hoy
+              (autorizado pese al freno Haiku/Sonnet) y afectó a <b>7 elegibles</b> de la lista vigente,
+              incluyendo 2 casos todavía en disputa:</p>
+            <div class="ascii">lista_corte.xlsx (EJECUTAR_CORTE=SI) → 7 usuarios
+   Z-14 · F1-4 ⚠ · E-8 ⚠ · P-9 · T-17 · T-9 · Y-5
+        │
+        ▼   aplicar_penalidad.py — SOLO escribe audit_penalidad.xlsx
+        │   (writer único, igual patrón que B7 — NO toca planilla_cobrado)
+        ▼
+outputs/audit_penalidad.xlsx: +S/20 cada uno, ACCION=APLICADO
+        │
+        ▼   pendiente: 5_cobranza --force para que el overlay
+            lo refleje en planilla_cobrado.xlsx (no corrido aún)</div>
+            <div class="keypoint">⚠ F1-4 y E-8 son 2 de los reclamos sin respaldo de la tarea 9 — la
+              penalidad se les sumó ENCIMA de una deuda que ya estaba en disputa. No es un error del
+              script (aplicó lo que decía la lista), pero hay que tenerlo presente antes de cerrar esos
+              2 casos.</div>
+          </div>
+        </details>
+
+        <details>
+          <summary><span>tarea 11 · nuevo mecanismo + gancho de código — pendientes_convenio_multas.xlsx</span><span class="sub-count">construido y probado</span></summary>
+          <div class="tarea-body">
+            <p>Se diseñó (propuesto en consola, aprobado) y construyó un precursor nuevo en
+              <code>3_boletas</code>: cuando un concepto de la boleta está en disputa, imprime la palabra
+              <code>"Verificando"</code> en vez del monto, sin tocar <code>DATA_boletas.xlsx</code>.</p>
+            <div class="ascii">pendientes_convenio_multas.xlsx  (writer único humano)
+  MZ · LT · CONCEPTO(CONVENIO|MULTA|ACUERDOS_ASAMBLEA) · ESTADO(VERIFICANDO)
+        │
+        ▼   3_boletas/main.py — load_pendientes_convenio_multas()
+        │   overlay justo antes de doc.render(context)
+        ▼
+CONCEPTO_A_CAMPO_BOLETA = {CONVENIO:"con", MULTA:"mul", ACUERDOS_ASAMBLEA:"cd"}
+        │
+        ▼
+si (mz,lt,concepto) está VERIFICANDO → context[campo] = "Verificando"
+   (ACUERDOS_ASAMBLEA no tiene línea propia en la boleta → se imprime
+    en el campo "Cuota directa", decisión explícita del usuario)</div>
+            <p>Se cargaron los 18 lotes únicos con <code>TIPO_RECLAMO=convenio</code> en
+              <code>reclamos_2026-07.xlsx</code> (A-6, W-3, O-22, C-20, T-7, P-8, L-11, G-12, D-16, G-17,
+              L-3, K-9, L-6, B-6, M-22, F-9, Q-8, W-5) + E-12 y G1-14 de la tarea 5 = 20 filas totales.
+              Gancho probado: compila y el functional test confirma las 20 entradas cargando bien.</p>
+          </div>
+        </details>
+
+        <p class="plate-label">pendientes al cierre del día</p>
+        <div class="card hueco-card">
+          <p>· M-19: rechazo sin confirmar guardado (archivo bloqueado repetidas veces)<br>
+          · B-19, F1-4, G-23(parcial): multa/monto sin respaldo — preguntar a Yanet/secretaria<br>
+          · Z-14: en riesgo activo de corte, sin ninguna acción tomada todavía<br>
+          · 5_cobranza sin re-correr desde que se aplicó la penalidad (audit no reflejado en planilla)<br>
+          · resolucion_reclamos_2026-07.xlsx sigue sin existir (29/76 reclamos ya clasificados, falta correr resolucion.py)<br>
+          · columna TIPO_RECLAMO estaba oculta en Excel, no eliminada — aclarado</p>
+        </div>
+
+      </article>
+    </details>
+
+    <!-- ══════════ DÍA · 2026-07-23 ══════════ -->
+    <details open id="2026-07-23">
+      <summary><span>📅 23/07/2026</span><span class="sub-count">C-1 — el bug de la cascada, reorden CA1 y sincronización completa del ledger · tarde: triage de reclamos + patrón de exceso mal clasificado (tanque/instalación)</span></summary>
+
+      <article class="lamina">
+        <div class="anchor">
+          <span><span class="pin">📍</span> 0_padron · libro_mayor</span>
+        </div>
+
+        <details open>
+          <summary><span>tarea 1 · el hallazgo grande del día — C-1: no era un pago perdido, era la cascada</span><span class="sub-count">root cause encontrado</span></summary>
+          <div class="tarea-body">
+            <p>La secretaria decía: "pagó acuerdos, el sistema le cobró multa". Se rastreó hasta la
+              fuente y apareció el <b>root cause real</b>, no un dato faltante.</p>
+            <div class="ascii">padron_secundario.xlsx (fuente original, hojas reunión/faena/techado-campo)
+  reunión SALDO=20 · faena SALDO=30 → MULTA real = 50, CERO pagos
+  techado-campo: pagó 25 de 75 → quedaban 50 → su yape de junio (92)
+  cubrió exacto: agua(17) + convenio(25) + acuerdos(50) = 92
+        │
+        ▼   pero el waterfall de 5_cobranza (_descomponer_saldo) aplicó
+        │   por prioridad CIEGA: agua→corte→MULTA→acuerdos→convenio
+        ▼
+arrastre_consolidado_2026-06.xlsx (LA PRUEBA):
+  ACUERDOS_ASAMBLEA=25 · CONVENIO=25 · MULTA= (nada)
+        │
+        ▼   el waterfall "gastó" el pago en la multa PRIMERO porque
+            tenía prioridad P3 — sin saber que ella no la pagó a propósito
+        ▼
+julio: multa invisible (0) · convenio/acuerdos cargando 25 c/u de más
+   → exactamente la queja de la secretaria, con causa raíz probada</div>
+            <div class="keypoint">El total (S/75) siempre estuvo bien. El problema nunca fue de plata —
+              fue de <b>etiqueta</b>: el orden de prioridad decidía qué concepto se daba por "pagado" sin
+              mirar la intención real del pago.</div>
+          </div>
+        </details>
+
+        <details open>
+          <summary><span>tarea 2 · el error que casi se comete — reidentificacion.xlsx era la herramienta equivocada</span><span class="sub-count">detectado y revertido, sin impacto real</span></summary>
+          <div class="tarea-body">
+            <div class="ascii">intento 1 (MAL): mover 25→acuerdos + 25→convenio vía reidentificacion.xlsx
+        │
+        ▼   PERO el overlay de reidentificacion SOLO RESTA deuda
+        │   (u[campo] -= monto) — no puede RE-SEMBRAR la multa oculta
+        ▼
+resultado real si se aplicaba: SALDO 75→25 → sub-cobra S/50 que sí debe ❌
+        │
+        ▼   se detectó ANTES de correr 5_cobranza (sin daño) → se borraron
+            las 2 filas</div>
+            <p>La lección: <code>reidentificacion.xlsx</code> mueve el <b>dueño</b> de un abono
+              (predio→predio), no puede re-etiquetar un concepto que el waterfall ya escondió dentro del
+              mismo predio. No hay parche pre-ledger limpio para esto — lo arregla el reorden de la
+              cascada (tarea 3), no una fila suelta.</p>
+          </div>
+        </details>
+
+        <details open>
+          <summary><span>tarea 3 · decisión de dominio (reabre CA1) — pueblo pasa a CONVENIO→ACUERDOS→MULTA</span><span class="sub-count">CA1 reabierta, código vivo intacto</span></summary>
+          <div class="tarea-body">
+            <div class="ascii">ANTES (hasta 22/7)              AHORA (23/7, CA1 reabierta)
+P3 MULTA · P4 ACUERDOS         P3 CONVENIO · P4 ACUERDOS
+P5 CONVENIO                    P5 MULTA
+        │                              │
+        ▼   PRINCIPIO (mismo del sub-orden, un nivel arriba):
+   "el dinero cubre primero lo que SOLO el dinero puede saldar"
+        │
+   ┌────┴─────────────────────┐
+   ▼                           ▼
+ MULTA = la más              CONVENIO/ACUERDOS = solo
+ "no-monetaria"                se saldan con plata
+  · faena → trabajo            · medidor · instalación
+  · reunión → exoneración      · techado · campo
+  (pasa muy seguido)
+   │                           │
+   va ÚLTIMA (P5)          van PRIMERO (P3·P4)
+        │
+        ▼   CONSECUENCIA QUERIDA (confirmada, no efecto a mitigar):
+   multa última → un parcial ya no la cubre → MUCHAS más multas
+   quedan expuestas como impagas → para un tenant con multa como
+   cut-trigger, saca a la luz multas que de verdad nadie pagó</div>
+            <div class="keypoint"><b>Código vivo NO se tocó</b> (regla explícita del usuario):
+              <code>_descomponer_saldo</code> sigue con el orden viejo. Solo se corrigió el DOMINIO —
+              el backfill de agosto va a repartir bien sin necesitar ningún parche por caso.</div>
+          </div>
+        </details>
+
+        <details open>
+          <summary><span>tarea 4 · la exoneración de C-1 SÍ es precursor</span><span class="sub-count">resuelto — motivo documentado in situ</span></summary>
+          <div class="tarea-body">
+            <div class="ascii">① el RE-ETIQUETADO (multa↔convenio/acuerdos mal puestos)
+   → NO es precursor. El backfill con el orden nuevo lo arregla solo.
+
+② la EXONERACIÓN de la multa real (S/50, reunión+faena, nunca pagada)
+   → SÍ es precursor — es un hecho de negocio real, no un parche de bug.
+     El backfill va a EXPONER la multa como impaga (correcto); sin la
+     exoneración registrada, se la cobraría bien cobrada.</div>
+            <p>Se cargó en <code>exoneraciones_multa.xlsx</code>: C-1 REUNION(20) + FAENA(30), con el
+              comentario explícito de que hoy es no-op (el bug viejo ya la esconde) y para qué sirve
+              mañana (el orden nuevo la expone, esta fila la cancela). Archivo queda en 8 filas totales
+              (G1-3, C-19×2, K-8×2, R-5, C-1×2).</p>
+          </div>
+        </details>
+
+        <details open>
+          <summary><span>tarea 5 · sincronización completa — 9 archivos + cuaderno, con los 2 porqués</span><span class="sub-count">sin huecos, memoria guardada</span></summary>
+          <div class="tarea-body">
+            <p>Barrido completo de <code>libro_mayor/</code> y <code>docs/cuaderno/libro_mayor.html</code>
+              buscando el orden viejo como vigente (no como nota histórica). Corregidos: <code>dominio</code>,
+              <code>caja</code>, <code>estado_cuenta</code> READMEs + tabla de sub-orden + el ejemplo del
+              "vecino que pagó convenio" (estaba al revés) + <code>libro_mayor/README.md</code> raíz + 4
+              HTML de contrato de <code>estado_cuenta/docs/</code> + 2 diagramas del cuaderno.</p>
+            <p>Dos huecos de fondo, cerrados con confirmación del usuario:</p>
+            <div class="ascii">Hueco 1 — ¿por qué el reorden? → SÍ, confirmado: multa se puede cubrir
+  con faena/exoneración, acuerdos/convenio solo con plata (escrito en
+  dominio/CA1, caja/⑪, estado_cuenta/⑪)
+
+Hueco 2 — ¿la multa expuesta empuja a más corte? → SÍ, consecuencia
+  QUERIDA: hay muchos reclamando "ya pagué convenio/acuerdos" (cierto)
+  mientras la multa real seguía sin pagar (escrito en dominio/PC6)</div>
+            <p>Se agregaron también al cuaderno (<code>docs/cuaderno/libro_mayor.html</code>) los 2
+              diagramas del porqué — el cuaderno enseña, no solo documenta.</p>
+          </div>
+        </details>
+
+        <details>
+          <summary><span>tarea 6 · triage de reclamos — VERIFICANDO para 16+2 reclamos, pero para la boleta de AGOSTO</span><span class="sub-count">resuelto y verificado</span></summary>
+          <div class="tarea-body">
+            <p>Se revisaron los reclamos de <code>reclamos_2026-07.xlsx</code> con <code>TIPO_RECLAMO</code>
+              ya clasificado (convenio/multa/cuota/mes_anterior) que todavía no estaban cargados en
+              <code>pendientes_convenio_multas.xlsx</code>. De 19 candidatos, 16 entraron; 3 se excluyeron:</p>
+            <div class="ascii">M-7    → ya resuelto (reidentificación de blanco, no es "verificando")
+C1-17  → es reasignación de lote (Roberto), no un simple verificando
+C-27A  → TIPO_RECLAMO=mes_actual, concepto que este mecanismo no soporta</div>
+            <p>Después aparecieron 2 más por fuera del lote inicial: <b>F1-1</b> (arrastre MES_ANTERIOR=9
+              de junio en disputa) y <b>T-20</b> (consumo alto julio, 59 m³ — el saldo que no pagó pasará a
+              MES_ANTERIOR recién en agosto, se precargó para entonces).</p>
+            <div class="keypoint"><b>Corrección a mitad de sesión:</b> el usuario aclaró que estas 18 filas
+              son para la boleta de <b>agosto</b>, no julio — julio ya se imprimió el 4/7
+              (<code>3_boletas/Outputs/CONSOLIDADO.pdf</code>). Como <code>pendientes_convenio_multas.xlsx</code>
+              no filtra por mes (aplica por MZ/LT/CONCEPTO nomás), no hace falta ningún cambio de código:
+              se activan solas la próxima vez que corra <code>3_boletas</code>, que va a ser en agosto.</div>
+          </div>
+        </details>
+
+        <details>
+          <summary><span>tarea 7 · dos casos que ya estaban resueltos, solo faltaba confirmarlo</span><span class="sub-count">C1-17 sin tocar · V-1 con cabo suelto</span></summary>
+          <div class="tarea-body">
+            <p><b>C1-17</b> (18.5 agua, dentro del depósito de 218.50 mal atribuido a C1-9): ya estaba en
+              <code>shared/reidentificacion.xlsx</code> desde antes (MES_ANO_APLICA=2026-07). No se tocó nada.</p>
+            <p><b>V-1</b> (Yoni Solorzano Blas): confirmado <code>EXONERADO</code> en
+              <code>6_corte/inputs/registro_cortes.xlsx</code> (13/7, "Sí pagó, verificando pago comunitario").
+              <b>Cabo suelto:</b> el reclamo en <code>reclamos_2026-07.xlsx</code> sigue en PENDIENTE — se
+              identificó la resolución pero no se ejecutó el update.</p>
+          </div>
+        </details>
+
+        <details>
+          <summary><span>tarea 8 · Q-12 — blanco de S/50 identificado como aporte tanque, no pago de deuda</span><span class="sub-count">resuelto, con un giro a mitad de camino</span></summary>
+          <div class="tarea-body">
+            <div class="ascii">Q-12 = TEODORA MEZA GARCILAZO   ← el reclamo actual
+Q-6  = DEDICACION GARCILAZO ROMERO ← otro predio, caso YA CERRADO el 21/7
+     (mismo apellido "Garcilazo" — una nota de sesión anterior los había
+      cruzado, quedó la advertencia escrita en el propio reclamo de Q-12)</div>
+            <p>Su reclamo decía "pagó 50 el mes anterior según hoja del Sr. Máximo". Se encontró en
+              <code>mesa_5.xlsx</code> (copia junio, fila 152): Máximo Encarnación, MZ=LT="BLANCO",
+              MONTO=50, comentario "Pago para tanque + 200 (Gringo le puso a Q-12 pero este lote no pago
+              su consumo)". <b>No estaba en <code>blancos_efectivo.xlsx</code></b> — ese archivo solo cubre
+              los blancos que el bug B6 descartaba en silencio (MZ/LT vacíos); acá MZ/LT decían literalmente
+              "BLANCO" como texto, un caso distinto, nunca capturado por ese mecanismo.</p>
+            <div class="keypoint"><b>Giro de la sesión:</b> primero se asumió "es para agua" — pero el agua
+              de junio de Q-12 (15) ya estaba cubierta por otro pago el mismo día (Wagner, mesa_6). Si el 50
+              iba a agua, sobraba sin destino y la MULTA seguía sin pagar → no saldaba nada. El usuario
+              corrigió: es aporte a <b>tanque</b> (voluntario), no pago de deuda — coincide con
+              <code>MONTO_EFECTIVO=0</code> en la fila original (el 100% es tanque). Se cargó en
+              <code>shared/aportes_tanque_manuales.xlsx</code> (nuevo, antes solo tenía la fila de C1-17) y
+              se cerró el reclamo con RESOLUCION+ESTADO=RESUELTO.</div>
+          </div>
+        </details>
+
+        <details>
+          <summary><span>tarea 9 · C-15 y P-7 — mismo patrón que Q-12, pero con el lote ya bien identificado</span><span class="sub-count">resuelto + mecanismo nuevo (columna ESTADO)</span></summary>
+          <div class="tarea-body">
+            <div class="ascii">motor_matching        →  ¿A QUIÉN pertenece este pago?   → resuelto bien
+5_cobranza (exceso)   →  ¿PARA QUÉ era ese pago?        → nadie se lo dijo</div>
+            <p>C-15 (Julio Rios Blas, yape S/200, mensaje literal "mz c lt 15 tanque") y P-7 (Hipolito
+              Melgarejo Mendoza, yape S/200, mensaje solo "P-7") salieron como exceso en
+              <code>arrastre_devolucion_2026-07.xlsx</code> aunque el motor de matching los identificó
+              perfecto. <b>Por qué:</b> <code>CONCEPTO</code> solo se llena a mano en <code>pendientes.xlsx</code>
+              cuando un pago es ambiguo; estos dos matchearon directo (limpio), nunca pasaron por una hoja
+              donde alguien pudiera escribir el concepto real. Se cargaron en
+              <code>aportes_tanque_manuales.xlsx</code> (confirmados por el usuario — P-7 sin la palabra
+              "tanque" en el mensaje, C-15 sí la tenía).</p>
+            <p><b>Mecanismo nuevo:</b> columna <code>ESTADO</code> (dropdown Excel <code>resuelto</code>/
+              <code>pendiente</code>) agregada a <code>arrastre_devolucion_2026-06.xlsx</code> y
+              <code>2026-07.xlsx</code>, junto a <code>REVISION</code> (texto libre) que ya existía. C-15 y
+              P-7 marcados <code>resuelto</code>.</p>
+          </div>
+        </details>
+
+        <details>
+          <summary><span>tarea 10 · C-35 — S/300 por PLIN, coincide exacto con una deuda de instalación que vive fuera del sistema</span><span class="sub-count">resuelto</span></summary>
+          <div class="tarea-body">
+            <p>Analy Quineche Morante pagó S/300 por PLIN el 18/6 — salió como exceso de 206 (300 menos
+              su agua+acuerdos de 94). Buscando en <code>obligaciones/inputs/SEGUMIENTO INSTALACIONES Y
+              CAMBIO DE MEDIDORES.xlsx</code>, hoja <code>INSTALACIONES ANTERIOR DIRECTIV</code>: fila C-35,
+              <code>DEUDA POR INSTALACION=300 · SALDO=300</code> (nada pagado ahí todavía).</p>
+            <div class="keypoint">El "exceso 206" era un cálculo equivocado, no un sobrante real: los 300 son
+              100% su deuda de instalación (coincide exacto), <code>5_cobranza</code> los comparó por default
+              contra su agua porque nadie le dijo que ese PLIN era para instalación. Su agua+acuerdos de
+              julio (94) sigue debiendo, sin relación con este pago. Anotado en REVISION + ESTADO=resuelto.</div>
+          </div>
+        </details>
+
+        <details>
+          <summary><span>tarea 11 · patrón detectado — 3 conceptos distintos cayendo en el mismo hueco</span><span class="sub-count">diagnosticado, diseño diferido a pedido del usuario</span></summary>
+          <div class="tarea-body">
+            <div class="ascii">P-6      → NUEVAS INSTALACIONES (externo, Drive/obligaciones)
+C-15/P-7 → mensaje "tanque" en el yape (dentro del sistema, sin ruta)
+F1-11    → MEDIDORES / MEDIDORES 2026 (externo, ni cargado aún)
+        │
+        ▼   misma falla estructural: pagos de un concepto que vive
+            FUERA del pipeline siempre terminan como "exceso" en
+            arrastre_devolucion, porque 5_cobranza solo conoce
+            agua+corte+multa+acuerdos+convenio-normal</div>
+            <p><code>seguimiento_pueblo.xlsx</code> ya resuelve exactamente este problema para MULTA/ACUERDOS/
+              CONVENIO (event-sourced, génesis trazable desde <code>shared/genesis_inputs/</code> +
+              reconciliación automática contra pagos). La extensión natural sería sumar <code>MEDIDOR</code>
+              e <code>INSTALACION</code> como conceptos del mismo ledger.</p>
+            <div class="keypoint"><b>Decisión del usuario:</b> seguir parchando manual (REVISION+ESTADO caso
+              por caso) por ahora — no diseñar la extensión todavía. Queda anotado como candidato, no
+              descartado.</div>
+          </div>
+        </details>
+
+        <details>
+          <summary><span>tarea 12 · dos casos sin resolver por falta de dato</span><span class="sub-count">F1-11 y el S/75 "techado y campo" × 5 lotes</span></summary>
+          <div class="tarea-body">
+            <p><b>F1-11</b> (Maria Elizabeth Silva Sosa): pagó S/100 "medidor" — pero su TOTAL de medidor
+              no aparece en <b>ningún lado</b>: ni <code>NUEVAS INSTALACIONES</code>, ni
+              <code>MEDIDORES</code>/<code>MEDIDORES 2026</code>, ni el Drive del usuario. Sin el TOTAL no se
+              puede calcular su SALDO real — se propuso cargarla en <code>MEDIDORES 2026</code> con TOTAL en
+              blanco + PAGADO=100, pendiente de confirmar.</p>
+            <p><b>S/75 "techado y campo" × 5 lotes</b> (A1-12, C1-13, C1-15, H1-13, H1-36): los 5 pagaron
+              exacto S/75 la misma semana (04-07/07), pero ninguno tenía deuda de ACUERDOS_ASAMBLEA en
+              ningún lado (<code>seguimiento_pueblo</code> en 0 o inexistente, planilla en 0).</p>
+            <div class="keypoint">Hipótesis sin confirmar: es una cuota nueva de asamblea que nunca se
+              sembró como CARGO — afecta a varios predios a la vez, no es un exceso suelto. Falta preguntarle
+              al usuario qué es este cargo antes de sembrar nada.</div>
+          </div>
+        </details>
+
+        <details>
+          <summary><span>tarea 13 · segregación comunitaria de Dedicación (Q-6) — mapeada, sin sorpresas</span><span class="sub-count">documentado</span></summary>
+          <div class="tarea-body">
+            <div class="ascii">Depósito 1 — 05/07 20:42 · TOTAL=49  → G-23 completo
+Depósito 2 — 04/07 20:44 · TOTAL=361 → Q-3=200(tanque)·D-5=20·F-14=68
+                                        K-7=23·V-1=33·H-4=17</div>
+            <p>El usuario preguntó si G-23 estaba incluido — sí, pero es el mismo yape de S/49 que ya se
+              conocía del caso de la multa de G-23 (no es plata nueva, solo se confirmó su procedencia).</p>
+          </div>
+        </details>
+
+        <details>
+          <summary><span>tarea 14 · G-23 — el reclamo del hijo era cierto, pero el archivo estaba desactualizado</span><span class="sub-count">resuelto (parcial — falta 5_cobranza)</span></summary>
+          <div class="tarea-body">
+            <p><code>4_pagos/efectivo/inputs/mesa_3.xlsx</code> tenía una fila (71 total = 49 yape + 22
+              efectivo, "se dividió su yape en efectivo y yape para que cuadre con la segregación del
+              reporte del banco") que nunca se procesó.</p>
+            <div class="ascii">mesa_3.xlsx (input)          → modificado 21/07 10:52
+pagos_efectivo.xlsx (output) → generado   20/07 18:30  ← ANTES que el input
+        │
+        ▼  no era bug de código — el módulo simplemente no se había
+           vuelto a correr desde que se agregó esa fila</div>
+            <p>Se re-corrió <code>4_pagos/efectivo/main.py</code> (ciclo 3, 359 cobros) — a pedido explícito
+              del usuario, <b>sin correr <code>5_cobranza</code></b> todavía. G-23 ya aparece con S/22 en
+              <code>pagos_efectivo.xlsx</code>. Cuentas: deuda 71 (incl. multa 50) = 49+22 pagado → saldo
+              final 0 cuando se corra <code>5_cobranza --force</code>.</p>
+          </div>
+        </details>
+
+        <p class="plate-label">pendientes al cierre del día</p>
+        <div class="card hueco-card">
+          <p>· código vivo (<code>_descomponer_saldo</code>) sigue con el orden viejo a propósito —
+          el orden nuevo solo rige para el backfill, que todavía no existe como código<br>
+          · <code>dominio/cascada.py</code> es solo diseño (README), no hay archivo real todavía<br>
+          · corrida grande diferida: <code>5_cobranza --force</code> + <code>5b_validacion</code> +
+          <code>4_pagos/consolidar_tanque.py</code> (para G-23, Q-12/C-15/P-7 tanque, penalidad de antes)<br>
+          · F1-11: falta el TOTAL de su medidor, no está en ningún archivo ni en el Drive del usuario<br>
+          · S/75 "techado y campo" × 5 lotes: falta confirmar si es cuota nueva de asamblea<br>
+          · V-1: exonerado confirmado, falta marcar RESUELTO en <code>reclamos_2026-07.xlsx</code><br>
+          · B-19, F1-4: multas sin respaldo, sin cambio — preguntar a Yanet/secretaria<br>
+          · candidato de diseño anotado, no implementado: extender <code>seguimiento_pueblo</code> a
+          MEDIDOR/INSTALACION</p>
+        </div>
+
+      </article>
+    </details>
+
+    <!-- ══════════ DÍA · 2026-07-26 ══════════ -->
+    <details id="2026-07-26">
+      <summary><span>📅 26/07/2026</span><span class="sub-count">5b_validacion S/550 explicado · incidente: snapshot Día 0 de 6_corte sobrescrito · reconstrucción manual + candado</span></summary>
+
+      <article class="lamina">
+        <div class="anchor">
+          <span><span class="pin">📍</span> 5b_validacion · 6_corte</span>
+        </div>
+
+        <details>
+          <summary><span>tarea 1 · re-corrida — 5b_validacion y 6_corte al día con 5_cobranza del 25/07</span><span class="sub-count">resuelto</span></summary>
+          <div class="tarea-body">
+            <p>Se re-corrieron ambos módulos (estaban desactualizados: 5b del 21/07, 6_corte del 22/07,
+              5_cobranza ya había corrido el 25/07). 5b_validacion salió con <strong>ALERTA Nivel 1a: dif=+550.00</strong>.</p>
+          </div>
+        </details>
+
+        <details>
+          <summary><span>tarea 2 · investigación — S/550 de Nivel 1a explicado, NO corregido en código</span><span class="sub-count">documentado — fix descartado</span></summary>
+          <div class="tarea-body">
+            <div class="ascii">S/550 = 4 pagos yape reasignados a tanque a mano
+                (shared/aportes_tanque_manuales.xlsx: C-15 200 · P-7 200 · A-4 100 · P-17 50)
+                El pago sigue en pagos_yape_tepago.xlsx con CONCEPTO vacío (nunca se llena
+                para pagos matcheados directo) → agua_total lo cuenta Y tanque_tot también.</div>
+            <div class="keypoint"><b>Decisión:</b> no tocar 5b_validacion. Se probó restar el monto
+              reasignado de <code>agua_total</code> y el descuadre se movió a Nivel 2 (dif=350) porque
+              <code>5_cobranza</code> también consumió esos mismos pagos como abono real de deuda
+              (ACUERDOS/CONVENIO sobrepagados, según la propia evidencia de <code>aportes_tanque_manuales.xlsx</code>).
+              <b>Por qué:</b> corregir un solo lado de la validación mueve el problema, no lo resuelve — la
+              causa real está en la cascada de <code>5_cobranza</code>, aparte y más profunda. Se revirtió el
+              cambio y se dejó el S/550 documentado como diferencia explicada, no error real.</p>
+            <p>Se actualizó <code>shared/reporte_acumulado_procesado/estado_ciclo.json</code> →
+              <code>validado_en: 2026-07-26T12:43:20</code> para el ciclo 2026-07 (ya estaba
+              <code>validado=true</code> desde el 09/07, quedaba desactualizado respecto al re-corrido de hoy).</p>
+          </div>
+        </details>
+
+        <details>
+          <summary><span>tarea 3 · incidente — generar_lista.py sobrescribió el snapshot Día 0 real de 6_corte</span><span class="sub-count">daño irreversible parcial — reconstruido a mano</span></summary>
+          <div class="tarea-body">
+            <div class="ascii">22/07 14:32 → aplicar_penalidad.py cargó +S/20 a 7 usuarios (Dia 0 REAL)
+26/07 hoy   → se re-corrio generar_lista.py para refrescar la lista
+              → SOBRESCRIBIO lista_corte.xlsx (sin backup, sin git — outputs/ en .gitignore)
+              → el snapshot del 22/07 SE PERDIO, sin forma de recuperarlo exacto</div>
+            <p>El README ya documentaba la regla ("Día 0: generar + aplicar. Día 2: seguimiento" — una sola
+              generación por ciclo) pero el código no tiene ningún candado que lo haga cumplir — se pudo
+              re-correr sin aviso.</p>
+          </div>
+        </details>
+
+        <details>
+          <summary><span>tarea 4 · reconstrucción manual — copia vieja + audit + reclamos, sin el snapshot exacto</span><span class="sub-count">resuelto</span></summary>
+          <div class="tarea-body">
+            <p>Se usó <code>C:\Users\wilde\PycharmProjects\jass_system - copia</code> (congelada 15/07,
+              7 días antes del Día 0 real) + <code>audit_penalidad.xlsx</code> (quién cargó/revirtió S/20) +
+              el crudo bancario yape (confirmado sin cambios desde el 22/07, última transacción 22/07 14:50 —
+              el lado yape ya estaba exacto) + <code>4b_reclamos/trazabilidad/trazabilidad_reclamos.xlsx</code>
+              (reclamos resueltos el 24/07 que explican reversiones que NO fueron pago).</p>
+            <div class="ascii">T-9, T-17     → CORTADO S/40 — SALDO hoy = SALDO copia(15/07) + 20 exacto
+                                (cero pago en toda la ventana)
+P-9, Y-5, Z-14 → SALVADO — SALDO cayo a 0, sin reclamo del ciclo → pago real
+E-8, F1-4      → EXONERADO — reclamo resuelto 24/07 confirma que NO era mora real
+                                (E-8: "esta al dia, solo debe consumo de este mes";
+                                 F1-4: recibo mal atribuido, deuda real S/79)</div>
+            <p>Se generaron <code>pagaron_penalidad.xlsx</code>, <code>corte_fisico.xlsx</code>,
+              <code>arrastre_corte_2026-07.xlsx</code> y el append a <code>registro_cortes.xlsx</code>
+              (2 CORTADO + 2 EXONERADO) reutilizando los mismos exportadores de <code>seguimiento.py</code>
+              desde un script descartable, para que el formato quede idéntico al de una corrida real.</p>
+          </div>
+        </details>
+
+        <details>
+          <summary><span>tarea 5 · candado — generar_lista.py ya no permite regenerar un ciclo ya penalizado</span><span class="sub-count">resuelto</span></summary>
+          <div class="tarea-body">
+            <div class="keypoint"><b>Decisión:</b> antes de exportar, <code>generar_lista.py</code> revisa
+              <code>audit_penalidad.xlsx</code> — si el ciclo ya tiene alguna fila (MES_ANO=ciclo actual),
+              corta con error y pide <code>--force</code> explícito. <b>Por qué:</b> mismo patrón que el
+              flag <code>--force</code> ya usado en <code>5_cobranza/main.py</code> (ver CLAUDE.md) — permite
+              forzar cuando de verdad hace falta, pero no deja que un re-corrido de rutina destruya el
+              snapshot Día 0 sin que nadie se entere.</div>
+          </div>
+        </details>
+
+        <p class="plate-label">pendientes al cierre del día</p>
+        <div class="card hueco-card">
+          <p>· S/550 de Nivel 1a de 5b_validacion sigue como alerta abierta cada corrida — es esperado,
+          no hay fix (ver tarea 2)<br>
+          · reclamos resueltos en <code>trazabilidad_reclamos.xlsx</code> (E-8, F1-4) no se propagan a
+          <code>resolucion_reclamos_2026-07.xlsx</code>, que es lo que <code>6_corte</code> realmente lee —
+          hueco de sincronización entre 4b_reclamos y 6_corte, sin resolver todavía<br>
+          · pago exacto en ventana de P-9/Y-5/Z-14 es aproximado (ancla copia 15/07), no exacto — puede
+          incluir pago anterior al 22/07</p>
+        </div>
+
+      </article>
+    </details>
+
+  </div>
+
+  <footer class="closing">
+    diario = qué se hizo y por qué esa solución · verdad exacta del código → README de cada módulo<br>
+    arquitectura/porqué transversal → docs/cuaderno/ · lista de pendientes/bloqueos → docs/pendientes_plan.md
+  </footer>
+</main>
+
+</body>
+</html>

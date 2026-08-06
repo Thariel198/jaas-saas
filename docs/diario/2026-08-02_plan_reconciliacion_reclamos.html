@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2026-08-02 — Plan: bajar los parches del 01/08 al ledger real</title>
+<link rel="stylesheet" href="../cuaderno/estilo.css">
+</head>
+<body>
+
+<header class="hero">
+  <p class="crumbs"><a href="index.html">← Diario</a> · 2026-08-02 · plan de sesión</p>
+  <p class="eyebrow"><span class="dot"></span>plan cerrado antes de ejecutar — congelado con fecha para que un chat nuevo no lo pise</p>
+  <h1>Bajar los 25 parches del 01/08 al ledger real</h1>
+  <p class="lede">
+    El 01/08 se cobraron 25 boletas con montos corregidos <strong>solo en
+    <code>DATA_boletas.xlsx</code></strong> — cosmético, para que el papel saliera bien el mismo día.
+    El ledger real nunca se tocó. Este plan lleva esas 25 correcciones al registro de verdad, para que
+    <code>planilla_2026-08</code> coincida con lo que la gente ya pagó y <code>4_pagos</code> pueda
+    aplicar el cobro sin parches encima.
+  </p>
+  <div class="meta-row">
+    <span>fecha: 2026-08-02</span>
+    <span>estado: plan aprobado en consola · sin ejecutar</span>
+    <span>fuente: 3_boletas/inputs/reclamos_2026-08-01/README.md + CONSOLIDADO.md</span>
+    <span>verificado leyendo 2_planilla/main.py · 5_cobranza/main.py · shared/seguimiento_repo.py</span>
+    <span>rev. 2 — corregida el 02/08 tras la objeción del usuario (ver ⓪)</span>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="modulo-laminas">
+
+    <article class="lamina" style="border:1px solid var(--line);border-radius:8px;background:var(--paper-raised);padding:26px 22px 30px;margin-bottom:18px">
+
+      <div class="sub-h"><span class="qn">◆</span> el problema, en una imagen</div>
+      <div class="ascii">01/08 · se imprimió y se cobró
+   ┌──────────────────────────┐
+   │ BOLETA (papel, 25 filas) │  ← monto CORREGIDO, ya cobrado
+   └──────────────────────────┘
+                │  el parche vive solo acá
+                ▼
+   3_boletas/inputs/DATA_boletas.xlsx
+                ✗
+                ✗  nadie bajó esto al registro
+                ✗
+   ┌──────────────────────────────────────────────┐
+   │ shared/seguimiento_pueblo.xlsx  (MULTA/      │  ← monto VIEJO
+   │ ACUERDOS/CONVENIO)                            │
+   │ arrastre_consolidado_2026-07 (AGUA/CORTE)     │  ← monto VIEJO
+   └──────────────────────────────────────────────┘
+                │
+                ▼
+   planilla_2026-08  → 4_pagos aplica el cobro contra la deuda VIEJA
+                       ⇒ quien pagó lo correcto queda como deudor parcial</div>
+
+      <div class="keypoint"><b>Hallazgo que simplifica todo (verificado en <code>2_planilla/main.py:143-229</code>):</b>
+        MULTA · ACUERDOS · CONVENIO los lee <code>2_planilla</code> <b>en vivo</b> de
+        <code>seguimiento_pueblo.xlsx</code> vía <code>get_saldos_bulk(concepto, "2026-07")</code>.
+        Solo <code>DEUDA_AGUA</code> y <code>CORTE_RECONEXION</code> vienen del
+        <code>arrastre_consolidado</code>. Por eso <b>23 de las 25 boletas no necesitan re-correr
+        <code>5_cobranza</code> de julio</b> — alcanza con un evento fechado <code>MES=2026-07</code>
+        <b>y volver a correr <code>2_planilla</code></b>. Esa segunda mitad no es opcional: ver ⓪.</div>
+
+      <div class="sub-h"><span class="qn">⓪</span> el malentendido que casi nos cuesta una decisión equivocada</div>
+      <p>Primera versión de esta lámina decía "22 de 25 no necesitan julio" a secas, como si fuera
+        gratis. <b>No lo es</b>: el ledger corregido no llega a ningún lado si la planilla no se
+        regenera. Objeción levantada por el usuario el 02/08 y verificada en código.</p>
+      <div class="ascii">LO QUE VERIFICAMOS (02/08, leyendo el código y el archivo real)
+
+  seguimiento_repo.py:207  _saldo_previo    filtra  MES ≤ mes   ← columna MES
+  seguimiento_repo.py:368  get_saldos_bulk  filtra  MES ≤ mes   ← columna MES
+                           ordena por (MES, TIMESTAMP), toma el último
+
+  ⇒ el MES es una ETIQUETA que elegimos al escribir el evento.
+    NO es la fecha en que se escribe, NI el cierre de un ciclo.
+    El ledger NO "se actualiza al final del ciclo": es append-only
+    y 2_planilla lo lee EN EL MOMENTO en que genera la planilla.
+
+  estado real del ledger hoy (2026-08-02):
+     MES 2026-06 ......  1216 eventos
+     MES 2026-07 ......   347 eventos
+     MES 2026-08 ......     0 eventos   ← 5_cobranza de agosto NO corrió aún
+                                          ⇒ escribir eventos 2026-07 hoy es
+                                            limpio: no hay nada posterior con
+                                            lo que quedar inconsistente
+
+
+LAS DOS RAMAS — la diferencia NO es el ledger, es si se regenera la planilla
+
+  escribo AJUSTE hoy con MES=2026-07
+          │
+          ├── ✗ NO re-corro 2_planilla
+          │     planilla_2026-08 queda con el monto viejo
+          │     → el socio figura con deuda en agosto
+          │     → su pago entra como PARCIAL
+          │     → recién en septiembre le sale saldo 0
+          │     ⇒ el ledger tendría razón y la planilla no. Inaceptable:
+          │       ya cobramos sobre el papel corregido.
+          │
+          └── ✔ SÍ re-corro 2_planilla   (paso 5)
+                get_saldos_bulk(cpto,"2026-07") ve el AJUSTE de hoy
+                (MES=2026-07 + TIMESTAMP más nuevo ⇒ gana)
+                → planilla_2026-08 sale corregida EN ESTA CORRIDA
+                → sin esperar septiembre, sin re-correr julio</div>
+
+      <div class="sub-h"><span class="qn">①</span> las herramientas que tenemos — dos capas</div>
+      <p>Inventario leído del código, no de memoria. Elegir el instrumento equivocado es lo que hizo
+        que correcciones anteriores (Q-4, K-8, F-7) se revirtieran solas o nunca llegaran al registro.</p>
+      <div class="ascii">CAPA 1 · LEDGER DE PUEBLO — shared/seguimiento_repo.py
+  writer único · append-only · event-sourced · el saldo se DERIVA
+     registrar_cargo   deuda nueva que nunca existió
+     registrar_pago    ✗ NO USAR a mano — la reconciliación de 5_cobranza
+                         lo revierte si no hay plata real detrás (caso Q-4)
+     registrar_ajuste  ✔ corrección · sobrevive a --force · motivo obligatorio
+  dueño de: MULTA · ACUERDOS · CONVENIO      ✗ no agua · ✗ no corte
+  lo lee 2_planilla EN VIVO ⇒ el cambio llega solo a la planilla
+
+CAPA 2 · OVERLAYS DE 5_cobranza — 8 archivos en shared/
+  escritura humana · lectura automática · filtran por MES_ANO_APLICA
+  se aplican ANTES de la cascada, tocan usuarios[predio][campo] directo
+     ajustes_cargo.xlsx          el CARGO nació y NO correspondía → se anula
+     genesis_tardia.xlsx         cargo legítimo que llegó tarde a la génesis
+     abonos_rezagados.xlsx       plata real que la caja recién ve
+     blancos_efectivo.xlsx       plata en caja sin MZ/LT (bug B6)
+     reidentificacion.xlsx       pago anotado en el predio equivocado
+     deuda_correcciones.xlsx     espejo del anterior: devolver deuda al origen
+     devoluciones_aplicadas.xlsx exceso de otro ciclo aplicado a una deuda
+     reasignaciones_aplicacion   el pagador pidió otro concepto que la cascada</div>
+
+      <div class="keypoint"><b><code>ajustes_cargo.xlsx</code> acepta más campos de los que suponíamos</b>
+        (<code>_CONCEPTO_DEVOLUCION_A_CAMPO</code>, <code>5_cobranza/main.py:514</code>):
+        CONVENIO · MULTA · ACUERDOS · <b>CORTE_RECONEXION</b> · AGUA · MANTENIMIENTO · <b>MES_ANTERIOR</b>.
+        Es decir: V-14 (corte) y el MES_ANTERIOR de B-8 <b>tienen instrumento diseñado y auditable</b> —
+        no hace falta parchar el archivo a mano, como se había planteado primero. Precedente F1-4 ya
+        está en ese archivo.</div>
+
+      <div class="sub-h"><span class="qn">②</span> los 25, agrupados por acción</div>
+      <div class="ascii">BLOQUE 1 — EXONERACIÓN (la directiva dictó "no debe")     2 predios · 3 eventos
+  J-1   MULTA     −20     exonerado directiva 01/08
+  J-1   ACUERDOS  −75     idem
+  O-2   MULTA     −30     exonerado directiva 01/08
+  ⚠ J-1 CONVENIO=75 NO se toca — nota "se exoneró 4" sin resolver
+
+BLOQUE 2 — PAGO YA HECHO, nunca registrado                8 predios · 10 eventos
+  K-9   CONVENIO  −75     S/100 efectivo en el local      ← ver decisión ②
+  T-14  CONVENIO  −50     S/75 efectivo                   ← ver decisión ②
+  K-8   ACUERDOS  −30     pagó campo en junio (secretaria)
+  F-10  ACUERDOS  −50     mostró recibos a la secretaria
+  F-1   MULTA     −20     pagó multa el mes pasado
+  F-7   ACUERDOS  −25     yape antiguo no anotado
+  D-6   ACUERDOS  −50     yapeó a Wagner Trujillo hace años
+  B-8   CONVENIO  −75     al día (secretaria)
+  B-8   ACUERDOS   −5     idem
+  ⚠ K-8 y F-7 ya figuraban RESUELTO en notas_2026-07 — el ledger nunca se tocó
+
+BLOQUE 3 — REASIGNACIÓN entre conceptos                   2 predios · 5 eventos
+  G-4   CONVENIO  −75     S/50 pagado por fuera + S/25 redirigidos
+  G-4   MULTA     +25       desde MULTA
+  G-14  CONVENIO  −38     S/25 de MULTA + S/50 efectivo a la secretaria
+  G-14  MULTA     +50     ⚠ origen NO explicado por la directiva
+  G-14  ACUERDOS  +29     ⚠ origen NO explicado (21 → 50)
+  se hace con 2 AJUSTE (origen +, destino −), NO con reasignaciones_aplicacion
+  (ese overlay solo redirige un PAGO del ciclo en curso ⇒ exigiría re-correr julio)
+
+BLOQUE 4 — CARGO NUEVO                                    2 predios · 2 eventos
+  E-14B ACUERDOS  +75     ⚠ CONTRADICE la resolución del 30/07
+  M-12  CONVENIO  +80     registrar_cargo (no ajuste)
+  + desactivar la fila MANTENIMIENTO de M-12 en genesis_tardia.xlsx
+    (si queda, 5_cobranza de agosto la vuelve a sumar = doble conteo)
+
+BLOQUE 5 — RESTAURAR PAGO FANTASMA (bug, no reclamo)     12 predios · 14 eventos
+  A-8   CONVENIO +100      motivo común: "pago fantasma de 5_cobranza julio
+  B-5   ACUERDOS  +50      sin respaldo real; el AJUSTE de reversión dejó
+  B-5   CONVENIO +100      el saldo negativo — restaurado al CARGO real
+  C-1   ACUERDOS  +50      de junio"
+  C-1   CONVENIO +100
+  C-7   CONVENIO  +50      evidencia: 4b_reclamos/outputs/
+  E-12  CONVENIO  +42      reporte_lote_saldo_negativo_2026-07.pdf
+  I-11  CONVENIO  +50
+  I-16  MULTA     +36      ⚠ B-5 declara lo contrario (debe campo, no
+  I-16  ACUERDOS  +28        convenio) — si lo confirma, es REASIGNACIÓN
+  J-3   CONVENIO  +80        y no este ajuste simple
+  K-17  CONVENIO  +50
+  K-2   CONVENIO  +50
+  P-12  CONVENIO +100
+  H-16  ACUERDOS  +28      mismo bug, se escapó porque 47 no es negativo
+
+BLOQUE 6 — FUERA DEL LEDGER DE PUEBLO                     2 filas
+  V-14  CORTE_RECONEXION  40 → 0    ajustes_cargo.xlsx
+  B-8   MES_ANTERIOR      46 → 0    ajustes_cargo.xlsx
+  (el MES_ANO_APLICA depende del camino elegido — ver ③)
+
+TOTAL: 33 eventos en seguimiento_pueblo + 2 filas de overlay
+       (18 bloque 1-4 · 14 bloque 5 · 1 cargo M-12)</div>
+
+      <div class="sub-h"><span class="qn">②b</span> qué herramienta usa cada bloque, y por qué esa</div>
+      <p>La regla de decisión es una sola pregunta, y sale del código, no del gusto:</p>
+      <div class="invariant">¿el concepto es <span class="hi">MULTA · ACUERDOS · CONVENIO</span>?
+        → <b>CAPA 1, el ledger</b> (<code>seguimiento_repo</code>), porque <code>2_planilla</code> lo lee
+        en vivo y el cambio llega a la planilla.<br>
+        ¿es <span class="hi">AGUA · MANTENIMIENTO · CORTE · MES_ANTERIOR</span>?
+        → <b>CAPA 2, un precursor</b>, porque para esos conceptos <b>todavía no existe ledger</b> —
+        <code>seguimiento_repo._validar_concepto</code> los rechaza con <code>ValueError</code>.</div>
+      <div class="ascii">BLOQUE 1 · EXONERACIÓN
+  HERRAMIENTA   registrar_ajuste            (capa 1 · ledger)
+  POR QUÉ       el CARGO nació y la directiva determinó que no correspondía.
+                No hay plata de por medio: se anula el cargo, no se paga.
+  POR QUÉ NO    registrar_pago  → no hubo pago, y la reconciliación de
+                                  5_cobranza lo revierte (caso Q-4, 30/07)
+                ajustes_cargo   → ese overlay corrige la cascada del ciclo,
+                                  NO el saldo del ledger. La boleta imprime
+                                  desde el ledger ⇒ quedaría mintiendo.
+
+BLOQUE 2 · PAGO YA HECHO, NUNCA REGISTRADO
+  HERRAMIENTA   registrar_ajuste            (capa 1 · ledger)   ← 6 casos
+                abonos_rezagados.xlsx       (capa 2 · precursor) ← K-9 y T-14,
+                                                                   si se confirma
+  POR QUÉ       K-8·F-10·F-1·F-7·D-6·B-8: la plata se movió hace meses o años,
+                fuera de todo ciclo vivo. No hay movimiento de caja que
+                registrar hoy — lo que hay es un saldo que nunca debió existir.
+                K-9 (S/100) y T-14 (S/75): SÍ hubo efectivo entrando al local.
+                Si entró a la caja de la JASS es un ABONO, no una condonación,
+                y tiene que verse en el cuadre de 5b_validacion.
+  POR QUÉ NO    registrar_pago  → mismo motivo que arriba: se auto-revierte.
+                                  Precedente documentado: los 17 predios del
+                                  GRUPO 2 se hicieron con PAGO el 28/07 y hubo
+                                  que re-estabilizarlos.
+  OJO           LEER_ANTES deja escrito que abonos_rezagados POR SÍ SOLO no
+                toca MULTA/ACUERDOS del ledger — corrige el reporte del mes.
+                Si K-9/T-14 van por ahí, igual necesitan su evento en el ledger.
+
+BLOQUE 3 · REASIGNACIÓN ENTRE CONCEPTOS
+  HERRAMIENTA   2 × registrar_ajuste        (capa 1 · ledger)
+                  origen  +monto   (se le devuelve la deuda)
+                  destino −monto   (se le acredita)
+  POR QUÉ       mueve deuda entre dos conceptos que ambos viven en el ledger.
+                Dos eventos cuentan la historia completa y son auditables.
+  POR QUÉ NO    reasignaciones_aplicacion.xlsx → es LA herramienta conceptual
+                correcta, pero solo redirige un PAGO del ciclo EN CURSO
+                (filtra MES_ANO y corre dentro de _reconciliar_pagos_pueblo)
+                ⇒ exigiría re-correr 5_cobranza de julio para 2 predios.
+                Límite extra verificado: ORIGEN y DESTINO deben ser
+                MULTA/ACUERDOS/CONVENIO — cualquier otro se ignora EN SILENCIO.
+
+BLOQUE 4 · CARGO NUEVO
+  HERRAMIENTA   registrar_cargo             (capa 1 · ledger)
+                + baja de la fila de M-12 en genesis_tardia.xlsx (capa 2)
+  POR QUÉ       la obligación NO existía: un CARGO deja la historia bien
+                contada ("nació la deuda"), que es exactamente lo que hará
+                obligaciones/ cuando se codifique. Un AJUSTE positivo daría
+                el mismo saldo pero mentiría sobre el origen.
+  POR QUÉ LA    genesis_tardia suma su monto en la cascada de 5_cobranza.
+  BAJA DE M-12  Si queda la fila Y se emite el CARGO nuevo = doble conteo.
+                Además estaba en el campo equivocado (MANTENIMIENTO en vez
+                de CONVENIO) — la directiva lo corrigió el 01/08.
+
+BLOQUE 5 · RESTAURAR PAGO FANTASMA
+  HERRAMIENTA   registrar_ajuste POSITIVO   (capa 1 · ledger)
+  POR QUÉ       el registro es append-only: el PAGO fantasma y su reversión
+                mal hecha NO se borran. El AJUSTE cuenta la tercera parte de
+                la historia — "se restauró al CARGO real de junio" — y deja
+                el rastro de que hubo un bug, que es justamente lo que queremos
+                poder auditar después.
+  POR QUÉ NO    editar/borrar la fila → viola la invariante del repo
+                (seguimiento_repo no expone ninguna forma de hacerlo).
+
+BLOQUE 6 · CORTE Y MES_ANTERIOR
+  HERRAMIENTA   ajustes_cargo.xlsx          (capa 2 · precursor)
+  POR QUÉ       para agua y corte NO EXISTE ledger todavía —
+                seguimiento_repo._validar_concepto solo acepta
+                MULTA/ACUERDOS/CONVENIO y tira ValueError con cualquier otro.
+                ajustes_cargo es el precursor manual del registrar_ajuste del
+                libro_mayor futuro, y su mapa de campos acepta
+                CORTE_RECONEXION y MES_ANTERIOR (main.py:514).
+  POR QUÉ NO    parchar el .xlsx a mano → se pierde sin aviso en la próxima
+                regeneración del consolidado, y no deja audit. Es lo que
+                hicimos con W-4/Q-5/O-16/Q-11 y por eso siguen como deuda.
+  PRECEDENTE    F1-4 ya está resuelto así en ese mismo archivo.</div>
+
+      <div class="keypoint"><b>El hilo conductor:</b> los 8 archivos de la capa 2 son
+        <b>precursores manuales</b> de las tools del <code>libro_mayor</code> (cada uno lo dice en su
+        comentario de <code>5_cobranza/main.py</code>). Elegir el precursor correcto hoy no es burocracia:
+        es lo que va a permitir que el backfill del ledger reconstruya la historia real el día que se
+        codifique, en vez de encontrarse con un saldo parchado sin explicación.</div>
+
+      <div class="sub-h"><span class="qn">③</span> los dos caminos — la decisión se redujo a 2 filas</div>
+      <p>Con ⓪ verificado, re-correr julio <b>ya no es la pregunta para 23 de las 25 boletas</b>:
+        esas se resuelven con AJUSTE + <code>2_planilla</code>. Lo único que sigue exigiendo una
+        decisión son las 2 filas que viven en un archivo <b>congelado</b>
+        (<code>arrastre_consolidado_2026-07.xlsx</code>), donde no hay lectura en vivo posible.</p>
+      <div class="ascii">┌─ 23 boletas · MULTA / ACUERDOS / CONVENIO ─────────────────────┐
+│ AJUSTE MES=2026-07  +  re-correr 2_planilla                    │
+│ ⇒ correctas en AGOSTO, sin tocar julio                         │
+│ ⇒ NO hay decisión que tomar acá — es el camino, y punto        │
+└────────────────────────────────────────────────────────────────┘
+
+┌─ 2 filas · V-14 (CORTE) y B-8 (MES_ANTERIOR) ──────────────────┐
+│ viven en arrastre_consolidado_2026-07 = archivo CONGELADO      │
+│ 2_planilla lo LEE, nadie lo re-deriva ⇒ no hay lectura en vivo │
+│                                                                 │
+│  opción 1 · ajustes_cargo  MES_ANO_APLICA=2026-08              │
+│      el saldo cuadra cuando corra 5_cobranza de agosto,        │
+│      pero la planilla los sigue mostrando  ⇒ 554/556           │
+│                                                                 │
+│  opción 2 · re-correr 5_cobranza julio --force                 │
+│      (con ajustes_cargo MES_ANO_APLICA=2026-07)                │
+│      la planilla sale idéntica a la boleta ⇒ 556/556           │
+│      pero arrastra el costo de abajo                            │
+└────────────────────────────────────────────────────────────────┘</div>
+      <div class="before-after">
+        <div class="card resuelto-card">
+          <span class="tag resuelto">A · no re-correr julio — recomendado</span>
+          <p><b>Qué se hace:</b> los 33 <code>registrar_ajuste</code> con <code>MES=2026-07</code>
+            (obligatorio en los dos caminos) + las 2 filas en <code>ajustes_cargo</code> con
+            <code>MES_ANO_APLICA=<b>2026-08</b></code> + <code>2_planilla</code> de agosto.</p>
+          <p style="margin-top:10px"><b>✔</b> cero riesgo sobre el ledger cerrado de julio<br>
+            <b>✔</b> los 2 de agua/corte quedan con instrumento real, no parche<br>
+            <b>✗</b> <code>planilla_2026-08</code> sigue mostrando V-14 corte=40 y B-8 mes_ant=46; el
+            saldo recién cuadra cuando corra <code>5_cobranza</code> de agosto<br>
+            <b>✗</b> la validación da <b>554/556</b>, con 2 diferencias explicadas</p>
+        </div>
+        <div class="card hueco-card">
+          <span class="tag hueco">B · re-correr 5_cobranza julio --force</span>
+          <p><b>Qué se hace:</b> los mismos 33 ajustes + las 2 filas en <code>ajustes_cargo</code> con
+            <code>MES_ANO_APLICA=<b>2026-07</b></code> → <code>5_cobranza --force</code> de julio →
+            copiar 3 archivos al repo activo → <code>2_planilla</code> de agosto.
+            <b>El único motivo para elegir este camino son esas 2 filas.</b></p>
+          <p style="margin-top:10px"><b>✔</b> <code>planilla_2026-08</code> == boleta impresa,
+            <b>556/556</b>, sin un solo parche<br>
+            <b>✔</b> O-16 y Q-11 dejan de ser parche: sus filas ya están en
+            <code>abonos_rezagados</code> y esta vez la cascada las procesa<br>
+            <b>✗</b> la reconciliación revierte los <code>registrar_pago</code> manuales viejos (17
+            predios del GRUPO 2 + C-21/J-6) → "contador tuerto", hay que re-estabilizar con AJUSTE
+            igual que el 31/07 (pasó en 5 de 8 casos)<br>
+            <b>✗</b> W-4 y Q-5 hay que reaplicarlos a mano</p>
+        </div>
+      </div>
+
+      <div class="sub-h"><span class="qn">④</span> orden de ejecución</div>
+      <div class="ascii">PASO 0  congelar la referencia
+        DATA_boletas.xlsx (parchado = lo que se imprimió y se cobró)
+           └→ backups/DATA_boletas_IMPRESO_20260801.xlsx
+        ✗ NO re-correr 3_boletas/enriquecimiento en todo el plan
+             │
+             ▼
+PASO 1  bloques 1 → 5 en shared/seguimiento_pueblo.xlsx
+        registrar_ajuste(mes="2026-07", source="manual",
+                         audit_ref="reclamos_20260801|MZ-LT-CONCEPTO")
+        registrar_cargo para M-12 + baja de su fila en genesis_tardia
+             │
+             ▼
+PASO 2  copiar seguimiento_pueblo.xlsx → "jass_system - Julio"/shared/
+        (hoy byte-idénticos: 92019 b · 31/07 19:58 — que no diverjan)
+             │
+             ▼
+PASO 3  bloque 6 → filas en shared/ajustes_cargo.xlsx
+             │
+             ▼
+PASO 4  [solo camino B] 5_cobranza --force en "jass_system - Julio"
+        + copiar al activo: arrastre_consolidado_2026-07 ·
+          planilla_cobrado · seguimiento_pueblo
+        + re-estabilizar los PAGO manuales revertidos
+             │
+             ▼
+PASO 5  2_planilla → planilla_2026-08.xlsx en LAS DOS copias
+          2_planilla/outputs/   y   shared/planilla_mes/
+        ★ OBLIGATORIO en los dos caminos — es el paso que hace que el
+          ledger corregido llegue a la planilla. Sin esto, el socio
+          figura con deuda en agosto y recién cuadra en septiembre (ver ⓪)
+        chequear: Q-4 ausente · W-4 en 0 · M-12 con CONVENIO=80
+             │
+             ▼
+PASO 6  VALIDACIÓN — esto dice si funcionó
+        planilla_2026-08.TOTAL_A_PAGAR  ⟷  DATA_boletas_IMPRESO.TOTAL
+          los 25 corregidos → coinciden SIN parche
+          los 531 restantes → no se mueven ni un sol
+          cualquier diferencia = corrección faltante o drift no intencional
+             │
+             ▼
+PASO 7  4_pagos de agosto</div>
+
+      <div class="sub-h"><span class="qn">⑤</span> decisiones abiertas — bloquean el paso 1</div>
+      <div class="three">
+        <div class="box brass">
+          <span class="box-title">① camino A o B — solo por V-14 y B-8</span>
+          <span class="box-sub">planilla idéntica a la boleta, 556/556 (B) vs. no tocar julio y aceptar
+            554/556 con 2 diferencias explicadas (A). Las otras 23 no dependen de esto.
+            Recomendación: <b>A</b> — el costo de re-correr julio ya se pagó caro el 31/07.</span>
+        </div>
+        <div class="box brass">
+          <span class="box-title">② K-9 y T-14</span>
+          <span class="box-sub">¿los S/100 y S/75 en efectivo entraron a la caja de la JASS?
+            <b>Sí</b> ⇒ <code>abonos_rezagados</code> (afecta el cuadre de 5b).
+            <b>No</b> ⇒ <code>registrar_ajuste</code> (la deuda no existía).</span>
+        </div>
+        <div class="box brass">
+          <span class="box-title">③ E-14B · G-14 · B-5</span>
+          <span class="box-sub">montos que la directiva ordenó sin explicar el origen, y E-14B revierte
+            una decisión cerrada el 30/07. Como ya se cobró sobre esa boleta: asentar lo impreso y dejar
+            la pregunta abierta en <code>notas_2026-07.xlsx</code>.</span>
+        </div>
+      </div>
+
+      <div class="sub-h"><span class="qn">⑥</span> lo que NO se toca en esta sesión</div>
+      <div class="ascii">✗ 3_boletas/enriquecimiento y 3_boletas/main.py
+     las boletas de agosto YA están impresas y cobradas — regenerar
+     DATA_boletas destruiría la referencia de lo que se cobró, y
+     cualquier alta/baja de predio corre la numeración de recibo
+     (precedente Q-4, 30/07: 1132 archivos re-generados)
+
+✗ el exceso de K-9 (+25) y T-14 (+25)
+     se investiga aparte, no bloquea
+
+✗ W-4 (~S/17 de julio sin encontrar)
+     sigue como parche cosmético en el consolidado, documentado en
+     LEER_ANTES.md y parches_manuales_pendientes_julio.xlsx
+
+✗ los 11 predios en VERIFICANDO y el reporte_historico_CONFIRMACION
+     pendientes del RETOMAR del 31/07, ajenos a este plan</div>
+
+      <div class="keypoint"><b>Desincronización anotada de paso:</b>
+        <code>2_planilla/README.md</code> todavía documenta inputs que el código ya no usa
+        (<code>convenios.xlsx</code> · <code>multas.xlsx</code> · <code>acuerdos_asamblea.xlsx</code>).
+        El código lee <code>seguimiento_pueblo</code> en vivo + <code>arrastre_consolidado</code> desde
+        el cambio DE5/Opción A del 2026-07-02. La regla 1 del proyecto dice "el README manda" — acá manda
+        el código, y el README quedó viejo. Corregirlo cuando se cierre este plan.</div>
+
+    </article>
+  </div>
+
+  <footer class="closing">
+    plan congelado el 2026-08-02 · si un chat nuevo retoma esto, leer primero
+    <code>3_boletas/inputs/reclamos_2026-08-01/README.md</code> (detalle predio por predio)
+    y <code>LEER_ANTES.md</code> de la raíz<br>
+    esta lámina se marca EJECUTADO cuando el paso 6 dé limpio — no se borra, queda como registro del día
+  </footer>
+</main>
+
+</body>
+</html>

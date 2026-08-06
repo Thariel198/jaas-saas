@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2026-08-03 — Solución: precursor + ledger, uno cuenta la historia, el otro hace el cambio</title>
+<link rel="stylesheet" href="../cuaderno/estilo.css">
+</head>
+<body>
+
+<header class="hero">
+  <p class="crumbs"><a href="index.html">← Diario</a> · 2026-08-03 · resuelve el plan del <a href="2026-08-02_plan_reconciliacion_reclamos.html">02/08</a></p>
+  <p class="eyebrow"><span class="dot"></span>regla de diseño cerrada en consola — reemplaza el ruteo de herramientas del plan anterior</p>
+  <h1>Precursor + ledger: uno cuenta la historia, el otro hace el cambio</h1>
+  <p class="lede">
+    El plan del 02/08 mandaba casi todo a <code>registrar_ajuste</code> directo al ledger. El usuario
+    objetó: <b>«los ajustes directos al ledger pierden la historia; en precursores sobrevive»</b>. Tenía
+    razón, y hay una razón de código más dura de la que él mismo argumentó. Esta lámina cierra la regla:
+    <b>siempre se escriben los dos</b> — el precursor guarda el hecho, el ledger produce el efecto, y
+    <code>MES_ANO_APLICA</code> decide cuál de los dos actúa para que nunca se cuente dos veces.
+  </p>
+  <div class="meta-row">
+    <span>fecha: 2026-08-03</span>
+    <span>estado: regla aprobada en consola · sin ejecutar</span>
+    <span>alcance: los 27 predios parchados el 01/08 (el plan decía 25)</span>
+    <span>verificado leyendo seguimiento_repo.py · 5_cobranza/main.py · 2_planilla/main.py + datos reales</span>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="modulo-laminas">
+
+    <article class="lamina" style="border:1px solid var(--line);border-radius:8px;background:var(--paper-raised);padding:26px 22px 30px;margin-bottom:18px">
+
+      <div class="sub-h"><span class="qn">①</span> la regla, en una imagen</div>
+      <div class="ascii">SIEMPRE LOS DOS — no es "precursor O ledger"
+
+   ┌────────────────────────────┐        ┌────────────────────────────┐
+   │ PRECURSOR  shared/*.xlsx   │        │ LEDGER  seguimiento_pueblo │
+   │                            │        │                            │
+   │ guarda LA FORMA del hecho: │        │ es lo ÚNICO que 2_planilla │
+   │ monto · fecha · canal ·    │        │ lee para facturar          │
+   │ MES_ANO_ORIGEN · MOTIVO    │        │ (get_saldos_bulk, en vivo) │
+   │                            │        │                            │
+   │ lo lee el backfill del     │        │ append-only, pero NO guarda │
+   │ libro_mayor mañana         │        │ el motivo (ver ②)          │
+   └────────────┬───────────────┘        └──────────────┬─────────────┘
+                │                                       │
+                └───────────── AUDIT_REF ───────────────┘
+                   "ajustes_cargo|2026-08|J-1-MULTA"
+
+   el precursor NO REEMPLAZA al evento del ledger — lo EXPLICA</div>
+
+      <div class="keypoint"><b>Por qué hace falta el puente:</b> <code>registrar_ajuste</code> te
+        <b>exige</b> un <code>motivo</code> (<code>seguimiento_repo.py:261</code> tira
+        <code>ValueError</code> si está vacío) pero <b>nunca lo persiste</b> — la línea 282 no se lo pasa
+        a <code>_append_evento</code> y no existe columna <code>MOTIVO</code> en <code>_COLS</code>
+        (líneas 62-75). Sobrevive el cuánto y el quién; el porqué se tira. El <code>AUDIT_REF</code>
+        apuntando al precursor es lo que compensa eso <b>sin tocar código</b>.</div>
+
+      <div class="keypoint"><b>Bonus de idempotencia:</b>
+        <code>_ya_registrado(source, audit_ref, mz, lt, concepto)</code> usa esa misma llave. Si el
+        <code>AUDIT_REF</code> sigue la convención del precursor, el día que se codifique el sembrador
+        (espejo de <code>_sembrar_cargos_genesis_tardia_en_pueblo</code>,
+        <code>5_cobranza/main.py:2248</code>) va a <b>saltear por idempotencia</b> en vez de duplicar.</div>
+
+      <div class="sub-h"><span class="qn">②</span> por qué un precursor NO corrige el ledger por sí solo</div>
+      <p>Ésta fue la pregunta que trabó la discusión: <i>«si el precursor corre antes de 5_cobranza,
+        ¿por qué no llega al ledger?»</i>. El orden es correcto — el problema es <b>qué lado de la
+        balanza toca</b>.</p>
+      <div class="ascii">   LO QUE DEBE                           LO QUE PAGÓ
+   u["multa"]                            pagos yape/efectivo del ciclo
+        │                                        │
+        │  ◀── acá pega el overlay               │
+        │      (5_cobranza:832-833, en RAM)      │
+        └────────────────┬───────────────────────┘
+                         ▼
+                _descomponer_saldo(r)
+                         │
+          pagado = comps[idx] − sin_cubrir[idx]      :2286
+                         │
+                         ▼
+              ¿pagado ˃ 0 ?
+                 │        │
+                sí        no
+                 │        │
+                 ▼        ▼
+        registrar_pago()   el ledger NO SE ENTERA DE NADA</div>
+
+      <div class="ascii">ESCENARIO A — J-1, exonerar MULTA 20, no paga nada este ciclo
+
+     sin overlay                    con ajustes_cargo
+     u[multa]        = 20           u[multa]        = 0
+     plata           =  0           plata           = 0
+     comps           = 20           comps           = 0
+     sin_cubrir      = 20           sin_cubrir      = 0
+     pagado = 20−20  =  0           pagado = 0−0    = 0
+     ───────────────────            ───────────────────
+     evento: NINGUNO                evento: NINGUNO
+     ledger MULTA: 20               ledger MULTA: 20
+                   ▲                              ▲
+                   └──────── IDÉNTICO ────────────┘
+
+  ⇒ para una EXONERACIÓN (no hay plata) el overlay produce CERO efecto
+  ⇒ y el mes que viene 2_planilla lee el ledger → MULTA=20 vuelve
+
+
+ESCENARIO B — lo mismo, pero paga 20   ← la intuición del usuario
+
+     sin overlay                    con ajustes_cargo
+     los 20 cubren MULTA            MULTA no existe para la cascada
+     pagado[MULTA] = 20             pagado[MULTA] = 0
+          │                         los 20 bajan a ACUERDOS/CONVENIO
+          ▼                              │
+     registrar_pago(MULTA,20)            ▼
+     ledger MULTA → 0                registrar_pago(ACUERDOS, 20)
+                                     ledger MULTA sigue en 20</div>
+
+      <div class="invariant"><code>registrar_ajuste</code> → escribe el saldo del concepto
+        <span class="hi">DIRECTO</span>.<br>
+        Un precursor de cascada → cambia el <span class="hi">REPARTO</span> de la plata; el ledger solo
+        se mueve si <b>había plata que repartir</b>. Por eso «el concepto que queríamos arreglar queda
+        mal pagado» — palabras del usuario, y es exactamente el mecanismo.</div>
+
+      <div class="sub-h"><span class="qn">③</span> el riesgo de escribir los dos sin cuidado</div>
+      <div class="ascii">ajustes_cargo    MULTA −20   MES_ANO_APLICA = 2026-08
+registrar_ajuste MULTA −20   MES            = 2026-07
+                 │
+   agosto: 2_planilla lee el ledger  → MULTA = 0
+                 │
+   5_cobranza agosto: u[multa]=0, el overlay resta 20 OTRA VEZ
+                 │
+                 ▼
+           u[multa] = −20      ← el mismo saldo negativo que estamos matando</div>
+
+      <div class="sub-h"><span class="qn">④</span> el interruptor: <code>MES_ANO_APLICA</code> vacío</div>
+      <div class="ascii">5_cobranza/main.py:563  (y sus gemelos en cada loader de precursor)
+
+    if str(f.get("MES_ANO_APLICA", "")).strip() != mes_ano:
+        continue
+
+    ""  !=  "2026-08"   →   continue   →   NUNCA se aplica
+
+⇒ la fila EXISTE: guarda forma, monto, fecha, canal, motivo, REF
+⇒ la lee el backfill del libro_mayor
+⇒ pero no toca la cascada de ningún ciclo  ⇒  cero doble conteo</div>
+
+      <div class="keypoint"><b>Precedente propio, no invento:</b> en el caso R-7/M-7 de junio, cuando un
+        blanco se resolvió por reidentificación se <b>apagó</b> su fila en
+        <code>blancos_efectivo.xlsx</code> poniendo <code>MES_ANO_APLICA</code> vacío, justamente para no
+        duplicar el crédito. Acá se usa el mismo interruptor con otro propósito: dejar la fila como
+        <b>registro puro</b>.</div>
+
+      <div class="invariant">La regla completa:<br>
+        concepto de <span class="hi">PUEBLO</span> (multa · acuerdos · convenio) →
+        precursor con <code>MES_ANO_APLICA</code> <b>VACÍO</b> (solo historia) + el
+        <b>ledger</b> hace el efecto.<br>
+        concepto de <span class="hi">AGUA</span> (corte · mes_anterior · mantenimiento) →
+        precursor con <code>MES_ANO_APLICA</code> <b>lleno</b> (historia <b>y</b> efecto), porque para
+        esos conceptos <b>no existe ledger</b> — <code>seguimiento_repo._validar_concepto</code> los
+        rechaza con <code>ValueError</code>.</div>
+
+      <div class="sub-h"><span class="qn">⑤</span> los 27 del 01/08, ruteados por hecho real</div>
+      <p>El plan del 02/08 hablaba de 25 y el xlsx tiene 26 fotos. La verdad sale del diff
+        <code>DATA_boletas_pre_correccion_20260801.xlsx</code> ⟷ <code>DATA_boletas.xlsx</code>:
+        <b>27 predios con monto cambiado</b> + 2 borrados (B-29, C-45, otro evento) + 12 fotos que
+        quedaron en «VERIFICAR, no cambiar aún».</p>
+      <div class="ascii">GRUPO                      PREDIOS   PRECURSOR (historia)        EFECTO      ¿CAJA?
+──────────────────────────────────────────────────────────────────────────────────
+bug de signo                  12     correccion_bug_saldo ✗NUEVO   ledger        no
+  A-8 B-5×2 C-1×2 C-7 E-12 I-11 I-16×2 J-3 K-17 K-2 P-12 H-16
+  NO es un reclamo: pago fantasma 06/07 + reversión con signo invertido 31/07
+
+exoneración de la directiva    3     ajustes_cargo                 ledger        no
+  J-1 (multa 20 + acuerdos 75) · O-2 (multa 30)                    ↑ pueblo
+  V-14 (corte 40)                    ajustes_cargo            el precursor       no
+                                                              ↑ agua, no hay ledger
+
+ya pagó · CON monto            2     abonos_rezagados              ledger      ★ SÍ
+  K-9 S/100 efvo local · T-14 S/75 efvo
+
+ya pagó · SIN monto            6     declaracion_secretaria ✗NUEVO ledger      no*
+  K-8 30 · F-10 50 · F-1 20 · F-7 25 · D-6 50 · B-8 (5 + 75)
+  * respaldo = pool de EXCESO no reclamado (ver LEER_ANTES), no un comprobante
+
+reasignación entre conceptos   2     reasignaciones_aplicacion     ledger        no
+  G-4 (multa 25 → convenio) · G-14 (multa 25 → convenio + S/50 efvo)
+
+cargo nuevo                    2     genesis_tardia                ledger        no
+  E-14B acuerdos +75 · M-12 convenio +80 (mantenimiento 83→3)
+
+fuera del ledger de pueblo     1     ajustes_cargo            el precursor       no
+  B-8 MES_ANTERIOR 46→0</div>
+
+      <div class="keypoint"><b>Los dos archivos nuevos salen de la regla propia del proyecto</b>
+        (<i>un precursor por cada forma de corrección, no por mecanismo</i>):
+        <code>correccion_bug_saldo.xlsx</code> cuenta «el sistema fabricó un pago que no existió» — no es
+        <code>ajustes_cargo</code> (ahí el cargo nació <b>mal</b>; acá nació <b>bien</b>) ni
+        <code>genesis_tardia</code> (ahí el cargo llegó <b>tarde</b>; acá siempre estuvo).
+        <code>declaracion_secretaria.xlsx</code> cuenta «declarado pagado, sin monto ni fecha ni canal» —
+        no es <code>abonos_rezagados</code>, que significa «plata real que la caja recién ve» y exige
+        justamente esos tres datos.</div>
+
+      <div class="sub-h"><span class="qn">⑥</span> por qué esto salva el reporte de plata</div>
+      <div class="ascii">                   ¿HUBO MOVIMIENTO DE CAJA?
+                            │
+         ┌──────────────────┴──────────────────┐
+        NO                                     SÍ
+         │                                      │
+  la deuda se mueve                   ¿de qué ciclo es la plata?
+  sin plata                                     │
+         │                          ┌───────────┴───────────┐
+  ✗ NO entra al                ciclo actual            ciclo viejo
+    reporte de caja                 │                       │
+                              ya está en             abonos_rezagados
+                              pagos_efectivo/        MES_ANO_ORIGEN=viejo
+                              yape · nada que hacer         │
+                                                     ✔ entra al reporte como
+                                                       "reconocido de ejercicio
+                                                        anterior"</div>
+      <div class="keypoint">Con esta clasificación la respuesta a <i>«¿cuánta plata entró?»</i> deja de
+        ser una suma discutible y pasa a ser: <b>entró X este ciclo</b> (congelado en
+        <code>7_cierre/archivo/{mes}/</code>) <b>+ Y reconocido de ciclos viejos</b> (detalle predio por
+        predio) <b>+ Z de movimiento de deuda que NO es plata</b>. Sin esto, los tres se mezclan y el
+        número no se puede defender.</div>
+
+      <div class="sub-h"><span class="qn">⑦</span> qué corrige del plan del 02/08</div>
+      <div class="before-after">
+        <div class="card hueco-card">
+          <span class="tag hueco">plan 02/08 — lo que cambia</span>
+          <p><b>BLOQUE 5 no era un bloque de reclamos.</b> Lo trataba como «restaurar 14 pagos
+            fantasma» a mano. Es un <b>bug de código vivo</b>: <code>5_cobranza:2320</code> emite el
+            ajuste de reversión con signo invertido porque la columna <code>AJUSTE</code> carga dos
+            convenciones opuestas — <code>ajuste_reconciliado</code> la lee como <i>crédito</i> (:2313) y
+            <code>_registrar</code> la aplica como <i>deuda</i> (<code>seguimiento_repo:280</code>).
+            Parchar los 14 a mano deja el bug armado para el próximo <code>--force</code>.
+            <b>13 saldos negativos vivos hoy.</b></p>
+          <p style="margin-top:10px"><b>«Ya pagó» iba todo junto.</b> Los 6 sin monto declarado y los 2
+            con monto iban al mismo <code>registrar_ajuste</code> ⇒ imposible distinguir «se condonó» de
+            «pagó y no lo anotamos» a la hora de reportar caja.</p>
+        </div>
+        <div class="card resuelto-card">
+          <span class="tag resuelto">lo que se mantiene del plan</span>
+          <p>El plan tenía razón en que <b>el precursor solo no alcanza</b> para MULTA/ACUERDOS/CONVENIO
+            («ese overlay corrige la cascada del ciclo, NO el saldo del ledger»). Verificado: ② de esta
+            lámina es la demostración mecánica de esa misma afirmación.</p>
+          <p style="margin-top:10px">Se mantienen igual: <code>ajustes_cargo</code> para V-14 (corte) y
+            B-8 (mes_anterior) · <code>abonos_rezagados</code> para K-9 y T-14 si se confirma que el
+            efectivo entró a la caja · el camino <b>A</b> (no re-correr julio) · re-correr
+            <code>2_planilla</code> es obligatorio en cualquier caso.</p>
+        </div>
+      </div>
+
+      <div class="sub-h"><span class="qn">⑧</span> decisiones abiertas — bloquean la ejecución</div>
+      <div class="three">
+        <div class="box brass">
+          <span class="box-title">① los 6 «ya pagó» sin monto</span>
+          <span class="box-sub">K-8 · F-10 · F-1 · F-7 · D-6 · B-8. ¿<code>abonos_rezagados</code>
+            inventando un monto igual a la deuda cancelada — y metiendo plata falsa en el reporte de
+            caja — o el precursor de declaración, que no toca caja y queda enganchable el día que
+            aparezca el EXCESO que la respalda? <b>Recomendación: el de declaración.</b></span>
+        </div>
+        <div class="box brass">
+          <span class="box-title">② K-9 y T-14</span>
+          <span class="box-sub">¿los S/100 y S/75 en efectivo entraron a la caja de la JASS o se
+            quedaron con quien cobró? Solo si entraron van a <code>abonos_rezagados</code> y afectan el
+            cuadre de 5b. Además quedan S/25 de exceso en cada uno, sin resolver.</span>
+        </div>
+        <div class="box brass">
+          <span class="box-title">③ E-14B</span>
+          <span class="box-sub">La directiva pidió cargar acuerdos=75 el 01/08; el 30/07 se había
+            resuelto que ya pagó ese concepto. Ya se cobró sobre el 75 impreso. Asentar lo cobrado y
+            dejar la pregunta abierta en <code>notas_2026-07.xlsx</code>, o revertir. No asumir.</span>
+        </div>
+      </div>
+
+      <div class="sub-h"><span class="qn">⑨</span> orden de ejecución</div>
+      <div class="ascii">PASO 0  ✔ HECHO 03/08 — congelar julio en git
+        commit d58ece3 · 7_cierre/archivo/2026-07/ (13 archivos) + estado_ciclo.json
+        7_cierre YA cosechaba, pero dejaba el `git add` como paso manual
+             │
+             ▼
+PASO 1  decidir ① ② ③ de arriba                          ← BLOQUEA todo lo demás
+             │
+             ▼
+PASO 2  crear los 2 precursores nuevos (schema + cabecera)
+        correccion_bug_saldo.xlsx · declaracion_secretaria.xlsx
+             │
+             ▼
+PASO 3  llenar los 6 precursores — 27 predios
+        pueblo → MES_ANO_APLICA VACÍO · agua → MES_ANO_APLICA=2026-08
+             │
+             ▼
+PASO 4  eventos apareados en seguimiento_pueblo
+        source = nombre del precursor (NO "manual")
+        audit_ref = "precursor|periodo|MZ-LT-CONCEPTO"
+             │
+             ▼
+PASO 5  2_planilla → planilla_2026-08 en LAS DOS copias
+        (2_planilla/outputs/ y shared/planilla_mes/)
+             │
+             ▼
+PASO 6  validar: planilla_2026-08.TOTAL ⟷ DATA_boletas_IMPRESO.TOTAL
+        los 27 corregidos coinciden sin parche · los ~530 restantes no se mueven</div>
+
+      <div class="keypoint"><b>Deuda que esta lámina NO resuelve, y hay que agendar:</b>
+        (a) el <b>bug de signo</b> de <code>5_cobranza:2320</code> — decidir qué convención gana, porque
+        <code>ajuste_reconciliado</code> depende de la actual para ser idempotente (Fase 1, no es un flip
+        de una línea); (b) el <b>sembrador</b> de <code>abonos_rezagados</code> hacia el ledger, espejo de
+        <code>:2248</code>; (c) que <code>estado = CERRADO</code> sea un <b>candado</b> y no una etiqueta
+        — hoy nadie lo consulta para negarse a escribir; (d) que <code>7_cierre</code> coseche también
+        <code>pagos_efectivo.xlsx</code>, <code>pagos_yape_pagaste.xlsx</code> (los egresos) y
+        <code>resumen_recaudacion.xlsx</code>.</div>
+
+    </article>
+
+  </div>
+
+  <footer class="closing">
+    lámina congelada el 2026-08-03 · resuelve el ruteo de herramientas del plan del 02/08<br>
+    se marca EJECUTADO cuando el PASO 6 dé limpio — no se borra, queda como registro de la decisión
+  </footer>
+</main>
+
+</body>
+</html>

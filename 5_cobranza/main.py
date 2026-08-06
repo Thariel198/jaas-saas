@@ -146,11 +146,25 @@ REASIGNACIONES_APLICACION_PATH = SHARED_DIR / "reasignaciones_aplicacion.xlsx"
 # Gate del arrastre_consolidado: solo se emite tras el sello de 5b_validacion.
 ESTADO_CICLO_PATH = SHARED_DIR / "reporte_acumulado_procesado" / "estado_ciclo.json"
 
-YAPE_FILE         = "pagos_yape_tepago.xlsx"
-EFEC_FILE         = "pagos_efectivo.xlsx"
-YAPE_DEV_FILE     = "pagos_yape_devolucion.xlsx"
-YAPE_RETORNO_FILE = "pagos_yape_retorno.xlsx"
-EFEC_DEV_FILE     = "pagos_efectivo_devolucion.xlsx"
+# Los outputs de 4_pagos llevan el ciclo en el nombre desde 2026-08
+# (pagos_yape_tepago_2026-08.xlsx). El nombre viejo sin periodo se acepta SOLO
+# para los ciclos anteriores a esa frontera (ciclo.acepta_legacy): para el ciclo
+# en curso, si 4_pagos todavía no generó su archivo, esto tiene que fallar —
+# aceptar el pelado sería volver a leer los pagos del mes pasado, que es lo que
+# sembró 15 pagos fantasma el 06/07/2026.
+_YAPE_BASE         = "pagos_yape_tepago"
+_EFEC_BASE         = "pagos_efectivo"
+_YAPE_DEV_BASE     = "pagos_yape_devolucion"
+_YAPE_RETORNO_BASE = "pagos_yape_retorno"
+_EFEC_DEV_BASE     = "pagos_efectivo_devolucion"
+
+
+def _pago_path(carpeta: Path, base: str, mes_ano: str | None = None) -> Path:
+    mes = mes_ano or ciclo_activo.activo(default=None, path=SHARED_DIR / "ciclo_activo.json")
+    if mes is None:
+        return carpeta / f"{base}.xlsx"
+    return ciclo_activo.resolver(carpeta, base, mes,
+                                 legacy_sin_periodo=ciclo_activo.acepta_legacy(mes))
 
 CORR_LOTE_PATH = INPUTS_DIR / "correcciones_lote.xlsx"
 
@@ -486,8 +500,8 @@ def _localizar_planilla() -> Path:
 def _validar_inputs() -> Path:
     plan = _localizar_planilla()
     requeridos = [
-        (YAPE_DIR / YAPE_FILE, "Copiar desde 4_pagos/yape/motor_matching/outputs/"),
-        (EFEC_DIR / EFEC_FILE, "Copiar desde 4_pagos/efectivo/outputs/"),
+        (_pago_path(YAPE_DIR, _YAPE_BASE), "Correr 4_pagos/yape/motor_matching para este ciclo"),
+        (_pago_path(EFEC_DIR, _EFEC_BASE), "Correr 4_pagos/efectivo para este ciclo"),
     ]
     errores = []
     for ruta, sug in requeridos:
@@ -931,7 +945,7 @@ def _cargar_planilla(plan_path: Path) -> tuple[list[dict], str]:
 
 # ── CARGA: PAGOS YAPE ────────────────────────────────────────────────────────
 def _cargar_pagos_yape() -> list[dict]:
-    df = pd.read_excel(YAPE_DIR / YAPE_FILE, header=1)
+    df = pd.read_excel(_pago_path(YAPE_DIR, _YAPE_BASE), header=1)
     df.columns = _norm_cols(df)
     ciclo_col = "CICLO_CORRECCION" if "CICLO_CORRECCION" in df.columns else "CICLO"
 
@@ -982,7 +996,7 @@ def _cargar_pagos_yape() -> list[dict]:
 
 # ── CARGA: PAGOS EFECTIVO ────────────────────────────────────────────────────
 def _cargar_pagos_efectivo() -> list[dict]:
-    df = pd.read_excel(EFEC_DIR / EFEC_FILE, header=1)
+    df = pd.read_excel(_pago_path(EFEC_DIR, _EFEC_BASE), header=1)
     df.columns = _norm_cols(df)
     ciclo_col = "CICLO_CORRECCION" if "CICLO_CORRECCION" in df.columns else "CICLO"
 
@@ -1064,9 +1078,9 @@ def _cargar_blancos(mes_ano: str) -> dict:
 
 def _cargar_retornos_yape() -> dict:
     """Retorna {key MZ-LT: monto_total}. Lee pagos_yape_retorno.xlsx. Archivo opcional."""
-    path = YAPE_DIR / YAPE_RETORNO_FILE
+    path = _pago_path(YAPE_DIR, _YAPE_RETORNO_BASE)
     if not path.exists():
-        log.info(f"{YAPE_RETORNO_FILE} no encontrado → sin retornos Yape")
+        log.info(f"{path.name} no encontrado → sin retornos Yape")
         return {}
     df = pd.read_excel(path, header=1)
     df.columns = _norm_cols(df)
@@ -1088,9 +1102,9 @@ def _cargar_retornos_yape() -> dict:
 
 def _cargar_devueltos_yape() -> dict:
     """Retorna {key MZ-LT: monto_total}. Lee pagos_yape_devolucion.xlsx. Archivo opcional."""
-    path = YAPE_DIR / YAPE_DEV_FILE
+    path = _pago_path(YAPE_DIR, _YAPE_DEV_BASE)
     if not path.exists():
-        log.info(f"{YAPE_DEV_FILE} no encontrado → sin devoluciones Yape")
+        log.info(f"{path.name} no encontrado → sin devoluciones Yape")
         return {}
     df = pd.read_excel(path, header=1)
     df.columns = _norm_cols(df)
@@ -1112,9 +1126,9 @@ def _cargar_devueltos_yape() -> dict:
 
 def _cargar_retornos_efectivo() -> dict:
     """Retorna {key MZ-LT: monto_total}. Archivo opcional."""
-    path = EFEC_DIR / EFEC_DEV_FILE
+    path = _pago_path(EFEC_DIR, _EFEC_DEV_BASE)
     if not path.exists():
-        log.info(f"{EFEC_DEV_FILE} no encontrado → sin retornos Efectivo")
+        log.info(f"{path.name} no encontrado → sin retornos Efectivo")
         return {}
     df = pd.read_excel(path, header=1)
     df.columns = _norm_cols(df)
@@ -2327,10 +2341,30 @@ def _reconciliar_pagos_pueblo(resultado: list[dict], mes_ano: str) -> None:
             # pago_registrado cuenta solo PAGO; sin sumar los AJUSTE ya emitidos, el
             # branch delta<0 no es idempotente y re-emite el mismo ajuste en cada
             # corrida (ver docs/aprendizaje contador tuerto).
-            ya = (repo.pago_registrado(r["mz"], r["lt"], concepto, mes_ano)
+            # source="5_cobranza" en las DOS mitades: el SET_TIENE es lo que ESTA
+            # reconciliación dejó, no todo lo que haya en el mes. Sin el filtro en
+            # pago_registrado, un PAGO escrito a mano (declaración de la secretaria)
+            # se contaba como propio → delta negativo → AJUSTE a ciegas → alguien
+            # tenía que estabilizarlo (44 filas de ruido en julio 2026, LEER_ANTES.md).
+            ya = (repo.pago_registrado(r["mz"], r["lt"], concepto, mes_ano, source="5_cobranza")
                   + repo.ajuste_reconciliado(r["mz"], r["lt"], concepto, mes_ano, "5_cobranza"))
             delta = round(pagado_fresco - ya, 2)
             if delta > TOL:
+                # Se acredita SIEMPRE lo que la cascada calculó, aunque deje el
+                # saldo negativo: ese negativo es la única señal visible de que el
+                # predio pagó de más, y taparlo con un tope silencioso borraría un
+                # exceso que quizá corresponde devolver o dejar a favor. Solo se
+                # avisa. PENDIENTE: cruzar estos avisos contra planilla_cobrado
+                # para separar el exceso real del negativo por defecto del sistema
+                # (el que venimos limpiando) — ver LEER_ANTES.md.
+                saldo_actual = repo.get_saldo(r["mz"], r["lt"], concepto, mes_ano)
+                if delta > saldo_actual + TOL:
+                    log.warning(
+                        f"{r['mz']}-{r['lt']} {concepto}: se acreditan {delta:.2f} sobre un saldo "
+                        f"de {saldo_actual:.2f} → el saldo queda en {saldo_actual - delta:.2f}, "
+                        f"o sea pagado de más. Revisar contra planilla_cobrado: puede ser exceso "
+                        f"real del vecino (devolución o saldo a favor), o que un pago declarado a "
+                        f"mano ya hubiera cubierto esta deuda y se esté acreditando dos veces.")
                 ref = f"recon_{mes_ano}_{concepto}_{r['mz']}_{r['lt']}_{datetime.now().timestamp()}"
                 repo.registrar_pago(r["mz"], r["lt"], concepto, mes_ano, delta,
                                      source="5_cobranza", audit_ref=ref)
@@ -2785,10 +2819,10 @@ def main():
     filas_efec_nuevas = [p["row"] for p in pagos_efectivo
                          if _identidad_pago(p) in pagos_nuevos]
     if filas_yape_nuevas:
-        _retroescribir_ciclo(YAPE_DIR / YAPE_FILE, "CICLO",
+        _retroescribir_ciclo(_pago_path(YAPE_DIR, _YAPE_BASE), "CICLO",
                              filas_yape_nuevas, ciclo_nuevo)
     if filas_efec_nuevas:
-        _retroescribir_ciclo(EFEC_DIR / EFEC_FILE, "CICLO_CORRECCION",
+        _retroescribir_ciclo(_pago_path(EFEC_DIR, _EFEC_BASE), "CICLO_CORRECCION",
                              filas_efec_nuevas, ciclo_nuevo)
     _actualizar_blancos(blancos_usados, mes_ano)
 

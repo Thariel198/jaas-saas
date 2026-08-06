@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Situación actual de nuestro sistema</title>
+<link rel="stylesheet" href="../cuaderno/estilo.css">
+</head>
+<body>
+
+<header class="hero">
+  <p class="crumbs"><a href="index.html">← Diario</a> · snapshot de arquitectura</p>
+  <p class="eyebrow"><span class="dot"></span>foto fija, no bitácora — se actualiza cuando el sistema cambia, no cronológico</p>
+  <h1>Situación actual de nuestro sistema</h1>
+  <p class="lede">
+    Mapa de cómo <code>5_cobranza</code> calcula la deuda hoy (pre-ledger), quién escribe qué, y
+    por qué existen <strong>dos fuentes de verdad</strong> para el mismo dato (MULTA/ACUERDOS/CONVENIO).
+    Nace de la sesión donde intentamos reasignar el pago de julio de A-6 y encontramos que el arreglo
+    obvio no llegaba a la boleta.
+  </p>
+  <div class="meta-row">
+    <span>última actualización: 2026-07-31</span>
+    <span>verificado leyendo 5_cobranza/main.py + datos reales de julio</span>
+    <span>reemplaza esta página cuando cambie el código, no la acumules</span>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="modulo-laminas">
+
+    <article class="lamina" style="border:1px solid var(--line);border-radius:8px;background:var(--paper-raised);padding:26px 22px 30px;margin-bottom:18px">
+
+      <div class="sub-h"><span class="qn">◆</span> el sistema completo, de un vistazo</div>
+      <p>Mapa corregido el 31/07 — la versión anterior de este diagrama decía que había "dos fuentes
+        de verdad" para MULTA/ACUERDOS/CONVENIO. Se verificó en código que eso era incorrecto: hay
+        UNA sola fuente real para esos 3 conceptos (<code>seguimiento_pueblo.xlsx</code>), y todos los
+        que imprimen o reportan al socio leen de ahí, directo.</p>
+      <div class="keypoint"><b>Verificado en código (31/07):</b> <code>2_planilla</code>,
+        <code>boletas_sin_servicio.py</code> y <code>4b_reclamos</code> llaman los tres
+        <code>repo.get_saldos_bulk(concepto, mes)</code> sobre <code>seguimiento_pueblo.xlsx</code> —
+        ninguno lee las columnas MULTA/ACUERDOS/CONVENIO de <code>arrastre_consolidado</code>. La
+        boleta y el reporte de historial cuentan la misma historia siempre que ambos se regeneren
+        desde el mismo <code>seguimiento_pueblo.xlsx</code>.</div>
+      <div class="ascii">════════════════════════════════════════════════════════════════════════════
+ ESTADO ACTUAL DEL SISTEMA (pre-ledger) — jass_system, ciclo mensual
+ (mapa corregido 31/07 — ver [[keypoint]] de más abajo por qué cambió)
+════════════════════════════════════════════════════════════════════════════
+
+  shared/planilla_mes/ (planilla del mes, publicada por 2_planilla)
+  4_pagos (yape + efectivo, ya conciliados)
+              │
+              ▼
+  5_cobranza · main.py · arma "usuarios" (1 dict por predio)
+              │
+              ▼
+  ┌─────────────────────────────────────────────────────────────────┐
+  │ PRECURSORES / OVERLAYS — corren ANTES de la cascada, tocan       │
+  │ "usuarios" directo. Escritura MANUAL, lectura automática.        │
+  │  ajustes_cargo · correcciones_deuda · genesis_tardia ·           │
+  │  devoluciones_aplicadas · reidentificaciones · abonos_rezagados ·│
+  │  blancos_efectivo · aportes_tanque_manuales                     │
+  └─────────────────────────────────────────────────────────────────┘
+              │
+              ▼
+  _descomponer_saldo(r)  ← cascada P1→P5 (DEUDA_AGUA·CORTE·MULTA·
+                             ACUERDOS·CONVENIO), función PURA
+              │
+     ┌────────┴─────────────────────────┐
+     ▼                                   ▼
+_exportar_arrastre_consolidado()   _reconciliar_pagos_pueblo()
+     │                                   │
+     │                                   ├─ reasignaciones_aplicacion.xlsx
+     │                                   │  (overlay manual — solo mueve
+     │                                   │   MULTA/ACUERDOS/CONVENIO entre sí)
+     │                                   │
+     │                                   ├─ compara "pagado_fresco" vs "ya
+     │                                   │  registrado" → si no cuadra,
+     │                                   │  auto-corrige con un AJUSTE
+     │                                   ▼
+     ▼                          seguimiento_pueblo.xlsx (Eventos)
+arrastre_consolidado_YYYY-MM.xlsx  ★ ÚNICA fuente real de MULTA/
+  DEUDA_AGUA · CORTE ★ únicos      ACUERDOS/CONVENIO — TODOS los
+  reales acá                      que imprimen/reportan leen de ACÁ
+  MULTA·ACUERDOS·CONVENIO               │
+  también se calculan acá,        ┌─────┼──────────┬───────────┐
+  pero NADIE los lee — código     ▼     ▼          ▼           ▼
+  muerto, no genera desync   2_planilla boletas_  4b_reclamos 6_corte
+     │                       (boleta    sin_       (reportes,  · vista
+     │                        normal)   servicio.py este PDF)
+     ▼                            │        │           │
+  2_planilla (mes siguiente,      └────┬───┘           │
+  solo usa DEUDA_AGUA/CORTE            ▼                │
+  de acá)                        3_boletas → BOLETA IMPRESA
+                                  (lee de 2_planilla, que ya trae
+                                   MULTA/ACUERDOS/CONVENIO correctos
+                                   desde seguimiento_pueblo)
+
+════════════════════════════════════════════════════════════════════════════
+ EL PROBLEMA DE FONDO (corregido) — no es "dos fuentes", es "cálculo
+ muerto que confunde" + "riesgo de auto-revert dentro de UN archivo"
+════════════════════════════════════════════════════════════════════════════
+
+  ① arrastre_consolidado calcula su propia copia de MULTA/ACUERDOS/
+     CONVENIO — nadie la consume. Es ruido/trabajo desperdiciado,
+     no una segunda fuente que compita con la boleta.
+
+  ② El riesgo real vive ADENTRO de seguimiento_pueblo.xlsx: un PAGO
+     escrito a mano ahí puede ser revertido solo por la próxima
+     corrida de 5_cobranza (el motor no distingue su propio trabajo
+     del de un humano si se usa TIPO_EVENTO=PAGO). Un AJUSTE con
+     source distinto de "5_cobranza" sí sobrevive — ver el hallazgo
+     del "contador tuerto" documentado en la sesión del 31/07.
+
+════════════════════════════════════════════════════════════════════════════
+ HACIA DÓNDE VA (ya diseñado, "Fase 1 cerrada", sin implementar)
+════════════════════════════════════════════════════════════════════════════
+
+  libro_mayor/estado_cuenta  ← UN SOLO ledger + motor de aplicación
+       (usa dominio/ · cascada P1-P6 pura, ya escrita, cero I/O)
+                │
+                └──► boleta · reclamos · corte · vista — TODOS leen de
+                     acá. Reemplaza arrastre_consolidado Y
+                     seguimiento_pueblo por un único agregado — hoy ya
+                     casi se comportan así para MULTA/ACUERDOS/CONVENIO,
+                     falta unificar DEUDA_AGUA/CORTE al mismo lugar.</div>
+
+      <div class="sub-h"><span class="qn">①</span> el cálculo base — un motor puro, llamado dos veces</div>
+      <p>Todo nace de una sola función, <code>_descomponer_saldo(r)</code>: aplica el pago total del
+        predio en cascada por prioridad, P1 primero hasta P5 último. Es correcta y pura — el problema
+        no está acá.</p>
+      <div class="ascii">shared/planilla_mes/ (planilla del mes) + 4_pagos (yape/efectivo)
+        │
+        ▼
+5_cobranza · main.py · arma "usuarios" (1 dict por predio)
+        │
+        ▼
+_descomponer_saldo(r)  ← cascada P1→P5
+  P1 DEUDA_AGUA  (mes_actual + mantenimiento + mes_anterior + blanco + devolución)
+  P2 CORTE_RECONEXION
+  P3 MULTA
+  P4 ACUERDOS_ASAMBLEA
+  P5 CONVENIO</div>
+
+      <div class="sub-h"><span class="qn">②</span> precursores — SÍ llegan a los dos lados</div>
+      <p>Antes de la cascada, varios archivos de corrección manual (escritura humana, lectura
+        automática cada corrida) tocan <code>usuarios[i][campo]</code> directo. Como modifican el
+        mismo <code>r</code> que después alimenta <em>ambos</em> escritores, estos SÍ quedan
+        sincronizados entre boleta y ledger de reclamos:</p>
+      <div class="ascii">ajustes_cargo.xlsx           → resta cargo (el cargo no correspondía)
+correcciones_deuda.xlsx      → suma cargo
+genesis_tardia.xlsx          → suma cargo (nace tarde)
+devoluciones_aplicadas.xlsx  → resta (crédito, cruza ciclos)
+reidentificaciones.xlsx      → resta/redistribuye (cambia el DUEÑO del abono)
+abonos_rezagados.xlsx        → resta/redistribuye
+blancos_efectivo.xlsx        → resta/redistribuye
+aportes_tanque_manuales.xlsx → resta de total_pagado ANTES de la cascada</div>
+      <div class="keypoint">Estos precursores no son el problema — tocan <code>r</code> antes de la
+        bifurcación, así que lo que corrigen llega igual a la boleta y al ledger de reclamos.</div>
+
+      <div class="sub-h"><span class="qn">③</span> la bifurcación — dos escritores, mismo cálculo, uno de los dos es código muerto (para MULTA/ACUERDOS/CONVENIO)</div>
+      <p><code>_descomponer_saldo(r)</code> se <strong>llama por separado, dos veces</strong>. Para
+        DEUDA_AGUA/CORTE eso importa (arrastre_consolidado es su única fuente). Para MULTA/ACUERDOS/
+        CONVENIO, la copia que calcula <code>_exportar_arrastre_consolidado</code> nunca se lee —
+        solo la que termina en <code>seguimiento_pueblo.xlsx</code> vía <code>_reconciliar_pagos_pueblo</code>
+        importa de verdad:</p>
+      <div class="ascii">                    _descomponer_saldo(r)
+                            │
+              ┌─────────────┴─────────────┐
+              ▼                           ▼
+   _exportar_arrastre_consolidado    _reconciliar_pagos_pueblo
+              │                           │
+              │                           ├─ overlay: reasignaciones_aplicacion.xlsx
+              │                           │    (ver sección ⑤ — alcance limitado)
+              │                           │
+              │                           ├─ compara "recién calculado" vs "lo que YA
+              │                           │  hay escrito" en seguimiento_pueblo →
+              │                           │  si no cuadra, AUTO-CORRIGE con un AJUSTE
+              │                           ▼
+              ▼                    seguimiento_pueblo.xlsx (Eventos)
+   arrastre_consolidado_AAAA-MM.xlsx  ★ ÚNICA fuente real de MULTA/
+     DEUDA_AGUA · CORTE ★ reales       ACUERDOS/CONVENIO
+     MULTA·ACUERDOS·CONVENIO                 │
+     TAMBIÉN se calculan acá,         ┌──────┼───────────┬─────────┐
+     pero NADIE los lee — código      ▼      ▼           ▼         ▼
+     muerto, no genera desync     2_planilla boletas_  4b_reclamos 6_corte
+              │                  (boleta    sin_       (reportes,  · vista
+              │                   normal)   servicio.py este PDF)
+              ▼                       │        │            │
+   2_planilla (mes siguiente,         └────┬───┘            │
+   SOLO usa DEUDA_AGUA/CORTE               ▼                 │
+   de este archivo)                  3_boletas → BOLETA IMPRESA</div>
+
+      <div class="sub-h"><span class="qn">④</span> dónde vive cada concepto</div>
+      <div class="three">
+        <div class="box brass">
+          <span class="box-title">SOLO en arrastre_consolidado</span>
+          <span class="box-sub">nunca existen en seguimiento_pueblo</span>
+          <ul><li>DEUDA_AGUA (consumo + mantenimiento + mes anterior)</li>
+            <li>CORTE_RECONEXION</li></ul>
+        </div>
+        <div class="box accent">
+          <span class="box-title">SOLO en seguimiento_pueblo (fuente real)</span>
+          <span class="box-sub">arrastre_consolidado calcula su propia copia pero
+            NADIE la lee — código muerto, no causa desync hoy</span>
+          <ul><li>MULTA</li><li>ACUERDOS_ASAMBLEA / ACUERDOS</li><li>CONVENIO</li></ul>
+        </div>
+        <div class="box green">
+          <span class="box-title">consumidores reales (verificado en código)</span>
+          <span class="box-sub">los 3 leen seguimiento_pueblo directo</span>
+          <ul><li>2_planilla → 3_boletas (BOLETA normal)</li>
+            <li>boletas_sin_servicio.py (boleta sin lectura)</li>
+            <li>4b_reclamos → reportes de historial</li></ul>
+        </div>
+      </div>
+
+      <div class="sub-h"><span class="qn">⑤</span> reasignaciones_aplicacion.xlsx — qué hace y su límite real</div>
+      <p>Archivo de escritura manual (nadie lo escribe por script) que le dice al motor: "el pago que
+        la cascada aplicó de oficio a CONCEPTO_ORIGEN, cuéntalo hacia CONCEPTO_DESTINO en su lugar."</p>
+      <div class="ascii">1. pagado_por_concepto = {MULTA: x, ACUERDOS: y, CONVENIO: z}
+                          (calculado DESPUÉS de _descomponer_saldo)
+2. por cada fila de reasignaciones_aplicacion.xlsx (mismo predio, mismo MES_ANO):
+       pagado_por_concepto[ORIGEN]  -= MONTO
+       pagado_por_concepto[DESTINO] += MONTO
+3. con esos valores corregidos, escribe los eventos PAGO en seguimiento_pueblo.xlsx</div>
+      <div class="keypoint"><b>Límite verificado en código:</b> el motor exige que ORIGEN y DESTINO
+        sean llaves de <code>pagado_por_concepto</code> — que solo tiene MULTA/ACUERDOS/CONVENIO.
+        Un origen <code>DEUDA_AGUA</code> (mover plata desde consumo) se <b>ignora en silencio</b>,
+        sin error, sin log. Y aunque funcione, <b>nunca toca <code>arrastre_consolidado</code></b> —
+        por diseño, solo corrige el lado de <code>seguimiento_pueblo</code>.</div>
+
+      <div class="sub-h"><span class="qn">⑥</span> por qué un parche manual, en cualquiera de los dos archivos, es frágil</div>
+      <div class="ascii">PARCHE en arrastre_consolidado_AAAA-MM.xlsx (a mano)
+  → _exportar_arrastre_consolidado REGENERA el archivo entero en la
+    próxima corrida de 5_cobranza --force → el parche desaparece,
+    sin aviso.
+
+PARCHE en seguimiento_pueblo.xlsx (a mano, evento PAGO agregado)
+  → la próxima corrida de _reconciliar_pagos_pueblo recalcula
+    "pagado_fresco" desde CERO (no sabe nada del parche) y lo compara
+    contra "ya" (lo que ve escrito, que AHORA incluye tu parche)
+  → delta = pagado_fresco − ya  → sale NEGATIVO
+  → el motor registra un AJUSTE automático "corrección: pago
+    recalculado a la baja" que REVIERTE tu parche solo.</div>
+      <div class="keypoint">Ninguno de los dos archivos tiene un lugar seguro para una corrección
+        manual puntual — uno se regenera entero, el otro se auto-corrige activamente contra
+        cualquier dato que no cuadre con su propio recálculo.</div>
+
+      <div class="sub-h"><span class="qn">⑦</span> el problema de fondo (corregido 31/07)</div>
+      <p><b>NO son dos fuentes de verdad para lo que el socio ve</b> — para MULTA/ACUERDOS/CONVENIO
+        hay UNA sola: <code>seguimiento_pueblo.xlsx</code>. Verificado en código que los tres
+        consumidores reales (<code>2_planilla</code> → boleta normal, <code>boletas_sin_servicio.py</code>
+        → boleta de deuda sin lectura, <code>4b_reclamos</code> → reportes de historial) leen
+        <code>repo.get_saldos_bulk(concepto, mes)</code> directo de ahí, ninguno pasa por
+        <code>arrastre_consolidado</code> para estos 3 conceptos.</p>
+      <p>El problema real, más angosto de lo que se pensó: <code>_exportar_arrastre_consolidado</code>
+        SÍ calcula su propia copia de MULTA/ACUERDOS/CONVENIO (vía <code>_descomponer_saldo(r)</code>),
+        y esa copia queda escrita en <code>arrastre_consolidado_YYYY-MM.xlsx</code> — pero es
+        <b>código muerto para estos 3 conceptos, nadie la lee</b>. No causa que la boleta y el
+        reporte muestren números distintos hoy (ambos ya leen del mismo lado), pero es ruido/confusión
+        para quien lea ese archivo pensando que es la fuente real, y trabajo de cálculo desperdiciado.
+        DEUDA_AGUA y CORTE_RECONEXION SÍ dependen 100% de <code>arrastre_consolidado</code> — ahí no
+        hay problema, esos conceptos no viven en ningún otro lado.</p>
+      <p><b>Dónde sí puede haber desync real:</b> dentro de <code>seguimiento_pueblo.xlsx</code> mismo
+        — si alguien edita ese archivo a mano (un AJUSTE o PAGO manual) y luego <code>5_cobranza</code>
+        vuelve a correr, el motor de reconciliación puede no "ver" el cambio manual de la misma forma
+        (ver el hallazgo del "contador tuerto": un PAGO manual se puede revertir solo, un AJUSTE con
+        <code>source</code> distinto de <code>"5_cobranza"</code> no). Este es el riesgo real que hay
+        que vigilar, no una bifurcación entre dos archivos distintos.</p>
+
+      <div class="sub-h"><span class="qn">⑧</span> hacia dónde va — ya diseñado, no implementado</div>
+      <div class="ascii">libro_mayor/estado_cuenta  ← UN SOLO ledger + motor de aplicación
+     (usa dominio/ · cascada P1-P6 pura, ya escrita, cero I/O)
+              │
+              └──► boleta · reclamos · corte · vista — TODOS leen de
+                   acá. Reemplaza arrastre_consolidado Y
+                   seguimiento_pueblo. Ya no hay "dos fuentes".</div>
+      <p>Esto no es una propuesta nueva — el <code>README.md</code> raíz ya dice que
+        <code>libro_mayor/estado_cuenta</code> "rediseña <code>seguimiento_pueblo</code>". Está en
+        "Fase 1 cerrada — pendiente de implementación". El problema de hoy es exactamente la razón
+        por la que ese rediseño existe.</p>
+
+      <p class="plate-label">caso que abrió esta foto</p>
+      <div class="card hueco-card">
+        <p>A-6 (Esteban Reyes Sánchez) pagó S/43 en julio (consumo muy por encima de su promedio de
+          S/26) y la cascada P1 se lo aplicó entero a DEUDA_AGUA, dejando CONVENIO (25) y ACUERDOS
+          (25) en cero cubierto. Se decidió reasignar S/17 hacia convenio — pero al intentarlo se
+          descubrió que <code>reasignaciones_aplicacion.xlsx</code> no soporta DEUDA_AGUA como origen,
+          y que ningún parche manual sobrevive una re-corrida. Caso puntual, sin resolver todavía en
+          código — solo diagnosticado.</p>
+      </div>
+
+    </article>
+
+  </div>
+
+  <footer class="closing">
+    esta página = foto fija del cálculo de deuda hoy · el día a día de cada caso vive en
+    <a href="index.html">docs/diario/</a> · el porqué de arquitectura permanente vive en
+    <a href="../cuaderno/index.html">docs/cuaderno/</a>
+  </footer>
+</main>
+
+</body>
+</html>

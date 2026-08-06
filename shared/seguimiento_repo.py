@@ -46,6 +46,7 @@ SHEET_NAME       = "Eventos"
 
 CONCEPTOS_VALIDOS = {"MULTA", "ACUERDOS", "CONVENIO"}
 TIPOS_EVENTO      = ("CARGO", "PAGO", "AJUSTE")
+TOL_SALDO         = 0.005  # redondeo de céntimos: por debajo de esto el saldo es 0
 
 # CLASE — qué HECHO representa el evento. TIPO_EVENTO dice cómo se mueve el
 # saldo (CARGO sube, PAGO baja, AJUSTE corrige); CLASE dice por qué pasó.
@@ -328,11 +329,30 @@ def _registrar(mz, lt, concepto, mes, monto, tipo_evento, *, source, audit_ref,
         ajuste = monto
         saldo_nuevo = saldo_previo + monto
 
+    # Un PAGO que deja el saldo por debajo de 0 es plata de más, y siempre hay que
+    # mirarlo: puede ser exceso real (devolución o saldo a favor) o un error de
+    # captura. Los dos casos que se dan seguido (06/08/2026):
+    #   · la secretaria declara un monto mayor a la deuda — si lo que quería decir
+    #     era "no debe nada", el pago tenía que ser exactamente la deuda;
+    #   · 5_cobranza acredita plata del ciclo sobre un concepto que una declaración
+    #     ya había saldado — la misma deuda pagada dos veces.
+    # No se topa el monto a propósito: recortarlo en silencio borraría el exceso.
+    # Se avisa y se devuelve en `exceso` para que el llamador pueda actuar.
+    exceso = 0.0
+    if tipo_evento == "PAGO" and saldo_nuevo < -TOL_SALDO:
+        exceso = round(-saldo_nuevo, 2)
+        log.warning(
+            f"seguimiento_repo: {mz_n}-{lt_n} {concepto} {mes} · PAGO {monto:.2f} sobre una "
+            f"deuda de {saldo_previo:.2f} → EXCESO {exceso:.2f}, el saldo queda en "
+            f"{saldo_nuevo:.2f} (source={source}). ¿El exceso es real (devolución o saldo a "
+            f"favor) o la intención era dejar la deuda en 0? En ese caso el pago debía ser "
+            f"{max(saldo_previo, 0.0):.2f}.")
+
     _append_evento(mz_n, lt_n, concepto, mes, tipo_evento, cargo, pago, ajuste, saldo_nuevo,
                    source, audit_ref, clase, motivo)
     log.info(f"seguimiento_repo: {tipo_evento} {mz_n}-{lt_n} {concepto} {mes} "
              f"monto={monto} saldo={saldo_nuevo} clase={clase}")
-    return {"saldo_resultante": saldo_nuevo, "skipped": False}
+    return {"saldo_resultante": saldo_nuevo, "skipped": False, "exceso": exceso}
 
 
 def registrar_cargo(mz, lt, concepto, mes, monto, *, source: str, audit_ref: str,
@@ -363,10 +383,18 @@ def registrar_ajuste(mz, lt, concepto, mes, monto, *, source: str, audit_ref: st
 
 # ── API pública: lectura ─────────────────────────────────────────────────────
 
-def pago_registrado(mz, lt, concepto, mes) -> float:
+def pago_registrado(mz, lt, concepto, mes, source: str | None = None) -> float:
     """Σ PAGO ya registrado para (mz, lt, concepto, mes) — no incluye AJUSTE.
     Es el "SET_TIENE" de la reconciliación por delta que hace 5_cobranza en
-    cada corrida (ver docs/decisiones/seguimiento_pueblo.md)."""
+    cada corrida (ver docs/decisiones/seguimiento_pueblo.md).
+
+    `source` acota el conteo a lo que escribió ESE writer, igual que hace
+    `ajuste_reconciliado`. 5_cobranza debe pasarlo: su reconciliación compara
+    contra lo que él mismo dejó, no contra todo lo que haya en el mes. Sin el
+    filtro contaba como propios los PAGO manuales — las declaraciones de la
+    secretaria del 28/07/2026 — veía "de más", emitía un AJUSTE negativo a
+    ciegas y alguien tenía que estabilizarlo a mano: 44 filas de ruido en julio
+    2026 (ver LEER_ANTES.md § "los pagos que declaró la secretaria")."""
     concepto = _validar_concepto(concepto)
     df = _leer_eventos()
     if df.empty:
@@ -379,6 +407,8 @@ def pago_registrado(mz, lt, concepto, mes) -> float:
         (df["MES"].astype(str) == str(mes)) &
         (df["TIPO_EVENTO"] == "PAGO")
     ]
+    if source is not None:
+        sub = sub[sub["SOURCE"].astype(str).str.strip() == str(source).strip()]
     if sub.empty:
         return 0.0
     return float(sub["PAGO"].fillna(0).sum())

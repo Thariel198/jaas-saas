@@ -8,6 +8,13 @@ seguimiento_repo: SET_DEBE (recalculado por 5_cobranza) − SET_TIENE
   2. Re-corrida sin cambios   → delta=0, no escribe nada
   3. Pago nuevo (incremento)  → registrar_pago(solo el delta incremental)
   4. Corrección a la baja     → registrar_ajuste(delta negativo)
+  5. Concepto ya saldado por una declaración manual que igual recibe plata del
+     ciclo → se acredita y el saldo queda negativo A PROPÓSITO (es la señal de
+     exceso); 5_cobranza solo avisa por log
+
+El CARGO se siembra de entrada (06/08/2026): antes el test reconciliaba pagos
+contra un concepto sin CARGO, cosa imposible en producción — la deuda que ve
+5_cobranza viene de la planilla, y la planilla la lee del propio ledger.
 
 Uso:
     python tests/test_reconciliacion_pueblo.py
@@ -55,6 +62,10 @@ def _usuario(mz, lt, multa, total_pagado):
 
 def main():
     path = _reset_repo()
+    # El cargo tiene que existir: 5_cobranza reconcilia contra deuda real, y el
+    # tope de _reconciliar_pagos_pueblo no deja acreditar más de lo que se debe.
+    mod.repo.registrar_cargo("A", "1", "MULTA", MES_TEST, 50.0,
+                             source="test", audit_ref="cargo_A_1_MULTA")
 
     # 1) Primer pago parcial: debe 50 de MULTA, paga 30
     r1 = _usuario("A", "1", multa=50.0, total_pagado=30.0)
@@ -88,10 +99,30 @@ def main():
         check(float(ajustes.iloc[0]["AJUSTE"]) == -25.0,
               f"caso 4: AJUSTE = -25.0 (obtuve {ajustes.iloc[0]['AJUSTE']})")
 
-    # get_saldo tras todo: MULTA=50 nunca se registró como CARGO en este test
-    # (foco es la reconciliación de pagos) → saldo = 0 - 45(pago) - 25(ajuste, ya negativo)
+    # get_saldo tras todo: 50(cargo) - 45(pagos) - 25(ajuste, ya negativo) = -20
     saldo = mod.repo.get_saldo("A", "1", "MULTA", MES_TEST)
-    check(saldo == -70.0, f"get_saldo refleja pago+ajuste acumulados: -70 (obtuve {saldo})")
+    check(saldo == -20.0, f"get_saldo refleja cargo+pago+ajuste acumulados: -20 (obtuve {saldo})")
+
+    # 5) Concepto ya saldado por una declaración manual y que además recibe plata
+    # del ciclo. Decisión 06/08/2026: se acredita igual y el saldo queda NEGATIVO
+    # a propósito — es la señal de que ese predio pagó de más. Taparlo con un tope
+    # silencioso borraría un exceso que puede corresponder devolver o dejar a favor.
+    # 5_cobranza solo avisa por log; queda pendiente cruzarlo contra planilla_cobrado
+    # para separar el exceso real del negativo por defecto del sistema.
+    mod.repo.registrar_cargo("A", "2", "MULTA", MES_TEST, 50.0,
+                             source="test", audit_ref="cargo_A_2_MULTA")
+    mod.repo.registrar_pago("A", "2", "MULTA", MES_TEST, 50.0, source="manual",
+                            audit_ref="declaracion_A_2", clase="DECLARACION_SECRETARIA")
+    check(mod.repo.get_saldo("A", "2", "MULTA", MES_TEST) == 0.0,
+          "caso 5: la declaración deja el saldo en 0")
+
+    mod._reconciliar_pagos_pueblo([_usuario("A", "2", multa=50.0, total_pagado=50.0)], MES_TEST)
+    saldo5 = mod.repo.get_saldo("A", "2", "MULTA", MES_TEST)
+    check(saldo5 == -50.0, f"caso 5: el exceso queda visible como saldo -50 (obtuve {saldo5})")
+    propio = mod.repo.pago_registrado("A", "2", "MULTA", MES_TEST, source="5_cobranza")
+    check(propio == 50.0, f"caso 5: 5_cobranza sí acredita su parte (obtuve {propio})")
+    ajeno = mod.repo.pago_registrado("A", "2", "MULTA", MES_TEST, source="manual")
+    check(ajeno == 50.0, f"caso 5: la declaración manual sigue intacta (obtuve {ajeno})")
 
     if path.exists():
         path.unlink()

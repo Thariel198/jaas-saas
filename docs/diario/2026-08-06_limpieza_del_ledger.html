@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2026-08-06 — El ledger solo lleva hechos del negocio</title>
+<link rel="stylesheet" href="../cuaderno/estilo.css">
+</head>
+<body>
+
+<header class="hero">
+  <p class="crumbs"><a href="index.html">← Diario</a> · 2026-08-06 · continúa la sesión del <a href="2026-08-05_pagos_de_junio_cobrados_en_julio.html">05/08</a></p>
+  <p class="eyebrow"><span class="dot"></span>decisión del usuario: el ledger no guarda los errores del sistema, los guarda el backup</p>
+  <h1>El ledger solo lleva hechos del negocio</h1>
+  <p class="lede">
+    Con la causa raíz ya identificada, quedaba elegir cómo corregir: <b>agregar asientos que compensen</b>
+    (lo que se venía haciendo) o <b>borrar el rastro del bug</b>. Se eligió borrar, con backup y
+    documentación. 96 filas menos, ningún saldo de negocio movido, y dos defectos de código cerrados
+    para que no vuelvan a generar ese ruido.
+  </p>
+  <div class="meta-row">
+    <span>fecha: 2026-08-06</span>
+    <span>estado: ejecutado y pusheado · commit 9ce2a3a</span>
+    <span>1589 → 1491 eventos · 0 saldos finales negativos</span>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="modulo-laminas">
+
+    <article class="lamina" style="border:1px solid var(--line);border-radius:8px;background:var(--paper-raised);padding:26px 22px 30px;margin-bottom:18px">
+
+      <div class="sub-h"><span class="qn">①</span> la decisión: borrar o compensar</div>
+      <p>El método usado hasta ahora era el de append-only puro: nunca se borra, se agrega un asiento que
+        compensa. El usuario planteó lo contrario — <i>«el ledger solo debería tener eventos de negocio,
+        no bugs del sistema»</i> — con backup y una nota en <code>LEER_ANTES.md</code> que apunte a él.</p>
+      <div class="ascii">OPCIÓN A · borrar                    OPCIÓN B · compensar (lo del 03/08)
+   f1208  PAGO 50      ← borrar         f1208  PAGO 50       queda
+   f1525  AJUSTE −50   ← borrar         f1525  AJUSTE −50    queda
+                                        f1572  AJUSTE +100   se agrega
+   saldo vuelve a 50                    saldo vuelve a 50
+        ↓                                    ↓
+   "acá nunca pasó nada"                "pasó esto, y así se arregló"</div>
+      <div class="keypoint"><b>El criterio que hizo consistente la limpieza</b>, y que conviene reusar:
+        se borra lo que <b>corrige un error del sistema sobre sí mismo</b> (efecto neto cero entre las
+        filas, o el neto <i>es</i> el error); se conserva lo que <b>corrige un dato del negocio</b>, porque
+        su efecto es parte de la verdad de hoy. Por eso los 109 ajustes de la fórmula de abril se quedan:
+        sin ese −25, el convenio de A-8 volvería a 100 y sería falso.</div>
+      <div class="keypoint"><b>Lo que se aceptó perder:</b> la explicación de una boleta vieja. Cuatro
+        vecinos tienen en la mano una boleta del 01/08 con un saldo que el ledger ya no puede reproducir.
+        Vive en el backup, que por eso se versionó en git.</div>
+
+      <div class="sub-h"><span class="qn">②</span> primera limpieza: 52 filas del incidente del 06/07</div>
+      <div class="ascii">SE BORRÓ                                        SE CONSERVÓ
+   19  PAGO fantasma del 06/07                  59 pagos del 06/07 que SÍ tenían
+   18  AJUSTE de reversión mal firmada             respaldo real de julio
+   15  AJUSTE manual del 03/08 (bug_signo)      los CARGO de génesis y los pagos reales
+
+   los 15 predios ya corregidos: saldo idéntico antes y después
+   los 4 que nunca se compensaron: el saldo se arregla SOLO al borrar
+
+        E-12 ACUERDOS   0 → 25        L-5 MULTA   34 → 50
+        F-4  MULTA     48 → 50        W-5 ACUERDOS 37 → 47</div>
+      <p>El recálculo de la columna <code>SALDO</code> no hizo falta: los eventos del bug eran los últimos
+        de cada predio, así que las filas que sobreviven ya traían su saldo válido. <b>Sus boletas del
+        01/08 salieron cortas</b> — en septiembre esos cuatro ven subir la deuda sin consumo nuevo, y hay
+        que avisarles.</p>
+
+      <div class="sub-h"><span class="qn">③</span> segunda limpieza: el ruido alrededor de los pagos declarados</div>
+      <p>Los 82 ajustes sin <code>MOTIVO</code> se agruparon por evento, y 59 de ellos resultaron ser
+        <b>el mismo mecanismo, con otro disparador</b>: los pagos que la secretaria declaró el 28/07.</p>
+      <div class="ascii">28/07  la secretaria confirma que 28 predios-concepto ya pagaron
+       los precursores no servían: abonos_rezagados NO toca el ledger de
+       MULTA/ACUERDOS cuando no hay plata real del ciclo
+       (RETOMAR_notas_secretaria_julio_grupo2_2026-07-29 § 3.1)
+       ⇒ se escribió registrar_pago DIRECTO      ← EL HECHO, se conserva
+            │
+30-31/07    ▼  corre 5_cobranza y pregunta "¿cuánto ya registré?"
+               pago_registrado() sumaba TODOS los PAGO del mes sin mirar el SOURCE
+               ⇒ contó el pago manual como propio ⇒ AJUSTE negativo a ciegas
+            │
+30-31/07    ▼  alguien ve el saldo torcido y escribe un "estabilizador" +X
+
+   22 pares que suman cero → 44 filas borradas · ningún saldo cambió
+   invariante puesto en el script: si algún saldo se movía, abortaba sin escribir</div>
+      <div class="keypoint"><b>Ejemplo para verlo</b> — N-5, hoja <code>MULTA</code> del ledger: entre el
+        <code>AJUSTE −50</code> de las 12:03 y el <code>+50</code> de las 13:31 pasa <b>una hora y media</b>.
+        Corrió <code>5_cobranza</code>, rompió el saldo, y se enderezó a mano. Nada de eso ocurrió en el
+        mundo real.</div>
+
+      <div class="sub-h"><span class="qn">④</span> CLASE nueva: DECLARACION_SECRETARIA</div>
+      <p>Los 28 pagos declarados estaban en <code>SIN_CLASIFICAR</code>. Se les puso clase propia — y es
+        deliberadamente una <b>marca de trabajo pendiente</b>, no una respuesta.</p>
+      <div class="ascii">DECLARACION_SECRETARIA   S/ 1,257.00 · 28 filas · con MOTIVO escrito
+
+   significa      la secretaria dijo que el vecino ya pagó · el pago vale y salda la deuda
+   NO significa   que esté resuelto de dónde salió esa plata
+
+   ⚠ falta investigar, uno por uno:
+       (a) un EXCESO que ya estaba en caja   → clase final DECLARACION      (no suma a caja)
+       (b) un pago nuevo, nunca registrado   → sembrar en abonos_rezagados
+                                               y clase ABONO_REZAGADO       (sí suma)
+
+   mientras tanto NO entra en CLASES_SUMAN_CAJA — la posición conservadora.
+   Es la misma decisión abierta desde el 04/08 para los 8 casos de "ya pagué".</div>
+      <p>También se completó el <code>MOTIVO</code> de los <b>109 ajustes de
+        <code>correccion_genesis_formula</code></b>, que estaban en blanco por ser anteriores a que el
+        ledger persistiera ese campo: la fórmula del Saldo de génesis omitía los pagos de abril y el
+        convenio salió sobrecobrado; ya se comunicó con 109 boletas reimpresas en julio.</p>
+
+      <div class="sub-h"><span class="qn">⑤</span> los dos arreglos de código</div>
+      <div class="ascii">1 · pago_registrado(..., source=None)              seguimiento_repo.py:361
+    filtra por SOURCE si se lo pasan — simétrico con ajuste_reconciliado,
+    que ya lo hacía. 5_cobranza ahora pregunta "¿cuánto registré YO?"
+    ⇒ los PAGO manuales le son invisibles ⇒ delta 0 ⇒ no escribe ajustes a ciegas
+    ⇒ el ruido que borramos NO puede regenerarse
+
+2 · aviso de exceso en _registrar                  el writer único: pasan todos por ahí
+    un PAGO que deja el saldo bajo 0 avisa y devuelve {"exceso": N}
+
+       "PAGO 50.00 sobre una deuda de 20.00 → EXCESO 30.00, el saldo queda en
+        −30.00 (source=manual). ¿El exceso es real (devolución o saldo a favor)
+        o la intención era dejar la deuda en 0? En ese caso el pago debía ser 20.00"</div>
+      <div class="keypoint"><b>Se probó un tope y se descartó, con razón.</b> Recortar el pago para que el
+        saldo no baje de 0 evitaba el negativo, pero <b>borraba la única señal visible de que el vecino
+        pagó de más</b>: el exceso no llega a <code>arrastre_devolucion</code> en este caso, porque esa
+        lista se arma del <code>SALDO</code> de la planilla, que creía que la deuda existía. Decisión:
+        <b>sin tope</b>, el negativo queda como alarma. Pendiente anotado: cruzar esos avisos contra
+        <code>planilla_cobrado</code> para separar el exceso real del negativo por defecto del sistema.</div>
+      <div class="keypoint"><b>Un test se corrigió, y merece justificación:</b>
+        <code>test_reconciliacion_pueblo</code> reconciliaba pagos contra un concepto <b>sin CARGO</b>,
+        algo imposible en producción (la deuda que ve <code>5_cobranza</code> sale de la planilla, y la
+        planilla la lee del propio ledger). Se sembró el cargo y se agregó un caso que cubre el exceso.
+        No se ajustó ningún resultado esperado para acomodar el código nuevo.</div>
+
+      <div class="sub-h"><span class="qn">⑥</span> dónde quedó todo</div>
+      <div class="ascii">BACKUPS (versionados en git — sin ellos el puntero de LEER_ANTES no sirve)
+   seguimiento_pueblo_pre_eliminar_bug0607_20260806_081824.xlsx    1587 filas
+   seguimiento_pueblo_pre_motivo109_20260806_082105.xlsx
+   seguimiento_pueblo_pre_pares_condonacion_20260806_093522.xlsx   1535 filas
+   seguimiento_pueblo_pre_clase_declaracion_20260806_093613.xlsx
+
+LEER_ANTES.md    dos secciones nuevas al tope, con el criterio de qué se borró
+                 y qué se conservó, y el pendiente de DECLARACION_SECRETARIA
+
+PENDIENTE        38 AJUSTE sin MOTIVO en 23 predio-concepto:
+                   4 con neto 0 (D1-3 · F-12 MULTA · Q-4 ×2) → ruido, pero F-12 es
+                     media reasignación y hay que mirar su otra mitad
+                   19 con efecto real → duplicados (5) · fix race condition (3) ·
+                     revertir condonación fallida (3) · correcciones de la secretaria (3) ·
+                     D-16 · D1-6 · Q-5 · F-12 CONVENIO · F-3B
+
+SIGUE VIVO       5_cobranza/main.py:2320 — el AJUSTE de reversión con el signo invertido.
+                 Es lo único que puede volver a fabricar saldos negativos en agosto.</div>
+
+    </article>
+
+  </div>
+
+  <footer class="closing">
+    sesión del 2026-08-06 · commits <code>9ce2a3a</code> (limpieza) y el arreglo de
+    <code>pago_registrado</code> aún sin commitear<br>
+    el hallazgo que originó todo esto está en la entrada del <a href="2026-08-05_pagos_de_junio_cobrados_en_julio.html">05/08</a>
+  </footer>
+</main>
+
+</body>
+</html>
