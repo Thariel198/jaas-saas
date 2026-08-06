@@ -10,17 +10,138 @@ Bitácora con el razonamiento: `docs/diario/2026-08-06_tarde_pagos_que_no_eran_p
 
 ## ⚡ PRIMER PASO al retomar
 
-1. **Cerrar los 3 AJUSTE de F-12** — el texto ya existe, solo hay que escribirlo en el
+**① ARREGLAR EL SIGNO DEL AJUSTE DE REVERSIÓN — antes de cargar los pagos de agosto y
+antes de generar la lista de corte.** Decidido al cierre del 06/08. Detalle abajo en §0.
+
+Recién después:
+
+2. **Cerrar los 3 AJUSTE de F-12** — el texto ya existe, solo hay que escribirlo en el
    `MOTIVO` del ledger. Está en `shared/reasignaciones_aplicacion.xlsx`, fila de F-12:
    *"asistió a reunión y faena, la directiva no registró su asistencia, por eso NO
    corresponde la MULTA que aparece pagada; se redirige el pago a CONVENIO/MEDIDOR"*.
    Los tres audit_ref: `F-12-MULTA-redirigido-31072026` · `F-12-MULTA-estabilizador-31072026`
    · `F-12-CONVENIO-correccion-etiqueta-31072026`.
-2. **Arreglar el `EXCESO` del reporte de bug** (`4b_reclamos/reporte_correccion_bug.py`):
+3. **Arreglar el `EXCESO` del reporte de bug** (`4b_reclamos/reporte_correccion_bug.py`):
    hoy es `Σ PAGO − Σ CARGO` e **ignora la columna AJUSTE**, por eso difamó a F-12. Es lo
    que va a seguir generando falsos positivos mientras se cierran los 35 restantes.
-3. **Verificar C-15, P-7 y P-17 en el ledger** — mismo lote de aporte al tanque que A-4.
+4. **Verificar C-15, P-7 y P-17 en el ledger** — mismo lote de aporte al tanque que A-4.
    Dan 0 en `planilla_cobrado`, pero A-4 también daba 0 y estaba mal.
+
+---
+
+## 0. EL SIGNO — por qué va primero (analizado el 06/08 al cierre)
+
+### Por qué importa más de lo que parece: el ledger es plata, no reporte
+
+```
+2_planilla/main.py:148   _join_saldo_pueblo()
+   MULTA · ACUERDOS_ASAMBLEA · CONVENIO  ←  repo.get_saldos_bulk(concepto, mes_ant)
+                                                      │
+   ledger  →  planilla del mes siguiente  →  boleta  →  lo que se le cobra al vecino
+```
+
+Un saldo torcido en el ledger **no queda en el ledger**: se factura el mes siguiente.
+
+### Cuándo dispara (y cuándo no)
+
+`5_cobranza/main.py:2372` es el **único** `registrar_ajuste` de producción. Necesita
+`delta < 0`, o sea `pagado_fresco < ya`, donde `ya` es lo que esta misma reconciliación ya
+acreditó **del mes que corre**.
+
+```
+primera corrida de agosto:  el ledger no tiene ningún PAGO con MES=2026-08
+                            ⇒ ya = 0 ⇒ delta ≥ 0 ⇒ SOLO PAGO, nunca AJUSTE
+
+dispara SOLO en una re-corrida donde el insumo encogió
+   (un pago que estaba y ya no está · un --force tras corregir el crudo)
+   es exactamente lo que pasó el 06/07 y el 31/07
+```
+
+### Qué hace mal, y en qué dirección
+
+```
+delta < 0 significa "acredité de más, hay que DEVOLVER la deuda"
+   correcto:  ajuste +75  →  el saldo SUBE, el vecino vuelve a deber
+   hoy:       ajuste −75  →  el saldo BAJA otra vez
+
+   queda 2 × el monto por debajo de la verdad  →  LA DEUDA DESAPARECE
+```
+
+Se le cobra de menos y **nadie reclama por una boleta más barata**. Es la brecha
+caja↔deuda, en silencio.
+
+### ⚠ El chequeo de "0 saldos negativos" NO lo detecta
+
+En julio se descubrió porque el saldo quedó negativo — pero eso pasó porque la deuda era
+chica. Con deuda suficiente el error se absorbe y queda positivo:
+
+```
+cargo 200 · run 1 acredita 75   → saldo 125
+run 2, el pago ya no está       → saldo  50    ✗ debería ser 200
+                                   positivo, sin alarma, invisible
+```
+
+**El detector correcto** es contar los AJUSTE con `source="5_cobranza"` y `MES` del ciclo:
+si hay alguno después de una corrida, mirarlo uno por uno.
+
+### El arreglo son DOS líneas acopladas, no una
+
+Por eso quedó sin hacer — invertir solo el signo escrito rompe la idempotencia.
+
+```
+hoy                                    verificado en pizarra
+  ya  = pago_registrado + ajuste_reconciliado
+  esc = delta                (−75)     run 2: 75 − 75 + (−75) = −75   ✗
+
+arreglo — las dos mitades juntas       (main.py:2349-2350 y 2374)
+  ya  = pago_registrado − ajuste_reconciliado
+  esc = −delta               (+75)     run 2: 75 − 75 + 75 = 75       ✓ deuda restaurada
+                                       run 3: ya = 75 − 75 = 0 → delta 0 → no escribe ✓
+                                       run 4: reaparece el pago → PAGO 75 → saldo 0    ✓
+```
+
+**Test que hay que escribir** (no existe): la secuencia completa
+`corrida → el insumo encoge → re-corrida → el pago reaparece`, comprobando el saldo en cada
+paso y que la re-corrida sin cambios no escriba nada.
+
+### Si por lo que sea se decide NO arreglarlo antes de correr
+
+Protocolo mínimo, en este orden:
+
+```
+① backup del ledger ANTES de 5_cobranza
+     shared/backups_ledger/seguimiento_pueblo_pre_agosto_<ts>.xlsx
+② 5_cobranza UNA sola vez, con 4_pagos ya definitivo
+③ contar AJUSTE nuevos con source="5_cobranza" y MES=2026-08
+     0   → no se disparó, limpio
+     >0  → PARAR. Cada uno está al revés; revertirlo a mano ANTES de que
+           2_planilla lo lea para septiembre
+④ NO correr 5_cobranza --force por ningún motivo hasta que el signo esté arreglado
+```
+
+### La lista de corte NO depende de esto
+
+```
+6_corte NO lee el ledger — lee planilla_cobrado (verificado con grep)
+```
+
+Por eso la boleta de A-4 salió bien aunque el ledger estuviera mal. Los riesgos de la lista
+de corte son otros dos, los dos en `LEER_ANTES.md`: el hueco `4b_reclamos → 6_corte` (un
+reclamo RESUELTO no llega a `resolucion_reclamos_YYYY-MM.xlsx` y el vecino reaparece como
+`EJECUTAR_CORTE=SI` — revisar a mano `trazabilidad_reclamos.xlsx` antes de publicar) y el
+candado del Día 0 (una vez que corre `aplicar_penalidad.py`, `generar_lista` se niega a
+regenerar: generar la lista solo cuando `5_cobranza` esté definitivo).
+
+### Orden sugerido para el día
+
+```
+1. arreglar el signo + su mitad `ya`, con el test de la secuencia      ← Sonnet, ~30 min
+2. cargar pagos · 4_pagos completo
+3. 5_cobranza UNA vez
+4. chequeo: ¿AJUSTE nuevos con source=5_cobranza? (deberían ser 0)
+5. cruzar trazabilidad_reclamos.xlsx RESUELTO contra la lista
+6. 6_corte generar_lista → publicar
+```
 
 ---
 
@@ -129,9 +250,11 @@ cuatro columnas, no dos.
 
 ```
 ⚠ ANTES DE QUE CORRA AGOSTO
-   5_cobranza/main.py:2320 — el AJUSTE de reversión sigue con el signo invertido.
-   Sin decidir desde el 06/08 mañana. Ver 3_boletas/inputs/reclamos_2026-08-01/README.md
-   § BUG_SIGNO. Es lo único que puede volver a fabricar saldos negativos.
+   5_cobranza/main.py:2372 — el AJUSTE de reversión con el signo invertido.
+   DECIDIDO 06/08: se arregla PRIMERO, antes de cargar pagos. Ver §0 arriba
+   (dispara solo en re-corrida · el ledger se factura vía 2_planilla ·
+    "0 saldos negativos" NO lo detecta · son 2 líneas acopladas).
+   Contexto previo en 3_boletas/inputs/reclamos_2026-08-01/README.md § BUG_SIGNO.
 
    motor_matching no marca CONCEPTO=tanque cuando el mensaje lo dice y el lote
    matchea directo (solo se llena a mano vía pendientes.xlsx). Sin eso, el bug de
