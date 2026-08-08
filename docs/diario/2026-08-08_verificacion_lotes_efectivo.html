@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2026-08-08 — Verificación de lotes en efectivo</title>
+<link rel="stylesheet" href="../cuaderno/estilo.css">
+</head>
+<body>
+
+<header class="hero">
+  <p class="crumbs"><a href="index.html">← Diario</a> · 2026-08-08</p>
+  <p class="eyebrow"><span class="dot"></span>dos errores reales encontrados a mano se convirtieron en un módulo que los habría atrapado solo — probado contrafactualmente</p>
+  <h1>Verificación de lotes en efectivo</h1>
+  <p class="lede">
+    Empezó como pedido de rutina —«verifica la mesa de Wilder contra la foto nueva»— y terminó en un
+    sub-módulo nuevo: <code>verificar_lotes.py</code> cruza cada pago de efectivo contra la boleta emitida
+    y detecta cuándo el <code>MZ-LT</code> que anotó el cobrador no es el dueño real del monto. Los dos
+    errores que aparecieron verificando a mano (Wilder, Yerald) sirvieron de prueba contrafactual del
+    diseño antes de escribir una línea de producción.
+  </p>
+  <div class="meta-row">
+    <span>fecha: 2026-08-08</span>
+    <span>estado: módulo commiteado y pusheado</span>
+    <span>326 pagos verificados · 19 NO CUADRA · 4 con candidato propuesto</span>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="modulo-laminas">
+
+    <article class="lamina" style="border:1px solid var(--line);border-radius:8px;background:var(--paper-raised);padding:26px 22px 30px;margin-bottom:18px">
+
+      <div class="sub-h"><span class="qn">①</span> verificando a mano, dos lotes mal escritos</div>
+      <p>Fotos nuevas de la secretaria para <code>Wilder_Trujillo</code> y <code>Yerald_Romero</code>
+        (las de ayer no se veían bien). Cruzando <code>mesa_1.xlsx</code> y <code>mesa_2.xlsx</code> contra
+        las fotos y contra <code>usuarios_id.xlsx</code> aparecieron 4 correcciones:</p>
+      <div class="ascii">mesa_1 (Wilder)   O-5 confirmado correcto (no era Q-5, se descartó)
+                  W-2 → U-2      la Ц de "U" se leía como W
+                  BLANCO 16      sobrante del 01/08 (595 entregados − 579 en las filas)
+
+mesa_2 (Yerald)   M-19 → M-14    "Magda Maria Blas" — el 9 se leyó como 4 dígitos… no,
+                                 el LOTE 19 se leyó 14. M-19 es Andres Quito, otra persona.
+                  G-13 → O-13    "Pedro Mendoza Marquina" — la manzana G se leyó O</div>
+      <div class="keypoint"><b>El patrón que disparó todo lo que sigue:</b> Yerald escribe el nombre del
+        vecino en su hoja; Wilder no. Los 2 errores de Yerald se cazaron cruzando el nombre contra
+        <code>usuarios_id.xlsx</code> — con solo <code>MZ+LT</code>, como tiene Wilder, ninguno de los dos
+        se hubiera detectado: el lote existía, la plata cuadraba, y sin nombre no hay con qué comparar.</div>
+
+      <div class="sub-h"><span class="qn">②</span> la pregunta que cambió el alcance de la sesión</div>
+      <p>«¿Podríamos cruzar esto contra la planilla para Wilder, ya que no tiene MZ y LT [nombre]? Los
+        pagos que cubran la deuda exacta implicarían que sí es su lote.» Es justo lo que hace
+        <code>motor_matching</code> con yape, pero <b>4_pagos/efectivo nunca tuvo un equivalente</b> — el
+        MZ-LT entra sin que nadie lo cuestione.</p>
+      <div class="ascii">4_pagos/efectivo ya verifica en 3 ejes, ninguno atrapa un lote mal escrito
+   main.py      cobrador A vs cobrador B      inútil si la mesa tiene 1 sola hoja
+   arqueo.py    mesas vs entregas tesorera    cuadra perfecto: el monto está bien, el lote no
+   reclamos.py  CATEGORIA=reclamo             el cobrador no marcó nada, para él no pasó nada</div>
+
+      <div class="sub-h"><span class="qn">③</span> medir antes de diseñar — Fase 0 real, aunque no se supiera</div>
+      <p>Un triage rápido contra <code>DATA_boletas.xlsx</code> (no la planilla: su
+        <code>TOTAL_A_PAGAR</code> es fórmula Excel y pandas la lee vacía) mostró que «¿tiene comentario?»
+        no discrimina nada — 39 de 57 filas de Wilder caían ahí. El discriminador real es aritmético:</p>
+      <div class="ascii">¿el monto pagado es exactamente la suma de un subconjunto de los 7 cargos de SU boleta?
+
+Wilder   57 filas → 48 auto-confirmadas (17 exacto + 31 componente) · 3 no cuadran · 5 sin monto
+Yerald  106 filas → 103 auto-confirmadas                            · 2 no cuadran · 1 exceso
+
+CONTRAFACTUAL — la prueba que importa
+   Magda  M-19 (boleta 18) pagó 9 → NO CUADRA · M-14 (boleta 9) → CUADRA exacto
+   Pedro  G-13 (boleta 37) pagó 19 → NO CUADRA · O-13 (boleta 19) → CUADRA exacto</div>
+      <div class="keypoint"><b>2 de 2.</b> El mismo método que resolvió la duda manual de "¿O-5 o Q-5?"
+        también habría marcado los 2 errores reales sin ver la foto ni la caligrafía.</div>
+
+      <div class="sub-h"><span class="qn">④</span> el punto ciego, medido — y el ajuste que lo arregló</div>
+      <p>Contar cuántos lotes del pueblo debían <i>cualquier</i> subconjunto del mismo monto daba 79% en
+        evidencia BAJA — inservible. Midiendo contra el <b>importe total</b> de la boleta (no cualquier
+        combinación) la distribución bajó a algo usable, y reveló algo real: el pueblo cobra montos muy
+        repetidos.</p>
+      <div class="ascii">557 boletas · solo 116 importes distintos
+   S/8 → 101 lotes (18% del pueblo) · S/16 → 24 · S/18 → 17 · S/9 → 17
+
+evidencia (definición correcta)   ALTA 25 · MEDIA 75 · BAJA 51 (31%) · NO CUADRA 6</div>
+
+      <div class="sub-h"><span class="qn">⑤</span> la capa que el usuario propuso — y que resolvió el problema del punto ciego</div>
+      <p>«Los lotes donde el tipeo o el OCR suele fallar: U o W, G o O, A-4 o A-14…» Filtrando los
+        candidatos por vecindad de confusión de tipeo, el universo de sospechosos se derrumbó:</p>
+      <div class="ascii">Magda   17 candidatos por monto  →  1 (el correcto), filtrando por confusión
+Pedro   10 candidatos por monto  →  1 (el correcto)
+
+grupos de manzana: U·V·W · G·O·Q·C · I·L·T·J · P·D·O·B · A·D · B·P · E·F·G · M·N·W · S·Z · X·Y·K · R·P·B
+   + sufijo autocompletar (A↔A1 … H↔H1) + dígitos confundibles + transposición + dígito de más/menos</div>
+      <div class="keypoint"><b>Un ajuste que los propios datos pidieron:</b> la primera versión también
+        proponía candidatos de <i>error doble</i> (manzana Y lote mal a la vez) cuando no había ninguno
+        simple — <code>G-17→Q-12</code>, sin relación real entre las dos personas. Eso es el falso-OK que
+        el criterio de diseño prohíbe. Ahora solo se propone nivel simple; el doble se cuenta y se avisa
+        sin elegir.</div>
+
+      <div class="sub-h"><span class="qn">⑥</span> metodología completa, paso por paso — y una clave de preservación que colisionaba</div>
+      <p>Se siguió la Fase 2 entera: CRAD en consola, 3 enfoques evaluados contra criterios
+        («un falso OK es peor que un no-sé»), decisión registrada en
+        <code>docs/decisiones/verificacion_lotes_efectivo.md</code>, 2 diagramas HTML aprobados en
+        consola antes de escribirse, <code>formato_verificacion_lotes.html</code> con la misma
+        profundidad que <code>formato_entregas.html</code> (banner, reglas por columna, paleta).
+        En el camino, un diseño que ya estaba aprobado resultó estar mal:</p>
+      <div class="ascii">clave de preservación copiada sin verificar del ABONO_ID de libro_mayor/caja
+   (MESA, COBRADOR, FECHA, MONTO)  — sin MZ/LT porque "es lo que se corrige"
+   medida contra los 165 pagos reales de hoy: COLISIONA EN 62% DE LAS FILAS
+   (cualquier día con 2 vecinos pagando el mismo importe — el caso típico, no el raro)
+
+arreglo: (MESA, COBRADOR, FECHA, MZ, LT, MONTO) + FILA_EXCEL como respaldo OCULTO
+   0 colisiones medidas · MZ/LT visibles y buscables como pidió el usuario
+   FILA_EXCEL no desapareció — se volvió columna oculta (hidden=True), no un dato muerto</div>
+      <div class="keypoint"><b>Por qué importa hacerlo en Fase 2, no en Fase 4:</b> el error se
+        encontró escribiendo el HTML de formato, antes de una sola línea de código de producción.
+        Corregirlo ahí costó una edición de texto; encontrarlo en producción hubiera costado
+        resoluciones de supervisor perdidas en silencio.</div>
+
+      <div class="sub-h"><span class="qn">⑦</span> el código, y la corrida real</div>
+      <div class="ascii">verificar_lotes.py — 4 capas, guard de pipeline (¿corrió 1_lecturas y 3_boletas?),
+   preservación en 3 capas (backup + leer decisiones + la manual gana en re-corrida)
+
+corrida real — las 7 mesas, ciclo 2026-08
+   326 pagos · 557 boletas
+   ALTA 37 · MEDIA 182 · BAJA 76 (26%, bajo el umbral de alerta del 50%)
+   NO CUADRA 19 · OMITIDO 7 (CONCEPTO≠vacío o monto 0) · SIN BOLETA 5
+
+   4 candidatos únicos nuevos, sin verificar todavía:
+      mesa_2  H1-15 → H1-16  [lote 15→16]     mesa_3  G-14 → E-14  [manzana G→E]
+      mesa_3  O-17  → O-27   [lote 17→27]     mesa_4  A-1  → A-2   [lote 1→2]
+
+tests: 21/21, incluidos los 2 CONTRAFACTUALES (Magda, Pedro)
+regresión: test_unitarios 27/27 · test_integracion 16/16 — main.py intacto</div>
+      <div class="keypoint"><b>Otro hueco cerrado por los datos, no por intuición:</b> <code>CONCEPTO</code>
+        (tanque/honorario/gasto/comunitario) estaba vacío en las 163 filas medidas — por eso no apareció
+        solo. Es el mismo campo que causó el bug de A-4 del 06/08. Si alguien lo marca sin excluirlo del
+        cuadre, generaría <code>NO CUADRA</code> permanente. Ya está excluido desde el diseño.</div>
+
+      <div class="sub-h"><span class="qn">⑧</span> los 3 archivos de datos corregidos, y uno completado</div>
+      <div class="ascii">shared/usuarios_id.xlsx
+   U0500 nuevo — RAMON REQUEZ MENDOZA, M-12 (existía en 0_padron y en la planilla,
+      NO en usuarios_id — el nombre viejo del lote era Iglesia Evangelica Bautista,
+      no la Adventista del Séptimo Día, que sigue viva en C-3A)
+   U0457 — C1-17 → C1-9 (Roberto Macarlopu Flores, el override de julio que
+      renombraba pero nunca tocó este archivo)
+
+4_pagos/efectivo/inputs/entregas_hoja.xlsx
+   Wilder 01/08: 595 (el "recibí" tachado del papel, con nota aclarando la duda)
+   Yerald 01/08 y 02/08: asumidos = lo cobrado en mesa_2 (no hay "Recibí X" legible
+      en sus fotos como sí lo hay en las de Wilder) — con comentario de Excel
+      documentando el supuesto, no en MOTIVO (esa dispara delta en el import)</div>
+
+    </article>
+
+  </div>
+
+  <footer class="closing">
+    sesión del 2026-08-08 · commit <code>8fd678c</code> (verificar_lotes.py) + commit de datos, pusheado<br>
+    siguiente: verificar Maximo Encarnacion (mesa_3) y Wagner Trujillo (mesa_4) contra sus fotos nuevas —
+    ver <a href="../RETOMAR_verificacion_lotes_efectivo_2026-08-08.md">RETOMAR</a>
+  </footer>
+</main>
+
+</body>
+</html>
