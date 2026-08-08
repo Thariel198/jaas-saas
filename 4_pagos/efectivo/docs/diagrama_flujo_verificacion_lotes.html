@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>verificación de lotes — diagrama de flujo</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'IBM Plex Sans', sans-serif; background: #fff; padding: 24px; }
+
+  .title { font-size: 18px; font-weight: 600; color: #111; margin-bottom: 4px; }
+  .sub   { font-size: 12px; color: #888; margin-bottom: 28px; }
+
+  .diagram {
+    display: grid;
+    grid-template-columns: 220px 40px 240px 40px 250px;
+    grid-template-rows: auto;
+    align-items: start;
+    gap: 0;
+  }
+
+  .arrow {
+    text-align: center; font-size: 22px; color: #bbb; font-weight: 300;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    padding-top: 100px;
+  }
+  .arrow-label { font-size: 9px; color: #aaa; letter-spacing: .04em; text-transform: uppercase; }
+
+  .inputs-col { display: flex; flex-direction: column; gap: 8px; }
+
+  .input-box {
+    border-radius: 7px; padding: 8px 10px;
+    font-size: 11px;
+  }
+  .input-box.manual { background: #FEF9E7; border: 1px solid #F9E79F; }
+  .input-box.auto   { background: #EBF5FB; border: 1px solid #AED6F1; }
+  .input-box.guard  { background: #F8F9FA; border: 1px dashed #ced4da; }
+
+  .input-box .src {
+    font-size: 9px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .05em; margin-bottom: 3px;
+  }
+  .input-box.manual .src { color: #7D6608; }
+  .input-box.auto   .src { color: #1A5276; }
+  .input-box.guard  .src { color: #666; }
+
+  .input-box .fname {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; font-weight: 600; color: #111; margin-bottom: 4px;
+  }
+  .input-box .cols {
+    font-size: 9px; color: #666; font-family: 'IBM Plex Mono', monospace; line-height: 1.6;
+  }
+
+  .group-label {
+    font-size: 10px; color: #999; padding: 2px 0 4px; letter-spacing: .03em;
+  }
+
+  .guard-chain { display: flex; flex-direction: column; align-items: center; gap: 2px; margin: 4px 0; }
+  .guard-box {
+    background: #FEF2F2; border: 1px solid #FECACA; border-radius: 6px;
+    padding: 6px 10px; text-align: center; width: 100%;
+    font-family: 'IBM Plex Mono', monospace; font-size: 9px; font-weight: 600; color: #991B1B;
+  }
+  .guard-sub { font-family: 'IBM Plex Sans', sans-serif; font-size: 8px; font-weight: 400; color: #B91C1C; margin-top: 2px; }
+  .guard-down { font-size: 12px; color: #B91C1C; font-weight: 600; text-align: center; }
+
+  .process-box {
+    background: #E9F7EF; border: 2px solid #1E8449;
+    border-radius: 10px; padding: 14px 16px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .process-title {
+    font-size: 13px; font-weight: 700; color: #1E5C3A;
+    text-align: center; border-bottom: 1px solid #A9DFBF;
+    padding-bottom: 8px; margin-bottom: 2px;
+  }
+  .process-rule {
+    font-size: 10px; color: #1E5C3A;
+    background: #fff; border-radius: 5px;
+    padding: 5px 8px; border-left: 3px solid #1E8449;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .process-rule .label {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 9px; font-weight: 700; color: #888;
+    text-transform: uppercase; letter-spacing: .04em;
+    display: block; margin-bottom: 2px;
+  }
+  .process-rule .n {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 14px; height: 14px; border-radius: 50%;
+    background: #1E8449; color: #fff; font-weight: 700; font-size: 8px;
+    margin-right: 4px; font-family: 'IBM Plex Sans', sans-serif;
+  }
+
+  .output-col { display: flex; flex-direction: column; gap: 8px; }
+
+  .output-box { border-radius: 7px; overflow: hidden; background: #F3E8FF; border: 1px solid #C4B5FD; }
+  .output-header {
+    color: #fff; font-size: 11px; font-weight: 600;
+    padding: 7px 10px; background: #5B21B6;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .output-section { padding: 6px 10px; border-bottom: 1px solid #C4B5FD; }
+  .output-section:last-child { border-bottom: none; }
+  .output-section-title {
+    font-size: 9px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .05em; margin-bottom: 3px; color: #5B21B6;
+  }
+  .output-col-item {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; color: #111; line-height: 1.7;
+  }
+
+  .estado-pill {
+    display: inline-block; font-size: 9px; font-weight: 700;
+    padding: 1px 6px; border-radius: 10px; margin: 1px 2px 1px 0;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .e-alta      { background: #D5F5E3; color: #1E5C3A; }
+  .e-media     { background: #FEF3C7; color: #92400E; }
+  .e-baja      { background: #FEF9E7; color: #7D6608; }
+  .e-nocuadra  { background: #FEE2E2; color: #991B1B; }
+
+  .lifecycle-tag {
+    display: inline-block; font-size: 9px; font-weight: 700;
+    padding: 1px 6px; border-radius: 10px; margin-top: 4px;
+    background: #FEF3C7; color: #B7770D;
+  }
+
+  .consumer {
+    background: #F8F9FA; border: 1px dashed #ced4da;
+    border-radius: 7px; padding: 8px 10px;
+    text-align: center;
+    font-size: 11px; color: #666; font-weight: 500;
+  }
+  .consumer .sub-c { font-size: 10px; color: #999; font-weight: 400; margin-top: 2px; }
+
+  .note {
+    margin-top: 20px;
+    background: #F8F9FA; border: 1px solid #dee2e6;
+    border-left: 3px solid #6c757d;
+    border-radius: 0 6px 6px 0;
+    padding: 7px 12px; font-size: 11px; color: #555;
+  }
+  .note strong { color: #333; }
+  .note code {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; background: #fff; padding: 1px 4px; border-radius: 3px;
+  }
+</style>
+</head>
+<body>
+
+<p class="title">4_pagos/efectivo — verificación de lotes (diagrama de flujo)</p>
+<p class="sub">Entrada: mesas del cobrador + boleta emitida · Salida: sospechas priorizadas por evidencia, antes de correr main.py</p>
+
+<div class="diagram">
+
+  <!-- INPUTS -->
+  <div class="inputs-col">
+
+    <p class="group-label">inputs/ — lo que escribió el cobrador</p>
+
+    <div class="input-box manual">
+      <div class="src">cobrador llena a mano</div>
+      <div class="fname">mesa_1 … mesa_7.xlsx</div>
+      <div class="cols">
+        COBRADOR · FECHA · MZ · LT<br>
+        MONTO (efectivo + yape)
+      </div>
+    </div>
+
+    <p class="group-label">3_boletas/inputs/ — lo que se le pidió al vecino</p>
+
+    <div class="input-box auto">
+      <div class="src">emitido por 3_boletas</div>
+      <div class="fname">DATA_boletas.xlsx</div>
+      <div class="cols">
+        MZ · LT · Importe a pagar<br>
+        7 conceptos de cargo
+      </div>
+    </div>
+
+    <div class="guard-chain">
+      <div class="guard-down">↓ guard, antes de comparar</div>
+      <div class="guard-box">
+        ¿ciclo_activo.json declarado?<br>¿FECHA del pago cae en la
+        ventana de emisión→vencimiento?
+        <div class="guard-sub">si no → PARA: "faltó correr 1_lecturas / 3_boletas"</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ARROW IN -->
+  <div class="arrow">
+    <span>→</span>
+    <span class="arrow-label">por<br>fila</span>
+  </div>
+
+  <!-- PROCESS -->
+  <div class="process-box">
+    <div class="process-title">verificar_lotes.py</div>
+
+    <div class="process-rule">
+      <span class="n">1</span><span class="label">Cuadre</span>
+      ¿MONTO es alguna combinación<br>de los cargos de ESE lote?
+    </div>
+
+    <div class="process-rule">
+      <span class="n">2</span><span class="label">Evidencia</span>
+      ¿cuántos lotes del pueblo<br>deben exactamente ese importe?
+    </div>
+
+    <div class="process-rule">
+      <span class="n">3</span><span class="label">Confusión</span>
+      si NO CUADRA — ¿qué lotes vecinos<br>(a un error de tipeo) sí lo explican?
+    </div>
+
+    <div class="process-rule">
+      <span class="n">4</span><span class="label">Realidad</span>
+      el candidato solo se propone<br>si es único y sigue impago
+    </div>
+  </div>
+
+  <!-- ARROW OUT -->
+  <div class="arrow">
+    <span>→</span>
+  </div>
+
+  <!-- OUTPUTS -->
+  <div class="output-col">
+
+    <div class="output-box">
+      <div class="output-header">verificacion_lotes_YYYY-MM.xlsx</div>
+      <div class="output-section">
+        <div class="output-section-title">Columnas</div>
+        <div class="output-col-item">MESA · HOJA · COBRADOR · FECHA</div>
+        <div class="output-col-item">MZ · LT · MONTO</div>
+        <div class="output-col-item">EVIDENCIA · COMO · CANDIDATO</div>
+        <div class="output-col-item">RESOLUCION (supervisor llena)</div>
+      </div>
+      <div class="output-section">
+        <div class="output-section-title">Valores de EVIDENCIA</div>
+        <span class="estado-pill e-alta">ALTA</span>
+        <span class="estado-pill e-media">MEDIA</span>
+        <span class="estado-pill e-baja">BAJA</span>
+        <span class="estado-pill e-nocuadra">NO CUADRA</span>
+      </div>
+      <div class="output-section">
+        <span class="lifecycle-tag">temporal · desaparece al resolverse todo</span>
+      </div>
+    </div>
+
+    <div class="consumer">
+      Supervisor / secretaria
+      <div class="sub-c">revisa NO CUADRA primero — corrige mesa_N.xlsx a mano, el script nunca la escribe</div>
+    </div>
+
+  </div>
+
+</div>
+
+<div class="note">
+  <strong>Corre ANTES que main.py</strong> — verificar antes de consolidar, no después de que el
+  error ya viajó a <code>pagos_efectivo.xlsx</code> y de ahí al ledger.<br><br>
+  <strong>Solo reporta, nunca corrige.</strong> <code>mesa_N.xlsx</code> es "manual — sagrado"
+  (README del módulo) — la corrección la escribe el humano.<br><br>
+  <strong>Avisa, no bloquea</strong> — igual que <code>discrepancias.xlsx</code> hoy: si quedan
+  filas <code>NO CUADRA</code> sin resolver, <code>main.py</code> corre igual con advertencia.
+</div>
+
+</body>
+</html>

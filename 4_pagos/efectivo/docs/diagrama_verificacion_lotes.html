@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>verificación de lotes — diagrama detallado</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'IBM Plex Sans', sans-serif; background: #fff; padding: 26px; color: #111; }
+
+  .title { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
+  .sub   { font-size: 12px; color: #888; margin-bottom: 24px; }
+
+  .section-title {
+    font-size: 12px; font-weight: 700; color: #333;
+    margin: 26px 0 10px; padding-bottom: 6px;
+    border-bottom: 1px solid #eee;
+    text-transform: uppercase; letter-spacing: .04em;
+  }
+  .section-title .n {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 18px; height: 18px; border-radius: 50%;
+    background: #1E8449; color: #fff; font-weight: 700; font-size: 10px;
+    margin-right: 6px;
+  }
+
+  /* ── inputs ── */
+  .input-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .input-box { border-radius: 7px; padding: 9px 11px; font-size: 11px; }
+  .input-box.manual { background: #FEF9E7; border: 1px solid #F9E79F; }
+  .input-box.auto   { background: #EBF5FB; border: 1px solid #AED6F1; }
+  .input-box.guard  { background: #FEF2F2; border: 1px solid #FECACA; }
+  .input-box .src {
+    font-size: 9px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .05em; margin-bottom: 4px;
+  }
+  .input-box.manual .src { color: #7D6608; }
+  .input-box.auto   .src { color: #1A5276; }
+  .input-box.guard  .src { color: #991B1B; }
+  .input-box .fname {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px; font-weight: 600; color: #111; margin-bottom: 4px;
+  }
+  .input-box .cols {
+    font-size: 9px; color: #555; font-family: 'IBM Plex Mono', monospace; line-height: 1.6;
+  }
+
+  /* ── capas ── */
+  .capa-box {
+    background: #E9F7EF; border: 2px solid #1E8449;
+    border-radius: 10px; padding: 12px 16px; margin-bottom: 12px;
+  }
+  .capa-box.capa3 { background: #FFF7ED; border-color: #B7770D; }
+  .capa-box.capa4 { background: #FEF2F2; border-color: #B91C1C; }
+  .capa-head {
+    font-size: 12px; font-weight: 700; color: #1E5C3A;
+    margin-bottom: 8px;
+  }
+  .capa3 .capa-head { color: #9A3412; }
+  .capa4 .capa-head { color: #991B1B; }
+  .capa-head .cond { font-weight: 400; font-size: 10px; color: #888; margin-left: 6px; }
+
+  .rule-line {
+    font-size: 10px; color: #1E5C3A;
+    background: #fff; border-radius: 5px;
+    padding: 6px 9px; border-left: 3px solid #1E8449;
+    font-family: 'IBM Plex Mono', monospace;
+    margin-bottom: 6px; line-height: 1.6;
+  }
+  .capa3 .rule-line { color: #9A3412; border-left-color: #B7770D; }
+  .capa4 .rule-line { color: #991B1B; border-left-color: #B91C1C; }
+  .rule-line:last-child { margin-bottom: 0; }
+  .rule-line .label {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 9px; font-weight: 700; color: #888;
+    text-transform: uppercase; letter-spacing: .04em;
+    display: block; margin-bottom: 2px;
+  }
+
+  /* tabla de umbrales (capa 2) */
+  .thresh-table { border-collapse: collapse; font-size: 10px; margin-top: 4px; width: 100%; }
+  .thresh-table th, .thresh-table td {
+    border: 0.5px solid #A9DFBF; padding: 5px 9px; text-align: center;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .thresh-table th { background: #D5F5E3; color: #1E5C3A; font-weight: 700; font-size: 9px; }
+  .thresh-table td.rowh { text-align: left; font-family: 'IBM Plex Sans', sans-serif; font-weight: 600; color: #1E5C3A; }
+  .pill { display: inline-block; font-size: 9px; font-weight: 700; padding: 1px 7px; border-radius: 10px; }
+  .p-alta  { background: #D5F5E3; color: #1E5C3A; }
+  .p-media { background: #FEF3C7; color: #92400E; }
+  .p-baja  { background: #FEF9E7; color: #7D6608; }
+  .p-no    { background: #FEE2E2; color: #991B1B; }
+
+  /* tabla de confusion (capa 3) */
+  .conf-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 4px; }
+  .conf-cell {
+    background: #fff; border: 1px solid #FDBA74; border-radius: 5px;
+    padding: 5px 8px; font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; font-weight: 600; color: #9A3412; text-align: center;
+  }
+  .conf-note { font-size: 9px; color: #B7770D; margin-top: 6px; font-style: italic; }
+  .conf-prio {
+    margin-top: 8px; background: #fff; border-radius: 5px; padding: 6px 9px;
+    border-left: 3px solid #B7770D; font-size: 10px; color: #9A3412;
+  }
+
+  /* ── output ── */
+  .output-box { border-radius: 7px; overflow: hidden; background: #F3E8FF; border: 1px solid #C4B5FD; }
+  .output-header {
+    color: #fff; font-size: 12px; font-weight: 600;
+    padding: 8px 12px; background: #5B21B6;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .output-section { padding: 9px 12px; border-bottom: 1px solid #C4B5FD; }
+  .output-section:last-child { border-bottom: none; }
+  .output-section-title {
+    font-size: 9px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .05em; margin-bottom: 5px; color: #5B21B6;
+  }
+  .col-row { display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px; font-size: 10px; }
+  .col-row:last-child { margin-bottom: 0; }
+  .col-row .cname { font-family: 'IBM Plex Mono', monospace; font-weight: 700; color: #111; min-width: 150px; }
+  .col-row .cdesc { color: #666; }
+  .group-quien  { color: #5B21B6; }
+  .group-sistema { color: #1E5C3A; }
+  .group-res    { color: #065F46; }
+
+  /* ── acoplamientos ── */
+  .coupling-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .coupling-box {
+    background: #F8F9FA; border: 1px dashed #ced4da; border-radius: 7px;
+    padding: 10px 12px; font-size: 11px; color: #555;
+  }
+  .coupling-box strong { color: #333; display: block; margin-bottom: 4px; font-size: 10px; }
+  .coupling-box code { font-family: 'IBM Plex Mono', monospace; font-size: 10px; background: #fff; padding: 1px 4px; border-radius: 3px; }
+
+  .note {
+    margin-top: 22px;
+    background: #F8F9FA; border: 1px solid #dee2e6;
+    border-left: 3px solid #6c757d;
+    border-radius: 0 6px 6px 0;
+    padding: 9px 12px; font-size: 11px; color: #555; line-height: 1.7;
+  }
+  .note strong { color: #333; }
+  .note code { font-family: 'IBM Plex Mono', monospace; font-size: 10px; background: #fff; padding: 1px 4px; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<p class="title">4_pagos/efectivo — verificación de lotes (diagrama detallado)</p>
+<p class="sub">Las 4 capas del motor · tabla de confusión · contrato del output · acoplamientos</p>
+
+<!-- ══════════════════════════ INPUTS ══════════════════════════ -->
+<p class="section-title">Inputs, con origen</p>
+<div class="input-grid">
+  <div class="input-box manual">
+    <div class="src">cobrador, a mano</div>
+    <div class="fname">mesa_1 … mesa_7.xlsx</div>
+    <div class="cols">MZ · LT · MONTO<br>COBRADOR · FECHA</div>
+  </div>
+  <div class="input-box auto">
+    <div class="src">emitido por 3_boletas</div>
+    <div class="fname">DATA_boletas.xlsx</div>
+    <div class="cols">Importe a pagar<br>7 conceptos de cargo</div>
+  </div>
+  <div class="input-box guard">
+    <div class="src">escrito por 1_lecturas</div>
+    <div class="fname">ciclo_activo.json</div>
+    <div class="cols">guard: ¿corrió el pipeline<br>hasta acá este mes?</div>
+  </div>
+</div>
+
+<!-- ══════════════════════════ CAPA 1 ══════════════════════════ -->
+<p class="section-title"><span class="n">1</span>Cuadre — siempre</p>
+<div class="capa-box">
+  <div class="rule-line">
+    <span class="label">Conceptos de cargo</span>
+    Total mes actual · Mantenimiento · MES ANTERIOR · Corte y reconexión · Convenio · Multa (faena+reunión) · Cuota directa
+  </div>
+  <div class="rule-line">
+    <span class="label">Regla</span>
+    ¿MONTO == algún subconjunto (1 a 7 términos) de los cargos > 0 de ESE MZ-LT?  tolerancia 0.01
+  </div>
+  <div class="rule-line">
+    <span class="label">Salida</span>
+    cuadra con la boleta completa → COMO = "boleta completa" · cuadra con una parte → COMO = nombres de los conceptos (ej. "consumo+mant") · no cuadra ningún subconjunto → EVIDENCIA = NO CUADRA, pasa a capa 3
+  </div>
+</div>
+
+<!-- ══════════════════════════ CAPA 2 ══════════════════════════ -->
+<p class="section-title"><span class="n">2</span>Fuerza de evidencia <span class="cond">— solo si capa 1 cuadró</span></p>
+<div class="capa-box">
+  <div class="rule-line">
+    <span class="label">RIVALES</span>
+    cuántos lotes del pueblo deben EXACTAMENTE el importe total de ese MZ-LT (no cualquier subconjunto — medido: eso daba 79% BAJA, inservible)
+  </div>
+  <table class="thresh-table">
+    <tr><th>cuadró con...</th><th>RIVALES ≤ 5</th><th>RIVALES ≤ 25</th><th>RIVALES &gt; 25</th></tr>
+    <tr><td class="rowh">boleta completa</td><td><span class="pill p-alta">ALTA</span></td><td><span class="pill p-media">MEDIA</span></td><td><span class="pill p-baja">BAJA</span></td></tr>
+    <tr><td class="rowh">pago parcial</td><td><span class="pill p-media">MEDIA</span></td><td><span class="pill p-baja">BAJA</span></td><td><span class="pill p-baja">BAJA</span></td></tr>
+  </table>
+  <div class="conf-note">Parcial parte un nivel más abajo: la ambigüedad de QUÉ pagó se suma a la de A QUIÉN pertenece.</div>
+</div>
+
+<!-- ══════════════════════════ CAPA 3 ══════════════════════════ -->
+<p class="section-title"><span class="n">3</span>Vecindad de confusión <span class="cond">— solo si NO CUADRA</span></p>
+<div class="capa-box capa3">
+  <div class="rule-line">
+    <span class="label">Candidato</span>
+    otro lote del pueblo que (a) debe ese MONTO — total o parcial — Y (b) está a UN error de tipeo del MZ-LT escrito
+  </div>
+  <div class="rule-line" style="border-left-color:#B7770D;">
+    <span class="label">Grupos de manzana confundible</span>
+    <div class="conf-grid">
+      <div class="conf-cell">U · V · W</div>
+      <div class="conf-cell">G · O · Q · C</div>
+      <div class="conf-cell">I · L · T · J</div>
+      <div class="conf-cell">P · D · O · B</div>
+      <div class="conf-cell">A · D</div>
+      <div class="conf-cell">B · P</div>
+      <div class="conf-cell">E · F · G</div>
+      <div class="conf-cell">M · N · W</div>
+      <div class="conf-cell">S · Z</div>
+      <div class="conf-cell">X · Y · K</div>
+      <div class="conf-cell">R · P · B</div>
+      <div class="conf-cell">X ↔ X1 (sufijo)</div>
+    </div>
+  </div>
+  <div class="rule-line" style="border-left-color:#B7770D;">
+    <span class="label">Dígitos confundibles</span>
+    4↔9 · 1↔7 · 3↔8 · 5↔6 · 0↔6 · 0↔8 · 6↔8 · 2↔7 · 1↔4 · 3↔5 · 5↔8 · 7↔9
+  </div>
+  <div class="rule-line" style="border-left-color:#B7770D;">
+    <span class="label">Otros patrones de lote</span>
+    transposición (12↔21) · dígito de más/menos (A-4↔A-14, autocompletar) · sufijo (3↔3A, 8↔8B)
+  </div>
+  <div class="conf-prio">
+    <strong>Prioridad: error SIMPLE (solo manzana o solo lote) antes que DOBLE (los dos a la vez).</strong>
+    Medido en los 4 casos conocidos: el correcto siempre fue un error simple; el doble solo agregó ruido.
+  </div>
+</div>
+
+<!-- ══════════════════════════ CAPA 4 ══════════════════════════ -->
+<p class="section-title"><span class="n">4</span>Filtro de realidad</p>
+<div class="capa-box capa4">
+  <div class="rule-line">
+    <span class="label">Descarta</span>
+    candidatos que YA tienen una fila con EVIDENCIA ∈ {ALTA, MEDIA} en esta misma corrida — ya están pagados, no son la pista
+  </div>
+  <div class="rule-line">
+    <span class="label">Se propone SOLO si queda exactamente 1</span>
+    0 candidatos → CANDIDATO vacío, "sin candidato" · 2+ candidatos → CANDIDATO vacío, "N candidatos, ninguno propuesto" — nunca se elige a ciegas
+  </div>
+</div>
+
+<!-- ══════════════════════════ OUTPUT ══════════════════════════ -->
+<p class="section-title">Output — verificacion_lotes_YYYY-MM.xlsx</p>
+<div class="output-box">
+  <div class="output-header">verificacion_lotes_YYYY-MM.xlsx</div>
+  <div class="output-section">
+    <div class="output-section-title">Identidad de la fila — nunca se edita</div>
+    <div class="col-row"><span class="cname group-quien">MESA · HOJA</span><span class="cdesc">de qué archivo y hoja viene</span></div>
+    <div class="col-row"><span class="cname group-quien">COBRADOR · FECHA</span><span class="cdesc">quién y cuándo — parte de la clave</span></div>
+    <div class="col-row"><span class="cname group-quien">MZ · LT · MONTO</span><span class="cdesc">lo que dice la hoja de papel — parte de la clave</span></div>
+    <div class="col-row"><span class="cname group-quien" style="opacity:.6;">FILA_EXCEL</span><span class="cdesc">oculta — respaldo puro de la clave, no visible</span></div>
+  </div>
+  <div class="output-section">
+    <div class="output-section-title">Resultado del motor — se regenera cada corrida</div>
+    <div class="col-row"><span class="cname group-sistema">EVIDENCIA</span><span class="cdesc">ALTA / MEDIA / BAJA / NO CUADRA / OMITIDO / SIN BOLETA</span></div>
+    <div class="col-row"><span class="cname group-sistema">COMO</span><span class="cdesc">ej. "consumo+mant" · "boleta completa"</span></div>
+    <div class="col-row"><span class="cname group-sistema">CANDIDATO · CANDIDATO_NOMBRE</span><span class="cdesc">MZ-LT único, o vacío</span></div>
+    <div class="col-row"><span class="cname group-sistema">MOTIVO_CONFUSION</span><span class="cdesc">ej. "lote 19→14"</span></div>
+  </div>
+  <div class="output-section">
+    <div class="output-section-title">Resolución — supervisor llena, se preserva</div>
+    <div class="col-row"><span class="cname group-res">RESOLUCION</span><span class="cdesc">acepta_original / corrige</span></div>
+    <div class="col-row"><span class="cname group-res">MZ_CORRECTO · LT_CORRECTO</span><span class="cdesc">solo si RESOLUCION = corrige</span></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════ ACOPLAMIENTOS ══════════════════════════ -->
+<p class="section-title">Acoplamientos</p>
+<div class="coupling-grid">
+  <div class="coupling-box">
+    <strong>Lee, solo lectura</strong>
+    <code>mesa_N.xlsx</code> · <code>DATA_boletas.xlsx</code> · <code>ciclo_activo.json</code> — nunca escribe en ninguno
+  </div>
+  <div class="coupling-box">
+    <strong>Orden en el módulo</strong>
+    corre ANTES de <code>main.py</code>, mismo módulo — no cruza a otro top-level
+  </div>
+  <div class="coupling-box">
+    <strong>Consumidor</strong>
+    ninguno automático downstream — solo el supervisor / secretaria
+  </div>
+  <div class="coupling-box">
+    <strong>Clave de preservación</strong>
+    (MESA, COBRADOR, FECHA, MZ, LT, MONTO) visible + FILA_EXCEL oculta como respaldo —
+    0 colisiones medidas en 165 filas reales
+  </div>
+</div>
+
+<div class="note">
+  <strong>Evidencia medida (163 filas reales, ciclo 2026-08):</strong> capa ① sola detecta 2 de 2
+  errores conocidos (Magda M-19→M-14, Pedro G-13→O-13). Capa ③ reduce el universo de candidatos de
+  17 y 10 a 1 en ambos casos. Detalle completo en
+  <code>docs/decisiones/verificacion_lotes_efectivo.md</code>.
+</div>
+
+</body>
+</html>

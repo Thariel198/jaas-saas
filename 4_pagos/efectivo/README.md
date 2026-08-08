@@ -35,7 +35,8 @@ de nuevo hasta que `discrepancias.xlsx` desaparezca.
 │   ├── pagos_efectivo.xlsx       ← resultado limpio → 5_cobranza
 │   ├── discrepancias.xlsx        ← temporal, desaparece al resolverse todo
 │   ├── reclamos_YYYY-MM.xlsx     ← vista operacional de reclamos del mes
-│   └── arqueo_YYYY-MM.xlsx       ← cuadre papel vs tesorera, por día y cobrador
+│   ├── arqueo_YYYY-MM.xlsx       ← cuadre papel vs tesorera, por día y cobrador
+│   └── verificacion_lotes_YYYY-MM.xlsx  ← temporal, MZ-LT escrito vs boleta emitida
 ├── trazabilidad/
 │   ├── consolidado_YYYY-MM.xlsx        ← todo lo procesado (permanente)
 │   ├── incidencias_YYYY-MM.xlsx        ← anomalías del mes (permanente)
@@ -46,13 +47,17 @@ de nuevo hasta que `discrepancias.xlsx` desaparezca.
 │   ├── diagrama_efectivo.html
 │   ├── diagrama_reclamos.html
 │   ├── diagrama_flujo_arqueo.html
+│   ├── diagrama_flujo_verificacion_lotes.html
+│   ├── diagrama_verificacion_lotes.html
 │   ├── arquitectura_efectivo.html
 │   ├── formato_pagos_efectivo.html
 │   ├── formato_reclamos.html
 │   ├── formato_trazabilidad_reclamos.html
 │   ├── formato_entregas.html
-│   └── formato_arqueo.html
+│   ├── formato_arqueo.html
+│   └── formato_verificacion_lotes.html
 ├── tests/
+├── verificar_lotes.py       ← cruza mesas vs DATA_boletas → verificacion_lotes_YYYY-MM.xlsx (corre ANTES de main.py)
 ├── main.py
 ├── reclamos.py
 ├── entregas_repo.py         ← escritor único de entregas.xlsx (append-only)
@@ -131,22 +136,76 @@ Si al terminar quedan filas en `discrepancias.xlsx`:
 
 ---
 
+## Verificación de lotes
+
+El cross-check dentro de la mesa (arriba) y el arqueo de caja verifican **cobrador vs
+cobrador** y **papel vs plata entregada** — ninguno de los dos cuestiona si el `MZ-LT` que
+el cobrador escribió es el predio correcto. Un error de una letra o un dígito acredita el
+pago a otro vecino sin que nada lo detecte: el monto entregado cuadra, y si la mesa tiene
+un solo cobrador no hay con qué comparar.
+
+`verificar_lotes.py` corre **antes** de `main.py` y cruza cada fila de las mesas contra
+`3_boletas/inputs/DATA_boletas.xlsx` (no la planilla — su `TOTAL_A_PAGAR` es fórmula Excel
+y pandas la lee `NaN`). Cuatro capas, en orden:
+
+1. **Cuadre** — ¿`MONTO` es alguna combinación de los cargos de ESE lote? (`CUADRA` /
+   `NO CUADRA`)
+2. **Fuerza de evidencia** — ¿cuántos lotes del pueblo deben exactamente ese importe?
+   (`ALTA` / `MEDIA` / `BAJA`) — un `S/8` que comparten 101 vecinos no prueba nada, y el
+   reporte lo dice en vez de dar un OK vacío.
+3. **Vecindad de confusión** (solo si `NO CUADRA`) — de los lotes que sí explican el
+   monto, ¿cuáles están a un error de tipeo/OCR del `MZ-LT` escrito? (`U/V/W`, `G/O/Q/C`,
+   dígitos que se confunden, `X↔X1`, transposición, etc.)
+4. **Filtro de realidad** — el candidato solo se propone cuando queda exactamente uno y no
+   está ya pagado en esta misma corrida.
+
+Filas con `CONCEPTO` no vacío (tanque, honorario, gasto, comunitario) o `MONTO = 0` se
+omiten (`EVIDENCIA = OMITIDO`) — esa plata ya no es deuda de agua y nunca va a cuadrar
+contra `DATA_boletas`.
+
+Solo reporta — **nunca escribe en `mesa_N.xlsx`** ("manual — sagrado"). Avisa, no bloquea,
+igual que `discrepancias.xlsx`. Guard previo: exige `shared/ciclo_activo.json` declarado y
+que la `FECHA` del pago caiga en la ventana de emisión→vencimiento de la boleta — si no,
+para con el mensaje de qué módulo anterior falta correr.
+
+Contratos: `docs/diagrama_flujo_verificacion_lotes.html`, `docs/diagrama_verificacion_lotes.html`,
+`docs/formato_verificacion_lotes.html`. Decisión de diseño completa, con la evidencia medida
+contra datos reales: `docs/decisiones/verificacion_lotes_efectivo.md`.
+
+```bash
+python verificar_lotes.py --mes 2026-08
+```
+
+### Señal de alerta
+
+Si más del 50% de las filas cae en evidencia `BAJA`, el monto dejó de discriminar en esta
+JASS — la respuesta no es afinar el algoritmo, es que falta la columna `NOMBRE` en la hoja
+de papel del cobrador.
+
+---
+
 ## Flujo paso a paso
 
 ```bash
 # 1. Asegurarse de que los archivos mesa_N.xlsx están en inputs/
 #    (cada archivo puede tener 1, 2 o 3 hojas)
 
-# 2. Correr el módulo
+# 2. Verificar que el MZ-LT escrito es el correcto (antes de consolidar)
+python verificar_lotes.py --mes 2026-08
+
+# 3. Revisar outputs/verificacion_lotes_YYYY-MM.xlsx si existe
+#    Corregir mesa_N.xlsx a mano donde EVIDENCIA=NO CUADRA lo indique
+
+# 4. Correr el módulo
 python main.py
 
-# 3. Revisar outputs/discrepancias.xlsx si existe
+# 5. Revisar outputs/discrepancias.xlsx si existe
 #    Llenar columna RESOLUCION en cada fila (acepta / corrige)
 
-# 4. Volver a correr si había discrepancias
+# 6. Volver a correr si había discrepancias
 python main.py
 
-# 5. Cuando no hay discrepancias, outputs/pagos_efectivo.xlsx está listo
+# 7. Cuando no hay discrepancias, outputs/pagos_efectivo.xlsx está listo
 #    → pasar a 5_cobranza
 ```
 
@@ -157,6 +216,7 @@ python main.py
 | Archivo | Tipo | Cuándo se crea | Cuándo desaparece |
 |---|---|---|---|
 | `outputs/pagos_efectivo.xlsx` | permanente | cada corrida | nunca (se sobreescribe) |
+| `outputs/verificacion_lotes_YYYY-MM.xlsx` | temporal | cada corrida de `verificar_lotes.py` | cuando todas las filas `NO CUADRA` tienen `RESOLUCION` |
 | `outputs/discrepancias.xlsx` | temporal | si hay discrepancias | cuando todas se resuelven |
 | `outputs/reclamos_YYYY-MM.xlsx` | mensual | cada corrida de `reclamos.py` | nunca (se sobreescribe) |
 | `trazabilidad/consolidado_YYYY-MM.xlsx` | permanente | cada corrida | nunca |
@@ -293,7 +353,9 @@ Contratos: `docs/formato_entregas.html`, `docs/formato_arqueo.html`, `docs/diagr
 
 ## Lo que este módulo NO hace
 
-- No calcula si el monto es correcto (eso es responsabilidad de `2_planilla` + `5_cobranza`)
+- No calcula la deuda ni valida su cálculo (eso es `2_planilla` + `5_cobranza`) —
+  `verificar_lotes.py` solo usa el monto de la boleta ya emitida como evidencia de qué
+  lote pagó, no recalcula cuánto debía
 - No cruza datos con Yape (eso lo hace `4_pagos/yape/`)
 - No decide si un usuario está al día (eso lo hace `5_cobranza`)
 - No borra los archivos de inputs — son trabajo manual sagrado

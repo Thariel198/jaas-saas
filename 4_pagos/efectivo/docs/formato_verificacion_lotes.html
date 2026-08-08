@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>verificacion_lotes_YYYY-MM.xlsx — contrato visual</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+
+  :root {
+    --font-sans: 'IBM Plex Sans', sans-serif;
+    --font-mono: 'IBM Plex Mono', monospace;
+    --border: #dee2e6;
+    --bg2: #f8f9fa;
+    --text3: #adb5bd;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font-sans); background: #fff; padding: 28px; font-size: 13px; color: #111; }
+
+  .title { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+  .sub   { font-size: 12px; color: #888; margin-bottom: 8px; }
+
+  .historia {
+    font-size: 11px; color: #555; margin-bottom: 16px;
+    background: #FFF7ED; border-left: 3px solid #FED7AA;
+    padding: 7px 12px; border-radius: 0 5px 5px 0; line-height: 1.7;
+  }
+  .historia strong { color: #9A3412; }
+
+  .banner {
+    font-size: 11px; color: #7D6608; margin-bottom: 16px;
+    background: #FEF9E7; border: 1px solid #F9E79F; border-left: 3px solid #B7770D;
+    padding: 8px 12px; border-radius: 0 5px 5px 0; line-height: 1.6;
+  }
+  .banner strong { color: #7D6608; }
+  .banner code { font-family: var(--font-mono); font-size: 10px; background: #fff; padding: 1px 4px; border-radius: 3px; }
+
+  .tab-wrap { display: inline-flex; gap: 3px; margin-bottom: -1px; }
+  .tab {
+    display: inline-flex; align-items: center;
+    background: #FFF7ED; border: 0.5px solid #FED7AA;
+    border-bottom: none; border-radius: 6px 6px 0 0;
+    padding: 5px 14px; font-size: 12px; font-weight: 500;
+    color: #9A3412; font-family: var(--font-mono);
+  }
+
+  .tw { border: 0.5px solid var(--border); border-radius: 0 8px 8px 8px; overflow-x: auto; margin-bottom: 16px; }
+
+  table { border-collapse: collapse; font-size: 10px; font-family: var(--font-sans); }
+  th, td {
+    padding: 5px 8px;
+    border-bottom: 0.5px solid var(--border);
+    border-right: 0.5px solid var(--border);
+    white-space: nowrap; vertical-align: middle;
+  }
+
+  .num {
+    width: 22px; background: var(--bg2); color: var(--text3);
+    font-size: 9px; font-family: var(--font-mono); text-align: center; padding: 4px 2px;
+  }
+  .th-sep, .td-sep { width: 5px; background: var(--bg2); border-right: 2px solid var(--border); padding: 0; }
+
+  .gh  { font-size: 9px; font-weight: 600; text-align: center; letter-spacing: 0.05em; text-transform: uppercase; padding: 4px 8px; }
+  th.col { font-size: 9px; font-weight: 600; font-family: var(--font-mono); text-align: center; padding: 4px 8px; }
+
+  /* ── ¿Quién es? (violeta) ── */
+  .gh-quien { background: #F4ECF7; color: #5B21B6; }
+  .th-quien { background: #F4ECF7; color: #5B21B6; }
+  .td-quien-id     { background: #FAF5FF; color: #5B21B6; font-family: var(--font-mono); text-align: center; }
+  .td-quien-nombre { background: #FAF5FF; color: #5B21B6; }
+
+  /* ── ¿Quién cobró y cuándo? (amarillo — manual, igual que mesa_N.xlsx) ── */
+  .gh-mesa { background: #FEF9E7; color: #7D6608; }
+  .th-mesa { background: #FEF9E7; color: #7D6608; }
+  .td-mesa { background: #FFFDF5; color: #7D6608; font-family: var(--font-mono); text-align: center; }
+  .td-mesa-cob { background: #FFFDF5; color: #7D6608; }
+
+  /* ── ¿Qué lote y cuánto escribió? (azul — identidad del predio) ── */
+  .gh-id { background: #EBF5FB; color: #1A5276; }
+  .th-id { background: #EBF5FB; color: #1A5276; }
+  .td-id { background: #F4FAFF; color: #1A5276; font-family: var(--font-mono); text-align: center; font-weight: 600; }
+  .td-id-monto { background: #F4FAFF; color: #1A5276; font-family: var(--font-mono); text-align: right; font-weight: 600; }
+
+  /* ── ¿Cuadra con su boleta? (verde sistema) ── */
+  .gh-cuadre { background: #E9F7EF; color: #1E5C3A; }
+  .th-cuadre { background: #E9F7EF; color: #1E5C3A; }
+  .td-cuadre       { background: #F4FBF7; color: #1E5C3A; }
+  .td-cuadre-monto { background: #F4FBF7; color: #1E5C3A; font-family: var(--font-mono); text-align: right; font-weight: 600; }
+  .td-cuadre-empty { background: #f8f9fa; color: #ccc; font-style: italic; text-align: center; font-size: 9px; }
+
+  /* ── ¿Sospecha algún vecino? (naranja — capa 3, misma familia que diagrama_verificacion_lotes) ── */
+  .gh-sosp { background: #FFF7ED; color: #9A3412; }
+  .th-sosp { background: #FFF7ED; color: #9A3412; }
+  .td-sosp       { background: #FFFBF5; color: #9A3412; font-family: var(--font-mono); text-align: center; }
+  .td-sosp-nom   { background: #FFFBF5; color: #9A3412; }
+  .td-sosp-motivo{ background: #FFFBF5; color: #B7770D; font-size: 9px; }
+  .td-sosp-empty { background: #f8f9fa; color: #ccc; font-style: italic; text-align: center; font-size: 9px; }
+
+  /* ── Resolución (verde acción) ── */
+  .gh-res { background: #ECFDF5; color: #065F46; }
+  .th-res { background: #ECFDF5; color: #065F46; }
+  .td-res-vacio  { background: #F0FFF8; color: #9CA3AF; font-style: italic; text-align: center; }
+  .td-res-lleno  { background: #D1FAE5; color: #065F46; font-family: var(--font-mono); text-align: center; font-weight: 600; font-size: 9px; }
+
+  .pill { display: inline-block; font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 10px; font-family: var(--font-mono); }
+  .p-alta      { background: #D5F5E3; color: #1E5C3A; }
+  .p-media     { background: #FEF3C7; color: #92400E; }
+  .p-baja      { background: #FEF9E7; color: #7D6608; }
+  .p-nocuadra  { background: #FEE2E2; color: #991B1B; }
+  .p-omitido   { background: #f1f3f5; color: #868e96; }
+  .pill.ok      { background: #D1FAE5; color: #065F46; }
+  .pill.corrige { background: #DBEAFE; color: #1E40AF; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; align-items: center; }
+  .ld-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #555; }
+  .ld { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; border: 0.5px solid rgba(0,0,0,.12); }
+
+  .section-title { font-size: 12px; font-weight: 600; color: #333; margin-bottom: 10px; margin-top: 24px; }
+  .rule-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; margin-bottom: 20px; }
+  .rule-card { border: 0.5px solid var(--border); border-radius: 6px; padding: 10px 12px; font-size: 11px; color: #555; line-height: 1.6; }
+  .rule-card strong { display: block; font-size: 9px; font-weight: 700; margin-bottom: 5px; color: #333; text-transform: uppercase; letter-spacing: 0.05em; }
+  .rule-card code { font-family: var(--font-mono); font-size: 10px; background: #f3f3f3; padding: 1px 4px; border-radius: 2px; }
+
+  .widths-table { border-collapse: collapse; font-size: 11px; margin-bottom: 20px; width: 100%; }
+  .widths-table th, .widths-table td { border: 0.5px solid var(--border); padding: 4px 10px; text-align: left; }
+  .widths-table th { background: var(--bg2); font-weight: 600; font-size: 10px; }
+  .widths-table code { font-family: var(--font-mono); font-size: 10px; }
+</style>
+</head>
+<body>
+
+<p class="title">verificacion_lotes_YYYY-MM.xlsx — contrato visual</p>
+<p class="sub">Archivo temporal · 1 hoja · corre ANTES de main.py · desaparece cuando todas las filas NO CUADRA están resueltas</p>
+
+<div class="banner">
+  <strong>Solo las 3 últimas columnas se editan a mano.</strong> Todo lo demás lo escribe
+  <code>verificar_lotes.py</code> y se pisa entero en cada corrida — <code>ID</code> …
+  <code>MOTIVO_CONFUSION</code> nunca se tocan. El supervisor llena únicamente
+  <code>RESOLUCION</code> / <code>MZ_CORRECTO</code> / <code>LT_CORRECTO</code>, y esas tres se
+  preservan entre corridas por la clave <code>(MESA, COBRADOR, FECHA, MZ, LT, MONTO)</code>.
+  Hay una 7ª columna, <code>FILA_EXCEL</code>, <strong>oculta</strong> en el Excel — respaldo
+  puro para el caso raro de que el mismo lote pague el mismo monto dos veces el mismo día; no se
+  ve ni se usa para buscar, eso se hace por <code>MZ</code>.
+</div>
+
+<p class="historia">
+  <strong>Una fila = un pago de la mesa, con la evidencia de si el lote escrito es el correcto.</strong>
+  Nunca escribe en <code>mesa_N.xlsx</code> — la corrección la aplica el supervisor a mano ahí,
+  este archivo solo informa. La clave de identidad de fila (<code>MESA, COBRADOR, FECHA, MZ, LT,
+  MONTO</code>) es la que usa la preservación. Si el supervisor corrige <code>MZ/LT</code> en
+  <code>mesa_N.xlsx</code>, la fila cambia de clave a propósito: recalcula limpia contra su nueva
+  boleta en vez de arrastrar una <code>RESOLUCION</code> que ya no aplica.
+  <strong>ID / NOMBRE</strong> son de sistema — lookup por el <code>MZ,LT</code> tal como lo
+  escribió el cobrador, contra <code>shared/usuarios_id.xlsx</code>.
+</p>
+
+<div class="legend">
+  <div class="ld-item"><div class="ld" style="background:#F4ECF7;border-color:#D8B4FE"></div>¿Quién es? (lo escrito)</div>
+  <div class="ld-item"><div class="ld" style="background:#FEF9E7;border-color:#F9E79F"></div>¿Quién cobró y cuándo?</div>
+  <div class="ld-item"><div class="ld" style="background:#EBF5FB;border-color:#AED6F1"></div>¿Qué lote y cuánto?</div>
+  <div class="ld-item"><div class="ld" style="background:#E9F7EF;border-color:#A7F3D0"></div>¿Cuadra con su boleta?</div>
+  <div class="ld-item"><div class="ld" style="background:#FFF7ED;border-color:#FDBA74"></div>¿Sospecha algún vecino?</div>
+  <div class="ld-item"><div class="ld" style="background:#ECFDF5;border-color:#6EE7B7"></div>Resolución (supervisor llena)</div>
+</div>
+
+<div class="tab-wrap">
+  <div class="tab">verificacion</div>
+</div>
+
+<div class="tw">
+<table>
+
+  <!-- Fila 1: secciones -->
+  <tr>
+    <th class="num" rowspan="2"></th>
+    <th class="gh gh-quien" colspan="2">¿Quién es?</th>
+    <th class="th-sep"      rowspan="2"></th>
+    <th class="gh gh-mesa"  colspan="4">¿Quién cobró y cuándo?</th>
+    <th class="th-sep"      rowspan="2"></th>
+    <th class="gh gh-id"    colspan="3">¿Qué lote y cuánto?</th>
+    <th class="th-sep"      rowspan="2"></th>
+    <th class="gh gh-cuadre" colspan="3">¿Cuadra con su boleta?</th>
+    <th class="th-sep"      rowspan="2"></th>
+    <th class="gh gh-sosp"  colspan="3">¿Sospecha algún vecino?</th>
+    <th class="th-sep"      rowspan="2"></th>
+    <th class="gh gh-res"   colspan="3">Resolución — supervisor llena</th>
+  </tr>
+  <!-- Fila 2: columnas -->
+  <tr>
+    <th class="col th-quien">ID</th>
+    <th class="col th-quien">NOMBRE</th>
+    <th class="col th-mesa">MESA</th>
+    <th class="col th-mesa">HOJA</th>
+    <th class="col th-mesa">COBRADOR</th>
+    <th class="col th-mesa">FECHA</th>
+    <th class="col th-id">MZ</th>
+    <th class="col th-id">LT</th>
+    <th class="col th-id">MONTO</th>
+    <th class="col th-cuadre">EVIDENCIA</th>
+    <th class="col th-cuadre">COMO</th>
+    <th class="col th-cuadre">IMPORTE_BOLETA</th>
+    <th class="col th-sosp">CANDIDATO</th>
+    <th class="col th-sosp">CANDIDATO_NOMBRE</th>
+    <th class="col th-sosp">MOTIVO_CONFUSION</th>
+    <th class="col th-res">RESOLUCION</th>
+    <th class="col th-res">MZ_CORRECTO</th>
+    <th class="col th-res">LT_CORRECTO</th>
+  </tr>
+
+  <!-- Caso real: Magda — NO CUADRA, candidato único, resuelto -->
+  <tr>
+    <td class="num">3</td>
+    <td class="td-quien-id">U0333</td><td class="td-quien-nombre">Andres Quito Rodriguez</td>
+    <td class="td-sep"></td>
+    <td class="td-mesa">mesa_2</td><td class="td-mesa">registro_1</td>
+    <td class="td-mesa-cob">Yerald Romero</td><td class="td-mesa">02/08/2026</td>
+    <td class="td-sep"></td>
+    <td class="td-id">M</td><td class="td-id">19</td><td class="td-id-monto">S/ 9.00</td>
+    <td class="td-sep"></td>
+    <td class="td-cuadre"><span class="pill p-nocuadra">NO CUADRA</span></td>
+    <td class="td-cuadre-empty">—</td><td class="td-cuadre-monto">S/ 18.00</td>
+    <td class="td-sep"></td>
+    <td class="td-sosp">M-14</td><td class="td-sosp-nom">Magda Maria Blas Morales</td>
+    <td class="td-sosp-motivo">lote 19→14</td>
+    <td class="td-sep"></td>
+    <td class="td-res-lleno"><span class="pill corrige">corrige</span></td>
+    <td class="td-res-lleno">M</td><td class="td-res-lleno">14</td>
+  </tr>
+
+  <!-- Caso real: Pedro — NO CUADRA, confusión de manzana, resuelto -->
+  <tr>
+    <td class="num">4</td>
+    <td class="td-quien-id">U0198</td><td class="td-quien-nombre">Reynaldo Melgarejo Vilcarino</td>
+    <td class="td-sep"></td>
+    <td class="td-mesa">mesa_2</td><td class="td-mesa">registro_1</td>
+    <td class="td-mesa-cob">Yerald Romero</td><td class="td-mesa">02/08/2026</td>
+    <td class="td-sep"></td>
+    <td class="td-id">G</td><td class="td-id">13</td><td class="td-id-monto">S/ 19.00</td>
+    <td class="td-sep"></td>
+    <td class="td-cuadre"><span class="pill p-nocuadra">NO CUADRA</span></td>
+    <td class="td-cuadre-empty">—</td><td class="td-cuadre-monto">S/ 37.00</td>
+    <td class="td-sep"></td>
+    <td class="td-sosp">O-13</td><td class="td-sosp-nom">Pedro Mendoza Marquina</td>
+    <td class="td-sosp-motivo">manzana G→O</td>
+    <td class="td-sep"></td>
+    <td class="td-res-lleno"><span class="pill corrige">corrige</span></td>
+    <td class="td-res-lleno">O</td><td class="td-res-lleno">13</td>
+  </tr>
+
+  <!-- Caso real: cuadra, evidencia BAJA (S/8, monto muy comun) -->
+  <tr>
+    <td class="num">5</td>
+    <td class="td-quien-id">U0028</td><td class="td-quien-nombre">Rosa Cardenas Alvarado</td>
+    <td class="td-sep"></td>
+    <td class="td-mesa">mesa_1</td><td class="td-mesa">registro_1</td>
+    <td class="td-mesa-cob">Wilder Trujillo</td><td class="td-mesa">01/08/2026</td>
+    <td class="td-sep"></td>
+    <td class="td-id">I</td><td class="td-id">8</td><td class="td-id-monto">S/ 8.00</td>
+    <td class="td-sep"></td>
+    <td class="td-cuadre"><span class="pill p-baja">BAJA</span></td>
+    <td class="td-cuadre">Total mes actual+Mantenimiento</td><td class="td-cuadre-monto">S/ 8.00</td>
+    <td class="td-sep"></td>
+    <td class="td-sosp-empty">—</td><td class="td-sosp-empty">—</td><td class="td-sosp-empty">—</td>
+    <td class="td-sep"></td>
+    <td class="td-res-vacio">no requiere acción</td><td class="td-res-vacio"></td><td class="td-res-vacio"></td>
+  </tr>
+
+  <!-- Caso real: cuadra, evidencia ALTA (monto casi unico) -->
+  <tr>
+    <td class="num">6</td>
+    <td class="td-quien-id">U0064</td><td class="td-quien-nombre">Pompeyo Celestino Lliuya</td>
+    <td class="td-sep"></td>
+    <td class="td-mesa">mesa_1</td><td class="td-mesa">registro_1</td>
+    <td class="td-mesa-cob">Wilder Trujillo</td><td class="td-mesa">01/08/2026</td>
+    <td class="td-sep"></td>
+    <td class="td-id">B</td><td class="td-id">5</td><td class="td-id-monto">S/ 129.00</td>
+    <td class="td-sep"></td>
+    <td class="td-cuadre"><span class="pill p-alta">ALTA</span></td>
+    <td class="td-cuadre">MES ANTERIOR+Convenio+Cuota directa</td><td class="td-cuadre-monto">S/ 129.00</td>
+    <td class="td-sep"></td>
+    <td class="td-sosp-empty">—</td><td class="td-sosp-empty">—</td><td class="td-sosp-empty">—</td>
+    <td class="td-sep"></td>
+    <td class="td-res-vacio">no requiere acción</td><td class="td-res-vacio"></td><td class="td-res-vacio"></td>
+  </tr>
+
+  <!-- Caso real: NO CUADRA sin candidato -->
+  <tr>
+    <td class="num">7</td>
+    <td class="td-quien-id">U0071</td><td class="td-quien-nombre">Martha Masias Casihuaman de Teran</td>
+    <td class="td-sep"></td>
+    <td class="td-mesa">mesa_1</td><td class="td-mesa">registro_1</td>
+    <td class="td-mesa-cob">Wilder Trujillo</td><td class="td-mesa">02/08/2026</td>
+    <td class="td-sep"></td>
+    <td class="td-id">C</td><td class="td-id">16</td><td class="td-id-monto">S/ 41.00</td>
+    <td class="td-sep"></td>
+    <td class="td-cuadre"><span class="pill p-nocuadra">NO CUADRA</span></td>
+    <td class="td-cuadre-empty">—</td><td class="td-cuadre-monto">S/ 71.00</td>
+    <td class="td-sep"></td>
+    <td class="td-sosp-empty">sin candidato</td><td class="td-sosp-empty">—</td><td class="td-sosp-empty">—</td>
+    <td class="td-sep"></td>
+    <td class="td-res-vacio">← revisar a mano</td><td class="td-res-vacio"></td><td class="td-res-vacio"></td>
+  </tr>
+
+</table>
+</div>
+
+<p class="section-title">Reglas de las columnas</p>
+<div class="rule-grid">
+  <div class="rule-card">
+    <strong>ID · NOMBRE</strong>
+    Lookup por el <code>MZ,LT</code> tal como lo escribió el cobrador (no el corregido) contra
+    <code>shared/usuarios_id.xlsx</code>. Es lo primero que ve el supervisor — le dice de quién es
+    el predio sin tener que buscarlo.
+  </div>
+  <div class="rule-card">
+    <strong>MESA · HOJA</strong>
+    De qué archivo y hoja viene la fila — para que el supervisor sepa dónde abrir y corregir
+    en <code>mesa_N.xlsx</code>.
+  </div>
+  <div class="rule-card">
+    <strong>COBRADOR · FECHA</strong>
+    Copiados tal cual de la mesa. <code>FECHA</code> es la que usa el guard para verificar que
+    cae en la ventana de emisión→vencimiento de la boleta. Junto con <code>MZ, LT, MONTO</code>
+    forman la clave de preservación.
+  </div>
+  <div class="rule-card">
+    <strong>FILA_EXCEL — columna oculta, no visible</strong>
+    Posición física de la fila. Respaldo puro para el caso raro que la clave visible no cubre:
+    el mismo lote pagando el mismo monto dos veces el mismo día. No se busca por ella.
+  </div>
+  <div class="rule-card">
+    <strong>MZ · LT · MONTO</strong>
+    Lo que dice el papel — nunca se corrige acá. El monto es el total cobrado (efectivo + yape).
+  </div>
+  <div class="rule-card">
+    <strong>EVIDENCIA · COMO</strong>
+    Resultado de las capas ①② — si cuadra y qué tan único es el importe.
+    <code>COMO</code> lista los conceptos que explican el monto (ej. "consumo+mant"), vacío si
+    <code>NO CUADRA</code>.
+  </div>
+  <div class="rule-card">
+    <strong>IMPORTE_BOLETA</strong>
+    El total que le corresponde pagar a ESE <code>MZ-LT</code> según <code>DATA_boletas.xlsx</code>
+    — para que el supervisor compare a simple vista. Vacío si <code>SIN BOLETA</code>.
+  </div>
+  <div class="rule-card">
+    <strong>CANDIDATO · CANDIDATO_NOMBRE · MOTIVO_CONFUSION</strong>
+    Resultado de las capas ③④ — solo se llenan si <code>NO CUADRA</code> y quedó exactamente un
+    lote vecino candidato. <code>MOTIVO_CONFUSION</code> explica el tipo de error (ej. "lote 19→14").
+  </div>
+  <div class="rule-card">
+    <strong>RESOLUCION · MZ_CORRECTO · LT_CORRECTO</strong>
+    Las únicas 3 columnas que llena el supervisor. <code>corrige</code> exige los dos correctos
+    llenos — el cambio se aplica a mano en <code>mesa_N.xlsx</code>, este archivo nunca lo escribe.
+  </div>
+</div>
+
+<p class="section-title">Valores de EVIDENCIA</p>
+<div class="rule-grid">
+  <div class="rule-card">
+    <strong><span class="pill p-alta">ALTA</span></strong>
+    Cuadra con la boleta y ese importe lo debe ≤5 lotes del pueblo. El lote está prácticamente probado.
+  </div>
+  <div class="rule-card">
+    <strong><span class="pill p-media">MEDIA</span></strong>
+    Cuadra y el importe lo comparten hasta 25 lotes (boleta completa) o hasta 5 (pago parcial).
+  </div>
+  <div class="rule-card">
+    <strong><span class="pill p-baja">BAJA</span></strong>
+    Cuadra, pero el importe lo comparte medio pueblo — el monto no prueba el lote por sí solo.
+  </div>
+  <div class="rule-card">
+    <strong><span class="pill p-nocuadra">NO CUADRA</span></strong>
+    Ningún subconjunto de los cargos de ESE lote suma el MONTO. Revisar CANDIDATO si hay uno.
+  </div>
+  <div class="rule-card">
+    <strong><span class="pill p-omitido">OMITIDO</span></strong>
+    MONTO = 0 (visita de reclamo, sin cobro) — no se evalúa.
+  </div>
+  <div class="rule-card">
+    <strong><span class="pill p-omitido">SIN BOLETA</span></strong>
+    El MZ-LT escrito no existe en <code>DATA_boletas.xlsx</code> — no hay contra qué comparar.
+  </div>
+</div>
+
+<p class="section-title">Columna RESOLUCION — valores válidos</p>
+<div class="rule-grid">
+  <div class="rule-card">
+    <strong><span class="pill ok">acepta_original</span></strong>
+    El supervisor revisó y el MZ-LT escrito es correcto — el NO CUADRA queda documentado sin acción.
+  </div>
+  <div class="rule-card">
+    <strong><span class="pill corrige">corrige</span></strong>
+    El MZ-LT estaba mal. Escribir el correcto en <code>MZ_CORRECTO</code> / <code>LT_CORRECTO</code>
+    y aplicar el cambio a mano en <code>mesa_N.xlsx</code> — este archivo nunca lo escribe.
+  </div>
+  <div class="rule-card">
+    <strong>Vacío</strong>
+    Fila EVIDENCIA=ALTA/MEDIA/BAJA no requiere acción. Fila NO CUADRA vacía sigue pendiente
+    y el archivo no desaparece.
+  </div>
+</div>
+
+<p class="section-title">Reglas de comportamiento</p>
+<div class="rule-grid">
+  <div class="rule-card">
+    <strong>Cuándo corre</strong>
+    Antes de <code>main.py</code> — verificar antes de consolidar, no después de que el error
+    ya viajó a <code>pagos_efectivo.xlsx</code>.
+  </div>
+  <div class="rule-card">
+    <strong>Solo reporta</strong>
+    Nunca escribe en <code>mesa_N.xlsx</code> (manual — sagrado). La corrección la aplica el
+    supervisor a mano.
+  </div>
+  <div class="rule-card">
+    <strong>Avisa, no bloquea</strong>
+    Igual que <code>discrepancias.xlsx</code>: si quedan filas NO CUADRA sin resolver,
+    <code>main.py</code> corre igual con advertencia.
+  </div>
+  <div class="rule-card">
+    <strong>Lifecycle</strong>
+    Archivo <strong>temporal</strong> — desaparece cuando todas las filas NO CUADRA tienen
+    RESOLUCION llena. Filas ALTA/MEDIA/BAJA no bloquean el cierre.
+  </div>
+</div>
+
+<p class="section-title">Reglas de formato — openpyxl</p>
+<table class="widths-table">
+  <tr><th>Columna</th><th>Ancho</th><th>Tipo Python</th><th>Nota</th></tr>
+  <tr><td><code>ID</code></td><td>10</td><td>str · vacío = sin match</td><td>centro · lookup (MZ,LT escrito) contra usuarios_id.xlsx · <code>—</code> si no hay match</td></tr>
+  <tr><td><code>NOMBRE</code></td><td>26</td><td>str</td><td>izquierda · mismo lookup que ID</td></tr>
+  <tr><td><code>MESA</code></td><td>10</td><td>str</td><td>centro</td></tr>
+  <tr><td><code>HOJA</code></td><td>12</td><td>str</td><td>centro · registro_1/2/3</td></tr>
+  <tr><td><code>COBRADOR</code></td><td>20</td><td>str</td><td>izquierda</td></tr>
+  <tr><td><code>FECHA</code></td><td>12</td><td>date</td><td>centro · <code>"DD/MM/YYYY"</code></td></tr>
+  <tr><td><code>MZ · LT</code></td><td>8</td><td>str</td><td>centro</td></tr>
+  <tr><td><code>MONTO</code></td><td>12</td><td>float</td><td>derecha · <code>"S/ "#,##0.00</code></td></tr>
+  <tr><td><code>EVIDENCIA</code></td><td>14</td><td>str · enum</td><td>centro · negrita · fondo por color de pill</td></tr>
+  <tr><td><code>COMO</code></td><td>28</td><td>str · vacío = NO CUADRA</td><td>izquierda · nombres de conceptos separados por +</td></tr>
+  <tr><td><code>IMPORTE_BOLETA</code></td><td>14</td><td>float · vacío si SIN BOLETA</td><td>derecha · <code>"S/ "#,##0.00</code></td></tr>
+  <tr><td><code>CANDIDATO</code></td><td>12</td><td>str · vacío = 0 o 2+ candidatos</td><td>centro</td></tr>
+  <tr><td><code>CANDIDATO_NOMBRE</code></td><td>26</td><td>str</td><td>izquierda</td></tr>
+  <tr><td><code>MOTIVO_CONFUSION</code></td><td>18</td><td>str</td><td>izquierda · ej. "lote 19→14"</td></tr>
+  <tr><td><code>RESOLUCION</code></td><td>16</td><td>str · vacío = pendiente</td><td>centro · negrita · fondo verde claro cuando está lleno</td></tr>
+  <tr><td><code>MZ_CORRECTO · LT_CORRECTO</code></td><td>12</td><td>str · vacío salvo corrige</td><td>centro · solo cuando RESOLUCION = corrige</td></tr>
+  <tr style="opacity:.6;"><td><code>FILA_EXCEL</code></td><td>—</td><td>int</td><td><code>column_dimensions[…].hidden = True</code> · respaldo de la clave, no visible, no se busca por ella</td></tr>
+</table>
+<p style="font-size:11px; color:#888; margin-top:8px;">
+  Fila 1 (secciones) y fila 2 (columnas): negrita, altura 18px y 22px. Datos desde fila 3.
+  Freeze en <code>A3</code>. Cada corrida reescribe ID…MOTIVO_CONFUSION completo (incluida la
+  columna oculta) y preserva RESOLUCION/MZ_CORRECTO/LT_CORRECTO por la clave
+  <code>(MESA, COBRADOR, FECHA, MZ, LT, MONTO, FILA_EXCEL)</code>.
+</p>
+
+<p class="section-title">Paleta de colores — openpyxl</p>
+<table class="widths-table">
+  <tr><th>Sección</th><th>Header bg</th><th>Header text</th><th>Data bg</th><th>Border</th></tr>
+  <tr><td>¿Quién es?</td><td><code>F4ECF7</code></td><td><code>5B21B6</code></td><td><code>FAF5FF</code></td><td><code>D8B4FE</code></td></tr>
+  <tr><td>¿Quién cobró y cuándo?</td><td><code>FEF9E7</code></td><td><code>7D6608</code></td><td><code>FFFDF5</code></td><td><code>F9E79F</code></td></tr>
+  <tr><td>¿Qué lote y cuánto?</td><td><code>EBF5FB</code></td><td><code>1A5276</code></td><td><code>F4FAFF</code></td><td><code>AED6F1</code></td></tr>
+  <tr><td>¿Cuadra con su boleta?</td><td><code>E9F7EF</code></td><td><code>1E5C3A</code></td><td><code>F4FBF7</code></td><td><code>A7F3D0</code></td></tr>
+  <tr><td>¿Sospecha algún vecino?</td><td><code>FFF7ED</code></td><td><code>9A3412</code></td><td><code>FFFBF5</code></td><td><code>FDBA74</code></td></tr>
+  <tr><td>Resolución (supervisor llena)</td><td><code>ECFDF5</code></td><td><code>065F46</code></td><td><code>F0FFF8</code></td><td><code>6EE7B7</code></td></tr>
+</table>
+
+</body>
+</html>
