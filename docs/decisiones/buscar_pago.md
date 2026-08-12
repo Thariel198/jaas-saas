@@ -22,8 +22,15 @@ el cobrador anotó en la mesa.
   `verificar_lotes.py` (ver `docs/decisiones/verificacion_lotes_efectivo.md`): "un falso OK es peor
   que un no-sé".
 - Auditable fila por fila por una persona no técnica.
-- Genérica por `TIPO_RECLAMO` desde el día 1 — el mismo embudo sirve para "ya pagué mi medidor"
-  (`convenio`), no solo `mes_anterior`.
+- **Solo `mes_anterior`.** Revisado durante la implementación (2026-08-12): la intención inicial era
+  hacerla genérica por `TIPO_RECLAMO`, y se descartó al correrla contra los 43 reclamos de
+  `convenio` — devolvía "pagó parte de sus cuotas" para 29 de ellos, que es cierto y no explica
+  nada. La causa de "ya pagué mi medidor" y "ya pagué techado y campo" es **anterior y distinta**:
+  el orden de la cascada. Hoy reparte `consumo · mantenimiento · mes anterior · multa · acuerdos ·
+  convenio` y va a repartir `consumo · mantenimiento · mes anterior · convenio · acuerdos · multa`
+  (la multa al final: es lo único que se puede cubrir con faena o exonerar). Buscar el pago de un
+  convenio antes de ese reorden es buscar en el lugar equivocado. Ese reorden es otro trabajo, ya
+  simulado en `4b_reclamos/reporte_reimputacion_cascada.py`.
 
 **Enfoque elegido — embudo de 2 bloques, con un gate antes:**
 
@@ -107,7 +114,82 @@ esta herramienta, porque la reusa):**
    `planilla_cobrado_2026-06.xlsx` (Junio, `ciclo.resolver` estándar). El resolver estándar no
    encuentra el de julio sin un alias explícito.
 
+**Corregido durante la implementación (medido contra los 29 reclamos reales de 2026-08):**
+
+La 1a versión emitió 5 `CANDIDATO_TIPEO`, de los cuales 4 eran falsos. Los defectos y su arreglo,
+todos con test contrafactual en `4b_reclamos/tests/test_buscar_pago.py`:
+
+1. **Faltaba la capa 4 de `verificar_lotes`** (el candidato debe estar impago). C-28, O-25, O-23 y
+   O-24 tenían un pago que cuadraba EXACTO con su propia boleta — era su pago, no una confusión.
+   Estaba implementado como una nota ("ojo: también cuadra…") en vez de como filtro.
+2. **El monto matcheaba subconjuntos que no incluyen el concepto disputado.** Q-9 proponía un pago
+   de S/3 (= su `mant`) para una disputa de S/20 de mes anterior; Z-17 uno de S/34 (`consumo+mant`)
+   para S/36. Se reemplazó `vl.subconjuntos()` por `_montos_que_cubren()`, que solo genera las
+   combinaciones que contienen el cargo reclamado.
+3. **`PAGO_ANTES_APLICADO_DESPUES` sin desfase real.** E-8 tenía `MES_CICLO == MES_ANO_APLICA` y
+   `FECHA_REAL` vacía — no hay "pagó antes". Ahora se exige `_dist_meses(aplica, ciclo) >= 1`, y
+   cuando un predio tiene varias filas se sigue buscando la que sí lo tiene (caso I-9).
+4. **El aporte al tanque cortaba el embudo sin explicar el reclamo.** Q-12 (tanque S/50, cuyo propio
+   `MOTIVO` dice "sin relación con este aporte") frente a un reclamo de S/15. Ahora es veredicto
+   propio solo si el tanque fue la única plata del mes; si además hubo pago de agua, queda como nota
+   y la búsqueda sigue.
+5. **`MAL_IMPUTADO` sin verificar que el cargo se debía ese mes.** Si no se debía nada, recibir 0 es
+   correcto y llamarlo bug es un falso positivo. Se agregó el chequeo contra `shared/planilla_mes/`.
+
+**Capa que faltaba en el diseño, encontrada al correr:** 11 de los 13 casos que quedaban en
+`SIN_EVIDENCIA` tenían un pago **del propio ciclo del reclamo** que no fue al arrastre. El diseño en
+papel no lo cubría porque asumía que el pago reclamado era siempre de un mes anterior.
+
+**Encuadre corregido por el usuario (importante — la primera lectura era equivocada):** ese pago fue
+a **consumo + mantenimiento**, y eso es la cascada **funcionando bien** (P1: agua del mes primero).
+No es un hallazgo y no hay nada que re-imputar. Lo que realmente pasó es que el vecino pagó el mes y
+**se negó a pagar el arrastre**, precisamente porque su reclamo dice que no lo debe (ya lo pagó en
+meses anteriores). Entonces lo que hay que verificar es el **origen del arrastre**, no el destino de
+este pago.
+
+De ahí salen dos correcciones concretas:
+
+6. **`PAGO_SOLO_EL_MES` reemplaza a `PAGO_FUE_A_OTRO_CARGO`**, y se agrega
+   `CASCADA_FUERA_DE_ORDEN` para la anomalía que sí importa: que se cobre **multa / acuerdos /
+   convenio** dejando el arrastre sin pagar — esos tres van *después* del mes anterior. Medido:
+   **0 casos** en 2026-08, los 14 pagaron exactamente consumo+mantenimiento. Ese cero es el
+   hallazgo: la cascada está bien en lo que respecta al mes anterior.
+7. **El monto no siempre discrimina, y ahora se dice.** En 6 de los 14 (O-28, U-2, Y-3, T-15, O-21,
+   F1-1) `consumo+mant` suma exactamente lo mismo que el cargo de mes anterior (5+3=8 y anterior=8),
+   así que el monto pagado **no permite** saber cuál de los dos quiso pagar. La versión anterior
+   afirmaba "S/8 es EXACTO el cargo que reclama, así que pagó justo eso" — falso OK. Ahora la
+   ambigüedad se declara explícitamente.
+   Se agrega también el contexto histórico (`_historico_mes_anterior`) como **columna propia**
+   (`PAGO_ARRASTRES_ANTES`), porque parte los casos en dos grupos con acción distinta — ver abajo.
+
+**El corte que decide a quién mirar primero (medido, no supuesto):**
+
+De los 14 `PAGO_SOLO_EL_MES`:
+
+```
+ 8  nunca pagaron un arrastre en todo el historial → el reclamo no tiene respaldo
+ 6  SÍ venían pagando arrastres y aun así les sigue apareciendo → mirar acá
+      Q-9   S/76.00 en 4 meses     Z-17  S/101.00 en 4 meses
+      W-5   S/23.00 en 3 meses     H-13  S/96.00  en 3 meses
+      O-21  S/33.00 en 2 meses     L-2   S/20.00  en 1 mes
+```
+
+Grupo de control para saber si la señal discrimina: 60 predios que también deben arrastre y **no**
+reclamaron → 18% nunca pagó un arrastre, contra 41% entre los reclamantes que hoy deben arrastre.
+La señal discrimina (≈2.3×) pero **no es determinante** — de ahí que se exponga como columna para
+que el supervisor priorice, y no como parte del veredicto.
+
+Corrección de método sobre esto: en la primera lectura se afirmó "los 14 nunca pagaron un arrastre"
+extrapolando de 3 filas impresas. Era falso (son 8 de 14). El número salió al contarlo sobre el
+archivo completo.
+
+Resultado final: 28 de 29 reclamos con explicación (antes 12 sin evidencia y 4 candidatos falsos).
+
 **Alternativas descartadas:**
+- *Genérica por `TIPO_RECLAMO`* — se implementó y se retiró el mismo día, ver Criterios arriba: para
+  `convenio`/`cuota` la respuesta correcta está bloqueada por el reorden de la cascada, así que la
+  herramienta contestaba con una verdad irrelevante. Toda la maquinaria de "veredicto débil +
+  fallback" que ese caso exigía se borró en vez de dejarla sin uso.
 - *Reconstruir la búsqueda de pagos desde cero* — `reporte_referencias_pago.py` ya resuelve
   correctamente pre-mayo (hojas Cobranza/Reporte/Efectivo) y post-mayo (planilla_cobrado + crudos +
   overlays), con media docena de bugs ya encontrados y corregidos documentados en sus propios
@@ -126,10 +208,22 @@ esta herramienta, porque la reusa):**
 **Señal de alerta:**
 Si el Bloque B empieza a proponer candidatos con 2+ opciones en la mayoría de los casos, el pool de
 "~300 pagos por ciclo" dejó de discriminar — señal de que faltan más filtros duros (cobrador
-nombrado, ventana temporal), no de que hay que forzar una elección. Segunda señal: si
-`GATE`+`Bloque A` resuelven menos del 50% de los reclamos "mes_anterior", el problema real no es de
-búsqueda — es que la aplicación de pagos (motor_matching / 5_cobranza) tiene un bug sistemático
-imputando mal `MES_ANTERIOR`, y el foco debe moverse ahí.
+nombrado, ventana temporal), no de que hay que forzar una elección.
+
+Segunda señal, la que importa: **cualquier caso de `CASCADA_FUERA_DE_ORDEN`**. Hoy son 0. Si aparecen,
+la cascada está cobrando multa / acuerdos / convenio antes del arrastre y eso sí es un bug de
+aplicación, no una disputa con el vecino.
+
+Tercera: **14 de 29 salen `PAGO_SOLO_EL_MES`**, o sea que la mitad de los reclamos de mes anterior no
+son un pago perdido ni un error del sistema — son vecinos que pagan el mes y se niegan a pagar el
+arrastre porque sostienen que ya lo pagaron antes. Eso no se resuelve buscando mejor ni re-imputando:
+hay que **auditar el origen del arrastre** (¿de qué mes impago nació ese saldo?). Si el número no
+baja mes a mes, la deuda arrastrada del pueblo no está reconciliada y ese es el trabajo de fondo.
+
+**Pendiente conocido (no implementado):** el filtro por **cobrador nombrado** en el texto del
+reclamo ("con Maximo", "yape a Janet", "Garcilazo y Maximo"). Está en el diseño como filtro fuerte
+del Bloque B y reduciría el pool casi a cero, pero el Bloque B casi no se usa hoy — el Bloque A
+explica 28 de 29. Se implementa cuando el Bloque B empiece a devolver listas largas, no antes.
 
 ---
 

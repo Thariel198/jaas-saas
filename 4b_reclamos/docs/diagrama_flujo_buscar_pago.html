@@ -95,6 +95,7 @@
   .p-cierre     { background: #F1F3F5; color: #495057; }
   .p-ok         { background: #D5F5E3; color: #1E5C3A; }
   .p-bug        { background: #FEE2E2; color: #991B1B; }
+  .p-parcial    { background: #FEF9E7; color: #7D6608; }
   .p-precursor  { background: #FEF3C7; color: #92400E; }
   .p-candidato  { background: #EBF5FB; color: #1A5276; }
   .p-nada       { background: #F1F3F5; color: #868E96; }
@@ -139,7 +140,7 @@
 <body>
 
 <p class="title">4b_reclamos/herramienta — buscar_pago (diagrama de flujo)</p>
-<p class="sub">Entrada: reclamos filtrados por TIPO_RECLAMO · Salida: evidencia con nivel de confianza — el supervisor decide, el script nunca cierra el reclamo</p>
+<p class="sub">Entrada: reclamos TIPO_RECLAMO=mes_anterior · Salida: evidencia con veredicto — el supervisor decide, el script nunca cierra el reclamo</p>
 
 <div class="col">
 
@@ -148,7 +149,7 @@
     <div class="input-box manual">
       <div class="src">4b_reclamos</div>
       <div class="fname">reclamos_YYYY-MM.xlsx</div>
-      <div class="cols">filtrado por TIPO_RECLAMO<br>MZ · LT · RECLAMO (texto)</div>
+      <div class="cols">TIPO_RECLAMO = mes_anterior<br>MZ · LT · RECLAMO · MES_ANO_ORIGEN</div>
     </div>
     <div class="input-box auto">
       <div class="src">3 repos por ciclo</div>
@@ -176,16 +177,41 @@
     <div class="block-title">BLOQUE A — EXPLICAR ¿la plata ya está adentro del sistema?</div>
 
     <div class="step">
-      <span class="n">A0</span><span class="lbl">Historial completo del predio</span> — tabla_predio() + referencias_pago(), 3 repos
-      <span class="branch"><span class="arrow-r">→</span> entró y MES_ANT quedó en 0 &nbsp; <span class="pill p-ok">INFUNDADO</span> (mostrar el recibo)</span>
-      <span class="branch"><span class="arrow-r">→</span> entró y MES_ANT siguió &gt; 0 &nbsp; <span class="pill p-bug">MAL_IMPUTADO</span> (bug real, plata a otro concepto)</span>
+      <span class="n">A1a</span><span class="lbl">¿El pago de ese mes era aporte al tanque?</span> — va primero: invalida la premisa "hubo pago de agua"
+      <span class="branch"><span class="arrow-r">→</span> tanque y NO hubo pago de agua <span class="pill p-precursor">PAGO_PERO_NO_ERA_AGUA</span></span>
+      <span class="branch"><span class="arrow-r">→</span> tanque pero también pagó agua: queda como nota, la búsqueda sigue</span>
     </div>
 
     <div class="step">
-      <span class="n">A1</span><span class="lbl">¿Algún precursor ya cuenta la historia?</span> — 5 usos, no solo "explicar"
-      <span class="branch"><span class="arrow-r">→</span> evento en shared/ <span class="pill p-precursor">EXPLICADO_POR_PRECURSOR</span></span>
-      <span class="branch"><span class="arrow-r">→</span> aporte al tanque, no era agua <span class="pill p-precursor">PAGÓ_PERO_NO_ERA_AGUA</span></span>
-      <span class="branch"><span class="arrow-r">→</span> pagó antes, se aplicó después <span class="pill p-precursor">PAGÓ_ANTES_APLICADO_DESPUÉS</span></span>
+      <span class="n">A1b</span><span class="lbl">¿Abono rezagado con desfase real?</span> — exige MES_ANO_APLICA posterior a MES_CICLO
+      <span class="branch"><span class="arrow-r">→</span> pagó en un ciclo, se aplicó en otro <span class="pill p-precursor">PAGO_ANTES_APLICADO_DESPUES</span></span>
+    </div>
+
+    <div class="step">
+      <span class="n">A0<br>A2</span><span class="lbl">El mes disputado, y después el ciclo del propio reclamo</span> — misma regla (<code>_clasificar_mes</code>), tabla_predio() sobre los 3 repos
+      <span class="branch"><span class="arrow-r">→</span> mes anterior recibió algo y quedó saldo <span class="pill p-parcial">PAGO_PARCIAL</span></span>
+      <span class="branch"><span class="arrow-r">→</span> quedó en 0 y la plata fue a <b>multa / acuerdos / convenio</b> <span class="pill p-bug">CASCADA_FUERA_DE_ORDEN</span> — la anomalía real: esos van DESPUÉS del arrastre</span>
+      <span class="branch"><span class="arrow-r">→</span> quedó en 0 y la plata fue a <b>consumo + mantenimiento</b> <span class="pill p-parcial">PAGO_SOLO_EL_MES</span> — cascada CORRECTA, no es hallazgo</span>
+    </div>
+
+    <div class="step" style="border-left-color:#7D6608;">
+      <span class="lbl">Por qué PAGO_SOLO_EL_MES no es un bug</span> — 14 de 29 en 2026-08
+      <span class="branch">consumo+mantenimiento primero es la cascada P1 funcionando. Lo que pasó es que el vecino pagó el mes y NO pagó el arrastre, porque su reclamo dice que no lo debe (ya lo pagó antes).</span>
+      <span class="branch"><span class="arrow-r">→</span> hay que auditar el ORIGEN del arrastre, no re-imputar este pago</span>
+      <span class="branch"><span class="arrow-r">→</span> si consumo+mant suma lo mismo que el cargo (6 de 14: 5+3=8 y anterior=8), el monto NO dice qué quiso pagar — se declara la ambigüedad</span>
+    </div>
+
+    <div class="step" style="border-left-color:#1E8449;">
+      <span class="lbl">PAGO_ARRASTRES_ANTES — la columna que prioriza</span>
+      <span class="branch"><b>8 de 14 "nunca"</b> pagaron un arrastre en todo el historial → el reclamo no tiene respaldo en el sistema</span>
+      <span class="branch"><b>6 de 14 "S/xx en N meses"</b> venían pagando arrastres y aun así les sigue apareciendo → acá puede haber un problema real de reconciliación</span>
+      <span class="branch" style="color:#666;">Q-9 S/76 en 4m · Z-17 S/101 en 4m · H-13 S/96 en 3m · W-5 S/23 en 3m · O-21 S/33 en 2m · L-2 S/20 en 1m</span>
+      <span class="branch" style="color:#666;">control (60 predios que deben arrastre y NO reclamaron): 18% "nunca", contra 41% entre reclamantes → discrimina ≈2.3×, no es determinante</span>
+    </div>
+
+    <div class="step">
+      <span class="n">A1c</span><span class="lbl">¿Otro precursor de shared/ toca el predio?</span> — 6 archivos, filtrados por el mes que aplica
+      <span class="branch"><span class="arrow-r">→</span> <span class="pill p-precursor">EXPLICADO_POR_PRECURSOR</span></span>
     </div>
   </div>
 
@@ -227,21 +253,31 @@
   <div class="arrow-down">↓</div>
 
   <div class="output-box">
-    <div class="output-header">verificacion_reclamos_YYYY-MM.xlsx (nombre tentativo)</div>
+    <div class="output-header">outputs/busqueda_pago_mes_anterior_YYYY-MM.xlsx</div>
     <div class="output-section">
       <div class="output-section-title">Columnas</div>
-      <div class="output-col-item">MZ · LT · TIPO_RECLAMO · RECLAMO (texto original)</div>
-      <div class="output-col-item">VEREDICTO · EVIDENCIA (candidato + motivo, si aplica)</div>
+      <div class="output-col-item">MZ · LT · NOMBRE</div>
+      <div class="output-col-item">TIPO_RECLAMO · MES_RECLAMO · MES_DISPUTADO · CARGO_VIGENTE · RECLAMO</div>
+      <div class="output-col-item">VEREDICTO · <b>PAGO_ARRASTRES_ANTES</b> · CANDIDATO · MONTO_CANDIDATO · EVIDENCIA</div>
       <div class="output-col-item">RESOLUCION (supervisor llena)</div>
     </div>
     <div class="output-section">
-      <div class="output-section-title">Valores de VEREDICTO</div>
-      <span class="pill p-cierre">RESUELTO_YA</span>
-      <span class="pill p-ok">INFUNDADO</span>
-      <span class="pill p-bug">MAL_IMPUTADO</span>
+      <div class="output-section-title">Valores de VEREDICTO — con el conteo real del ciclo 2026-08 (29 reclamos)</div>
+      <span class="pill p-parcial">PAGO_SOLO_EL_MES · 14</span>
+      <span class="pill p-cierre">RESUELTO_YA · 10</span>
+      <span class="pill p-bug">CASCADA_FUERA_DE_ORDEN · 0</span>
+      <span class="pill p-parcial">PAGO_PARCIAL · 1</span>
+      <span class="pill p-precursor">PAGO_PERO_NO_ERA_AGUA · 1</span>
+      <span class="pill p-precursor">PAGO_ANTES_APLICADO_DESPUES · 1</span>
+      <span class="pill p-nada">SIN_BOLETA · 1</span>
+      <span class="pill p-nada">SIN_EVIDENCIA · 1</span>
+      <br>
       <span class="pill p-precursor">EXPLICADO_POR_PRECURSOR</span>
-      <span class="pill p-candidato">CANDIDATO_*</span>
-      <span class="pill p-nada">SIN_EVIDENCIA</span>
+      <span class="pill p-candidato">CANDIDATO_MULTILOTE</span>
+      <span class="pill p-candidato">CANDIDATO_TIPEO</span>
+      <span class="pill p-candidato">CANDIDATO_BLANCO</span>
+      <span class="pill p-candidato">CANDIDATO_EXCESO</span>
+      <span style="font-size:9px;color:#999;">&nbsp;(0 en este ciclo — el Bloque A explicó 28 de 29)</span>
     </div>
     <div class="output-section">
       <span class="lifecycle-tag">temporal · vista operacional, se regenera cada corrida</span>
@@ -251,15 +287,25 @@
 </div>
 
 <div class="note">
-  <strong>Genérica por TIPO_RECLAMO desde el día 1</strong> — el mismo embudo sirve para "ya pagué
-  mi medidor" (<code>convenio</code>), no solo <code>mes_anterior</code>.<br><br>
+  <strong>Solo <code>mes_anterior</code>, a propósito</strong> — "ya pagué mi medidor"
+  (<code>convenio</code>) y "ya pagué techado y campo" (<code>cuota</code>) tienen una causa
+  anterior y distinta: el <strong>orden de la cascada</strong>. Hoy reparte
+  <code>consumo · mant · mes anterior · multa · acuerdos · convenio</code> y va a repartir
+  <code>consumo · mant · mes anterior · convenio · acuerdos · multa</code> (la multa al final: es lo
+  único que se cubre con faena o se exonera). Antes de ese reorden, buscar el pago de un convenio
+  devuelve "pagó parte de sus cuotas" — cierto y sin valor (probado: 29 de 43 caían ahí). Ese
+  reorden es otro trabajo, ya simulado en <code>reporte_reimputacion_cascada.py</code>.<br><br>
   <strong>Solo reporta, nunca cierra el reclamo</strong> — el supervisor decide en
   <code>resolucion_reclamos_YYYY-MM.xlsx</code>, mismo patrón que <code>verificar_lotes.py</code>
   nunca escribe <code>mesa_N.xlsx</code>.<br><br>
-  <strong>Blocker a resolver antes de codificar</strong> — <code>reporte_referencias_pago.py</code>
-  apunta <code>"2026-07"</code> al repo activo (hoy agosto) en vez de
-  <code>PycharmProjects\Julio\jass_system - Julio</code>. Ya roto hoy, no es un problema de
-  septiembre. Ver <code>docs/decisiones/buscar_pago.md</code>.
+  <strong>Los falsos positivos que la 1a versión emitió</strong> quedaron bloqueados con tests
+  contrafactuales en <code>tests/test_buscar_pago.py</code> (33/33): faltaba la capa 4 de
+  <code>verificar_lotes</code>, el monto matcheaba subconjuntos sin el cargo disputado, el abono
+  rezagado no exigía desfase, el tanque cortaba el embudo sin explicar, no se verificaba que el
+  cargo se debiera ese mes, y —el más importante— <strong>se trataba "consumo+mantenimiento
+  primero" como una anomalía cuando es la cascada correcta</strong>, afirmando además que el monto
+  pagado era "EXACTO el cargo reclamado" en casos donde es igual de exacto a consumo+mant. Ver
+  <code>docs/decisiones/buscar_pago.md</code>.
 </div>
 
 </body>

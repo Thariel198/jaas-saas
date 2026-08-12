@@ -1,0 +1,301 @@
+"""
+tests/test_buscar_pago.py — unitarios de las reglas de buscar_pago.py.
+
+Los 5 primeros bloques son CONTRAFACTUALES: cada uno reproduce un falso
+positivo real que la 1a version del script emitio sobre los 29 reclamos
+mes_anterior del ciclo 2026-08, y verifica que la regla lo rechaza. Sin estos
+tests, cualquier refactor puede reintroducir el falso positivo sin que nadie se
+entere -- que es exactamente el error que la herramienta existe para evitar
+("un falso OK es peor que un no-se").
+
+Uso: py -m pytest tests/test_buscar_pago.py -q
+"""
+
+import sys
+from pathlib import Path
+
+THIS = Path(__file__).resolve()
+sys.path.insert(0, str(THIS.parent.parent / "herramienta"))
+
+import buscar_pago as bp  # noqa: E402
+
+
+# ── Contrafactual 1 — el monto debe cubrir el CONCEPTO disputado ─────────────
+# Caso real Q-9: se propuso un pago de S/3 (= su "mant") para una disputa de
+# S/20 de mes anterior. Y Z-17: un pago de S/34 (= "consumo+mant") para una
+# disputa de S/36. Ninguno de los dos subconjuntos incluye el concepto que el
+# vecino reclama, asi que encontrarlos no explica nada.
+
+CARGOS_Q9 = {"consumo": 12.0, "mant": 3.0, "anterior": 20.0,
+             "corte": 0.0, "convenio": 0.0, "multa": 0.0, "cuota": 0.0}
+
+
+def test_montos_solo_incluyen_combinaciones_con_el_concepto():
+    montos = bp._montos_que_cubren(CARGOS_Q9, bp.CARGO_BOLETA)
+    assert 20.0 in montos                       # anterior solo
+    assert 32.0 in montos                       # anterior + consumo
+    assert 35.0 in montos                       # anterior + consumo + mant
+    assert 3.0 not in montos, "S/3 es 'mant' solo -- el falso positivo de Q-9"
+    assert 15.0 not in montos, "S/15 es consumo+mant -- no toca mes anterior"
+
+
+def test_montos_vacio_si_no_debe_el_concepto():
+    cargos = dict(CARGOS_Q9, anterior=0.0)
+    assert bp._montos_que_cubren(cargos, "anterior") == {}
+
+
+def test_todas_las_etiquetas_nombran_el_concepto():
+    for etiqueta in bp._montos_que_cubren(CARGOS_Q9, "anterior").values():
+        assert "anterior" in etiqueta
+
+
+# ── Contrafactual 2 — capa 4: el candidato debe estar IMPAGO ─────────────────
+# Caso real O-28/O-21: se propusieron C-28, O-25, O-23 y O-24 como candidatos
+# de tipeo, pero el monto del pago cuadraba EXACTO con la boleta propia de esos
+# lotes -- era su propio pago, no una confusion.
+
+BOLETAS = {
+    "C-28": {"nombre": "vecino c28", "total": 8.0,  "cargos": {}},
+    "W-2":  {"nombre": "vecino w2",  "total": 58.0, "cargos": {}},
+}
+
+
+def test_capa4_descarta_el_pago_propio_del_otro_lote():
+    assert bp._ya_esta_pago("C-28", 8.0, BOLETAS) is True
+
+
+def test_capa4_no_descarta_cuando_el_monto_no_es_su_boleta():
+    assert bp._ya_esta_pago("W-2", 8.0, BOLETAS) is False, \
+        "W-2 debe 58, un pago de 8 no es suyo -- este candidato SI es valido"
+
+
+def test_capa4_lote_sin_boleta_no_se_descarta():
+    assert bp._ya_esta_pago("X-99", 8.0, BOLETAS) is False
+
+
+# ── Contrafactual 3 — el multi-lote se detecta por el MENSAJE ────────────────
+# Caso real K-3/K-4 (2026-08-10): un pago de S/34 cubria 2 lotes y el sistema
+# acredito uno solo. No es un tipeo: K-3 y K-4 no son confundibles (3 y 4 no
+# estan en la tabla de digitos), la evidencia es que el mensaje los nombra.
+
+def test_mensaje_reconoce_el_lote_en_varios_formatos():
+    for msg in ("K-3, K-4.", "mz K lt 4", "MZK LT4", "pago mz k-4 gracias"):
+        assert bp._menciona_lote(msg, "K", "4") is True, msg
+
+
+def test_mensaje_no_reconoce_un_lote_distinto():
+    assert bp._menciona_lote("K-3, K-4.", "K", "5") is False
+    assert bp._menciona_lote("", "K", "4") is False
+
+
+def test_multilote_no_es_tipeo():
+    assert bp.vl.confundible("K-3", "K-4") is None, \
+        "si esto matchea, el multi-lote se reporta como error de tipeo"
+
+
+# ── Contrafactual 4 — ventana temporal ──────────────────────────────────────
+# La regla del negocio: el reclamo normal mira 1 mes atras. Un candidato de 2+
+# meses solo vale si el vecino arrastro la deuda todos los meses intermedios.
+
+def test_ventana_acepta_el_mes_inmediato_anterior():
+    ok, _ = bp._plausible("A", "1", "2026-07", "2026-08")
+    assert ok is True
+
+
+def test_ventana_acepta_el_mismo_mes():
+    ok, _ = bp._plausible("A", "1", "2026-08", "2026-08")
+    assert ok is True
+
+
+def test_ventana_rechaza_candidato_posterior_al_reclamo():
+    ok, motivo = bp._plausible("A", "1", "2026-09", "2026-08")
+    assert ok is False and "posterior" in motivo
+
+
+def test_ventana_rechaza_sin_mes():
+    assert bp._plausible("A", "1", "", "2026-08")[0] is False
+
+
+def test_ventana_lejana_exige_probar_el_arrastre(monkeypatch):
+    # Sin planilla del mes intermedio no se puede probar el arrastre -> se
+    # rechaza. Preferir un no-se a proponer un candidato de 4 meses atras.
+    monkeypatch.setattr(bp, "_debia", lambda *a: None)
+    ok, motivo = bp._plausible("A", "1", "2026-04", "2026-08")
+    assert ok is False and "arrastre" in motivo
+
+
+def test_ventana_lejana_acepta_si_arrastro_todos_los_meses(monkeypatch):
+    monkeypatch.setattr(bp, "_debia", lambda *a: 20.0)      # siempre debio
+    ok, motivo = bp._plausible("A", "1", "2026-04", "2026-08")
+    assert ok is True and "arrastr" in motivo
+
+
+def test_ventana_lejana_rechaza_si_un_mes_quedo_en_cero(monkeypatch):
+    # En 2026-06 no debia nada -> la deuda se cerro, el candidato viejo no puede
+    # ser lo que reclama.
+    monkeypatch.setattr(bp, "_debia",
+                        lambda mz, lt, mes, col: 0.0 if mes == "2026-06" else 20.0)
+    ok, motivo = bp._plausible("A", "1", "2026-04", "2026-08")
+    assert ok is False and "no arrastró" in motivo
+
+
+# ── Contrafactual 5 — se propone SOLO si queda 1 candidato ───────────────────
+# Regla heredada de verificar_lotes.py. Caso real O-28: 3 candidatos, ninguno
+# elegible -- proponer uno con esa evidencia es inventar con cara de certeza.
+
+def test_un_solo_candidato_se_propone():
+    r = bp._resolver_candidatos("CANDIDATO_TIPEO",
+                                [{"candidato": "W-2", "monto": 8.0, "detalle": "x"}])
+    assert r["candidato"] == "W-2" and r["monto"] == 8.0
+
+
+def test_varios_candidatos_no_se_elige_ninguno():
+    cands = [{"candidato": f"O-{n}", "monto": 8.0, "detalle": f"d{n}"} for n in (23, 24, 25)]
+    r = bp._resolver_candidatos("CANDIDATO_TIPEO", cands)
+    assert r["candidato"] == "3 candidatos"
+    assert r["monto"] is None, "sin monto: no se afirma cual es"
+
+
+def test_sin_candidatos_no_hay_veredicto():
+    assert bp._resolver_candidatos("CANDIDATO_TIPEO", []) is None
+
+
+# ── Aritmética de meses ─────────────────────────────────────────────────────
+
+def test_mes_menos_cruza_el_ano():
+    assert bp._mes_menos("2026-01", 1) == "2025-12"
+    assert bp._mes_menos("2026-08", 1) == "2026-07"
+    assert bp._mes_menos("2026-03", 14) == "2025-01"
+
+
+def test_dist_meses_signo_y_cruce_de_ano():
+    assert bp._dist_meses("2026-08", "2026-07") == 1
+    assert bp._dist_meses("2026-01", "2025-12") == 1
+    assert bp._dist_meses("2026-07", "2026-08") == -1
+    assert bp._dist_meses("2026-08", "2026-08") == 0
+
+
+# ── Contrafactual 6 — consumo+mant primero NO es una anomalia ───────────────
+# La 1a version llamaba "PAGO_FUE_A_OTRO_CARGO / la plata existe, decidir si se
+# re-imputa" a un pago que fue a consumo+mantenimiento. Eso es la cascada
+# CORRECTA (P1: agua del mes primero). La anomalia real es que se cobre multa,
+# acuerdos o convenio dejando el arrastre sin pagar.
+
+_COLS_TABLA = ["MES", "CONSUMO", "MANT", "MES_ANT", "CORTE",
+               "CONVENIO", "MULTA", "ACUERDOS", "TOTAL"]
+CARGOS_U2 = {"consumo": 5.0, "mant": 3.0, "anterior": 8.0,
+             "corte": 0.0, "convenio": 0.0, "multa": 0.0, "cuota": 0.0}
+
+
+def _tabla(**vals):
+    import pandas as pd
+    fila = {c: 0.0 for c in _COLS_TABLA}
+    fila["MES"] = "2026-08"
+    fila.update(vals)
+    return pd.DataFrame([fila], columns=_COLS_TABLA)
+
+
+def test_pago_a_consumo_y_mant_no_es_anomalia(monkeypatch):
+    monkeypatch.setattr(bp, "_debia", lambda *a: 8.0)          # si debia el arrastre
+    r = bp._clasificar_mes("U", "2", "2026-08",
+                           _tabla(CONSUMO=5.0, MANT=3.0, TOTAL=8.0), CARGOS_U2)
+    assert r["veredicto"] == "PAGO_SOLO_EL_MES"
+    assert "cascada correcta" in r["detalle"]
+    assert "re-imputar" not in r["detalle"].replace("no re-imputar", "")
+
+
+def test_pago_a_multa_dejando_el_arrastre_si_es_anomalia(monkeypatch):
+    monkeypatch.setattr(bp, "_debia", lambda *a: 8.0)
+    r = bp._clasificar_mes("U", "2", "2026-08",
+                           _tabla(CONSUMO=5.0, MANT=3.0, MULTA=30.0, TOTAL=38.0), CARGOS_U2)
+    assert r["veredicto"] == "CASCADA_FUERA_DE_ORDEN"
+    assert "MULTA" in r["detalle"]
+
+
+def test_monto_ambiguo_se_declara_en_vez_de_afirmar(monkeypatch):
+    # U-2: consumo+mant = 5+3 = 8 y el cargo de mes anterior tambien es 8. El
+    # monto NO permite decidir que quiso pagar -- la 1a version afirmaba
+    # "es EXACTO el cargo que reclama, asi que pago justo eso".
+    monkeypatch.setattr(bp, "_debia", lambda *a: 8.0)
+    r = bp._clasificar_mes("U", "2", "2026-08",
+                           _tabla(CONSUMO=5.0, MANT=3.0, TOTAL=8.0), CARGOS_U2)
+    assert "no dice cuál de los dos quiso pagar" in r["detalle"]
+
+
+def test_monto_no_ambiguo_no_agrega_la_nota(monkeypatch):
+    monkeypatch.setattr(bp, "_debia", lambda *a: 16.0)
+    cargos = dict(CARGOS_U2, anterior=16.0)                    # 5+3=8 != 16
+    r = bp._clasificar_mes("J", "8", "2026-08",
+                           _tabla(CONSUMO=8.0, MANT=3.0, TOTAL=11.0), cargos)
+    assert "no dice cuál de los dos" not in r["detalle"]
+
+
+def test_si_el_arrastre_recibio_algo_es_pago_parcial(monkeypatch):
+    monkeypatch.setattr(bp, "_debia", lambda *a: 8.0)
+    r = bp._clasificar_mes("U", "2", "2026-08",
+                           _tabla(CONSUMO=5.0, MANT=3.0, MES_ANT=4.0, TOTAL=12.0), CARGOS_U2)
+    assert r["veredicto"] == "PAGO_PARCIAL"
+
+
+def test_sin_deuda_del_arrastre_ese_mes_no_hay_veredicto(monkeypatch):
+    # Si no debia mes anterior, que reciba 0 es correcto -- no es hallazgo.
+    monkeypatch.setattr(bp, "_debia", lambda *a: 0.0)
+    assert bp._clasificar_mes("U", "2", "2026-08",
+                              _tabla(CONSUMO=5.0, MANT=3.0, TOTAL=8.0), CARGOS_U2) is None
+
+
+def test_sin_pago_ese_mes_no_hay_veredicto():
+    assert bp._clasificar_mes("U", "2", "2026-08", _tabla(TOTAL=0.0), CARGOS_U2) is None
+
+
+def test_historico_nunca_pago_un_arrastre():
+    import pandas as pd
+    vacio = pd.DataFrame([{c: 0.0 for c in _COLS_TABLA}])
+    etiqueta, texto = bp._historico_mes_anterior(vacio)
+    assert etiqueta == "nunca"                       # valor exacto: la columna se filtra por el
+    assert "nunca se le aplicó nada" in texto
+
+
+def test_historico_viene_pagando_arrastres():
+    # El grupo que importa: 6 de los 14 de 2026-08 vienen pagando arrastres y aun
+    # asi les sigue apareciendo -- ahi hay que buscar el problema real, no en los
+    # 8 que nunca pagaron uno.
+    import pandas as pd
+    con = pd.DataFrame([dict({c: 0.0 for c in _COLS_TABLA}, MES="2026-06", MES_ANT=12.0),
+                        dict({c: 0.0 for c in _COLS_TABLA}, MES="2026-07", MES_ANT=8.0)])
+    etiqueta, texto = bp._historico_mes_anterior(con)
+    assert etiqueta == "S/20.00 en 2 meses"
+    assert "20.00" in texto and "2026-06" in texto and "2026-07" in texto
+
+
+# ── Alcance: solo mes_anterior ──────────────────────────────────────────────
+
+def test_la_herramienta_es_solo_de_mes_anterior():
+    # convenio y cuota NO se auditan aca: su causa es el orden de la cascada
+    # (multa antes de convenio/acuerdos), que es otro trabajo. Si alguien
+    # extiende el alcance, tiene que decidir esto a proposito, no por accidente.
+    assert bp.TIPO == "mes_anterior"
+    assert (bp.CARGO_BOLETA, bp.COL_TABLA, bp.COL_PLANILLA) == \
+        ("anterior", "MES_ANT", "MES_ANTERIOR")
+
+
+# ── Normalización ───────────────────────────────────────────────────────────
+
+def test_norm_saca_el_punto_cero_de_los_lotes_numericos():
+    # pagos_yape_tepago guarda LOTE como float: 4.0 debe comparar igual que "4"
+    assert bp._norm("4.0") == "4"
+    assert bp._clave("k", "3.0") == "K-3"
+
+
+def test_numf_tolera_texto_vacio_y_nan():
+    assert bp._numf("") == 0.0
+    assert bp._numf(None) == 0.0
+    assert bp._numf("16.0") == 16.0
+    assert bp._numf("1,234.50") == 1234.5
+
+
+# ── El tipo que audita sigue siendo un TIPO_RECLAMO valido del modulo ───────
+
+def test_el_tipo_existe_en_el_modulo():
+    import main as reclamos
+    assert bp.TIPO in reclamos.TIPOS_RECLAMO_VALIDOS
