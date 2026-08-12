@@ -7,7 +7,7 @@ Escrito el 2026-08-12 a raíz de dos sustos, uno falso y uno real:
   Era el estado normal de un ciclo cerrado — `7_cierre` las había archivado en
   `7_cierre/archivo/2026-07/`, donde estuvieron todo el tiempo (§4).
 - **real:** correr `pytest 4_pagos/efectivo/tests` sobrescribió mesa_1 y mesa_2
-  del ciclo EN CURSO con las fixtures de los tests (§5).
+  del ciclo EN CURSO con las fixtures de los tests (§5). Ya está arreglado.
 
 La lección común a los dos: **antes de concluir que algo se perdió, buscar dónde
 el sistema ya lo guarda** — y antes de correr algo, saber si escribe.
@@ -165,17 +165,30 @@ Después de restaurar, verificar que las fechas correspondan al ciclo:
 
 ## 5. Peligros conocidos
 
-### `pytest 4_pagos/efectivo/tests` escribe sobre el `inputs/` REAL
+### `pytest 4_pagos/efectivo/tests` escribía sobre el `inputs/` REAL — arreglado (12/08)
 
-**No correr esa suite con un ciclo en curso.** No está aislada: escribe sus
-fixtures sobre `4_pagos/efectivo/inputs/mesa_N.xlsx`. El 12/08 destruyó mesa_1
-(59→2 filas) y mesa_2 (106→2) de agosto; se recuperaron con
-`git checkout HEAD -- 4_pagos/efectivo/inputs/mesa_1.xlsx mesa_2.xlsx`.
+Los tres archivos de test se escribieron para correr como **script**: su `main()`
+llama `_setup()` antes de cada test. Bajo pytest ese `main()` nunca corre, así
+que los módulos quedaban apuntando a las rutas reales y las fixtures se escribían
+sobre las mesas del ciclo en curso. El 12/08 destruyó mesa_1 (59→2 filas) y
+mesa_2 (106→2) de agosto; se recuperaron con `git checkout HEAD --`.
 
-El síntoma en el output del test es inconfundible: `assert (162 == 1)` — el test
-está contando las filas reales en vez de las de su fixture.
+El síntoma en el output era inconfundible y se leyó mal: `assert (162 == 1)` — el
+test contaba las 162 filas reales en vez de las de su fixture. Se interpretó como
+"falla preexistente ajena" en vez de "este test toca datos reales".
 
-Arreglo pendiente: monkeypatchear `INPUTS_DIR` a un `tmp_path` en el setup.
+Arreglado con `tests/conftest.py`: un fixture `autouse` corre el
+`_setup()`/`_teardown()` del propio archivo antes y después de cada test, y
+**verifica que las rutas del módulo no apunten al repo real**, fallando ruidoso
+si lo hacen. Un test nuevo que se agregue sin aislar falla antes de escribir.
+
+Estado: 64 tests en verde, 0 archivos reales modificados (verificado con hashes
+antes/después).
+
+**Si escribís tests nuevos en este repo:** que no toquen datos reales. El patrón
+seguro está en `4b_reclamos/tests/test_verificar_yape.py` — todo entra por
+`monkeypatch` con DataFrames construidos en el propio test, sin leer ni escribir
+un solo `.xlsx` del repo.
 
 ### `crear_templates.py` — el que SÍ podía borrar sin red (ya tiene guarda, 12/08)
 
