@@ -344,63 +344,8 @@ def test_cobrador_mencionado_detecta_el_nombre_en_el_texto():
     assert bp._cobrador_mencionado("Pago mes anterior", cobs) == ""
 
 
-# ── Contrafactual 8 — el yape se verifica contra el banco ───────────────────
-# El reporte del banco es la UNICA prueba de que un yape entro a la cuenta de la
-# JASS. Si el cobrador anota "yape" y ahi no hay nada que calce, el pago no
-# entro -- pudo haber ido a un telefono personal.
-
-def _banco(filas):
-    import pandas as pd
-    df = pd.DataFrame(filas, columns=["TIPO", "ORIGEN", "MONTO", "MENSAJE", "FECHA"])
-    df["FECHA"] = pd.to_datetime(df["FECHA"], format="%d/%m/%Y")
-    return df
-
-
-def test_yape_que_no_esta_en_el_banco_se_reporta(monkeypatch):
-    # Caso real F1-8: Wagner anoto S/13 el 02/08 y no hay ninguna transaccion
-    # de S/13 en la cuenta de la JASS en esos dias.
-    monkeypatch.setattr(bp, "_reporte_banco",
-                        lambda: _banco([["TE PAGÓ", "Otro", 8.0, "", "02/08/2026"]]))
-    r = bp._yape_en_banco(13.0, "02/08/2026", "F1", "8")
-    assert r["estado"] == "NO_EXISTE"
-
-
-def test_yape_que_si_esta_en_el_banco_se_encuentra(monkeypatch):
-    monkeypatch.setattr(bp, "_reporte_banco",
-                        lambda: _banco([["TE PAGÓ", "Juan B*", 13.0, "", "01/08/2026"]]))
-    r = bp._yape_en_banco(13.0, "02/08/2026", "F1", "8")
-    assert r["estado"] == "ENCONTRADO"
-
-
-def test_yape_se_encuentra_por_mensaje_aunque_no_calce_la_fecha(monkeypatch):
-    monkeypatch.setattr(bp, "_reporte_banco",
-                        lambda: _banco([["TE PAGÓ", "X", 99.0, "mz F1 lt 8", "01/01/2026"]]))
-    r = bp._yape_en_banco(13.0, "02/08/2026", "F1", "8")
-    assert r["estado"] == "ENCONTRADO" and "nombra el lote" in r["detalle"]
-
-
-def test_fecha_fuera_del_reporte_no_concluye_que_no_existe(monkeypatch):
-    # No es lo mismo "no esta" que "no lo puedo saber": si el reporte no cubre
-    # esa fecha, afirmar que el yape no entro seria inventar.
-    monkeypatch.setattr(bp, "_reporte_banco",
-                        lambda: _banco([["TE PAGÓ", "X", 8.0, "", "02/08/2026"]]))
-    r = bp._yape_en_banco(13.0, "15/01/2026", "F1", "8")
-    assert r["estado"] == "FUERA_DE_RANGO"
-
-
-def test_sin_reporte_del_banco_no_se_concluye_nada(monkeypatch):
-    import pandas as pd
-    monkeypatch.setattr(bp, "_reporte_banco", lambda: pd.DataFrame())
-    assert bp._yape_en_banco(13.0, "02/08/2026", "F1", "8")["estado"] == "SIN_REPORTE"
-
-
-def test_solo_se_toman_las_filas_con_monto_yape():
-    mesas = _mesas(**{"2026-08": [
-        ["F1", "8", 13.0, 0.0, 13.0, "Wagner Trujillo", "mesa_4", "registro_1", "02/08/2026", ""],
-        ["F1", "8", 20.0, 20.0, 0.0, "Wagner Trujillo", "mesa_4", "registro_1", "03/08/2026", ""]]})
-    r = bp._filas_yape_de_mesas("F1", "8", mesas)
-    assert len(r) == 1 and r[0]["monto"] == 13.0
-
+# Los contrafactuales del yape contra el banco se mudaron a
+# tests/test_verificar_yape.py, junto con el codigo que verifican.
 
 # ── Alcance: solo mes_anterior ──────────────────────────────────────────────
 
@@ -431,5 +376,12 @@ def test_numf_tolera_texto_vacio_y_nan():
 # ── El tipo que audita sigue siendo un TIPO_RECLAMO valido del modulo ───────
 
 def test_el_tipo_existe_en_el_modulo():
-    import main as reclamos
+    # Por ruta explicita y NO `import main`: hay tres main.py en el sys.path de
+    # este proceso (4b_reclamos, 4_pagos/efectivo, motor_matching) y el nombre
+    # pelado resuelve al que quedo primero.
+    import importlib.util
+    ruta = THIS.parent.parent / "main.py"
+    spec = importlib.util.spec_from_file_location("_reclamos_main", ruta)
+    reclamos = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(reclamos)
     assert bp.TIPO in reclamos.TIPOS_RECLAMO_VALIDOS

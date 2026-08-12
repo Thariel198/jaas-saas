@@ -97,6 +97,15 @@ import reporte_historico as rh          # noqa: E402
 import reporte_referencias_pago as rrp   # noqa: E402
 import verificar_lotes as vl            # noqa: E402  (confundible + subconjuntos + boletas)
 
+# La lectura de las mesas y toda la verificacion del yape contra el banco viven
+# en verificar_yape.py, que ademas corre sola para barrer TODO el pueblo. Aca se
+# importan sus primitivos para no tener dos copias que se desincronicen.
+from verificar_yape import (  # noqa: E402
+    _clave, _fecha, _menciona_lote, _norm, _numf, _sin_tildes, _txt,
+    _nombra_a_otro, _nombra_otro_lote, _reporte_banco,
+    _PATRON_YAPE, filas_yape, pagos_de_mesas, verificar_una,
+)
+
 # Los motivos de vl.confundible() traen "→"; la consola de Windows es cp1252.
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -140,37 +149,6 @@ PRECURSORES_EXPLICAN = [
 
 
 # ── Normalización ────────────────────────────────────────────────────────────
-
-def _norm(v) -> str:
-    s = str(v).strip().upper() if v is not None else ""
-    return s[:-2] if s.endswith(".0") else s
-
-
-def _clave(mz, lt) -> str:
-    return f"{_norm(mz)}-{_norm(lt)}"
-
-
-def _numf(v) -> float:
-    """float tolerante: la planilla se lee con dtype=str, así que acá entra
-    tanto 16.0 como '16.0' como '' como NaN."""
-    try:
-        if v is None or (isinstance(v, float) and pd.isna(v)):
-            return 0.0
-        s = str(v).strip().replace(",", "")
-        return float(s) if s not in ("", "nan", "None", "NaT") else 0.0
-    except (TypeError, ValueError):
-        return 0.0
-
-
-def _txt(v) -> str:
-    s = str(v).strip() if v is not None else ""
-    return "" if s in ("nan", "None", "NaT") else s
-
-
-def _sin_tildes(s) -> str:
-    s = str(s)
-    return "".join(c for c in unicodedata.normalize("NFD", s) if unicodedata.category(c) != "Mn")
-
 
 def _mes_menos(mes_ano: str, n: int) -> str:
     y, m = int(mes_ano[:4]), int(mes_ano[5:7])
@@ -413,213 +391,9 @@ def _otro_precursor(mz: str, lt: str) -> list[dict]:
     return out
 
 
-_HOJAS_MESA = ("registro_1", "registro_2", "registro_3")
-_cache_mesas: dict[str, pd.DataFrame] = {}
-
-
-def _pagos_de_mesas(mes: str) -> pd.DataFrame:
-    """LA FUENTE: lo que el cobrador escribió a mano en mesa_N.xlsx.
-
-    Es un paso más atrás que pagos_efectivo.xlsx (que ya es salida de
-    4_pagos/efectivo/main.py) y dos más atrás que planilla_cobrado. La cadena es
-
-        mesa_N.xlsx  ->  pagos_efectivo.xlsx  ->  planilla_cobrado.xlsx
-         (fuente)         (consolidado)            (aplicado)
-
-    y un pago puede perderse en cualquiera de los dos saltos. Si está acá y no
-    llegó a planilla_cobrado, ESE es el bug que se busca: el vecino pagó de
-    verdad y el sistema no lo sabe.
-
-    Fila 3 de cada hoja es el ejemplo guía del template (ver
-    docs/metodologia_desarrollo.md) — se saltea igual que en
-    4_pagos/efectivo/main.py:leer_hoja, que lee `filas[3:]`."""
-    if mes in _cache_mesas:
-        return _cache_mesas[mes]
-    carpeta = rh.REPOS_CICLO_CERRADO.get(mes, REPO_DIR) / "4_pagos" / "efectivo" / "inputs"
-    filas = []
-    for n in range(1, 8):
-        ruta = carpeta / f"mesa_{n}.xlsx"
-        if not ruta.exists():
-            continue
-        for hoja in _HOJAS_MESA:
-            try:
-                df = pd.read_excel(ruta, sheet_name=hoja, header=1, skiprows=[2])
-            except Exception:
-                continue
-            df.columns = [str(c).strip().upper() for c in df.columns]
-            if "MZ" not in df.columns:
-                continue
-            for _, r in df.iterrows():
-                monto = _numf(r.get("MONTO"))
-                if monto <= TOL:
-                    continue
-                filas.append({
-                    "MZ": _norm(r.get("MZ")), "LT": _norm(r.get("LT")), "MONTO": monto,
-                    "EFECTIVO": _numf(r.get("MONTO_EFECTIVO")),
-                    "YAPE": _numf(r.get("MONTO_YAPE")),
-                    "COBRADOR": _txt(r.get("COBRADOR")), "MESA": f"mesa_{n}", "HOJA": hoja,
-                    "FECHA": _txt(r.get("FECHA")), "COMENTARIO": _txt(r.get("COMENTARIO")),
-                })
-    _cache_mesas[mes] = pd.DataFrame(filas)
-    return _cache_mesas[mes]
-
-
-_cache_banco: pd.DataFrame | None = None
-_PATRON_YAPE = re.compile(r"\byape|\byapeo|\byapeó|\bplin\b", re.IGNORECASE)
-
-
-def _reporte_banco() -> pd.DataFrame:
-    """Las transacciones crudas de la cuenta de la JASS (shared/reporte_mes_crudo).
-
-    Es la ÚNICA prueba de que un yape entró: motor_matching sale de acá. Si el
-    cobrador anotó "yape" en su hoja y acá no hay nada que calce, el vecino no
-    le pagó a la JASS — pudo haberle yapeado al teléfono personal de alguien."""
-    global _cache_banco
-    if _cache_banco is not None:
-        return _cache_banco
-    filas = []
-    for p in sorted((SHARED_DIR / "reporte_mes_crudo").glob("ReporteTransacciones*.xlsx")):
-        try:
-            df = pd.read_excel(p, sheet_name="Movimientos", header=4)
-        except Exception:
-            continue
-        df.columns = [str(c).strip() for c in df.columns]
-        if "Monto" not in df.columns:
-            continue
-        for _, r in df.iterrows():
-            f = pd.to_datetime(_txt(r.get("Fecha de operación")),
-                               format="%d/%m/%Y %H:%M:%S", errors="coerce")
-            if pd.isna(f):
-                continue
-            filas.append({"TIPO": _txt(r.get("Tipo de Transacción")),
-                          "ORIGEN": _txt(r.get("Origen")), "MONTO": _numf(r.get("Monto")),
-                          "MENSAJE": _txt(r.get("Mensaje")), "FECHA": f})
-    _cache_banco = pd.DataFrame(filas)
-    return _cache_banco
-
-
-# Un MZ-LT escrito en un mensaje de yape, en las formas que usa la gente:
-# "Mz H lote 21" · "mz D1 lt 1" · "H1-15" · "MZ.C1 LT.2"
-_PATRON_LOTE_MSG = re.compile(
-    r"\b(?:MZ\.?\s*)?([A-Z]{1,2}[0-9]?)\s*[-.\s]?\s*(?:LT|LOTE|LTE)\.?\s*(\d+[A-Z]?)\b",
-    re.IGNORECASE)
-
-
-def _nombra_otro_lote(mensaje: str, mz: str, lt: str) -> bool:
-    """¿El mensaje nombra un lote distinto del que se busca?
-
-    Si lo hace, ese pago es de ese otro lote y no mío — por más que el monto
-    coincida. Los montos se repiten muchísimo (S/8 lo deben 101 predios), así
-    que sin este chequeo la coincidencia por monto inventa dueños."""
-    if not mensaje or _menciona_lote(mensaje, mz, lt):
-        return False
-    for m in _PATRON_LOTE_MSG.finditer(_sin_tildes(mensaje)):
-        if (m.group(1).upper(), m.group(2).upper()) != (_norm(mz), _norm(lt)):
-            return True
-    return False
-
-
-def _fecha(v) -> pd.Timestamp | None:
-    for fmt in ("%d/%m/%Y", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d", "%d/%m/%Y %H:%M:%S"):
-        f = pd.to_datetime(_txt(v), format=fmt, errors="coerce")
-        if not pd.isna(f):
-            return f
-    f = pd.to_datetime(_txt(v), errors="coerce", dayfirst=True)
-    return None if pd.isna(f) else f
-
-
-def _nombra_a_otro(mensaje: str, nombre: str) -> bool:
-    """¿El mensaje nombra a una PERSONA que no es el titular del predio?
-
-    Caso real: S/36 el 04/07 con mensaje "pago de servicios de agua usuario
-    Alejandro Melgarejo" matcheaba como el yape de H1-15, que es de Patricia
-    Tarazona. Coincidía solo el monto."""
-    if not mensaje or not nombre:
-        return False
-    t = _sin_tildes(mensaje).upper()
-    mios = {p for p in _sin_tildes(nombre).upper().split() if len(p) >= 4}
-    if any(p in t for p in mios):
-        return False                      # nombra al titular: es suyo
-    # "usuario X" / "usuaria X" es la forma en que la gente identifica a otro
-    return bool(re.search(r"\bUSUARI[OA]\b", t))
-
-
-def _yape_en_banco(monto: float, fecha, mz: str, lt: str, dias: int = 3,
-                   nombre: str = "") -> dict:
-    """¿Existe en el banco un yape que calce con lo que el cobrador anotó?
-
-    Dos formas de calzar: mismo monto dentro de una ventana de días, o un
-    mensaje que nombre el lote (a cualquier fecha). Si el reporte del banco no
-    cubre esa fecha se dice eso y NO se concluye que no existe — no es lo mismo
-    'no está' que 'no lo puedo saber'."""
-    banco = _reporte_banco()
-    if banco.empty:
-        return {"estado": "SIN_REPORTE", "detalle": "no hay reporte del banco para verificar"}
-
-    por_lote = banco[banco["MENSAJE"].apply(lambda m: _menciona_lote(m, mz, lt))]
-    if not por_lote.empty:
-        r = por_lote.iloc[0]
-        return {"estado": "ENCONTRADO",
-                "detalle": f"S/{r['MONTO']:,.2f} de {r['ORIGEN']} el "
-                           f"{r['FECHA']:%d/%m/%Y %H:%M} — su mensaje nombra el lote"}
-
-    f = _fecha(fecha)
-    if f is None:
-        return {"estado": "SIN_FECHA", "detalle": "la hoja no trae fecha para poder buscar"}
-    # El rango se compara contra la VENTANA de búsqueda, no contra la fecha
-    # exacta: un pago del 02/08 con el reporte terminando el 01/08 igual entra
-    # en la ventana de ±3 días y hay que buscarlo. Comparar la fecha pelada lo
-    # descartaba sin mirar.
-    desde, hasta = f - pd.Timedelta(days=dias), f + pd.Timedelta(days=dias)
-    ini, fin = banco["FECHA"].min(), banco["FECHA"].max()
-    if fin < desde or ini > hasta:
-        return {"estado": "FUERA_DE_RANGO",
-                "detalle": f"el reporte del banco cubre {ini:%d/%m/%Y}→{fin:%d/%m/%Y} "
-                           f"y el pago dice {f:%d/%m/%Y}: no se puede verificar"}
-
-    cerca = banco[(banco["FECHA"] >= desde) & (banco["FECHA"] <= hasta) &
-                  (banco["MONTO"].sub(monto).abs() < 0.01)]
-    # Un match por monto cuyo mensaje nombra OTRO lote no es mi pago: es el de
-    # ese otro. Sin este filtro, S/36 "Roman Lozano Mz H lote 21" se reportaba
-    # como el yape de H1-15, y S/30 "mz D1 lt 1" como el de P-12 — los montos
-    # se repiten muchísimo (S/8 lo deben 101 predios).
-    ajenos = cerca[cerca["MENSAJE"].apply(
-        lambda m: _nombra_otro_lote(m, mz, lt) or _nombra_a_otro(m, nombre))]
-    cerca = cerca.drop(ajenos.index)
-    if not cerca.empty:
-        r = cerca.iloc[0]
-        # Coincide el monto y la fecha, pero nada confirma que sea de este
-        # predio: los montos se repiten muchísimo. Es POSIBLE, no ENCONTRADO —
-        # el estado fuerte se reserva para cuando el mensaje nombra el lote.
-        return {"estado": "POSIBLE",
-                "detalle": f"hay S/{r['MONTO']:,.2f} de {r['ORIGEN']} el "
-                           f"{r['FECHA']:%d/%m/%Y %H:%M} (mensaje: "
-                           f"{r['MENSAJE'][:35] or '(vacío)'}) — coincide monto y fecha "
-                           f"pero nada confirma que sea de este predio"}
-    if not ajenos.empty:
-        r = ajenos.iloc[0]
-        return {"estado": "NO_EXISTE",
-                "detalle": f"NO hay transaccion de S/{monto:,.2f} para este lote entre el "
-                           f"{desde:%d/%m} y el {hasta:%d/%m}; la unica de ese monto "
-                           f"({r['ORIGEN']}, {r['FECHA']:%d/%m}) nombra otro lote: "
-                           f"\"{r['MENSAJE'][:45]}\""}
-    return {"estado": "NO_EXISTE",
-            "detalle": f"NO hay ninguna transaccion de S/{monto:,.2f} en la cuenta de la "
-                       f"JASS entre el {f - pd.Timedelta(days=dias):%d/%m} y el "
-                       f"{f + pd.Timedelta(days=dias):%d/%m} — el yape no entro a la JASS"}
-
-
-def _filas_yape_de_mesas(mz: str, lt: str, mesas: dict[str, pd.DataFrame]) -> list[dict]:
-    """Las filas donde el cobrador anotó un MONTO_YAPE para este predio."""
-    out = []
-    for mes, df in mesas.items():
-        if df.empty:
-            continue
-        sub = df[(df["MZ"] == _norm(mz)) & (df["LT"] == _norm(lt)) & (df["YAPE"] > TOL)]
-        for _, p in sub.iterrows():
-            out.append({"mes": mes, "monto": float(p["YAPE"]), "fecha": p["FECHA"],
-                        "cobrador": p["COBRADOR"], "mesa": p["MESA"]})
-    return out
+def filas_yape_todos(mz: str, lt: str, mesas: dict) -> list[dict]:
+    """filas_yape() de verificar_yape, pero barriendo todos los ciclos cargados."""
+    return [f for mes in mesas for f in filas_yape(mz, lt, mes)]
 
 
 def _cobrador_mencionado(texto: str, cobradores: set[str]) -> str:
@@ -871,17 +645,6 @@ def _explica_su_propio_pago(otro: str, monto: float, mes: str, boletas: dict) ->
     return vl.subconjuntos(cargos).get(round(monto, 2)) is not None
 
 
-def _menciona_lote(mensaje: str, mz: str, lt: str) -> bool:
-    """¿El texto del pago nombra este lote? Es la señal del multi-lote: una
-    transacción que cubre 2 predios y el sistema acreditó uno solo (caso real
-    K-3/K-4 del 2026-08-10, mensaje "K-3, K-4.")."""
-    if not mensaje:
-        return False
-    t = _sin_tildes(mensaje).upper().replace(" ", "")
-    m, l = _norm(mz), _norm(lt)
-    return any(p in t for p in (f"{m}-{l}", f"MZ{m}LT{l}", f"{m}LT{l}", f"MZ{m}{l}"))
-
-
 def _b2_otro_predio(mz: str, lt: str, mes_pago: str, cargo_reclamado: float,
                     boletas: dict, pagos: pd.DataFrame) -> tuple[list[dict], list[dict]]:
     """(multilote, tipeo) — pagos de OTRO predio que podrían ser de este.
@@ -1069,13 +832,13 @@ def investigar(r: pd.Series, ctx: dict) -> dict:
     # ⑧ si alguien dice "yape" —el vecino en su reclamo o el cobrador en su
     # hoja— hay que ir al reporte del banco, que es la única prueba de que el
     # yape entró a la cuenta de la JASS. Si no está, el veredicto es ese.
-    yapes = _filas_yape_de_mesas(mz, lt, ctx["mesas"])
+    yapes = filas_yape_todos(mz, lt, ctx["mesas"])
     dice_yape = bool(_PATRON_YAPE.search(fila["RECLAMO"])) or bool(yapes)
     if dice_yape:
         if yapes:
             y = yapes[0]
-            chk = _yape_en_banco(y["monto"], y["fecha"], mz, lt,
-                                  nombre=fila["NOMBRE"])
+            chk = verificar_una(y["monto"], y["fecha"], mz, lt,
+                                 nombre=fila["NOMBRE"])
             # Uso ⑤ otra vez: si un precursor ya se llevó ese monto, que no esté
             # en el banco deja de ser un hallazgo — pasa a ser la explicación.
             # Caso real I-9: S/86 anotados como yape que abonos_rezagados
@@ -1089,7 +852,7 @@ def investigar(r: pd.Series, ctx: dict) -> dict:
             fila["YAPE_EN_BANCO"] = (f"[{chk['estado']}] anotado S/{y['monto']:,.2f} por "
                                       f"{y['cobrador']} ({y['fecha']}): {chk['detalle']}")
         else:
-            chk = _yape_en_banco(cargo, "", mz, lt, nombre=fila["NOMBRE"])
+            chk = verificar_una(cargo, "", mz, lt, nombre=fila["NOMBRE"])
             fila["YAPE_EN_BANCO"] = f"[{chk['estado']}] el vecino dice yape: {chk['detalle']}"
         fila["_yape_estado"] = chk["estado"]
 
@@ -1193,7 +956,7 @@ def buscar(mes: str) -> pd.DataFrame:
     # equivocado. Se cargan una vez y se reusan para los 29 reclamos.
     ciclos = sorted(set(rh.REPOS_CICLO_CERRADO) | {mes})
     pools = {c: _pagos_del_ciclo(c) for c in ciclos}
-    mesas = {c: _pagos_de_mesas(c) for c in ciclos}
+    mesas = {c: pagos_de_mesas(c) for c in ciclos}
     for c in ciclos:
         print(f"    {c}: {len(pools[c])} pagos consolidados · {len(mesas[c])} filas en las mesas (fuente)")
 

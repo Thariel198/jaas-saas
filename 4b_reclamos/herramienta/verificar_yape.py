@@ -76,11 +76,19 @@ HOJAS_MESA = ("registro_1", "registro_2", "registro_3")
 
 _PATRON_YAPE = re.compile(r"\byape|\byapeo|\byapeó|\bplin\b", re.IGNORECASE)
 
-# Un MZ-LT escrito dentro de un mensaje de yape, en las formas que usa la gente:
-# "Mz H lote 21" · "mz D1 lt 1" · "H1-15" · "MZ.C1 LT.2"
+# Un MZ-LT escrito dentro de un mensaje de yape. Dos formas, porque la gente
+# escribe de las dos maneras y cada una destapó un falso positivo real:
+#   con palabra   "Mz H lote 21" · "mz D1 lt 1" · "MZ.C1 LT.2" · "MZ,B1,Lt.3"
+#   pelada        "H1-16" · "K-3"
+# El separador incluye la coma: sin ella, "MZ,B1,Lt.3-Johan Rodriguez" no
+# matcheaba y el pago de B1-3 se ofrecía como candidato de F1-13.
 _PATRON_LOTE_MSG = re.compile(
-    r"\b(?:MZ\.?\s*)?([A-Z]{1,2}[0-9]?)\s*[-.\s]?\s*(?:LT|LOTE|LTE)\.?\s*(\d+[A-Z]?)\b",
+    r"(?:MZ\.?[,\s]*)?\b([A-Z]{1,2}[0-9]?)\b[-.,\s]*(?:LT|LOTE|LTE)\.?[,\s]*(\d+[A-Z]?)\b",
     re.IGNORECASE)
+
+# La forma pelada MZ-LT, sin la palabra "lt": "H1-16" en un mensaje suelto.
+# Va aparte porque es mucho más laxa y hay que exigirle el guión.
+_PATRON_LOTE_PELADO = re.compile(r"\b([A-Z]{1,2}[0-9]?)-(\d+[A-Z]?)\b")
 
 
 # ── Normalización (las usa también buscar_pago.py, que importa de acá) ───────
@@ -115,6 +123,20 @@ def _sin_tildes(s) -> str:
                    if unicodedata.category(c) != "Mn")
 
 
+# El nombre del cobrador se tipea a mano en cada fila y sale mal escrito: en
+# julio hay 3 filas que dicen "Yreald Romero" por "Yerald Romero". Sin unificar,
+# el resumen parte a la misma persona en dos y ninguno de los dos totales sirve.
+_ALIAS_COBRADOR = {
+    "YREALD ROMERO": "Yerald Romero",
+    "WILDER TRUJILLO ROSALES": "Wilder Trujillo",
+}
+
+
+def _cobrador_canon(nombre: str) -> str:
+    n = _txt(nombre)
+    return _ALIAS_COBRADOR.get(_sin_tildes(n).upper(), n)
+
+
 def _fecha(v) -> pd.Timestamp | None:
     for fmt in ("%d/%m/%Y", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d", "%d/%m/%Y %H:%M:%S"):
         f = pd.to_datetime(_txt(v), format=fmt, errors="coerce")
@@ -134,6 +156,47 @@ def _menciona_lote(mensaje: str, mz: str, lt: str) -> bool:
     return any(p in t for p in (f"{m}-{l}", f"MZ{m}LT{l}", f"{m}LT{l}", f"MZ{m}{l}"))
 
 
+def _extractor_motor():
+    """`extraer_mz_lote_mensaje` de motor_matching: 31 patrones afinados contra
+    mensajes reales de yape durante meses. Saca cosas que un regex propio no
+    ("Maria Rosa Jimenez Roca   M x L 11" -> X-11).
+
+    Se carga por ruta explícita y NO con `import main`: motor_matching/main.py y
+    4b_reclamos/main.py se llaman igual, y 4b_reclamos ya está en sys.path — un
+    import por nombre resolvería al equivocado según el orden."""
+    global _cache_extractor
+    if _cache_extractor is None:
+        import importlib.util
+        ruta = REPO_DIR / "4_pagos" / "yape" / "motor_matching" / "main.py"
+        try:
+            spec = importlib.util.spec_from_file_location("_mm_extractor", ruta)
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            _cache_extractor = mod.extraer_mz_lote_mensaje
+        except Exception:
+            _cache_extractor = lambda _m: (None, None)   # noqa: E731
+    return _cache_extractor
+
+
+_cache_extractor = None
+
+
+def _lotes_en_mensaje(mensaje: str) -> set[tuple[str, str]]:
+    """Todos los (MZ, LT) que un mensaje nombra, juntando las dos fuentes.
+
+    motor_matching devuelve UNO (el primero) y mis patrones barren todos, que es
+    lo que hace falta para "¿nombra algún lote que no sea el mío?"."""
+    t = _sin_tildes(mensaje)
+    fuera = set()
+    mz_m, lt_m = _extractor_motor()(mensaje)
+    if mz_m:
+        fuera.add((_norm(mz_m), _norm(lt_m)))
+    for patron in (_PATRON_LOTE_MSG, _PATRON_LOTE_PELADO):
+        for m in patron.finditer(t):
+            fuera.add((m.group(1).upper(), m.group(2).upper()))
+    return fuera
+
+
 def _nombra_otro_lote(mensaje: str, mz: str, lt: str) -> bool:
     """¿El mensaje nombra un lote DISTINTO del buscado?
 
@@ -143,11 +206,8 @@ def _nombra_otro_lote(mensaje: str, mz: str, lt: str) -> bool:
     (S/8 lo deben 101 predios), así que sin este chequeo la coincidencia por
     monto inventa dueños."""
     if not mensaje or _menciona_lote(mensaje, mz, lt):
-        return False
-    for m in _PATRON_LOTE_MSG.finditer(_sin_tildes(mensaje)):
-        if (m.group(1).upper(), m.group(2).upper()) != (_norm(mz), _norm(lt)):
-            return True
-    return False
+        return False                      # nombra el mío: no es de otro
+    return any(k != (_norm(mz), _norm(lt)) for k in _lotes_en_mensaje(mensaje))
 
 
 def _nombra_a_otro(mensaje: str, nombre: str) -> bool:
@@ -206,7 +266,7 @@ def pagos_de_mesas(mes: str) -> pd.DataFrame:
                     "MONTO": _numf(r.get("MONTO")),
                     "EFECTIVO": _numf(r.get("MONTO_EFECTIVO")),
                     "YAPE": _numf(r.get("MONTO_YAPE")),
-                    "COBRADOR": _txt(r.get("COBRADOR")), "MESA": f"mesa_{n}",
+                    "COBRADOR": _cobrador_canon(r.get("COBRADOR")), "MESA": f"mesa_{n}",
                     "HOJA": hoja, "FECHA": _txt(r.get("FECHA")),
                     "COMENTARIO": _txt(r.get("COMENTARIO")),
                     "CATEGORIA": _txt(r.get("CATEGORIA")),
@@ -244,6 +304,50 @@ def _reporte_banco() -> pd.DataFrame:
     return _cache_banco
 
 
+_cache_ventanas: dict[str, tuple] | None = None
+
+
+def ventana_del_ciclo(mes: str) -> tuple[pd.Timestamp | None, pd.Timestamp | None]:
+    """(inicio, fin) de la ventana de cobro de un ciclo, según el ANCLA DE CORTE.
+
+    El reporte del banco abarca ~3 meses, así que buscar un yape de julio sin
+    acotar puede devolver uno de junio. La ventana sale de
+    shared/reporte_acumulado_procesado/<mes>_procesado.xlsx, que es lo que
+    motor_matching ya procesó para ese ciclo — su fecha máxima ES el ancla
+    (`obtener_ancla()` en motor_matching/main.py).
+
+        ciclo 2026-06   19/05 19:14 -> 15/06 21:13
+        ciclo 2026-07   17/06 20:32 -> 20/07 22:48   <- ancla de agosto
+        ciclo 2026-08   20/07 22:48 -> (abierto, hasta el fin del reporte)
+
+    El ciclo abierto no tiene procesado propio: su ventana empieza en el ancla
+    del último cerrado y termina donde termina el reporte."""
+    global _cache_ventanas
+    if _cache_ventanas is None:
+        rangos = {}
+        for p in sorted((SHARED_DIR / "reporte_acumulado_procesado").glob("????-??_procesado.xlsx")):
+            try:
+                df = pd.read_excel(p, header=1)
+            except Exception:
+                continue
+            df.columns = [str(c).strip() for c in df.columns]
+            if "FECHA" not in df.columns:
+                continue
+            d = pd.to_datetime(df["FECHA"], errors="coerce", dayfirst=True).dropna()
+            if not d.empty:
+                rangos[p.name[:7]] = (d.min(), d.max())
+        _cache_ventanas = rangos
+
+    if mes in _cache_ventanas:
+        return _cache_ventanas[mes]
+    # Ciclo abierto: desde el ancla del último cerrado hasta el fin del reporte.
+    cerrados = sorted(m for m in _cache_ventanas if m < mes)
+    inicio = _cache_ventanas[cerrados[-1]][1] if cerrados else None
+    banco = _reporte_banco()
+    fin = banco["FECHA"].max() if not banco.empty else None
+    return inicio, fin
+
+
 def _leer_precursor(nombre: str) -> pd.DataFrame:
     ruta = SHARED_DIR / f"{nombre}.xlsx"
     if not ruta.exists():
@@ -259,7 +363,7 @@ def _leer_precursor(nombre: str) -> pd.DataFrame:
 # ── La verificación ──────────────────────────────────────────────────────────
 
 def verificar_una(monto: float, fecha, mz: str, lt: str, dias: int = 3,
-                  nombre: str = "") -> dict:
+                  nombre: str = "", mes: str = "") -> dict:
     """¿Existe en el banco un yape que calce con lo que el cobrador anotó?
 
     Devuelve {"estado", "detalle"} con uno de:
@@ -278,12 +382,24 @@ def verificar_una(monto: float, fecha, mz: str, lt: str, dias: int = 3,
     if banco.empty:
         return {"estado": "SIN_REPORTE", "detalle": "no hay reporte del banco para verificar"}
 
+    # ACOTAR AL CICLO antes de cualquier búsqueda. El reporte abarca ~3 meses y
+    # sin esto un yape de junio que nombre el lote se devolvía como prueba de un
+    # pago de julio — la búsqueda por mensaje no filtraba fecha en absoluto.
+    ini_c, fin_c = ventana_del_ciclo(mes) if mes else (None, None)
+    ventana = ""
+    if ini_c is not None and fin_c is not None:
+        banco = banco[(banco["FECHA"] > ini_c) & (banco["FECHA"] <= fin_c)]
+        ventana = f" [ventana del ciclo {mes}: {ini_c:%d/%m %H:%M}→{fin_c:%d/%m %H:%M}]"
+        if banco.empty:
+            return {"estado": "SIN_REPORTE",
+                    "detalle": f"el reporte del banco no tiene transacciones en{ventana}"}
+
     por_lote = banco[banco["MENSAJE"].apply(lambda m: _menciona_lote(m, mz, lt))]
     if not por_lote.empty:
         r = por_lote.iloc[0]
         return {"estado": "ENCONTRADO",
                 "detalle": f"S/{r['MONTO']:,.2f} de {r['ORIGEN']} el "
-                           f"{r['FECHA']:%d/%m/%Y %H:%M} — su mensaje nombra el lote"}
+                           f"{r['FECHA']:%d/%m/%Y %H:%M} — su mensaje nombra el lote{ventana}"}
 
     f = _fecha(fecha)
     if f is None:
@@ -310,18 +426,18 @@ def verificar_una(monto: float, fecha, mz: str, lt: str, dias: int = 3,
                 "detalle": f"hay S/{r['MONTO']:,.2f} de {r['ORIGEN']} el "
                            f"{r['FECHA']:%d/%m/%Y %H:%M} (mensaje: "
                            f"{r['MENSAJE'][:35] or '(vacío)'}) — coincide monto y fecha "
-                           f"pero nada confirma que sea de este predio"}
+                           f"pero nada confirma que sea de este predio{ventana}"}
     if not ajenos.empty:
         r = ajenos.iloc[0]
         return {"estado": "NO_EXISTE",
                 "detalle": f"NO hay transaccion de S/{monto:,.2f} para este lote entre el "
                            f"{desde:%d/%m} y el {hasta:%d/%m}; la unica de ese monto "
                            f"({r['ORIGEN']}, {r['FECHA']:%d/%m}) nombra otro: "
-                           f"\"{r['MENSAJE'][:45]}\""}
+                           f"\"{r['MENSAJE'][:45]}\"{ventana}"}
     return {"estado": "NO_EXISTE",
             "detalle": f"NO hay ninguna transaccion de S/{monto:,.2f} en la cuenta de la "
                        f"JASS entre el {desde:%d/%m} y el {hasta:%d/%m} — el yape no "
-                       f"entro a la JASS"}
+                       f"entro a la JASS{ventana}"}
 
 
 def filas_yape(mz: str, lt: str, mes: str) -> list[dict]:
@@ -379,7 +495,8 @@ def barrer(meses: list[str]) -> pd.DataFrame:
             elif (mz, lt, round(r["YAPE"], 2)) in rez:
                 estado, detalle = "YA_REGULARIZADO", "registrado en abonos_rezagados"
             else:
-                chk = verificar_una(r["YAPE"], r["FECHA"], mz, lt, dias=5, nombre=nombre)
+                chk = verificar_una(r["YAPE"], r["FECHA"], mz, lt, dias=5,
+                                    nombre=nombre, mes=mes)
                 estado, detalle = chk["estado"], chk["detalle"]
             filas.append({
                 "MES": mes, "MZ": mz, "LT": lt, "NOMBRE": nombre,
