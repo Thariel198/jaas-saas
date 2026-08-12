@@ -150,6 +150,21 @@ PRECURSORES_EXPLICAN = [
 
 # ── Normalización ────────────────────────────────────────────────────────────
 
+def _meses_esperados(hasta: str) -> list[str]:
+    """Todos los meses en los que el predio DEBIÓ pagar, hasta el ciclo dado.
+
+    Sale del primer archivo histórico (oct-2025) en adelante, que es donde
+    arranca el historial que arma rh.tabla_predio()."""
+    desde = rh._ARCHIVOS_HISTORICOS[0][1]
+    out, m = [], desde
+    while m <= hasta:
+        out.append(m)
+        y, mm = int(m[:4]), int(m[5:7])
+        t = y * 12 + mm
+        m = f"{t // 12:04d}-{t % 12 + 1:02d}"
+    return out
+
+
 def _mes_menos(mes_ano: str, n: int) -> str:
     y, m = int(mes_ano[:4]), int(mes_ano[5:7])
     t = y * 12 + (m - 1) - n
@@ -798,9 +813,14 @@ def investigar(r: pd.Series, ctx: dict) -> dict:
 
     tabla = ctx["tabla_de"](mz, lt)
 
-    # ① historial completo: en qué meses pagó y en cuáles no
+    # ① historial completo: en qué meses pagó y en cuáles no.
+    # Se compara contra TODOS los meses esperados, no contra los que la tabla
+    # trae: un mes sin ningún movimiento no genera fila, así que recorrer
+    # tabla["MES"] lo vuelve invisible. Caso real J-8 — pagó de oct-2025 a
+    # jun-2026 y en agosto, julio no tiene fila, y el reporte decía "pagó todos
+    # los meses" mientras le cobraban S/16 de arrastre nacido justo en julio.
     pagados = set(tabla[tabla["TOTAL"] > TOL]["MES"].astype(str))
-    sin_pago = [m for m in tabla["MES"].astype(str) if m not in pagados]
+    sin_pago = [m for m in _meses_esperados(mes_reclamo) if m not in pagados]
     fila["MESES_SIN_PAGO"] = " · ".join(sin_pago) or "(pagó todos los meses)"
     fila["PAGO_ARRASTRES_ANTES"] = _historico_mes_anterior(tabla)[0]
 

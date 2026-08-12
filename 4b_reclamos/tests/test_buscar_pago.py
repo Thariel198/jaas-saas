@@ -347,6 +347,37 @@ def test_cobrador_mencionado_detecta_el_nombre_en_el_texto():
 # Los contrafactuales del yape contra el banco se mudaron a
 # tests/test_verificar_yape.py, junto con el codigo que verifican.
 
+# ── CONTRAFACTUAL — un mes SIN FILA no puede leerse como "pago" ─────────────
+# rh.tabla_predio() solo trae filas de los meses con algun movimiento: un mes en
+# que el vecino no pago nada NO genera fila. Calcular los meses sin pago
+# recorriendo tabla["MES"] los vuelve invisibles.
+# Caso real J-8 (Julia Victoria Robles Castillo): pago de oct-2025 a jun-2026 y
+# en agosto; julio no tiene fila. El reporte decia "(pago todos los meses)"
+# mientras le cobraban S/16 de arrastre nacido justo en julio.
+
+def test_meses_esperados_cubre_todo_el_rango():
+    m = bp._meses_esperados("2026-08")
+    assert m[0] == "2025-10" and m[-1] == "2026-08"
+    assert "2026-07" in m, "el mes sin fila tiene que estar en la lista esperada"
+    assert len(m) == len(set(m)), "sin repetidos"
+
+
+def test_meses_esperados_cruza_el_cambio_de_ano():
+    m = bp._meses_esperados("2026-02")
+    assert m[-4:] == ["2025-11", "2025-12", "2026-01", "2026-02"]
+
+
+def test_un_mes_sin_fila_cuenta_como_mes_sin_pago():
+    import pandas as pd
+    # tabla al estilo J-8: hay filas de junio y agosto, julio NO existe
+    tabla = pd.DataFrame([{"MES": "2026-06", "TOTAL": 39.0},
+                          {"MES": "2026-08", "TOTAL": 11.0}])
+    pagados = set(tabla[tabla["TOTAL"] > bp.TOL]["MES"].astype(str))
+    sin_pago = [m for m in bp._meses_esperados("2026-08") if m not in pagados]
+    assert "2026-07" in sin_pago, "julio no tiene fila: debe contar como sin pago"
+    assert "2026-06" not in sin_pago and "2026-08" not in sin_pago
+
+
 # ── Alcance: solo mes_anterior ──────────────────────────────────────────────
 
 def test_la_herramienta_es_solo_de_mes_anterior():
