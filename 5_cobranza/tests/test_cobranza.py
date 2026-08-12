@@ -80,7 +80,7 @@ ESPERADO = {
     "n_arrastre_deuda":      4,   # A-3, A-4, B-1, B-2
     "n_arrastre_devolucion": 1,   # A-2
     "n_blancos_aplicados":   1,   # C-1
-    "n_trazabilidad":        6,   # 2 yape + 4 efectivo (incluye huérfano X-99)
+    "n_trazabilidad":        5,   # 2 yape + 3 efectivo (huérfano X-99 va solo a discrepancias, no a trazabilidad)
 }
 
 
@@ -109,6 +109,11 @@ def _setup_paths():
     # sys.modules) — redirigir su path acá also lo redirige para main.py.
     # Sin esto, _reconciliar_pagos_pueblo escribiría en el archivo real.
     mod.repo.SEGUIMIENTO_PATH = TEST_ROOT / "shared" / "seguimiento_pueblo.xlsx"
+    # VISTA_PATH también: el ledger estaba redirigido pero la vista no, así que el
+    # test escribía shared/vista_seguimiento_pueblo.xlsx REAL con datos sintéticos
+    # (07/08/2026 solo no lo pisó porque el archivo estaba abierto en Excel).
+    mod.repo.VISTA_PATH = TEST_ROOT / "shared" / "vista_seguimiento_pueblo.xlsx"
+    mod.repo.VISTA_PDF_PATH = TEST_ROOT / "shared" / "vista_seguimiento_pueblo.pdf"
     return mod
 
 

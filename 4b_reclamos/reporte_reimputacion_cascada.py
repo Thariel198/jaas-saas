@@ -94,16 +94,60 @@ def clasificar_convenio(clave, saldo_convenio: float, instalacion: set, reactiva
 
 
 # ── CALCULO ───────────────────────────────────────────────────────────────────
-def calcular_tabla(mes_ano: str = "2026-07") -> pd.DataFrame:
+_cache_tabla: dict[tuple[str, str], pd.DataFrame] = {}
+
+
+def _tabla_corregida(mz, lt, historicos, eventos, dfp, mapa_raw, nombre, redirects):
+    """tabla_predio + corregir_tabla_por_redirects, cacheada por predio.
+
+    generar() recorre los predios DOS veces —una en calcular_tabla y otra al
+    dibujar cada pagina— y recalculaba la misma tabla en cada pasada. Son ~1.9 s
+    por predio: con --todos (570 predios) eso es 37 min contra 18."""
+    k = (mz, lt)
+    if k not in _cache_tabla:
+        t = rh.tabla_predio(mz, lt, historicos, eventos, dfp, mapa_raw, nombre)
+        _cache_tabla[k] = rcm.corregir_tabla_por_redirects(t, mz, lt, redirects)
+    return _cache_tabla[k]
+
+
+def predios_con_reclamo(mes_ciclo: str, tipo: str = "mes_anterior") -> set[tuple[str, str]]:
+    """Los predios que tienen un reclamo abierto de ese tipo en el ciclo.
+
+    Es la lista corta y util: un predio que solo debe mes anterior no aparece en
+    el PDF normal (que se arma con los que deben MULTA/ACUERDOS/CONVENIO), asi
+    que buscar O-28 ahi no da nada. Con esto el PDF trae exactamente los predios
+    que hay que resolver."""
+    ruta = BASE_DIR / "outputs" / f"reclamos_{mes_ciclo}.xlsx"
+    if not ruta.exists():
+        raise FileNotFoundError(f"Falta {ruta} -> correr 4b_reclamos/main.py --mes {mes_ciclo}")
+    df = pd.read_excel(ruta, sheet_name="Reclamos", header=1)
+    df = df[df["TIPO_RECLAMO"].astype(str).str.strip() == tipo]
+    out = set()
+    for _, r in df.iterrows():
+        mz, lt = str(r["MZ"]).strip().upper(), str(r["LT"]).strip().upper()
+        if lt.endswith(".0"):
+            lt = lt[:-2]
+        if mz and lt and mz != "NAN" and lt != "NAN":
+            out.add((mz, lt))
+    return out
+
+
+def calcular_tabla(mes_ano: str = "2026-07",
+                   predios: set[tuple[str, str]] | None = None) -> pd.DataFrame:
     nombres = repo._lookup_nombres()
     saldos = {c: repo.get_saldos_bulk(c, mes_ano) for c in CONCEPTOS}
     instalacion, reactivacion = cargar_listas()
 
-    predios = set()
-    for c in CONCEPTOS:
-        for k, v in saldos[c].items():
-            if v > 0.005 and k[0] != "NAN" and k[1] != "NAN":
-                predios.add(k)
+    if predios is None:
+        # Por defecto: los que deben alguno de los 3 conceptos que la
+        # re-imputacion mueve.
+        predios = set()
+        for c in CONCEPTOS:
+            for k, v in saldos[c].items():
+                if v > 0.005 and k[0] != "NAN" and k[1] != "NAN":
+                    predios.add(k)
+    else:
+        predios = {k for k in predios if k[0] != "NAN" and k[1] != "NAN"}
 
     historicos = rh._cargar_historicos()
     eventos = repo._leer_eventos()
@@ -115,8 +159,7 @@ def calcular_tabla(mes_ano: str = "2026-07") -> pd.DataFrame:
     filas = []
     for n, (mz, lt) in enumerate(sorted(predios), 1):
         nombre = nombres.get((mz, lt), "")
-        tabla = rh.tabla_predio(mz, lt, historicos, eventos, dfp, mapa_raw, nombre)
-        tabla = rcm.corregir_tabla_por_redirects(tabla, mz, lt, redirects)
+        tabla = _tabla_corregida(mz, lt, historicos, eventos, dfp, mapa_raw, nombre, redirects)
         vent = tabla[tabla["MES"].isin(MESES_VENTANA)]
 
         sm = round(max(0.0, saldos["MULTA"].get((mz, lt), 0.0)), 2)
@@ -347,8 +390,9 @@ def _dibujar_portada(doc, df: pd.DataFrame, mes_ano: str) -> None:
             y += rh_row
 
 
-def generar(mes_ano: str = "2026-07", salida: Path | None = None) -> Path:
-    df = calcular_tabla(mes_ano)
+def generar(mes_ano: str = "2026-07", salida: Path | None = None,
+            predios: set[tuple[str, str]] | None = None) -> Path:
+    df = calcular_tabla(mes_ano, predios)
     chequeos = validar(df)
 
     historicos = rh._cargar_historicos()
@@ -364,14 +408,16 @@ def generar(mes_ano: str = "2026-07", salida: Path | None = None) -> Path:
     _dibujar_portada(doc, df, mes_ano)
     for n, (_, r) in enumerate(df.iterrows(), 1):
         mz, lt = r["MZ"], r["LT"]
-        tabla = rh.tabla_predio(mz, lt, historicos, eventos, dfp, mapa_raw, nombres.get((mz, lt), ""))
-        tabla = rcm.corregir_tabla_por_redirects(tabla, mz, lt, redirects)
+        tabla = _tabla_corregida(mz, lt, historicos, eventos, dfp, mapa_raw,
+                                  nombres.get((mz, lt), ""), redirects)
         refs = rrp.referencias_pago(mz, lt, tabla=tabla)
-        rh._dibujar_pagina(doc, mz, lt, nombres.get((mz, lt), ""), tabla)
+        saldo_pendiente = {"MULTA": r["MULTA_DESPUES"], "ACUERDOS": r["ACUERDOS_DESPUES"],
+                            "CONVENIO": r["CONVENIO_DESPUES"], "TOTAL": r["DEUDA_DESPUES"]}
+        y_fin = rh._dibujar_pagina(doc, mz, lt, nombres.get((mz, lt), ""), tabla,
+                                    saldo_pendiente=saldo_pendiente)
         page = doc[-1]
         w = rh._PAGE_W - 2 * rh._M
-        y_fin = rh._M + 42 + 14 + 18 + (18 * len(tabla))
-        rrp._dibujar_tabla_referencias(page, rh._M, y_fin + 45, w, refs)
+        rrp._dibujar_tabla_referencias(page, rh._M, y_fin + 15, w, refs)
         if n % 25 == 0:
             print(f"  paginas {n}/{len(df)}...")
 
@@ -393,4 +439,21 @@ def generar(mes_ano: str = "2026-07", salida: Path | None = None) -> Path:
 
 
 if __name__ == "__main__":
-    generar(sys.argv[1] if len(sys.argv) > 1 else "2026-07")
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    mes_ano = args[0] if args else "2026-07"
+
+    if "--reclamos" in sys.argv:
+        # Solo los predios con un reclamo abierto de mes anterior: es la lista
+        # que se va a resolver, y son ~28 predios (~1 min) contra los 570 del
+        # padron (~18 min). El PDF va a un archivo aparte para no pisar el
+        # normal, que sigue siendo el de los 3 conceptos de la re-imputacion.
+        sys.path.insert(0, str(BASE_DIR.parent / "shared"))
+        import ciclo  # noqa: E402
+
+        mes_ciclo = ciclo.activo(default=None) or mes_ano
+        predios = predios_con_reclamo(mes_ciclo)
+        print(f"  {len(predios)} predios con reclamo de mes anterior en {mes_ciclo}")
+        generar(mes_ano, BASE_DIR / "outputs" /
+                f"reporte_reimputacion_cascada_{mes_ano}_reclamos.pdf", predios)
+    else:
+        generar(mes_ano)

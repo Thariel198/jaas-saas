@@ -1271,11 +1271,19 @@ def _escribir_correcciones_lote(filas: list[dict]):
     escribir_correcciones_lote(CORR_LOTE_PATH, filas)
 
 
-def _recuperar_correcciones_trazabilidad(existentes: dict, ciclo: int) -> dict:
+def _recuperar_correcciones_trazabilidad(existentes: dict, ciclo: int,
+                                         keys_validos: set = frozenset()) -> dict:
     """Auto-sana correcciones_lote desde trazabilidad_cobranza.xlsx.
     Cada corrección aplicada queda grabada en la trazabilidad (MZ_ORIGEN/LT_ORIGEN
     → MZ/LT). Si correcciones_lote se revirtió (git) y perdió alguna, se recupera
     desde ahí — el trabajo manual no depende de un solo archivo mutable.
+
+    Guarda de seguridad (bug C1-9→C1-17, 10/08/2026): si el ORIGEN de la
+    corrección a recuperar es HOY un predio real en la planilla, NO se auto-aplica
+    — un origen real puede volver a recibir un pago legítimo en un ciclo futuro
+    (verificar_lotes.py u otro fix ya pudo haber corregido la fuente desde
+    entonces) y una resurrección ciega se lo robaría en silencio. Se avisa y
+    se salta; si sigue haciendo falta, un humano la vuelve a escribir a mano.
     """
     traz = OUTPUTS_DIR / "trazabilidad_cobranza.xlsx"
     if not traz.exists():
@@ -1295,8 +1303,13 @@ def _recuperar_correcciones_trazabilidad(existentes: dict, ciclo: int) -> dict:
         lo = _norm_lt(f.get("LT_ORIGEN"))
         md = _norm_mz(f.get("MZ"))
         ld = _norm_lt(f.get("LT"))
-        if mo and lo and md and ld and (mo, lo) not in existentes:
-            nuevas[(mo, lo)] = (md, ld)
+        if not (mo and lo and md and ld) or (mo, lo) in existentes:
+            continue
+        if f"{mo}-{lo}" in keys_validos:
+            log.warning(f"  correccion NO recuperada (origen {mo}-{lo} es un predio "
+                        f"real hoy — revisar a mano si todavia hace falta)")
+            continue
+        nuevas[(mo, lo)] = (md, ld)
     if not nuevas:
         return existentes
 
@@ -2142,9 +2155,15 @@ def _leer_revision_previa(ruta: Path) -> dict:
     return previo
 
 
-def _exportar_arrastre_devolucion(resultado: list[dict], mes_ano: str):
+def _exportar_arrastre_devolucion(resultado: list[dict], mes_ano: str,
+                                  disc_yape: list[dict] = None, disc_efec: list[dict] = None):
     excesos = [r for r in resultado if r["saldo"] < -TOL]
-    last_row = max(len(excesos) + 2, 3)
+    # No identificados: plata real cobrada (mesa/yape) cuyo MZ+LT no existe en
+    # planilla — no tienen usuario ni SALDO, así que nunca entrarían a `excesos`.
+    # Sin esto quedaban visibles solo en discrepancias_cobranza.xlsx, un archivo
+    # que nadie revisa buscando plata pendiente de devolver/reidentificar.
+    no_identificados = list(disc_efec or []) + list(disc_yape or [])
+    last_row = max(len(excesos) + len(no_identificados) + 2, 3)
 
     ruta = OUTPUTS_DIR / f"arrastre_devolucion_{mes_ano}.xlsx"
     _backup_arrastre_devolucion(ruta)
@@ -2199,6 +2218,32 @@ def _exportar_arrastre_devolucion(resultado: list[dict], mes_ano: str):
         _c(ws, ri, 13, est, bg_est, GH_AV_REVIS[1], align="left")
         ws.row_dimensions[ri].height = 17
 
+    # No identificados — mismo color rojo-huérfano que discrepancias_cobranza,
+    # para que no se confundan con un exceso de un usuario real.
+    fila_base = 3 + len(excesos)
+    for i, p in enumerate(sorted(no_identificados,
+                                  key=lambda x: (x["mz"], x["lt"], x["fecha"])),
+                           fila_base):
+        _c(ws, i, 1, p["mz"],                 TD_DC_PREDIO, "991B1B", mono=True, align="center", bold=True)
+        _c(ws, i, 2, p["lt"],                 TD_DC_PREDIO, "991B1B", mono=True, align="center", bold=True)
+        _c(ws, i, 3, "(no identificado)",     TD_DC_PREDIO, "991B1B", align="left")
+        _c(ws, i, 5, round(p["monto"], 2),    TD_AV_MONTO,  "991B1B",
+           mono=True, align="right", bold=True, fmt=MONEY)
+        _c(ws, i, 7, mes_ano,                 TD_AV_TRAZ,   "991B1B", mono=True, align="center")
+        ref = (f"{p.get('mesa','')} / {p.get('cobrador','')} / {p.get('fecha','')}"
+               if p.get("fuente") == "efectivo"
+               else f"{p.get('referencia','')} / S/{p['monto']:g} / {p.get('fecha_hora','')}")
+        _c(ws, i, 9,  ref,                                TD_AV_TRAZ, "991B1B", mono=True, align="left")
+        _c(ws, i, 10, "predio no encontrado en planilla",  TD_AV_TRAZ, "991B1B", align="left")
+
+        prev = previo.get((p["mz"], p["lt"]), {})
+        rev, est = prev.get("revision"), prev.get("estado")
+        bg_rev = TD_DC_CORR if rev else TD_AV_REVIS
+        bg_est = TD_DC_CORR if est else TD_AV_REVIS
+        _c(ws, i, 12, rev, bg_rev, GH_AV_REVIS[1], align="left")
+        _c(ws, i, 13, est, bg_est, GH_AV_REVIS[1], align="left")
+        ws.row_dimensions[i].height = 17
+
     if last_row >= 3:
         dv = DataValidation(type="list", formula1=f'"{",".join(_AV_ESTADO_OPCIONES)}"',
                              allow_blank=True)
@@ -2206,7 +2251,8 @@ def _exportar_arrastre_devolucion(resultado: list[dict], mes_ano: str):
         dv.add(f"M3:M{last_row}")
 
     wb.save(ruta)
-    log.info(f"{ruta.name} → {len(excesos)} usuarios con SALDO<0 (esperan reclamo)")
+    log.info(f"{ruta.name} → {len(excesos)} usuarios con SALDO<0 · "
+             f"{len(no_identificados)} no identificado(s) (esperan reclamo/reidentificación)")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -2346,8 +2392,17 @@ def _reconciliar_pagos_pueblo(resultado: list[dict], mes_ano: str) -> None:
             # pago_registrado, un PAGO escrito a mano (declaración de la secretaria)
             # se contaba como propio → delta negativo → AJUSTE a ciegas → alguien
             # tenía que estabilizarlo (44 filas de ruido en julio 2026, LEER_ANTES.md).
+            # El AJUSTE se RESTA porque las dos columnas hablan idiomas opuestos:
+            # `ya` está en unidades de CRÉDITO (se compara contra pagado_fresco),
+            # y la columna AJUSTE del ledger está en unidades de DEUDA
+            # (_registrar: saldo += monto). Un AJUSTE de +75 = "devolví 75 de
+            # deuda" = "des-acredité 75". Es la misma traducción que hace la
+            # escritura de abajo (`-delta`), en el sentido inverso: las dos son
+            # el MISMO cambio de unidad y no se pueden tocar por separado sin
+            # romper la idempotencia (bug del signo, corregido 07/08/2026 —
+            # ver LEER_ANTES.md).
             ya = (repo.pago_registrado(r["mz"], r["lt"], concepto, mes_ano, source="5_cobranza")
-                  + repo.ajuste_reconciliado(r["mz"], r["lt"], concepto, mes_ano, "5_cobranza"))
+                  - repo.ajuste_reconciliado(r["mz"], r["lt"], concepto, mes_ano, "5_cobranza"))
             delta = round(pagado_fresco - ya, 2)
             if delta > TOL:
                 # Se acredita SIEMPRE lo que la cascada calculó, aunque deje el
@@ -2371,10 +2426,17 @@ def _reconciliar_pagos_pueblo(resultado: list[dict], mes_ano: str) -> None:
                 n_pago += 1
             elif delta < -TOL:
                 ref = f"recon_{mes_ano}_{concepto}_{r['mz']}_{r['lt']}_{datetime.now().timestamp()}"
-                repo.registrar_ajuste(r["mz"], r["lt"], concepto, mes_ano, delta,
+                # -delta, no delta: revertir un PAGO es DEVOLVER la deuda, así que
+                # el saldo tiene que SUBIR. delta viene en CRÉDITO (negativo =
+                # "acredité de más") y la columna AJUSTE está en DEUDA, así que el
+                # signo se invierte al cruzar. Con `delta` crudo el saldo bajaba
+                # otra vez y quedaba 2× el monto por debajo de la verdad, positivo
+                # y sin alarma (D-16 · D1-6 en julio 2026).
+                repo.registrar_ajuste(r["mz"], r["lt"], concepto, mes_ano, -delta,
                                       source="5_cobranza", audit_ref=ref,
                                       clase="CORRECCION_SISTEMA",
-                                      motivo="corrección: pago recalculado a la baja en 5_cobranza")
+                                      motivo="corrección: pago recalculado a la baja en 5_cobranza "
+                                             "— se devuelve la deuda que este pago había cubierto")
                 n_ajuste += 1
     if n_pago or n_ajuste:
         log.info(f"seguimiento_pueblo: {n_pago} pago(s) · {n_ajuste} ajuste(s) registrados")
@@ -2734,7 +2796,9 @@ def main():
 
     print("\n[2b/6] Aplicando correcciones de lote...")
     correcciones   = _leer_correcciones()
-    correcciones   = _recuperar_correcciones_trazabilidad(correcciones, max_ciclo)
+    _keys_validos_correcciones = {u["key"] for u in usuarios}
+    correcciones   = _recuperar_correcciones_trazabilidad(correcciones, max_ciclo,
+                                                           _keys_validos_correcciones)
     correcciones   = _absorber_correcciones_discrepancias(correcciones, max_ciclo)
     pagos_yape     = _aplicar_correcciones_lote(pagos_yape,     correcciones)
     pagos_efectivo = _aplicar_correcciones_lote(pagos_efectivo, correcciones)
@@ -2807,7 +2871,7 @@ def main():
     )
     _exportar_resumen(resultado, n_corte, mes_ano, ciclo_nuevo)
     _exportar_arrastre_deuda(resultado, mes_ano)
-    _exportar_arrastre_devolucion(resultado, mes_ano)
+    _exportar_arrastre_devolucion(resultado, mes_ano, disc_yape, disc_efec)
     _marcar_generado(mes_ano)                          # 5b lo lee para sellar validado
     _exportar_arrastre_consolidado(resultado, mes_ano)  # gate: validado:true
     repo.generar_vista()       # lista consultable de la mesa (multa/acuerdos/convenio)

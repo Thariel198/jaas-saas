@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2026-08-08 tarde — Regex de tanque y la planilla con saldos viejos</title>
+<link rel="stylesheet" href="../cuaderno/estilo.css">
+</head>
+<body>
+
+<header class="hero">
+  <p class="crumbs"><a href="index.html">← Diario</a> · 2026-08-08 tarde · continúa la <a href="2026-08-08_verificacion_lotes_efectivo.html">verificación de lotes</a> de la mañana</p>
+  <p class="eyebrow"><span class="dot"></span>dos vecinos con nombre equivocado, dos mensajes de tanque que se leían como agua, y 11 predios con deuda negativa que resultó ser una foto vieja</p>
+  <h1>Regex de tanque y la planilla con saldos viejos</h1>
+  <p class="lede">
+    Verificando las últimas 2 mesas de efectivo (Maximo, Wagner) aparecieron 2 pagos duplicados
+    entre cobradores, sin forma de decidir cuál es real solo mirando las fotos. Revisando los
+    pendientes de Yape se encontró que el motor <b>adivinaba mal</b> a dos vecinos por nombre
+    cuando el mensaje ya decía su predio real, y que "tanque" nunca se leía como tanque. Y
+    siguiendo una pregunta sobre un lote con "deuda negativa" apareció una planilla de agosto
+    que quedó congelada un día antes de que el ledger se corrigiera.
+  </p>
+  <div class="meta-row">
+    <span>fecha: 2026-08-08 (tarde)</span>
+    <span>estado: código sin commitear · datos de mesas sí guardados</span>
+    <span>63/69 yape identificado automático (89.9% → 92.4%)</span>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="modulo-laminas">
+
+    <article class="lamina" style="border:1px solid var(--line);border-radius:8px;background:var(--paper-raised);padding:26px 22px 30px;margin-bottom:18px">
+
+      <div class="sub-h"><span class="qn">①</span> mesa_3 y mesa_4 — 2 lotes corregidos, 1 abono parcial, 1 monto sin explicar</div>
+      <p>Mismo método que la mañana con Wilder/Yerald: cruzar las fotos de la hoja de papel
+        contra la boleta real. De los 4 candidatos que <code>verificar_lotes.py</code> había
+        propuesto, 2 eran errores de lote de verdad y 2 no lo eran.</p>
+      <div class="ascii">G-14 → E-14   CONFIRMADO (boleta S/12 exacto) → aplicado en mesa_3.xlsx
+O-17 → O-27   CONFIRMADO (boleta S/17 exacto) → aplicado en mesa_3.xlsx
+
+A-1  → A-2    DESCARTADO. La hoja de Wagner decía "½ total → 21 a cuenta": A-1 debe 41,
+              pagó la mitad. No es un lote mal escrito, es un abono parcial real.
+
+H1-15 → H1-16 DESCARTADO. La hoja confirma H1-15 sin ambigüedad de letra — pero su
+              boleta (Patricia Tarazona) debe S/94 y se cobraron S/58. Queda sin explicar,
+              pero NO es error de lote.</div>
+      <div class="keypoint"><b>El patrón que se repite:</b> un monto que "no cuadra" contra la
+        boleta no siempre es un lote mal escrito — puede ser un abono parcial real
+        (A-1) o quedar genuinamente sin explicación (H1-15). <code>verificar_lotes.py</code>
+        solo avisa; la decisión de si es lote, abono o pendiente es siempre humana.</div>
+
+      <div class="sub-h"><span class="qn">②</span> pago_multi_mesa — 2 vecinos, cobrados por los dos cobradores el mismo día</div>
+      <p>Al correr <code>4_pagos</code> completo apareció una categoría de discrepancia que no
+        se había visto antes: el mismo predio, mismo monto, mismo día, anotado en dos mesas
+        distintas.</p>
+      <div class="ascii">P-4  Lourdes Melchor Albornoz   S/42   01/08   mesa_2 (Yerald) Y mesa_4 (Wagner)
+W-4  Vicki Masias Cusihuaman    S/24   01/08   mesa_2 (Yerald) Y mesa_4 (Wagner)</div>
+      <p>Buscando en las fotos de ambos cobradores para el mismo día: la hoja de Wagner
+        (<code>Fotos_1/01-08-2026-parte 1.jpeg</code>) tiene desglose propio para las dos —
+        <b>"Revisar Mes anterior 20 soles por exceso → 42 consumo y mant"</b> para P-4, que
+        cuadra exacto contra la boleta (consumo 39 + mant 3 = 42, dejando aparte el
+        mes_anterior de 36 marcado como sospechoso). La hoja de Yerald solo tiene el número
+        plano, sin ningún cálculo. Eso hace sospechar que el cobro real es de Wagner — pero
+        no es prueba suficiente para decidir solo, hay que preguntarles directo.</p>
+
+    </article>
+
+    <article class="lamina" style="border:1px solid var(--line);border-radius:8px;background:var(--paper-raised);padding:26px 22px 30px;margin-bottom:18px">
+
+      <div class="sub-h"><span class="qn">③</span> el motor de Yape adivinaba mal cuando el mensaje ya tenía la respuesta</div>
+      <p>Revisando los 5 pendientes de la hoja <code>Ambiguos</code>, la pregunta que abrió todo:
+        <i>"si el mensaje ya dice la manzana y el lote, ¿por qué sale como ambiguo?"</i></p>
+      <div class="ascii">"Mz Z-7."                    ningún patrón de regex lo lee (sin palabra "lt", punto final)
+"A-6. Julia Juarez..."       ningún patrón lo lee (punto justo después del código)
+"Mz V..Lt 14"                ningún patrón lo lee (dos puntos seguidos)
+        │
+        ▼  cuando el regex falla, el mensaje se DESCARTA por completo
+        │  el sistema busca por el NOMBRE del remitente en el maestro histórico
+        ▼
+   candidato sugerido: E-7 (de un remitente con 3 lotes guardados)
+   candidato real:     Z-7 y A-6 — dos predios totalmente distintos, ninguno E-7</div>
+      <div class="keypoint"><b>El hallazgo importante no es que fallara el regex — es que la
+        sugerencia automática de reemplazo (por nombre) puede estar completamente
+        desconectada de lo que el mensaje realmente dice.</b> Si alguien hubiera aceptado el
+        candidato sugerido sin mirar el mensaje, el pago se habría acreditado al vecino
+        equivocado. Se agregaron 3 patrones nuevos (punto final permitido, "mz LETRA-NÚMERO"
+        sin la palabra "lt", puntos repetidos) — los 3 casos ahora resuelven solos contra el
+        predio correcto.</div>
+
+      <div class="sub-h"><span class="qn">④</span> "tanque" nunca se leía como tanque</div>
+      <p>Un mensaje con S/200 y la palabra "tanque" no matcheaba ningún patrón (por el "No"
+        antes de la letra) y caía en <code>Ambiguos</code> con candidatos de otro vecino, sin
+        ninguna señal de que la plata no era agua. Es el mismo hueco que ya estaba documentado
+        en <code>LEER_ANTES.md</code> desde julio (los casos de C-15, A-4, P-17) pero nunca se
+        había arreglado en el código — solo parchado a mano archivo por archivo.</p>
+      <div class="ascii">detectar_concepto_tanque(mensaje) → "tanque" si dice "tanque"/"tanke", si no ""
+
+antes:  aportes_tanque.xlsx = 0 filas este ciclo
+ahora:  aportes_tanque.xlsx = 9 filas · S/1,220 — ya no se cuentan como agua</div>
+      <p>El caso puntual (A-5, "No A lt 5 tanque") seguía sin resolver por regex — demasiado
+        ambiguo para automatizar con seguridad — pero el usuario lo tenía claro por el monto
+        (S/200 exacto) y la palabra, así que se completó a mano: A-5, tanque, Julia Agama Cuzco.
+        Mismo criterio para <code>K-2</code> ("Antonio Espinoza Sifuentes MK.LT.2" — el nombre
+        de Antonio estaba en el propio mensaje).</p>
+      <div class="keypoint">Tests del módulo: 13 fallos preexistentes (confirmado con
+        <code>git stash</code> — ya rotos antes de esta sesión), 0 nuevos. Identificación
+        automática subió de 55/69 → 63/69 (89.9% → 92.4%). <b>Nada de esto está commiteado.</b></div>
+
+    </article>
+
+    <article class="lamina" style="border:1px solid var(--line);border-radius:8px;background:var(--paper-raised);padding:26px 22px 30px;margin-bottom:18px">
+
+      <div class="sub-h"><span class="qn">⑤</span> "K-17 no existe" y "11 predios en negativo" — dos preguntas, una sola raíz distinta cada una</div>
+      <p>El usuario preguntó por qué K-17 salía como "no existe en planilla" si sí existe. La
+        respuesta fue otro caso del mismo problema del regex:</p>
+      <div class="ascii">mensaje: "mzklt17Marcial Sánchez Araoz"   (sin espacio entre "17" y el nombre)
+regex extrae lote = "17M"   ← agarra la "M" de "Marcial" (el patrón acepta 1 letra
+                                opcional al final, para casos reales como "8C", "14B")
+(K, "17M") no existe → "no existe en planilla"
+K-17 (sin la M) sí existe — se dejó sin arreglar, caso a evaluar en otra sesión</div>
+      <p>Pero la pregunta siguiente —"¿cuántos usuarios tienen deuda negativa?"— llevó a algo
+        más grande: <b>11 predios</b> con CONVENIO, MULTA o ACUERDOS negativos en
+        <code>planilla_2026-08.xlsx</code>. El usuario sospechaba que era el mismo bug de signo
+        de la sesión anterior. Rastreando el ledger y sus backups, 5 de los 11 casos verificados
+        uno por uno mostraron el mismo patrón exacto:</p>
+      <div class="ascii">06/07 14:08   PAGO fantasma (bug ya conocido: 5_cobranza leyó yape de junio
+                contra la deuda de julio)
+31/07 18:08   se revierte... con el signo invertido → SALDO queda NEGATIVO
+06/08         esas filas SE BORRARON del ledger en vivo (limpieza ya documentada
+                en LEER_ANTES.md) → hoy el ledger real: correcto, en positivo
+
+03/08 16:12   planilla_2026-08.xlsx se generó ANTES de esa limpieza (mismo día,
+                por otro motivo — un parche de E-14B) → quedó con el snapshot viejo</div>
+      <div class="keypoint">No es un bug nuevo: es una <b>foto vieja</b>. El ledger ya está
+        bien; el archivo que factura las boletas de agosto todavía no se volvió a generar desde
+        que se limpió. El arreglo (re-correr <code>2_planilla</code>) queda sin ejecutar —
+        falta confirmar si ya se imprimieron boletas de agosto con estos 11 predios, porque si
+        el número cambia de negativo a positivo hay que avisarles, no solo corregir el archivo.</div>
+
+    </article>
+
+  </div>
+</main>
+
+</body>
+</html>

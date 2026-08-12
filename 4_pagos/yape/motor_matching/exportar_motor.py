@@ -300,7 +300,7 @@ def exportar_pendientes_diseño(sin_resolver: list, ambiguos: list = None,
             "DESTINO": reg.get("destino",""),
             "MONTO": reg.get("monto_pago", reg.get("monto","")),
             "MENSAJE": reg.get("mensaje",""), "FECHA": reg.get("fecha",""),
-            "MZ":"", "LOTE":"", "CONCEPTO":"", "MOTIVO": reg.get("motivo",""), "OK":"",
+            "MZ":"", "LOTE":"", "CONCEPTO": reg.get("concepto",""), "MOTIVO": reg.get("motivo",""), "OK":"",
         }
         _aplicar_preservado(valores, reg, "Sin_identificar")
         ci = 1
@@ -374,7 +374,7 @@ def exportar_pendientes_diseño(sin_resolver: list, ambiguos: list = None,
             "MENSAJE": reg.get("mensaje",""), "FECHA": reg.get("fecha",""),
             "MZ_SUG": reg.get("mz_sug",""), "LOTE_SUG": reg.get("lote_sug",""),
             "CANDIDATOS": " · ".join(partes),
-            "MZ":"", "LOTE":"", "CONCEPTO":"", "MOTIVO":"", "OK":"",
+            "MZ":"", "LOTE":"", "CONCEPTO": reg.get("concepto",""), "MOTIVO":"", "OK":"",
         }
         _aplicar_preservado(valores, reg, "Ambiguos")
         ci = 1

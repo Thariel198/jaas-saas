@@ -31,5 +31,13 @@
     },
     "ultima_actualizacion": "2026-07-31T18:40:40",
     "cerrado_en": "2026-07-26T15:33:22"
+  },
+  "2026-08": {
+    "estado": "ABIERTO",
+    "arrastre": {
+      "generado": true,
+      "generado_en": "2026-08-10T08:07:15"
+    },
+    "ultima_actualizacion": "2026-08-10T08:07:15"
   }
 }

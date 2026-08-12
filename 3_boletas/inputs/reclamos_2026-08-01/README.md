@@ -130,23 +130,17 @@ La restauracion es estable: `ajuste_reconciliado` filtra por `SOURCE`, asi que u
 AJUSTE con `source=manual` no entra en el `ya` de la reconciliacion y una
 re-corrida de julio no lo deshace.
 
-**Lo que NO se arreglo:** `5_cobranza/main.py:2320` sigue emitiendo el ajuste de
-reversion con el signo invertido, porque la columna `AJUSTE` carga dos
-convenciones opuestas — `ajuste_reconciliado` (:2313) la lee como CREDITO,
-`_registrar` (`seguimiento_repo:280`) la aplica como DEUDA. El bug solo amenaza
-ciclos futuros (julio esta congelado), pero va a volver a fabricar negativos
-cuando corra `5_cobranza` de agosto. Dos caminos, ninguno decidido:
+**El codigo se arreglo el 07/08/2026** — ver `LEER_ANTES.md` § "el AJUSTE de reversion
+de 5_cobranza cambio de signo". Se tomo el camino ② ampliado: `_registrar` no se
+toca (la columna AJUSTE se queda en unidades de DEUDA, que es lo correcto para los
+ajustes manuales de exoneracion), y `5_cobranza` traduce en las DOS puntas —
+`ya = pago − ajuste` al leer (`main.py:2349`) y `−delta` al escribir (`:2374`). Las
+dos mitades son el mismo cambio de unidad; invertir una sola rompe la idempotencia.
+Cubierto por `5_cobranza/tests/test_reversion_signo.py`, que recorre la secuencia
+entera (corrida → el insumo encoge → re-corrida → el pago reaparece).
 
-```
- ① _registrar deja AJUSTE con signo de CREDITO (saldo -= monto)
-      + coherente con PAGO y con ajuste_reconciliado
-      - invierte el sentido de los AJUSTE manuales ya escritos
-        (los -20/-75/-30 de exoneracion pasarian a SUMAR deuda)
-
- ② ajuste_reconciliado invierte el signo al acumular, _registrar no cambia
-      + no toca ninguna fila de las 1.584 existentes
-      - la correccion queda escondida en la funcion de idempotencia
-```
+⚠ Quedan 10 AJUSTE de julio escritos con la convencion vieja: **no correr
+`5_cobranza --force` sobre 2026-07** (lista completa en `LEER_ANTES.md`).
 
 ## Qué bloquea a los 13 pendientes
 

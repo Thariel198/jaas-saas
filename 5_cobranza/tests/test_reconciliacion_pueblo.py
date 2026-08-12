@@ -7,7 +7,10 @@ seguimiento_repo: SET_DEBE (recalculado por 5_cobranza) − SET_TIENE
   1. Primer pago parcial      → registrar_pago(delta completo)
   2. Re-corrida sin cambios   → delta=0, no escribe nada
   3. Pago nuevo (incremento)  → registrar_pago(solo el delta incremental)
-  4. Corrección a la baja     → registrar_ajuste(delta negativo)
+  4. Corrección a la baja     → registrar_ajuste(-delta): revertir un pago DEVUELVE
+                                la deuda, el saldo SUBE. La secuencia completa
+                                (corrida → insumo encoge → re-corrida → el pago
+                                reaparece) vive en test_reversion_signo.py
   5. Concepto ya saldado por una declaración manual que igual recibe plata del
      ciclo → se acredita y el saldo queda negativo A PROPÓSITO (es la señal de
      exceso); 5_cobranza solo avisa por log
@@ -85,7 +88,8 @@ def main():
     check(ya3 == 45.0, f"caso 3: tras pago incremental, pago_registrado=45 (obtuve {ya3})")
 
     # 4) Corrección a la baja: se detecta que en realidad solo pagó 20 (corrección
-    # de un pago mal cargado) → debe generar AJUSTE de -25, no tocar el PAGO=45
+    # de un pago mal cargado) → debe generar AJUSTE de +25, no tocar el PAGO=45.
+    # +25 y no -25: los 25 acreditados de más se le DEVUELVEN a la deuda.
     r4 = _usuario("A", "1", multa=50.0, total_pagado=20.0)
     mod._reconciliar_pagos_pueblo([r4], MES_TEST)
     ya4 = mod.repo.pago_registrado("A", "1", "MULTA", MES_TEST)
@@ -96,12 +100,12 @@ def main():
     ajustes = df[(df["TIPO_EVENTO"] == "AJUSTE") & (df["MZ"] == "A") & (df["LT"] == "1")]
     check(len(ajustes) == 1, f"caso 4: exactamente 1 evento AJUSTE (obtuve {len(ajustes)})")
     if len(ajustes):
-        check(float(ajustes.iloc[0]["AJUSTE"]) == -25.0,
-              f"caso 4: AJUSTE = -25.0 (obtuve {ajustes.iloc[0]['AJUSTE']})")
+        check(float(ajustes.iloc[0]["AJUSTE"]) == 25.0,
+              f"caso 4: AJUSTE = +25.0 (obtuve {ajustes.iloc[0]['AJUSTE']})")
 
-    # get_saldo tras todo: 50(cargo) - 45(pagos) - 25(ajuste, ya negativo) = -20
+    # get_saldo tras todo: 50(cargo) - 45(pagos) + 25(ajuste devuelve deuda) = 30
     saldo = mod.repo.get_saldo("A", "1", "MULTA", MES_TEST)
-    check(saldo == -20.0, f"get_saldo refleja cargo+pago+ajuste acumulados: -20 (obtuve {saldo})")
+    check(saldo == 30.0, f"get_saldo refleja cargo+pago+ajuste acumulados: 30 (obtuve {saldo})")
 
     # 5) Concepto ya saldado por una declaración manual y que además recibe plata
     # del ciclo. Decisión 06/08/2026: se acredita igual y el saldo queda NEGATIVO

@@ -12,7 +12,7 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "shared"))
-from utils_templates import crear_mesa_vacio  # noqa: E402
+from utils_templates import crear_mesa_vacio, filas_con_datos  # noqa: E402
 
 INPUTS_DIR = Path(__file__).parent / "inputs"
 INPUTS_DIR.mkdir(exist_ok=True)
@@ -113,7 +113,33 @@ def crear_template_devolucion():
 
 # ── Entry point ─────────────────────────────────────────────────────────────
 
+def _mesas_con_datos() -> list[tuple[int, int]]:
+    """[(n_mesa, filas)] de las mesas que hoy tienen cobros escritos."""
+    return [(n, f) for n in range(1, N_MESAS + 1)
+            if (f := filas_con_datos(INPUTS_DIR / f"mesa_{n}.xlsx")) > 0]
+
+
 if __name__ == "__main__":
+    # Guarda: este script pisa las 7 mesas. El 26/07/2026 se corrió para
+    # preparar el ciclo de agosto y borró las 374 filas de julio que los
+    # cobradores habían escrito a mano — con el split yape/efectivo y los
+    # comentarios, que no se pueden reconstruir desde pagos_efectivo.xlsx
+    # (recuperar_mesas.py lo dice: "MONTO_YAPE = 0, corregir a mano después").
+    # Se recuperaron de una copia suelta del repo, por suerte.
+    #
+    # El reset legítimo de fin de ciclo lo hace 7_cierre, que archiva primero y
+    # pide consentimiento. Este script es solo para el setup inicial.
+    con_datos = _mesas_con_datos()
+    if con_datos and "--force" not in sys.argv:
+        print("\n  ALTO: las mesas tienen cobros escritos y este script las borra.\n")
+        for n, f in con_datos:
+            print(f"     mesa_{n}.xlsx  {f} filas de cobro")
+        print(f"\n  Total: {sum(f for _, f in con_datos)} filas se perderian.\n"
+              f"  El reset de fin de ciclo lo hace 7_cierre (archiva primero).\n"
+              f"  Si igual queres regenerar los templates: python crear_templates.py --force\n"
+              f"  (se respalda en backup/mesas_pre_reset_<fecha>/ de todas formas)\n")
+        sys.exit(1)
+
     print("\nCreando templates de mesa...")
     for n in range(1, N_MESAS + 1):
         crear_mesa(n)

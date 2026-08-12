@@ -164,15 +164,17 @@ ATOM_TMP.unlink()
 import time as _time
 
 def _reconciliar(mz, lt, concepto, mes, pagado_fresco, source="5_cobranza"):
-    """Copia mínima del delta de 5_cobranza con el contador corregido (suma AJUSTE propio)."""
+    """Copia mínima del delta de 5_cobranza. `ya` está en unidades de CRÉDITO y la
+    columna AJUSTE en unidades de DEUDA, así que el ajuste se RESTA al leer y se
+    invierte al escribir — las dos mitades del fix del signo (07/08/2026)."""
     ya = (repo.pago_registrado(mz, lt, concepto, mes)
-          + repo.ajuste_reconciliado(mz, lt, concepto, mes, source))
+          - repo.ajuste_reconciliado(mz, lt, concepto, mes, source))
     delta = round(pagado_fresco - ya, 2)
     ref = f"recon_{mes}_{concepto}_{mz}_{lt}_{_time.time()}_{delta}"
     if delta > 0.001:
         repo.registrar_pago(mz, lt, concepto, mes, delta, source=source, audit_ref=ref)
     elif delta < -0.001:
-        repo.registrar_ajuste(mz, lt, concepto, mes, delta, source=source, audit_ref=ref,
+        repo.registrar_ajuste(mz, lt, concepto, mes, delta * -1, source=source, audit_ref=ref,
                               motivo="corrección: pago recalculado a la baja")
 
 # Escenario: deuda 50, un PAGO sobre-registrado de 25, y el cálculo correcto dice pago=0.

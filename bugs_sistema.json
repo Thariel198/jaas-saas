@@ -1,0 +1,189 @@
+{
+  "_meta": {
+    "proposito": "Registro de bugs del sistema (causa raiz + fix), para que una sesion nueva no tenga que re-investigar ni re-explicarse de cero. Complementa a LEER_ANTES.md (que tiene el detalle narrativo completo) -- esto es el indice rapido: que bug, donde, que arreglo, si sigue vivo.",
+    "como_usar": "Antes de investigar un sintoma raro (saldo negativo, plata que 'desaparece', exceso sin explicar, reclamo de 'ya pague'), grepear este archivo por modulo o por MZ-LT antes de re-derivar todo desde cero. Al cerrar un bug nuevo, agregar una entrada aca ademas de (no en vez de) documentarlo en LEER_ANTES.md.",
+    "ultima_actualizacion": "2026-08-10"
+  },
+  "bugs": [
+    {
+      "id": "correcciones_lote_sin_fecha_autosana_ciego",
+      "fecha": "2026-08-10",
+      "estado": "cerrado",
+      "modulo": "5_cobranza",
+      "titulo": "correcciones_lote.xlsx no tiene mes en el nombre + el auto-sanador resucita reglas viejas sin validar si siguen siendo correctas",
+      "resumen": "5_cobranza/inputs/correcciones_lote.xlsx (remapeo MZ+LT permanente) no lleva periodo en el nombre, a diferencia de pagos_yape_tepago_YYYY-MM.xlsx etc. El mecanismo _recuperar_correcciones_trazabilidad escanea TODO trazabilidad_cobranza.xlsx (multi-mes) y reinserta cualquier correccion historica que no este en el archivo actual, sin verificar si el ORIGEN de esa correccion sigue siendo invalido hoy.",
+      "causa_raiz": "La regla C1-9 -> C1-17 (ciclo 17, julio) quedo grabada en trazabilidad_cobranza.xlsx. Un fix posterior (verificar_lotes.py, commit 9b1a83e) corrigio la fuente cruda (mesa_2.xlsx) para que escriba C1-9 directamente -- pero el auto-sanador no lo sabe, y en cada corrida de agosto volvia a resucitar C1-9->C1-17, desviando el pago de Roberto Macarlopu Flores (C1-9, real per COFOPRI, ver id override_c1_9_roberto) a un lote C1-17 que ya ni existe en el padron (fue ELIMINADO el 28/07, ver LEER_ANTES.md seccion 'C1-17 eliminado').",
+      "fix_aplicado": "1) correcciones_lote.xlsx: se agrego fila identidad C1-9->C1-9 (candado contra el auto-sanador) + se dejo C1-17->C1-9 (por si el typo viejo reaparece). 2) 5_cobranza/main.py: _recuperar_correcciones_trazabilidad ahora recibe keys_validos y SALTA (con WARNING) cualquier correccion cuyo origen sea hoy un predio real en la planilla -- ya no resucita ciego.",
+      "archivos": ["5_cobranza/main.py", "5_cobranza/inputs/correcciones_lote.xlsx"],
+      "referencia": "LEER_ANTES.md seccion 'correcciones_lote.xlsx resucito una regla al reves (Roberto C1-9)'"
+    },
+    {
+      "id": "l9_j9_regla_permanente_para_pago_puntual",
+      "fecha": "2026-08-10",
+      "estado": "cerrado",
+      "modulo": "5_cobranza + 4_pagos/yape/motor_matching",
+      "titulo": "correcciones_lote.xlsx tenia L-9->J-9 sin confirmacion humana -- se revirtio, la plata es de L-9",
+      "resumen": "L-9 es un predio real (no un typo permanente como B-21/C-88/P1-4/F-3B). La regla L-9->J-9 (Denis Riv*, S/500, mensaje literal 'L-9') solo decia 'Recuperado desde trazabilidad_cobranza.xlsx' -- sin ningun rastro de confirmacion humana, a diferencia de otros casos similares (ej. D1-1->D1-3, confirmado por Janet Villanueva Alegre via WhatsApp 14/07). Decision del usuario: sin confirmacion, la plata se queda donde el mensaje real la puso.",
+      "causa_raiz": "correcciones_lote.xlsx no distingue 'typo permanente de un lote que no existe' de 'un mensaje puntual mal escrito por una persona, en una fecha especifica' -- y ademas la regla nunca tuvo evidencia de confirmacion humana real, solo fue auto-derivada por _recuperar_correcciones_trazabilidad sin verificacion.",
+      "fix_aplicado": "Revertido: fila L-9->J-9 borrada de correcciones_lote.xlsx. NO se agrego nada a forzar_mzlt.xlsx (se descarto la idea original de mover el pago a J-9). La plata de Denis Riv* (S/500) vuelve a contarse como pago de L-9 (Marianela Elizabet Rivera Vitate, debia MULTA 30 + ACUERDOS 50 = 80). Verificado que ni L-9 ni J-9 tenian MULTA/ACUERDOS/CONVENIO cuyo total dependiera de este cambio, asi que no genero AJUSTE de compensacion en seguimiento_pueblo.",
+      "archivos": ["5_cobranza/inputs/correcciones_lote.xlsx"],
+      "referencia": "LEER_ANTES.md seccion 'L-9 -> J-9: la misma regla resucitada tenia OTRO problema'"
+    },
+    {
+      "id": "forzar_mzlt_usado_para_ambiguedad_no_digitacion",
+      "fecha": "2026-08-10",
+      "estado": "cerrado",
+      "modulo": "4_pagos/yape/motor_matching",
+      "titulo": "2 de 3 entradas viejas en forzar_mzlt.xlsx usaban la herramienta equivocada -- eran ambiguedad de matching, no error de digitacion del pagante",
+      "resumen": "forzar_mzlt.xlsx es SOLO para cuando el propio pagante se equivoco al escribir (error de digitacion, confirmado en el docstring de _leer_forzar_mzlt). pendientes.xlsx (hojas Ambiguos/Maestro_inexacto) es para cuando el SISTEMA no tiene info suficiente para matchear (sin mensaje, mensaje no parseable) -- ahi un humano llena MZ/LOTE + OK=SI.",
+      "causa_raiz": "Giovanna San*/K-17 (mensaje 'mzklt17...' sin espacios, no parseable) y PLIN Juan Carlos/H1-13 + Patricia Tar*/H1-15 (sin mensaje, PLIN no manda texto) son casos de AMBIGUEDAD, no de digitacion -- se resolvieron via forzar_mzlt en una sesion anterior en vez de via pendientes.xlsx. Los 3 destinos SI son correctos (verificados contra el padron), es un problema de proceso/herramienta, no de plata mal aplicada.",
+      "fix_aplicado": "No se modifico nada -- ya corrieron en julio (ciclo cerrado). Se documenta como leccion: ante un caso ambiguo nuevo, usar pendientes.xlsx (Ambiguos/Maestro_inexacto), reservar forzar_mzlt.xlsx solo para error de digitacion confirmado del propio pagante.",
+      "archivos": ["4_pagos/yape/motor_matching/correcciones/forzar_mzlt.xlsx", "4_pagos/yape/motor_matching/correcciones/pendientes.xlsx"],
+      "referencia": "LEER_ANTES.md seccion 'Leccion aparte -- forzar_mzlt.xlsx no es lo mismo que pendientes.xlsx'"
+    },
+    {
+      "id": "forzar_mzlt_tambien_sin_fecha",
+      "fecha": "2026-08-10",
+      "estado": "cerrado",
+      "modulo": "4_pagos/yape/motor_matching",
+      "titulo": "forzar_mzlt.xlsx tambien acumula entradas de meses viejos sin marcar periodo",
+      "resumen": "A diferencia de correcciones_lote.xlsx, el riesgo es bajo (clave = ORIGEN+FECHA exacta al segundo, no puede chocar con un pago futuro distinto por coincidencia) pero es la misma falta de higiene: una fila de julio (Janet Vil* 07/07/2026 07:16:48 -> D1-3) seguia en el archivo de agosto.",
+      "causa_raiz": "El archivo se copia/persiste entre meses sin limpieza, igual que correcciones_lote.xlsx -- pero aca no genera bug activo porque la clave es transaccion-especifica.",
+      "fix_aplicado": "Se borro la fila de julio (Janet Vil*) del archivo de agosto. No se cambio el mecanismo de fondo (bajo riesgo no lo amerito) -- si se repite el patron con mas archivos, considerar limpieza automatica al cerrar el mes.",
+      "archivos": ["4_pagos/yape/motor_matching/correcciones/forzar_mzlt.xlsx"],
+      "referencia": "conversacion 2026-08-10"
+    },
+    {
+      "id": "aportes_tanque_no_incluye_meses_cerrados",
+      "fecha": "2026-08-10",
+      "estado": "abierto",
+      "modulo": "4_pagos/consolidar_tanque.py",
+      "titulo": "aportes_tanque.xlsx (consolidado) solo muestra el ciclo vigente, no es historico acumulado",
+      "resumen": "_leer_tanque_manuales() filtra shared/aportes_tanque_manuales.xlsx por MES_ANO_APLICA == mes del ciclo actual (deducido automatico, sin --mes). Entradas ancladas a un mes ya cerrado (ej. O-16 S/100 confirmado 25/07 con MES_ANO_APLICA=2026-07, o C-13/Irma S/50 con el mismo MES_ANO_APLICA=2026-07) nunca vuelven a aparecer en el consolidado aunque la plata SI se aplico correctamente en su momento via 5_cobranza.",
+      "causa_raiz": "El script no tiene --mes ni logica para leer los archivos ya archivados en 7_cierre/archivo/<mes>/. No es plata perdida (5_cobranza ya la aplico en su ciclo), es que la 'foto' de quien-aporto no es acumulativa.",
+      "fix_aplicado": "No aplicado -- se evaluo agregar --mes pero se descarto por riesgo: el script solo tiene UN OUTPUT_FILE sin fecha (4_pagos/outputs/aportes_tanque.xlsx), y 5b_validacion/main.py LEE ese mismo archivo asumiendo que es el ciclo vigente. Correr con --mes pisaria el reporte de agosto con datos de julio y rompería el Nivel 1a de 5b_validacion en silencio. Pendiente: decidir si vale la pena una lista historica aparte (archivo nuevo, sin tocar el actual).",
+      "archivos": ["4_pagos/consolidar_tanque.py", "5b_validacion/main.py"],
+      "referencia": "conversacion 2026-08-10"
+    },
+    {
+      "id": "multilote_resto_a_ultimo_no_sirve_para_tanque",
+      "fecha": "2026-08-10",
+      "estado": "abierto",
+      "modulo": "4_pagos/yape/motor_matching",
+      "titulo": "Cuando un mensaje menciona 2 lotes (extraer_multiples) y ambos tienen deuda de agua = 0, TODO el sobrante se le asigna al ULTIMO lote de la lista -- no tiene sentido para aportes de tanque compartidos",
+      "resumen": "Mensaje 'mz k Lt 2,mz C1 Lt 2 tanque' (S/400, Antonio Espinoza pagando por si mismo K-2 y por Aubertina C1-2) se detecto bien como multiple (extraer_multiples SI encuentra los 2 pares), pero el reparto interno (ejecutar_matching, rama multiple_auto) hace 'monto_item = deuda + (resto si es el ultimo)' -- como ambas deudas eran 0, K-2 quedo con monto=0 y C1-2 se llevo los S/400 enteros.",
+      "causa_raiz": "La logica de reparto 'sobrante al ultimo' fue disenada para el caso 'plata de AGUA mal repartida entre 2 deudas reales' -- no aplica cuando el pago es un aporte voluntario a tanque sin deuda de por medio. Ademas, el CONCEPTO=tanque detectado por detectar_concepto_tanque() no se propaga a las filas generadas en la rama multiple_auto (falta 'concepto': concepto_msg en el dict que arma esas filas).",
+      "fix_aplicado": "No aplicado -- pendiente decidir el reparto real de los S/400 entre K-2 y C1-2 (mitad y mitad, o confirmar con Antonio Espinoza/secretaria). Igual pendiente: conectar detectar_concepto_tanque() a la rama multiple_auto de ejecutar_matching (4_pagos/yape/motor_matching/main.py, alrededor de la linea 1940-1962).",
+      "archivos": ["4_pagos/yape/motor_matching/main.py"],
+      "referencia": "conversacion 2026-08-10, aportes_tanque_manuales.xlsx fila 12 (a corregir, actualmente asume 100% C1-2, esta mal)"
+    },
+    {
+      "id": "extraer_multiples_exige_palabra_mz",
+      "fecha": "2026-08-10",
+      "estado": "abierto",
+      "modulo": "4_pagos/yape/motor_matching",
+      "titulo": "extraer_multiples() no detecta mensajes multi-lote en formato guion pelado sin la palabra 'mz'/'lt'",
+      "resumen": "Mensaje 'K-3, K-4.' (Yuly Lisbeth Trujillo Cruz, S/34) NO se detecto como pago multiple -- PATRON_MULTIPLE y PATRON_MISMA_MZ exigen la palabra 'mz' + 'lt/lote' literal. El pago entero (34) se aplico solo a K-3, generando exceso de 26 ahi; K-4 se quedo sin nada.",
+      "causa_raiz": "Los 2 regex de extraer_multiples() (4_pagos/yape/motor_matching/main.py linea ~643-678) requieren 'mz' + 'lt/lote' explicitos. Formato guion pelado tipo 'X-N, X-M' (mismo que usan los regex de UN solo lote) no tiene deteccion multi-lote equivalente.",
+      "fix_aplicado": "No aplicado -- propuesto agregar un 3er patron a extraer_multiples() para 'X-N, X-M' / 'X-N y X-M' sin palabra mz/lt. Usuario no confirmo todavia si proceder.",
+      "archivos": ["4_pagos/yape/motor_matching/main.py"],
+      "referencia": "conversacion 2026-08-10, arrastre_devolucion_2026-08.xlsx fila K-3"
+    },
+    {
+      "id": "maestro_ambiguo_sin_mz_cae_a_default",
+      "fecha": "2026-08-10",
+      "estado": "cerrado",
+      "modulo": "4_pagos/yape/motor_matching",
+      "titulo": "Mensaje sin letra de manzana ('mz.lt11') cae por FUENTE=maestro al lote default del ORIGEN, en vez de ir a revision",
+      "resumen": "Irma Huanahui Lopez (C1-13... digo C-13) yapeo S/15 el 07/07/2026 con mensaje 'mz.lt11' (sin letra de MZ). El motor no pudo parsear nada util del mensaje y aplico el default del maestro (su propio lote, C-13) en vez de marcarlo ambiguo/pendiente. El '11' realmente era para K-11 (Martina Morales Rios).",
+      "causa_raiz": "Cuando el mensaje trae informacion PARCIAL que contradice el default del maestro (un numero de lote sin MZ), el sistema lo trata como si el mensaje estuviera vacio y aplica el maestro sin mas. No hay deteccion de 'esto no cuadra, mandar a revision'.",
+      "fix_aplicado": "Caso puntual resuelto via shared/reidentificacion.xlsx (C1_ORIGEN=C, LT_ORIGEN=13 -> MZ_CORRECTO=K, LT_CORRECTO=11, MONTO=15, MES_ANO_APLICA=2026-08) + shared/aportes_tanque_manuales.xlsx (los S/50 restantes del mismo deposito de Irma eran tanque, no agua). NO se toco el mecanismo de fondo del motor -- sigue pudiendo repetirse con otro mensaje incompleto.",
+      "archivos": ["shared/reidentificacion.xlsx", "shared/aportes_tanque_manuales.xlsx"],
+      "referencia": "conversacion 2026-08-10, reclamos_manuales.xlsx fila K-11"
+    },
+    {
+      "id": "signo_ajuste_reversion_5cobranza",
+      "fecha": "2026-08-07",
+      "estado": "cerrado",
+      "modulo": "5_cobranza",
+      "titulo": "El AJUSTE de reversion de un pago salia con el signo al reves (restaba deuda en vez de devolverla)",
+      "resumen": "Cuando una re-corrida de 5_cobranza detectaba que un pago ya no estaba (insumo encogio), escribia registrar_ajuste(delta) en vez de registrar_ajuste(-delta) -- el saldo quedaba 2x el monto por debajo de la verdad, y positivo, asi que el chequeo de 'saldos negativos' no lo detectaba.",
+      "causa_raiz": "La columna AJUSTE del ledger esta en unidades de DEUDA (saldo += monto); 5_cobranza la escribia/leia en unidades de CREDITO sin traducir.",
+      "fix_aplicado": "5_cobranza/main.py lineas ~2349 y ~2374: 'ya = pago_registrado - ajuste_reconciliado' (antes +) y 'registrar_ajuste(..., -delta, ...)' (antes delta). Test nuevo 5_cobranza/tests/test_reversion_signo.py cubre la secuencia completa.",
+      "archivos": ["5_cobranza/main.py", "5_cobranza/tests/test_reversion_signo.py"],
+      "referencia": "LEER_ANTES.md seccion 'el AJUSTE de reversion de 5_cobranza cambio de signo'"
+    },
+    {
+      "id": "e14b_duplicado_planilla",
+      "fecha": "2026-08-10",
+      "estado": "abierto",
+      "modulo": "2_planilla / padron",
+      "titulo": "E-14B (Juan Saavedra Saavedra) esta DUPLICADO como fila en planilla_2026-08.xlsx",
+      "resumen": "Dos filas para el mismo (MZ,LT)=('E','14B') en shared/planilla_mes/planilla_2026-08.xlsx. Cada corrida de 5_cobranza --force procesa las 2 filas contra el MISMO evento de seguimiento_pueblo (ACUERDOS) y deja un par AJUSTE+20/PAGO+20 (saldo neto no cambia, pero quedan 2 eventos de ledger que no deberian existir).",
+      "causa_raiz": "No investigada a fondo -- probablemente un error de 0_padron/2_planilla en la generacion de la planilla del mes. Confirmado que YA estaba duplicado en la corrida antes de cualquier cambio de esta sesion (no es efecto colateral de nada de hoy).",
+      "fix_aplicado": "No aplicado -- pendiente borrar la fila duplicada de shared/planilla_mes/planilla_2026-08.xlsx (dejar una sola) y verificar que una corrida limpia de 5_cobranza no vuelva a generar el par AJUSTE/PAGO.",
+      "archivos": ["shared/planilla_mes/planilla_2026-08.xlsx"],
+      "referencia": "LEER_ANTES.md seccion 'correcciones_lote.xlsx resucito una regla al reves', hallazgo colateral"
+    },
+    {
+      "id": "override_c1_9_roberto",
+      "fecha": "2026-07-09",
+      "estado": "cerrado",
+      "modulo": "0_padron",
+      "titulo": "Roberto Macarlopu mal loteado C1-17, real C1-9 (COFOPRI) -- C1-17 fue ELIMINADO del padron el 28/07",
+      "resumen": "Contradiccion historica en LEER_ANTES.md: una nota de reconciliacion de junio (18/07) dice que el lote real de Roberto era C1-17 (justo lo contrario de lo que se determino despues). Esa nota quedo OBSOLETA: el 28/07/2026 se aplico override ELIMINAR sobre C1-17 en 0_padron/overrides_padron.xlsx (misma fila que C1-9), confirmando C1-9 como el unico lote real. Si algo cita 'C1-17 es el lote real de Macarlopu', es la version vieja -- no confiar en ella.",
+      "causa_raiz": "02_matching (0_padron) no detecto que era el mismo titular en 2 lotes -- genero un duplicado C1-9/C1-17 que se fue resolviendo en pasos (24/06 mesa_5 reconciliacion → dijo C1-17 es el real; 09/07 memoria COFOPRI → dijo C1-9 es el real; 28/07 override ELIMINAR C1-17 → zanjado definitivo, C1-9 gana).",
+      "fix_aplicado": "C1-17 eliminado del padron 28/07/2026 (0_padron/overrides_padron.xlsx). El bug de correcciones_lote.xlsx de esta sesion (10/08) fue una RESURRECCION de la version vieja/incorrecta -- ver id correcciones_lote_sin_fecha_autosana_ciego.",
+      "archivos": ["0_padron/overrides_padron.xlsx"],
+      "referencia": "LEER_ANTES.md seccion 'C1-17 (Roberto Macarlopu) eliminado -- mismo predio que C1-9'"
+    },
+    {
+      "id": "6corte_no_se_entera_reclamo_resuelto",
+      "fecha": "2026-07-26",
+      "estado": "abierto",
+      "modulo": "4b_reclamos + 6_corte",
+      "titulo": "Un reclamo resuelto en 4b_reclamos nunca llega al archivo que 6_corte realmente lee",
+      "resumen": "trazabilidad_reclamos.xlsx (ESTADO_FINAL=RESUELTO) y 6_corte/outputs/resolucion_reclamos_YYYY-MM.xlsx (lo que generar_lista.py realmente consulta) son archivos DISTINTOS, sin conexion. Un usuario con reclamo resuelto vuelve a aparecer elegible para corte cada vez que se regenera la lista.",
+      "causa_raiz": "Diseno con 2 archivos paralelos sin sincronizacion.",
+      "fix_aplicado": "No decidido -- 2 caminos posibles (4b_reclamos escribe resolucion_reclamos_YYYY-MM.xlsx en cada RESUELTO, o 6_corte lee trazabilidad_reclamos.xlsx directo). Mientras tanto: revisar a mano antes de correr generar_lista.py con reclamos activos.",
+      "archivos": ["4b_reclamos/trazabilidad/trazabilidad_reclamos.xlsx", "6_corte/generar_lista.py"],
+      "referencia": "LEER_ANTES.md seccion '6_corte no se entera cuando 4b_reclamos resuelve un reclamo'"
+    },
+    {
+      "id": "predios_instalacion_excluidos_convenio_perdido",
+      "fecha": "2026-07-30",
+      "estado": "abierto",
+      "modulo": "shared/seguimiento_repo.py",
+      "titulo": "6 predios institucionales (PREDIOS_INSTALACION_EXCLUIDOS) perdieron su carga directa de CONVENIO al regenerarse DATA_boletas",
+      "resumen": "B-20, C-43, C-35, F1-11, G-21, W-2 dependian de una 'carga directa' en DATA_boletas.xlsx que no sobrevive regeneraciones. B-20 y C-43 llegaron a imprimir 'USTED ESTA AL DIA' con deuda real de 263 y 334.",
+      "causa_raiz": "Diseno de preservacion sin cableado real -- mismo patron que rompio MANTENIMIENTO de M-12.",
+      "fix_aplicado": "Parche puntual: sembrado en shared/genesis_tardia.xlsx (MES_ANO_APLICA=2026-07) para los 6. Decision de fondo (migrar todos a genesis_tardia/seguimiento_pueblo, o implementar preservacion real) NO tomada.",
+      "archivos": ["shared/genesis_tardia.xlsx", "shared/seguimiento_repo.py"],
+      "referencia": "LEER_ANTES.md seccion 'PREDIOS_INSTALACION_EXCLUIDOS perdieron su carga directa de CONVENIO'"
+    },
+    {
+      "id": "bienes_pueblo_exonerado_no_filtrado_en_genesis",
+      "fecha": "2026-07-30",
+      "estado": "abierto",
+      "modulo": "shared/seguimiento_repo.py / genesis mensual",
+      "titulo": "4 predios institucionales (Posta, Capilla, etc.) marcados EXONERADO en registro_cortes.xlsx siguen generando MULTA/ACUERDOS cada mes",
+      "resumen": "C-21, J-6, J-14, Z-6 -- el flag EXONERADO solo lo lee 6_corte, no la genesis mensual de MULTA/ACUERDOS. Hay que condonar a mano cada mes.",
+      "causa_raiz": "La genesis no consulta el mismo flag EXONERADO que 6_corte.",
+      "fix_aplicado": "Parche puntual repetido cada mes (registrar_pago manual, CLASE=EXONERACION). Decision de fondo (filtrar en el origen) NO tomada.",
+      "archivos": ["shared/seguimiento_pueblo.xlsx", "shared/registro_cortes.xlsx"],
+      "referencia": "LEER_ANTES.md seccion 'bienes del pueblo siguen generando MULTA/ACUERDOS pese a estar EXONERADO'"
+    },
+    {
+      "id": "concepto_tanque_vacio_matcheo_directo",
+      "fecha": "2026-08-04",
+      "estado": "parcialmente cerrado",
+      "modulo": "4_pagos/yape/motor_matching",
+      "titulo": "CONCEPTO nunca se llenaba para pagos de tanque que matcheaban un lote DIRECTO (sin pasar por pendientes.xlsx)",
+      "resumen": "Bug recurrente en junio (E-1, S/100) y julio (C-15/A-4/P-17, S/550): el mensaje decia 'tanque' pero el motor solo llenaba CONCEPTO a mano en pendientes.xlsx (casos ambiguos) -- un match directo lo dejaba vacio, y 5_cobranza lo contaba como agua.",
+      "causa_raiz": "Falta de conexion entre el matching directo y la deteccion de la palabra 'tanque' en el mensaje.",
+      "fix_aplicado": "08/08/2026: agregado detectar_concepto_tanque() (regex 'tan[qk]u?e') conectado al camino de UN solo lote en ejecutar_matching. NO esta conectado a la rama multiple_auto -- ver id multilote_resto_a_ultimo_no_sirve_para_tanque.",
+      "archivos": ["4_pagos/yape/motor_matching/main.py"],
+      "referencia": "LEER_ANTES.md secciones de auditoria junio/julio + docs/diario/2026-08-08_tarde_regex_tanque_y_planilla_stale.html"
+    }
+  ]
+}

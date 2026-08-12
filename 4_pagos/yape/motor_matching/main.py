@@ -114,11 +114,15 @@ PATRONES_MENSAJE = [
     re.compile(r'\bm\s+([A-Z][A-Z0-9]*)\.?\s+(?:lt\.?|lte\.?|l\.?)\s*(\d+[A-Z]?)', re.IGNORECASE),
     re.compile(r'^mz?([A-Z][A-Z0-9]*)\s+(?:lt\.?|lte\.?)\s*(\d+[A-Z]?)', re.IGNORECASE),
     re.compile(r'^([A-Z][A-Z0-9]+)\s+(?:lt\.?|lote\.?|lte\.?)\s*(\d+[A-Z]?)', re.IGNORECASE),
-    re.compile(r'^([A-Z][A-Z0-9]*)-(\d+[A-Z]?)(?:\s|$|,)', re.IGNORECASE),
+    re.compile(r'^([A-Z][A-Z0-9]*)-(\d+[A-Z]?)(?:\s|$|,|\.)', re.IGNORECASE),
     re.compile(r'^([A-Z])0*(\d+)(?:\s|$)', re.IGNORECASE),
     re.compile(r'^([A-Z][A-Z0-9]*)\s+(\d+)', re.IGNORECASE),
     # Formato: Mz: D1 - Lt: 3 · Mz: i - Lote: 4
     re.compile(r'mz:?\s*([A-Z][A-Z0-9]*)\s*-\s*(?:lt|lote):?\s*(\d+[A-Z]?)', re.IGNORECASE),
+    # Mz Z-7. — mz + letra-guión-número, SIN palabra lt/lote (caso 2026-08-06)
+    re.compile(r'mz\.?\s*([A-Z][A-Z0-9]*)\s*-\s*(\d+[A-Z]?)(?:\s|$|,|\.)', re.IGNORECASE),
+    # Mz V..Lt 14 — puntos repetidos entre la letra y lt/lote (caso 2026-08-06)
+    re.compile(r'mz\.?\s*([A-Z][A-Z0-9]*)\.+\s*(?:lt\.?|lote\.?|lte\.?)\s*(\d+[A-Z]?)', re.IGNORECASE),
 ]
 
 COLOR_CABECERA     = "4A235A"
@@ -294,6 +298,18 @@ def extraer_mz_lote_mensaje(mensaje: str) -> tuple:
                     return mz, lote
 
     return None, None
+
+# ====================CONCEPTO POR MENSAJE====================
+# "tanque"/"tanke" (typo frecuente) en el mensaje = aporte al tanque comunitario,
+# NO deuda de agua. Ver LEER_ANTES.md — arreglo de fondo ①: sin esto, CONCEPTO
+# queda vacío y 5_cobranza/5b_validacion lo cuentan como agua (bug de C-15/A-4/P-17).
+PATRON_TANQUE = re.compile(r'\btan[qk]u?e\w*', re.IGNORECASE)
+
+def detectar_concepto_tanque(mensaje: str) -> str:
+    """'tanque' si el mensaje lo menciona, '' si no."""
+    if not mensaje or str(mensaje).strip() in ("", "nan", "None"):
+        return ""
+    return "tanque" if PATRON_TANQUE.search(str(mensaje)) else ""
 
 # ====================NORMALIZACION MZ=======================
 def normalizar_mz(mz: str, mzs_validas: set) -> str:
@@ -635,12 +651,20 @@ PATRON_MISMA_MZ = re.compile(
     re.IGNORECASE
 )
 
+# Formato guión pelado con MZ repetida, sin la palabra "mz"/"lt": "K-3, K-4."
+# (caso 2026-08-10 — el mensaje solo repite la MZ antes de cada guión).
+PATRON_MULTIPLE_GUION = re.compile(
+    r'\b([A-Z][A-Z0-9]*)-(\d+[A-Z]?)\s*(?:,|y)\s*\1-(\d+[A-Z]?)\b',
+    re.IGNORECASE
+)
+
 def extraer_multiples(mensaje: str) -> list:
     """
     Extrae todos los pares MZ-LOTE de un mensaje con múltiples lotes.
     Casos:
       'MzE Lt7, MzP Lt11A y MzM Lt18' → [(E,7),(P,11A),(M,18)]
       'Mz K 3 y 4'                     → [(K,3),(K,4)]
+      'K-3, K-4.'                      → [(K,3),(K,4)]
     Retorna lista si hay 2+ pares, lista vacía si hay 0 o 1.
     """
     if not mensaje or str(mensaje).strip() in ("", "nan", "None"):
@@ -653,6 +677,14 @@ def extraer_multiples(mensaje: str) -> list:
 
     # Caso 2: misma MZ con múltiples lotes "Mz K 3 y 4"
     m = PATRON_MISMA_MZ.search(mensaje)
+    if m:
+        mz    = m.group(1).strip().upper()
+        lote1 = m.group(2).strip().upper()
+        lote2 = m.group(3).strip().upper()
+        return [(mz, lote1), (mz, lote2)]
+
+    # Caso 3: guión pelado con MZ repetida, sin "mz"/"lt": "K-3, K-4."
+    m = PATRON_MULTIPLE_GUION.search(mensaje)
     if m:
         mz    = m.group(1).strip().upper()
         lote1 = m.group(2).strip().upper()
@@ -1954,6 +1986,8 @@ def ejecutar_matching(df: pd.DataFrame, mapa: dict,
                 ]
             continue
 
+        concepto_msg = detectar_concepto_tanque(mensaje)
+
         # Capa 2: mensaje simple → regex extrae 1 MZ-LOTE
         mz_msg, lote_msg = extraer_mz_lote_mensaje(mensaje)
         if mz_msg:
@@ -2021,6 +2055,7 @@ def ejecutar_matching(df: pd.DataFrame, mapa: dict,
                 "estado_pago":     "ambiguo",
                 "fuente":          "ambiguo_auto",
                 "motivo":          "",
+                "concepto":        concepto_msg,
                 "estado":          "pendiente",
             })
             continue
@@ -2038,6 +2073,7 @@ def ejecutar_matching(df: pd.DataFrame, mapa: dict,
                 "nivel_confianza": "", "deuda_total": "", "mes_anterior": "",
                 "diferencia": "", "estado_pago": "", "fuente": "pendiente",
                 "motivo": "sin mensaje ni maestro",
+                "concepto": concepto_msg,
                 "estado": "pendiente",
             })
             continue
@@ -2050,6 +2086,7 @@ def ejecutar_matching(df: pd.DataFrame, mapa: dict,
                 "nivel_confianza": nivel, "deuda_total": "", "mes_anterior": "",
                 "diferencia": "", "estado_pago": "no en planilla", "fuente": fuente,
                 "motivo": f"{mz}-{lote} no existe en planilla",
+                "concepto": concepto_msg,
                 "estado": "pendiente",
             })
             continue
@@ -2102,6 +2139,7 @@ def ejecutar_matching(df: pd.DataFrame, mapa: dict,
                 "estado_pago":     estado_pago,
                 "fuente":          fuente,
                 "motivo":          "",
+                "concepto":        concepto_msg,
                 "estado":          "identificado",
             })
 

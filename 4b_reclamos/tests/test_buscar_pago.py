@@ -60,17 +60,31 @@ BOLETAS = {
 }
 
 
-def test_capa4_descarta_el_pago_propio_del_otro_lote():
-    assert bp._ya_esta_pago("C-28", 8.0, BOLETAS) is True
+def test_capa4_descarta_si_el_otro_lote_debia_ese_monto_ese_mes(monkeypatch):
+    # O-2 debia consumo 8 + mant 3 en julio: un pago de S/11 en julio es
+    # plausiblemente SUYO, no un tipeo de O-28. Se mide contra la planilla del
+    # mes del pago, no contra la boleta vigente (que es de otro mes).
+    monkeypatch.setattr(bp, "_cargos_planilla",
+                        lambda mz, lt, mes: {"consumo": 8.0, "mant": 3.0, "anterior": 0.0,
+                                             "corte": 0.0, "convenio": 0.0,
+                                             "multa": 30.0, "cuota": 0.0})
+    assert bp._explica_su_propio_pago("O-2", 11.0, "2026-07", BOLETAS) is True
 
 
-def test_capa4_no_descarta_cuando_el_monto_no_es_su_boleta():
-    assert bp._ya_esta_pago("W-2", 8.0, BOLETAS) is False, \
-        "W-2 debe 58, un pago de 8 no es suyo -- este candidato SI es valido"
+def test_capa4_no_descarta_si_no_cuadra_con_nada_suyo(monkeypatch):
+    monkeypatch.setattr(bp, "_cargos_planilla",
+                        lambda mz, lt, mes: {"consumo": 12.0, "mant": 3.0, "anterior": 0.0,
+                                             "corte": 0.0, "convenio": 0.0,
+                                             "multa": 0.0, "cuota": 0.0})
+    assert bp._explica_su_propio_pago("O-25", 11.0, "2026-07", BOLETAS) is False, \
+        "12+3 no da 11 en ninguna combinacion -- el candidato sigue vivo"
 
 
-def test_capa4_lote_sin_boleta_no_se_descarta():
-    assert bp._ya_esta_pago("X-99", 8.0, BOLETAS) is False
+def test_capa4_sin_planilla_del_mes_cae_al_total_de_la_boleta(monkeypatch):
+    monkeypatch.setattr(bp, "_cargos_planilla", lambda mz, lt, mes: None)
+    assert bp._explica_su_propio_pago("C-28", 8.0, "2025-11", BOLETAS) is True
+    assert bp._explica_su_propio_pago("W-2", 8.0, "2025-11", BOLETAS) is False
+    assert bp._explica_su_propio_pago("X-99", 8.0, "2025-11", BOLETAS) is False
 
 
 # ── Contrafactual 3 — el multi-lote se detecta por el MENSAJE ────────────────
@@ -266,6 +280,126 @@ def test_historico_viene_pagando_arrastres():
     etiqueta, texto = bp._historico_mes_anterior(con)
     assert etiqueta == "S/20.00 en 2 meses"
     assert "20.00" in texto and "2026-06" in texto and "2026-07" in texto
+
+
+# ── Contrafactual 7 — la FUENTE (mesa_N) vs lo consolidado ──────────────────
+# La cadena es  mesa_N.xlsx -> pagos_efectivo.xlsx -> planilla_cobrado.xlsx  y
+# el pago se puede perder en cualquiera de los dos saltos. Buscar solo en el
+# consolidado no encuentra nunca el pago que murio en el primer salto.
+
+def _mesas(**por_mes):
+    import pandas as pd
+    cols = ["MZ", "LT", "MONTO", "EFECTIVO", "YAPE", "COBRADOR", "MESA", "HOJA",
+            "FECHA", "COMENTARIO"]
+    return {m: pd.DataFrame(filas, columns=cols) for m, filas in por_mes.items()}
+
+
+def _tabla_sin_pago(mes):
+    import pandas as pd
+    return pd.DataFrame([dict({c: 0.0 for c in _COLS_TABLA}, MES=mes)])
+
+
+def test_pago_en_la_mesa_que_no_llego_al_historial_se_reporta():
+    # Caso real F1-8: Wagner anoto S/13 en mesa_4 el 02/08 y el historial de
+    # agosto dice que no pago.
+    mesas = _mesas(**{"2026-08": [["F1", "8", 13.0, 0.0, 13.0, "Wagner Trujillo",
+                                   "mesa_4", "registro_1", "02/08/2026", "Yape"]]})
+    r = bp._en_fuente_sin_consolidar("F1", "8", _tabla_sin_pago("2026-08"), mesas)
+    assert len(r) == 1 and r[0]["monto"] == 13.0
+
+
+def test_yape_anotado_en_la_hoja_de_efectivo_se_marca():
+    # Cae entre dos modulos: 4_pagos/efectivo solo procesa MONTO_EFECTIVO y
+    # motor_matching lee el banco, no las mesas. Nadie lo levanta.
+    mesas = _mesas(**{"2026-08": [["F1", "8", 13.0, 0.0, 13.0, "Wagner Trujillo",
+                                   "mesa_4", "registro_1", "02/08/2026", ""]]})
+    r = bp._en_fuente_sin_consolidar("F1", "8", _tabla_sin_pago("2026-08"), mesas)
+    assert "YAPE en la hoja de efectivo" in r[0]["detalle"]
+
+
+def test_no_se_reporta_lo_que_un_precursor_ya_explica():
+    # Caso real I-9: S/86 anotados por Wagner en mesa_6 de junio, que NO figuran
+    # en junio porque abonos_rezagados los aplico en julio. Ya tiene dueño.
+    mesas = _mesas(**{"2026-06": [["I", "9", 86.0, 86.0, 0.0, "Wagner Trujillo",
+                                   "mesa_6", "registro_1", "05/06/2026", ""]]})
+    assert bp._en_fuente_sin_consolidar("I", "9", _tabla_sin_pago("2026-06"), mesas,
+                                        ya_explicados={86.0}) == []
+
+
+def test_el_cobrador_que_nombra_el_vecino_va_primero():
+    mesas = _mesas(**{"2026-07": [["O", "28", 8.0, 8.0, 0.0, "Wilder Trujillo",
+                                   "mesa_1", "registro_1", "04/07/2026", ""],
+                                  ["O", "28", 8.0, 8.0, 0.0, "Maximo Encarnacion",
+                                   "mesa_3", "registro_1", "04/07/2026", ""]]})
+    r = bp._en_fuente_sin_consolidar("O", "28", _tabla_sin_pago("2026-07"), mesas,
+                                     cobrador_dicho="Maximo Encarnacion")
+    assert r[0]["coincide_cobrador"] is True
+    assert len(r) == 2, "se ordena por el cobrador nombrado, pero no se descarta el resto"
+
+
+def test_cobrador_mencionado_detecta_el_nombre_en_el_texto():
+    cobs = {"Maximo Encarnacion", "Wagner Trujillo", "Yerald Romero"}
+    assert bp._cobrador_mencionado("Pago mes anterior con Maximo", cobs) == "Maximo Encarnacion"
+    assert bp._cobrador_mencionado("le pago a Wagner Trujillo 15", cobs) == "Wagner Trujillo"
+    assert bp._cobrador_mencionado("Pago mes anterior", cobs) == ""
+
+
+# ── Contrafactual 8 — el yape se verifica contra el banco ───────────────────
+# El reporte del banco es la UNICA prueba de que un yape entro a la cuenta de la
+# JASS. Si el cobrador anota "yape" y ahi no hay nada que calce, el pago no
+# entro -- pudo haber ido a un telefono personal.
+
+def _banco(filas):
+    import pandas as pd
+    df = pd.DataFrame(filas, columns=["TIPO", "ORIGEN", "MONTO", "MENSAJE", "FECHA"])
+    df["FECHA"] = pd.to_datetime(df["FECHA"], format="%d/%m/%Y")
+    return df
+
+
+def test_yape_que_no_esta_en_el_banco_se_reporta(monkeypatch):
+    # Caso real F1-8: Wagner anoto S/13 el 02/08 y no hay ninguna transaccion
+    # de S/13 en la cuenta de la JASS en esos dias.
+    monkeypatch.setattr(bp, "_reporte_banco",
+                        lambda: _banco([["TE PAGÓ", "Otro", 8.0, "", "02/08/2026"]]))
+    r = bp._yape_en_banco(13.0, "02/08/2026", "F1", "8")
+    assert r["estado"] == "NO_EXISTE"
+
+
+def test_yape_que_si_esta_en_el_banco_se_encuentra(monkeypatch):
+    monkeypatch.setattr(bp, "_reporte_banco",
+                        lambda: _banco([["TE PAGÓ", "Juan B*", 13.0, "", "01/08/2026"]]))
+    r = bp._yape_en_banco(13.0, "02/08/2026", "F1", "8")
+    assert r["estado"] == "ENCONTRADO"
+
+
+def test_yape_se_encuentra_por_mensaje_aunque_no_calce_la_fecha(monkeypatch):
+    monkeypatch.setattr(bp, "_reporte_banco",
+                        lambda: _banco([["TE PAGÓ", "X", 99.0, "mz F1 lt 8", "01/01/2026"]]))
+    r = bp._yape_en_banco(13.0, "02/08/2026", "F1", "8")
+    assert r["estado"] == "ENCONTRADO" and "nombra el lote" in r["detalle"]
+
+
+def test_fecha_fuera_del_reporte_no_concluye_que_no_existe(monkeypatch):
+    # No es lo mismo "no esta" que "no lo puedo saber": si el reporte no cubre
+    # esa fecha, afirmar que el yape no entro seria inventar.
+    monkeypatch.setattr(bp, "_reporte_banco",
+                        lambda: _banco([["TE PAGÓ", "X", 8.0, "", "02/08/2026"]]))
+    r = bp._yape_en_banco(13.0, "15/01/2026", "F1", "8")
+    assert r["estado"] == "FUERA_DE_RANGO"
+
+
+def test_sin_reporte_del_banco_no_se_concluye_nada(monkeypatch):
+    import pandas as pd
+    monkeypatch.setattr(bp, "_reporte_banco", lambda: pd.DataFrame())
+    assert bp._yape_en_banco(13.0, "02/08/2026", "F1", "8")["estado"] == "SIN_REPORTE"
+
+
+def test_solo_se_toman_las_filas_con_monto_yape():
+    mesas = _mesas(**{"2026-08": [
+        ["F1", "8", 13.0, 0.0, 13.0, "Wagner Trujillo", "mesa_4", "registro_1", "02/08/2026", ""],
+        ["F1", "8", 20.0, 20.0, 0.0, "Wagner Trujillo", "mesa_4", "registro_1", "03/08/2026", ""]]})
+    r = bp._filas_yape_de_mesas("F1", "8", mesas)
+    assert len(r) == 1 and r[0]["monto"] == 13.0
 
 
 # ── Alcance: solo mes_anterior ──────────────────────────────────────────────

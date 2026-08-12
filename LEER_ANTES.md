@@ -1,3 +1,408 @@
+# LEER ANTES — correcciones_lote.xlsx resucitó una regla al revés (Roberto C1-9) + 2 lotes mal escritos + 1 pendiente (10/08/2026)
+
+**Si `correcciones_lote.xlsx` tiene una fila `C1-9 → C1-9` (misma MZ/LT origen y
+destino): es a propósito, no la borres.** Es un candado contra el auto-sanador
+(`_recuperar_correcciones_trazabilidad`), que si no está esa fila vuelve a
+resucitar la regla mala `C1-9 → C1-17`.
+
+## Qué pasó — la plata de Roberto (C1-9) se perdía sola
+
+```
+09/08  verificar_lotes.py corrige el typo en la FUENTE: mesa_2 ya escribe C1-9
+       (antes escribía C1-17 — Roberto Macarlopu, ver project_override_c1-9_roberto)
+              │
+10/08 07:45   `5_cobranza --force` corre. `_recuperar_correcciones_trazabilidad`
+              escanea trazabilidad_cobranza.xlsx buscando correcciones viejas para
+              "auto-sanar" correcciones_lote.xlsx si se perdió alguna (ver docstring
+              en main.py). Encuentra una fila de CICLO 17 — de ANTES del fix de
+              arriba, cuando la creencia era la contraria — que dice
+              "C1-9 se corrigió a C1-17" y la reinserta como regla activa.
+              │
+              ▼  el pago de Yerald (S/8, mesa_2, Roberto) entra correctamente
+                 como C1-9 → la regla lo desvía a C1-17 → C1-17 no existe
+                 → cae en discrepancias_cobranza.xlsx, Roberto queda sin ese pago
+```
+
+El mecanismo de auto-sanado asume que las correcciones son monótonas (nunca se
+revierten). Acá el sentido correcto se invirtió (antes se creía C1-17, ahora se
+sabe que es C1-9) y el auto-sanador no tiene forma de saber cuál versión es la
+vigente — solo mira "¿ya existe una regla para este origen?".
+
+## El fix — 2026-08-10T08:52-09:27, 3 corridas de `5_cobranza --force`
+
+```
+intento 1   correcciones_lote: C1-9→C1-17 se vuelve C1-17→C1-9 (flip simple)
+            resultado: el auto-sanador la vuelve a resucitar en la MISMA corrida
+            (existentes ya no tiene la clave (C1,9) → la re-agrega desde
+            trazabilidad) → bug sigue igual, plata de Roberto sigue sin aplicar
+
+intento 2   se agrega ADEMÁS una fila identidad  C1-9 → C1-9
+            (motivo: bloquea el auto-sanador — con (C1,9) ya presente en
+            existentes, deja de re-agregar la regla vieja)
+            resultado: "corrección aplicada: C1-9 → C1-9" (no-op) · Roberto
+            recibe su MONTO_EFECTIVO=8 · sin AJUSTE en seguimiento_pueblo
+```
+
+`correcciones_lote.xlsx` queda así para C1: `C1-17 → C1-9` (por si el typo
+viejo reaparece en algún crudo) + `C1-9 → C1-9` (candado). Verificado:
+`planilla_cobrado.xlsx` → C1-9 ROBERTO MACARLOPU FLORES, MONTO_EFECTIVO=8.
+
+## De paso, 2 lotes más mal escritos por el cobrador (mismo ciclo, verificados)
+
+```
+G-36  (S/39, mesa_4, Wagner Trujillo)  →  el lote real es C-36 (MARIA NORABUENA ESPADA)
+                                            corregido en correcciones_lote.xlsx, aplicado
+S-16  (S/22, mesa_1, Wilder Trujillo)  →  candidato: S-6 (VICTORIA COSME CERNA) — NO
+                                            confirmado, se deja SIN corregir a propósito
+```
+
+## S-16 — pendiente de reidentificar, ahora visible donde corresponde
+
+S-16 no es un usuario real (no existe ese lote), así que nunca podía aparecer
+en `arrastre_devolucion_2026-08.xlsx` (esa lista sale de `SALDO<0` de un
+usuario real). Quedaba solo en `discrepancias_cobranza.xlsx`, que nadie revisa
+buscando plata para devolver/reidentificar. **Cambio de código:**
+`_exportar_arrastre_devolucion()` (`5_cobranza/main.py`) ahora recibe también
+`disc_yape`/`disc_efec` y agrega una sección "no identificado" (fondo rojo,
+mismo color que discrepancias) debajo de los excesos reales. Verificado:
+`arrastre_devolucion_2026-08.xlsx → 13 usuarios con SALDO<0 · 1 no
+identificado(s)`, fila S-16 visible con MOTIVO="predio no encontrado en
+planilla". Mañana: confirmar si S-16 es de verdad S-6 y corregir en
+`correcciones_lote.xlsx` igual que G-36→C-36.
+
+## L-9 → J-9: la misma regla resucitada tenía OTRO problema — no tenía confirmación humana
+
+`correcciones_lote.xlsx` también traía, desde el mismo ciclo 17, una regla
+`L-9 → J-9` (Denis Riv\*, S/500, 03/08/2026 18:43:26, mensaje "L-9"). A
+diferencia de C1-9 (que sí tiene respaldo — memoria COFOPRI + override
+`ELIMINAR` de C1-17 en el padrón, 28/07), esta regla solo decía "Recuperado
+desde trazabilidad_cobranza.xlsx" — **sin ningún rastro de quién confirmó que
+"L-9" era un error del pagante y no lo que de verdad quiso decir.**
+
+```
+CRITERIO aplicado para distinguir una corrección real de una adivinanza:
+   ¿hay una persona con NOMBRE que lo confirmó (WhatsApp, cuaderno, reclamo)?
+      SÍ → confiar (ej. D1-1→D1-3, Janet Villanueva Alegre, WhatsApp 14/07)
+      NO → revertir, la plata se queda donde el mensaje real la puso
+
+L-9 → J-9 no pasó la prueba. Revertido: fila borrada de correcciones_lote.xlsx.
+La plata de Denis Riv* (S/500) vuelve a contarse como pago de L-9 (Marianela
+Elizabet Rivera Vitate, que debía MULTA 30 + ACUERDOS 50 = 80 — el pago la
+cubre entera y deja exceso).
+```
+
+**Verificado antes de revertir que no dispara el bug de compensación:** ni L-9
+ni J-9 tienen MULTA/ACUERDOS/CONVENIO activos que dependan de CUÁNTO recibió
+cada uno más allá de lo que ya tenían — el monto total de cada predio no
+cambiaba entre "antes" y "después" del revert en ninguno de los dos casos
+salvo el agua/exceso puro, así que `_reconciliar_pagos_pueblo` no generó
+ningún AJUSTE nuevo al aplicar esto.
+
+## Lección aparte — `forzar_mzlt.xlsx` no es lo mismo que `pendientes.xlsx`
+
+Al revisar los otros 3 registros de
+`4_pagos/yape/motor_matching/correcciones/forzar_mzlt.xlsx` (Giovanna San\*,
+PLIN Juan Carlos Graciano, Patricia Tar\*) se encontró que **2 de los 3 usaban
+la herramienta equivocada** — no es un problema de plata (los 3 destinos
+verificados coinciden exacto con el titular real del padrón), es un problema
+de proceso:
+
+```
+forzar_mzlt.xlsx    → SOLO para "error de digitación del propio pagante"
+                       (el pagante escribió algo, pero él mismo se equivocó)
+pendientes.xlsx      → para AMBIGÜEDAD DE MATCHING (el sistema no tiene
+(Ambiguos/             info suficiente — sin mensaje, mensaje sin espacios
+Maestro_inexacto)      que no parsea, etc.) — un humano llena MZ/LOTE + OK=SI
+
+Giovanna San*/K-17      mensaje "mzklt17..." sin espacios → AMBIGÜEDAD
+                        (el pagante no se equivocó, el parser no pudo leerlo)
+                        → debió ir a pendientes.xlsx, no a forzar_mzlt
+PLIN Juan Carlos/H1-13  SIN mensaje (PLIN no manda texto) → AMBIGÜEDAD
+Patricia Tar*/H1-15     SIN mensaje → AMBIGÜEDAD
+                        → los 2 debieron ir a pendientes.xlsx
+```
+
+Ya corrieron en julio (ciclo cerrado), no se movió nada — queda como lección
+para no repetir: ante un caso ambiguo nuevo, usar `pendientes.xlsx`, reservar
+`forzar_mzlt.xlsx` solo para cuando el pagante mismo se equivocó al escribir.
+
+## Hallazgo colateral — E-14B (Juan Saavedra) duplicado en planilla, genera ruido en cada corrida
+
+`shared/planilla_mes/planilla_2026-08.xlsx` tiene **2 filas** para E-14B (Juan
+Saavedra Saavedra). Cada re-corrida de `5_cobranza --force` procesa las dos
+filas contra el MISMO evento de `seguimiento_pueblo` (ACUERDOS) y deja un par
+`AJUSTE +20 / PAGO +20` (saldo neto no cambia, 75→55, pero quedan 2 eventos de
+ledger que no deberían existir). No es efecto de las correcciones de arriba —
+ya se verificó que en la corrida anterior a este evento (ciclo 18, antes de
+tocar nada) también estaba duplicado en planilla, solo que no había generado
+todavía el AJUSTE. Pendiente: borrar la fila duplicada de E-14B en
+`planilla_2026-08.xlsx` (queda una sola) — hasta entonces, cada `--force`
+sigue agregando ese par de eventos.
+
+## Cómo se cierra este evento
+
+Cuando: (1) S-16 se confirme o descarte contra S-6, (2) la fila duplicada de
+E-14B se borre de `planilla_2026-08.xlsx` y una corrida limpia no vuelva a
+generar el par AJUSTE/PAGO, (3) `5b_validacion` corra sin la alerta de C1/G-36
+(las otras alertas — L→J falso positivo, Nivel 1a −50 — son de sesiones
+anteriores, no de este evento).
+
+---
+
+# LEER ANTES — lote de 8 predios de julio con abono rezagado que nunca se aplicó (09/08/2026) — CERRADO
+
+**Si buscás por qué `shared/abonos_rezagados.xlsx` tiene una fila con
+`MES_ANO_APLICA=2026-07` para un predio y el saldo de julio en
+`seguimiento_pueblo.xlsx` no la refleja: es porque literalmente no pudo aplicarse.**
+`abonos_rezagados.xlsx` no existía en esta forma hasta el 03-06/08/2026 (ver
+`git log` del archivo) — las 3 corridas de `5_cobranza` de julio (08/07, 20/07,
+31/07) ya habían pasado antes de que el archivo tuviera esas filas.
+`_cargar_abonos_rezagados()` solo se consulta cuando `5_cobranza` corre para ese
+`mes_ano`, y julio no se volvió a correr (está prohibido, ver sección de abajo).
+
+## Los 3 casos verificados y corregidos — D-16, D1-6, L-4
+
+Los tres tenían, además del abono rezagado sin aplicar, un `AJUSTE` con el bug de
+signo (sección de abajo) sobre el mismo predio — coincidencia real: los tres son
+del mismo lote de cobradores que retuvieron yapes (Wagner Trujillo), investigado y
+sembrado en `abonos_rezagados.xlsx` a principios de agosto.
+
+```
+Método: reconstruir el CARGO real de julio (planilla_2026-07.xlsx del repo
+"jass_system - Julio", que es el correcto — ver LEER_ANTES anterior sobre por
+qué el planilla_cobrado archivado en ESTE repo está desincronizado) y correr a
+mano la cascada P1→P5 (agua → corte → multa → acuerdos → convenio) con
+total_pagado = abono rezagado + efectivo de mesa (los dos son plata real, sin
+CONCEPTO en la mesa → cuentan como agua/libre, igual que hace 5_cobranza).
+
+D-16   abono 85 + efectivo 34 = 119   → cubre agua(19)+acuerdos(50)+convenio(50)
+       exacto. ACUERDOS y CONVENIO quedan en 0 (antes: 25 y 25 con el bug).
+D1-6   abono 33 + efectivo 33 = 66    → cubre agua(16)+multa(30) completos, dedja
+       20 de los 50 de acuerdos. MULTA corregida a 0 (antes: 1, bug de signo).
+       ACUERDOS ya estaba en el valor correcto (30), no se tocó.
+L-4    abono 58 + efectivo 41 = 99    → cubre agua(24)+multa(20) completos, deja
+       55 de los 75 de acuerdos aplicados. ACUERDOS corregido a 20 (antes: 45).
+       MULTA y CONVENIO ya estaban correctos (0 y 25), no se tocaron.
+```
+
+Backup antes de tocar: `shared/backups_ledger/seguimiento_pueblo_pre_cascada_completa_D16_D1_6_L4_20260809_150214.xlsx`.
+Cada AJUSTE quedó con `CLASE=CORRECCION_SISTEMA` y motivo completo en el ledger
+(visible en la hoja `Ajustes` de `vista_seguimiento_pueblo.xlsx`).
+
+## Resto del lote de Wagner — verificado y corregido (09/08/2026)
+
+`abonos_rezagados.xlsx` tiene 8 filas de este mismo lote (agua, retenido por
+cobrador, `MES_ANO_APLICA=2026-07`) — 7 de Wagner Trujillo, 1 de Yanet Villanueva.
+
+```
+T-12  Samuel Samaritano Romero          155   → MULTA y ACUERDOS quedan pagados
+                                                 completo (125 de deuda, sobran 30
+                                                 sin aplicar — exceso de agua, no
+                                                 vive en este ledger)
+I-9   Julia Cardenas Alvarado            86   → MULTA pagada completo, ACUERDOS
+                                                 pasa de 75 a 58
+F-9   Rosa Lucia Coronado Luna           52   → CONVENIO pagado completo (antes 25,
+                                                 solo el efectivo se habia acreditado)
+F1-4  Antonio Gutierrez Pachamango      101   → SIN CAMBIOS — agua+corte (130) ya
+                                                 consumen todo el abono, nunca llega
+                                                 a MULTA (Yanet Villanueva, no Wagner)
+```
+
+Backup: `shared/backups_ledger/seguimiento_pueblo_pre_wagner_T12_I9_F9_20260809_*.xlsx`.
+CLASE=`ABONO_REZAGADO` (plata real de un ciclo viejo que la caja recién ve), no
+`CORRECCION_SISTEMA` — a diferencia de D-16/D1-6/L-4, acá no había un bug de signo
+de por medio, era simplemente plata nunca acreditada.
+
+## S-5 (Valerio Porfilio Javier Santiago), Wagner, S/71 — cerrado (09/08/2026)
+
+El "30 declarado" en ACUERDOS (31/07, `CLASE=DECLARACION_SECRETARIA`) **no es la
+misma plata que el abono** — se investigó el reclamo original
+(`notas_2026-07.xlsx`, GRUPO 2): *"Verificar su campo, techado y multas — reclamo
+porque salió en corte, dice que está al día y ya pagó."* Resolución (28/07): la
+multa de julio (30) ya estaba pagada, y además se reconoció un **crédito
+histórico** — pagó multa en ene/feb 2026 (S/15+S/15=30, de antes de que existiera
+el ledger, nunca reconocido) — aplicado contra ACUERDOS. Es plata real, distinta,
+sin relación con el abono rezagado.
+
+**Segunda parte del reclamo, la del corte, se resolvió hoy:** confirmado que el
+corte de S-5 (`registro_cortes.xlsx`, CORTADO desde 2026-06) fue un error — el
+pago sí existía, Wagner lo tenía retenido (el mismo abono de S/71). Se exoneró:
+
+```
+registro_cortes.xlsx    ESTADO CORTADO → EXONERADO, motivo escrito
+ajustes_cargo.xlsx      CORTE_RECONEXION 40, MES_ANO_APLICA=2026-08 (julio cerrado,
+                         mismo patron que F1-4/V-14), CLASE=EXONERACION
+seguimiento_pueblo      ACUERDOS AJUSTE −40 (con el corte exonerado, el abono(71)+
+                         efectivo(74)=145 ya alcanza para cubrir agua+multa+acuerdos
+                         completo: 70+30+45=145 exacto) → SALDO 0
+```
+
+S-5 queda "al día" en pueblo (MULTA=0, ACUERDOS=0, CONVENIO=0). Backups:
+`seguimiento_pueblo_pre_S5_corte_20260809_*.xlsx` y `registro_cortes_pre_S5_20260809_*.xlsx`.
+
+## Las otras 22 filas de `abonos_rezagados.xlsx` (declaraciones de la secretaria)
+
+Estas NO pasan por `_cargar_abonos_rezagados`+cascada — se aplicaron directo como
+`registrar_pago` con `CLASE=DECLARACION_SECRETARIA` (ver sección "los pagos que
+declaró la secretaria" más abajo). Ese mecanismo es independiente de la fecha del
+archivo — no tienen el mismo riesgo que las 8 de arriba. No se re-verificaron acá.
+
+## Fix de código — `4b_reclamos/reporte_historico.py` leía agua/corte de una fuente stale
+
+Al revisar S-5 en el reporte, la fila de julio mostraba Corte=15 y Mes ant.
+vacío en vez de 40 y 46. Causa: `_datos_ciclo()` sacaba esas 4 columnas
+(consumo/mant/mes_ant/corte) de `5_cobranza/outputs/planilla_cobrado.xlsx` —
+que quedó congelado de una corrida vieja de julio, de ANTES de una corrección
+de `2_planilla` (18/07/2026, mismo día que la nota de D-16 en
+`ajustes_cargo.xlsx`) que nunca se volvió a propagar porque `5_cobranza` no se
+re-corre sobre un ciclo cerrado. **Esto no es un problema de repos separados
+(Julio vs agosto) — el mismo archivo archivado del propio repo "jass_system -
+Julio" tiene el mismo dato viejo.** `shared/planilla_mes/planilla_2026-07.xlsx`
+(2_planilla) sí tiene el CARGO correcto, verificado exacto contra
+`DATA_boletas.xlsx`.
+
+Fix aplicado: `_datos_ciclo()` ahora lee mes_actual/mantenimiento/mes_anterior/
+corte_reconexion de `shared/planilla_mes/planilla_<mes>.xlsx` en vez de
+`planilla_cobrado.xlsx`, y suma `abonos_rezagados.xlsx` (filtrado por predio +
+`MES_ANO_APLICA`) al `total_pagado` de la cascada agua→corte, para que el
+`TOTAL PAGADO` de la tabla ya no ignore esa plata. Con esto arreglado,
+`planilla_2026-06.xlsx` resultó ser un archivo de 15 bytes (inválido) — se
+agregó manejo defensivo (`try/except`) para que un mes sin copia válida caiga
+al comportamiento anterior en vez de romper.
+
+**Segundo fix, mismo archivo:** `_datos_ciclo()` sumaba MES_ACTUAL+MANTENIMIENTO
+en un solo número y lo mandaba todo a la columna "Consumo", dejando "Mant."
+siempre en 0 para junio/julio en adelante (los meses históricos anteriores sí
+los mostraban separados, por venir de otra fuente). Separado: ahora "Mant."
+se llena igual que "Mes ant."/"Corte" (su propio paso de la cascada agua→mant→
+mes_ant→corte), verificado en S-5 (Consumo 21 + Mant 3, antes aparecía 24+0).
+
+**Tercer fix, mismo archivo — el que de verdad importaba:** MULTA/ACUERDOS/
+CONVENIO del historial solo sumaban la columna `PAGO` del ledger, ignorando lo
+saldado vía `AJUSTE` (las condonaciones/reasignaciones de D-16/D1-6/L-4/S-5 de
+hoy) — L-4 mostraba TOTAL PAGADO=71 cuando la plata real era 99. Corregido:
+`fila_d[concepto] = PAGO + max(0, −DEBIA)` (DEBIA = CARGO+AJUSTE del mes, ver
+`reporte_seguimiento._resumen_y_historial` — negativo cuando un AJUSTE perdona
+deuda). Verificado exacto contra la plata real en los 4 predios corregidos:
+L-4 99 (=41+58) · D-16 119 (=34+85) · D1-6 66 (=33+33) · T-12/I-9/F-9 también
+cuadran (con su sobrante sin exponer cuando la plata alcanzaba de más).
+
+**Cuarto fix:** el corte exonerado (S-5, F1-4, V-14 en `ajustes_cargo.xlsx`)
+se seguía mostrando como "pagado" en la columna Corte de la cascada agua,
+doble-contando la misma plata que ya se había acreditado a ACUERDOS por
+`AJUSTE` — `_datos_ciclo()` ahora consulta `ajustes_cargo.xlsx` y pone
+`corte_debido=0` si hay una fila `CORTE_RECONEXION` para ese predio (sin exigir
+`CLASE=EXONERACION` — F1-4 no la tiene escrita, el motivo dice "anula" igual).
+S-5 quedó en TOTAL=175 (145 real + 30 crédito histórico), exacto.
+
+Con los 4 fixes, `4b_reclamos/reporte_historico.py` y
+`reporte_reimputacion_cascada.py` ya reflejan fielmente el ledger — reporte
+completo (208 predios) re-corrido y verificado a las 16:2x del 09/08/2026.
+
+## Cómo se cierra este evento
+
+Ya cerrado (09/08/2026) — los 8 predios del lote de Wagner/Yanet quedaron
+verificados: D-16, D1-6, L-4, T-12, I-9, F-9, S-5 corregidos; F1-4 verificado sin
+cambios necesarios. El fix de `reporte_historico.py` ya está aplicado y
+verificado contra los 6 predios corregidos (arriba). `reporte_reimputacion_cascada_2026-07.pdf/.xlsx`
+todavía refleja el estado de las 11:52 (antes de todo esto) — falta re-correrlo
+completo (208 predios) para que quede al día; se dejó pendiente a propósito
+para el final de la sesión. Borrar esta sección después de esa corrida, si no
+aparece nada más.
+
+---
+
+# LEER ANTES — el AJUSTE de reversión de `5_cobranza` cambió de signo (07/08/2026)
+
+**Si vas a leer un AJUSTE con `SOURCE=5_cobranza`, el signo significa cosas distintas
+según la fecha.** Desde hoy un AJUSTE **positivo** de 5_cobranza quiere decir *"se
+revirtió un pago, la deuda vuelve"*. Los 10 anteriores al 07/08/2026 dicen lo mismo con
+el signo al revés — y por eso están mal.
+
+## Qué estaba roto
+
+La columna `AJUSTE` del ledger está en unidades de **DEUDA** (`seguimiento_repo._registrar`:
+`saldo += monto`). `5_cobranza` la escribía y la leía en unidades de **CRÉDITO**, sin
+traducir en ninguna de las dos puntas:
+
+```
+delta = pagado_fresco − ya          delta < 0  =  "acredité de más"
+   escribía   registrar_ajuste(delta)   → −75  → el saldo BAJA otra vez
+   correcto   registrar_ajuste(−delta)  → +75  → el saldo SUBE, la deuda vuelve
+
+cargo 200 · run 1 acredita 75  → saldo 125
+run 2, el pago ya no está      → saldo  50     ✗ la verdad es 200
+                                  2 × el monto por debajo, y POSITIVO:
+                                  el chequeo de "0 saldos negativos" no lo ve
+```
+
+No dispara en la primera corrida de un mes (`ya = 0` ⇒ `delta ≥ 0` ⇒ solo PAGO). Dispara
+en re-corridas donde el insumo encogió — un `--force` tras corregir el crudo, o un humano
+que sacó esa deuda de la planilla.
+
+**Por qué importa más que un reporte:** `2_planilla/main.py:148 _join_saldo_pueblo` lee
+esos saldos para MULTA · ACUERDOS · CONVENIO del mes siguiente. Un saldo torcido se
+factura en la boleta, de menos, y nadie reclama por una boleta más barata.
+
+## Qué se cambió (código, no datos — el ledger NO se tocó)
+
+```
+5_cobranza/main.py  · las dos mitades del mismo cambio de unidad, van juntas
+   :2349  ya = pago_registrado − ajuste_reconciliado      (antes: +)
+   :2374  registrar_ajuste(..., −delta, ...)              (antes: delta)
+
+test nuevo  5_cobranza/tests/test_reversion_signo.py
+   la secuencia entera: corrida → el insumo encoge → re-corrida → el pago reaparece
+   antes del fix FALLA en el paso 2 (AJUSTE −75, saldo 50); después pasa 11/11
+   invertir UNA sola de las dos líneas rompe la idempotencia — el test lo cubre (paso 3)
+
+tests alineados a la convención nueva (mismo hecho, distinto signo esperado)
+   5_cobranza/tests/test_reconciliacion_pueblo.py  caso 4: AJUSTE +25, saldo 30
+   shared/tests/test_seguimiento_repo.py           bloque 12: ajuste +25, saldo 50
+```
+
+Los AJUSTE **manuales** no cambian: siguen en unidades de deuda (−75 = la directiva
+perdona 75). `ajuste_reconciliado` filtra por `SOURCE`, así que el fix no los toca.
+
+## ⚠ Lo que sigue vivo
+
+```
+NO CORRER  5_cobranza --force sobre 2026-07
+   (la prohibición sigue en pie por disciplina de ciclo cerrado — pero las 10 filas
+   de abajo ya están todas corregidas a mano, con AJUSTE fechado hoy, no con --force)
+
+AGOSTO ARRANCA LIMPIO
+   0 AJUSTE con source=5_cobranza y MES=2026-08. El chequeo del ciclo sigue siendo
+   el mismo: contarlos después de correr. Ahora, si aparece alguno, es legible.
+
+LOS 10 AJUSTE DE JULIO — TODOS CERRADOS (09/08/2026)
+   P-6 CONVENIO · D1-3 MULTA · Q-4 MULTA/ACUERDOS · L-4 MULTA · C-21 MULTA ·
+   J-6 MULTA/ACUERDOS: ya estaban en su valor correcto (0) o se restauraron al
+   CARGO real / se condonaron por ser bien institucional. Ver sección
+   "condonación institucional" y "abono rezagado" más abajo.
+   D-16 ACUERDOS y D1-6 MULTA necesitaron algo más — ver esa misma sección de
+   abajo, "3 predios con abono rezagado sin aplicar".
+
+HALLAZGO COLATERAL, YA CERRADO
+   5_cobranza/tests/test_cobranza.py redirigía el ledger a su carpeta temporal pero
+   NO la vista: escribía shared/vista_seguimiento_pueblo.xlsx y .pdf REALES con datos
+   sintéticos. El 07/08 solo se salvó porque el .xlsx estaba abierto en Excel (el .pdf
+   sí se pisó y se restauró con git). Redirigidos VISTA_PATH y VISTA_PDF_PATH.
+   Falla pre-existente que queda abierta en ese test, ajena a esto y verificada contra
+   HEAD: «trazabilidad · filas (incluye huérfano) esperado=6 obtenido=5».
+```
+
+## Cómo se cierra este evento
+
+Cuando las 10 filas de julio estén reescritas con la convención nueva (o el ciclo se
+archive de forma que nadie pueda re-correrlo) y D-16 / D1-6 tengan su MOTIVO escrito.
+Hasta entonces, la prohibición del `--force` sobre 2026-07 sigue en pie.
+
+Backup previo al fix: `shared/backups_ledger/seguimiento_pueblo_pre_fix_signo_20260807_085808.xlsx`
+(1486 eventos, idéntico al archivo vivo — el fix es de código).
+
+---
+
 # LEER ANTES — A-4 vuelve a deber S/75 de CONVENIO: su aporte al tanque se lo había pagado (06/08/2026)
 
 **Si A-4 (Yolanda Espinoza Jaimes) figuraba al día en CONVENIO y ahora debe S/75: es
@@ -776,6 +1181,32 @@ Condonado directo en `shared/seguimiento_pueblo.xlsx` vía `registrar_pago`
 - C-21: MULTA 50 → 0
 - J-6: MULTA 50 → 0, ACUERDOS 75 → 0 (CONVENIO=100 de J-6 NO se tocó — podría
   ser instalación real de medidor, no cargo de participación social)
+
+## Corregido (2026-08-09) — el parche del 30/07 se había roto y estaba mal modelado
+
+Dos problemas encontrados al auditar los 10 `AJUSTE` con signo viejo de julio
+(ver sección "el AJUSTE de reversión cambió de signo" más arriba):
+
+1. **El 30/07, una corrida de `5_cobranza` con el bug de signo escribió un
+   `AJUSTE` sobre la condonación de C-21/J-6**, y el fix posterior
+   ("revertir-condonacion-fallida") deshizo TODO — pago + ajuste — dejando la
+   deuda completa otra vez (C-21 MULTA=50, J-6 MULTA=50, J-6 ACUERDOS=75).
+   Q-4 (mismo día, mismo patrón, condonación por otro motivo) sí recibió un
+   segundo paso que lo devolvió a 0; C-21 y J-6 se quedaron así hasta hoy.
+2. **Estaba mal modelado desde el origen:** se había registrado como
+   `TIPO_EVENTO=PAGO, CLASE=DECLARACION_SECRETARIA` (el mecanismo de "la
+   secretaria dijo que el vecino ya pagó", que arrastra un pendiente de
+   investigar si es EXCESO o ABONO_REZAGADO — ver sección de abajo). Para un
+   bien exonerado nunca hubo plata que investigar.
+
+Se borraron los 12 eventos de esa cadena (PAGO + 3 AJUSTE × 3 predio-concepto;
+backup `shared/backups_ledger/seguimiento_pueblo_pre_condonacion_institucional_C21_J6_20260809_095814.xlsx`)
+y se reemplazaron por un solo `AJUSTE` limpio cada uno, `CLASE=EXONERACION`
+("la directiva decidió no cobrar — nunca hubo plata"), con motivo explícito en
+el ledger. Saldo actual: C-21 MULTA=0, J-6 MULTA=0, J-6 ACUERDOS=0.
+Verificado: ninguno de los dos aparece en los precursores
+(`abonos_rezagados.xlsx`, `ajustes_cargo.xlsx`, `genesis_tardia.xlsx`,
+`reasignaciones_aplicacion.xlsx`, `blancos_efectivo.xlsx`).
 
 ## Por qué esto va a volver a pasar
 

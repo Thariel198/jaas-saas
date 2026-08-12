@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2026-08-09 — El abono rezagado que nunca llegó al ledger</title>
+<link rel="stylesheet" href="../cuaderno/estilo.css">
+</head>
+<body>
+
+<header class="hero">
+  <p class="crumbs"><a href="index.html">← Diario</a> · 2026-08-09 · continúa el cierre de los 10 AJUSTE de <a href="2026-08-08_tarde_regex_tanque_y_planilla_stale.html">08/08</a></p>
+  <p class="eyebrow"><span class="dot"></span>D-16, D1-6, L-4 y el resto del lote de Wagner, más 4 bugs de código en el reporte</p>
+  <h1>El abono rezagado que nunca llegó al ledger</h1>
+  <p class="lede">
+    Cerrar los 10 <code>AJUSTE</code> de julio con signo viejo escaló a algo más grande: 7 predios
+    tenían plata real de un cobrador (Wagner Trujillo) retenida en junio, recuperada en julio, y
+    registrada en un archivo que se creó <b>después</b> de que las corridas de julio ya habían
+    pasado — esa plata nunca entró al ledger. Se reconstruyó a mano con la cascada real y se
+    corrigió. De paso, pedir que el reporte reflejara el ledger destapó 4 bugs de código distintos.
+  </p>
+  <div class="meta-row">
+    <span>fecha: 2026-08-09</span>
+    <span>8 predios corregidos/verificados · 4 bugs de reporte cerrados</span>
+    <span>reporte de 208 predios re-corrido · 0 saldos negativos</span>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="modulo-laminas">
+
+    <article class="lamina" style="border:1px solid var(--line);border-radius:8px;background:var(--paper-raised);padding:26px 22px 30px;margin-bottom:18px">
+
+      <div class="sub-h"><span class="qn">①</span> por qué el abono nunca se aplicó</div>
+      <p><code>shared/abonos_rezagados.xlsx</code> tiene 7 filas de Wagner Trujillo (cobrador) que
+        retuvo yapes de junio en su cuenta personal y los recuperó en efectivo recién en julio —
+        investigado y sembrado en el archivo el 03-06/08. El archivo dice
+        <code>MES_ANO_APLICA=2026-07</code>, pero <code>_cargar_abonos_rezagados()</code> solo se
+        consulta cuando <code>5_cobranza</code> corre para ese mes — y julio ya había corrido 3
+        veces (08/07, 20/07, 31/07) antes de que esas filas existieran.</p>
+      <div class="ascii">git log del archivo: 1 commit, 06/08/2026 14:13
+mtime del archivo:  03/08/2026 17:30
+
+D-16   abono 85 + efectivo 34 = 119   D1-6  abono 33 + efectivo 33 = 66
+L-4    abono 58 + efectivo 41 = 99    T-12  abono 155 (sin efectivo)
+I-9    abono 86 (sin efectivo)        F-9   abono 52 + efectivo 53 = 105
+S-5    abono 71 + efectivo 74 = 145   F1-4  abono 101 (Yanet, no Wagner)</div>
+      <div class="keypoint">No es un problema de repos separados (agosto vs "jass_system - Julio").
+        El propio <code>7_cierre/archivo/2026-07/planilla_cobrado.xlsx</code> del repo Julio tiene el
+        mismo dato congelado — <code>5_cobranza</code> simplemente nunca se volvió a correr después
+        de que <code>2_planilla</code> se corrigió el 18/07 (mismo día que la nota de D-16 en
+        <code>ajustes_cargo.xlsx</code>). <code>shared/planilla_mes/planilla_2026-07.xlsx</code> sí
+        tiene el CARGO correcto, verificado exacto contra <code>DATA_boletas.xlsx</code>.</div>
+
+      <div class="sub-h"><span class="qn">②</span> reconstruir la cascada a mano, predio por predio</div>
+      <p>Método: CARGO real (agua → corte → multa → acuerdos → convenio, mismo orden P1-P5 que usa
+        <code>5_cobranza/main.py::_descomponer_saldo</code>) contra el total real (abono + efectivo,
+        los dos sin <code>CONCEPTO</code> en la mesa → cuentan como agua/libre).</p>
+      <div class="ascii">D-16   agua 19 + acuerdos 50 + convenio 50 = 119 exacto
+       → ACUERDOS y CONVENIO quedan en 0 (antes: 25 y 25, con el bug de signo)
+
+D1-6   agua 16 + multa 30 = 46, deja 20 de los 50 de acuerdos
+       → MULTA corregida a 0 (antes: 1) · ACUERDOS ya estaba bien (30), no se tocó
+
+L-4    agua 24 + multa 20 = 44, deja 55 de los 75 de acuerdos aplicados
+       → ACUERDOS corregido a 20 (antes: 45) · MULTA/CONVENIO ya estaban bien</div>
+      <div class="keypoint">D-16 y D1-6 <b>también</b> tenían el bug de signo del <a href="2026-08-08_tarde_regex_tanque_y_planilla_stale.html">07/08</a>
+        encima del abono sin aplicar — el propio código lo nombra:
+        <code>5_cobranza/main.py:2386-2388</code> dice literalmente <i>"el saldo bajaba otra vez...
+        (D-16 · D1-6 en julio 2026)"</i>. Reconciliar las dos cosas junto (plata real + signo
+        corregido) fue lo que dio el número final.</div>
+      <div class="keypoint">Un error propio en el camino: al deshacer una corrección previa de D-16
+        antes de reescribirla, el saldo ya había vuelto al valor del bug (0), y se le aplicó otro
+        −50 encima sin recalcular — quedó en −50. Se corrigió al toque, pero es la prueba de por qué
+        conviene recalcular desde el saldo actual, no asumir el último valor conocido.</div>
+
+      <div class="sub-h"><span class="qn">③</span> S-5 — dos historias en el mismo predio, no confundirlas</div>
+      <p>El reclamo original decía "salió en corte, dice que está al día". La resolución de julio
+        (28/07) solo tocó multa/acuerdos con un crédito histórico (pagó de más en ene/feb 2026,
+        antes del ledger) — <b>no es la misma plata que el abono</b>. La parte del corte quedó sin
+        resolver hasta hoy.</p>
+      <div class="ascii">notas_2026-07.xlsx (28/07): multa OK + crédito histórico ene/feb → ACUERDOS 70→40
+                                                        (esto NO es el abono — plata distinta)
+
+hoy (09/08): el corte SÍ era el abono — Wagner tenía retenidos los 71 soles
+   registro_cortes.xlsx    CORTADO → EXONERADO, motivo escrito
+   ajustes_cargo.xlsx      CORTE_RECONEXION 40, aplica en agosto (julio cerrado)
+   seguimiento_pueblo      ACUERDOS AJUSTE −40 → SALDO 0
+
+S-5 queda "al día" en pueblo — MULTA=0, ACUERDOS=0, CONVENIO=0</div>
+
+      <div class="sub-h"><span class="qn">④</span> C-21 y J-6 — la condonación institucional estaba mal encajada</div>
+      <p>Bienes del pueblo (Puesto de Salud, Capilla), exonerados desde 2026-02 en
+        <code>registro_cortes.xlsx</code>. Pero la condonación de julio se había escrito como
+        <code>PAGO, CLASE=DECLARACION_SECRETARIA</code> — el mecanismo de "el vecino dijo que ya
+        pagó", que arrastra un pendiente de investigar si es exceso o abono nuevo. Para un bien
+        exonerado nunca hubo plata que investigar.</p>
+      <div class="ascii">se borraron 12 eventos (4 por predio-concepto: PAGO + 3 AJUSTE en cadena)
+se reemplazaron por 1 AJUSTE limpio c/u, CLASE=EXONERACION, motivo completo
+se agregó la fila que faltaba en ajustes_cargo.xlsx (backfill libro mayor,
+   mismo patrón que J-1/O-2 del 01/08)</div>
+
+      <div class="sub-h"><span class="qn">⑤</span> 4 bugs en <code>reporte_historico.py</code>, destapados al pedir fidelidad</div>
+      <p>El pedido fue simple — "el reporte debe reflejar el ledger" — y encontró 4 problemas
+        acumulados en el mismo módulo.</p>
+      <div class="ascii">1. Consumo/Mant/Mes_ant/Corte leían planilla_cobrado.xlsx (congelado de julio,
+   nunca refrescado tras la corrección del 18/07) → ahora leen
+   shared/planilla_mes/planilla_&lt;mes&gt;.xlsx, la fuente verificada
+
+2. MES_ACTUAL+MANTENIMIENTO se sumaban en un solo número → "Mant." quedaba
+   siempre en 0 desde junio en adelante → separados en su propio paso de cascada
+
+3. MULTA/ACUERDOS/CONVENIO del historial solo sumaban PAGO, no lo saldado por
+   AJUSTE (las condonaciones de hoy) → L-4 mostraba 71, la plata real era 99
+   fórmula nueva: PAGO + max(0, −DEBIA)   (DEBIA = CARGO+AJUSTE del mes)
+
+4. El corte exonerado se seguía contando como "pagado" en la cascada de agua,
+   doblando la misma plata ya acreditada a ACUERDOS → _datos_ciclo() ahora
+   consulta ajustes_cargo.xlsx y pone corte_debido=0 si el predio tiene una
+   fila CORTE_RECONEXION (sin exigir CLASE=EXONERACION — F1-4 no la tenía
+   escrita, el motivo decía "anula" igual)</div>
+      <div class="keypoint">Verificado exacto contra la plata real, no solo "se ve razonable":
+        L-4 99 (=41+58) · D-16 119 (=34+85) · D1-6 66 (=33+33) · S-5 175 (=145 + 30 crédito
+        histórico, la única cifra que mezcla plata de julio con un crédito de otro período).</div>
+      <div class="keypoint">Se agregó una caja nueva, <b>"SALDO PENDIENTE"</b>, a la página de cada
+        predio del reporte — lee <code>MULTA_DESPUES</code>/<code>ACUERDOS_DESPUES</code>/
+        <code>CONVENIO_DESPUES</code> de <code>calcular_tabla()</code>, no el <code>TOTAL PAGADO</code>
+        del historial. Es la caja que hay que mirar para saber si alguien debe algo — el
+        <code>TOTAL PAGADO</code> sigue siendo "cuánto se aplicó", no "cuánto debe".</div>
+
+      <div class="sub-h"><span class="qn">⑥</span> dónde quedó todo</div>
+      <div class="ascii">BACKUPS
+   seguimiento_pueblo_pre_condonacion_institucional_C21_J6_20260809_*.xlsx
+   seguimiento_pueblo_pre_cascada_completa_D16_D1_6_L4_20260809_150214.xlsx
+   seguimiento_pueblo_pre_wagner_T12_I9_F9_20260809_*.xlsx
+   seguimiento_pueblo_pre_S5_corte_20260809_*.xlsx · registro_cortes_pre_S5_20260809_*.xlsx
+
+PRECURSORES
+   ajustes_cargo.xlsx        +4 filas (C-21, J-6, S-5 corte, y el backfill que faltaba)
+   reasignaciones_aplicacion.xlsx  se agregó y se borró una fila de D-16 (la primera
+                              versión estaba mal calculada, sin el abono — ver ②)
+
+REPORTE      4b_reclamos/outputs/reporte_reimputacion_cascada_2026-07.pdf/.xlsx
+             re-corrido completo (208 predios) con los 4 fixes — 0 saldos negativos,
+             0 predios donde la deuda no se conserva
+
+LEER_ANTES.md   sección del lote de Wagner cerrada, con los 4 fixes de código documentados
+
+PENDIENTE    10 predios con AJUSTE sin motivo, no auditados hoy:
+               C-19 · C-29A · C1-17 · F-12 · F-3B · F1-10 · Q-16 · Q-5 · R-5 · S-14
+             22 declaraciones de la secretaria en abonos_rezagados.xlsx, sin re-verificar
+             D-16 MULTA + corte de F1-4/V-14/S-5: ya en ajustes_cargo.xlsx, se aplican
+               solos cuando corra 5_cobranza de agosto — no hace falta nada más
+             P-4/W-4 (duplicado Wagner/Yerald) y 3 predios de motor_matching
+               (Nelson Mon*/Lisbeth De*/Jaime Hue*) arrastran de ayer, sin tocar</div>
+
+    </article>
+
+  </div>
+
+  <footer class="closing">
+    sesión del 2026-08-09 · sin commitear · detalle completo en
+    <code>docs/RETOMAR_cierre_ajustes_julio_y_reportes_2026-08-09.md</code><br>
+    el hallazgo que originó esto (11 predios con saldo negativo) está en la entrada del <a href="2026-08-08_tarde_regex_tanque_y_planilla_stale.html">08/08 tarde</a>
+  </footer>
+</main>
+
+</body>
+</html>

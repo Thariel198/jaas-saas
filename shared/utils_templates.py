@@ -6,9 +6,11 @@ Usado por: 4_pagos/efectivo/crear_templates.py (setup inicial) y 7_cierre
 (reset al cerrar el período — ver docs/metodologia_desarrollo.md, "cross-módulo
 nunca es import directo").
 """
+import shutil
+from datetime import datetime
 from pathlib import Path
 
-from openpyxl import Workbook
+from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
@@ -123,10 +125,52 @@ def aplicar_wrap_comentario(ws) -> None:
         ws.row_dimensions[fila].height = 18
 
 
+def filas_con_datos(ruta: Path) -> int:
+    """Cuántas filas de cobro reales tiene un mesa_N.xlsx (fila 4+ de cada hoja).
+
+    La fila 3 es el ejemplo guía del template y no cuenta. Sirve para saber si
+    un archivo que se va a sobrescribir tiene trabajo del cobrador adentro."""
+    if not ruta.exists():
+        return 0
+    try:
+        wb = load_workbook(ruta, read_only=True, data_only=True)
+    except Exception:
+        return 0
+    n = 0
+    for hoja in wb.sheetnames:
+        for fila in list(wb[hoja].values)[3:]:
+            if fila and any(c not in (None, "") for c in fila[:6]):
+                n += 1
+    wb.close()
+    return n
+
+
+def respaldar_si_tiene_datos(ruta: Path) -> Path | None:
+    """Copia el archivo a backup/ antes de pisarlo, si tiene filas de cobro.
+
+    Por qué existe: el 26/07/2026 se corrió crear_templates.py para preparar el
+    ciclo de agosto y sobrescribió las 7 mesas de julio —374 filas escritas a
+    mano, con el split yape/efectivo y los comentarios del cobrador— sin
+    backup. Se recuperaron de una copia suelta del repo por pura suerte. El
+    respaldo va acá, en el primitivo, para que lo tengan TODOS los que
+    resetean mesas (4_pagos/efectivo y 7_cierre), no solo el que se acuerde."""
+    n = filas_con_datos(ruta)
+    if n == 0:
+        return None
+    destino = ruta.parent.parent / "backup" / f"mesas_pre_reset_{datetime.now():%Y%m%d_%H%M%S}"
+    destino.mkdir(parents=True, exist_ok=True)
+    copia = destino / ruta.name
+    shutil.copy2(ruta, copia)
+    return copia
+
+
 def crear_mesa_vacio(ruta: Path) -> None:
     """Escribe un mesa_N.xlsx vacío (3 hojas + fila-ejemplo) en `ruta`.
     Usado tanto para el setup inicial (4_pagos/efectivo) como para el
-    reset de cierre de período (7_cierre)."""
+    reset de cierre de período (7_cierre).
+
+    Si el archivo ya tenía filas de cobro, se respalda antes de pisarlo."""
+    respaldar_si_tiene_datos(ruta)
     ruta.parent.mkdir(parents=True, exist_ok=True)
     wb = Workbook()
     for i, hoja in enumerate(_HOJAS):
