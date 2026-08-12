@@ -73,6 +73,18 @@ def _setup():
     if TEST_ROOT.exists():
         shutil.rmtree(TEST_ROOT)
     TEST_ROOT.mkdir(parents=True)
+    # Redirigir los directorios de ESCRITURA del módulo a la carpeta temporal.
+    # La mayoría de estos tests son funciones puras que no tocan disco, pero
+    # algunos escriben (escribir(), la preservación) y bastaba con que uno
+    # apuntara al repo real para pisar las mesas del ciclo en curso — que es lo
+    # que pasó el 12/08 con test_integracion (ver tests/conftest.py).
+    (TEST_ROOT / "inputs").mkdir(exist_ok=True)
+    (TEST_ROOT / "outputs").mkdir(exist_ok=True)
+    (TEST_ROOT / "backup").mkdir(exist_ok=True)
+    vl.BASE_DIR = TEST_ROOT
+    vl.INPUTS_DIR = TEST_ROOT / "inputs"
+    vl.OUTPUTS_DIR = TEST_ROOT / "outputs"
+    vl.BACKUP_DIR = TEST_ROOT / "backup"
 
 
 def _teardown():
