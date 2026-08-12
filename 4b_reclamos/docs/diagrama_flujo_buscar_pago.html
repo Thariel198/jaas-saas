@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>buscar_pago — diagrama de flujo</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'IBM Plex Sans', sans-serif; background: #fff; padding: 24px; }
+
+  .title { font-size: 18px; font-weight: 600; color: #111; margin-bottom: 4px; }
+  .sub   { font-size: 12px; color: #888; margin-bottom: 24px; }
+
+  .col { display: flex; flex-direction: column; align-items: center; gap: 0; max-width: 780px; margin: 0 auto; }
+
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; width: 100%; }
+  .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; width: 100%; }
+
+  .group-label {
+    font-size: 10px; color: #999; padding: 2px 0 4px; letter-spacing: .03em;
+    align-self: flex-start;
+  }
+
+  .input-box { border-radius: 7px; padding: 8px 10px; font-size: 11px; }
+  .input-box.manual { background: #FEF9E7; border: 1px solid #F9E79F; }
+  .input-box.auto   { background: #EBF5FB; border: 1px solid #AED6F1; }
+  .input-box .src {
+    font-size: 9px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .05em; margin-bottom: 3px; color: #1A5276;
+  }
+  .input-box.manual .src { color: #7D6608; }
+  .input-box .fname {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; font-weight: 600; color: #111; margin-bottom: 3px;
+  }
+  .input-box .cols {
+    font-size: 9px; color: #666; font-family: 'IBM Plex Mono', monospace; line-height: 1.5;
+  }
+
+  .arrow-down {
+    font-size: 18px; color: #bbb; font-weight: 300; padding: 4px 0;
+  }
+  .arrow-label { font-size: 9px; color: #aaa; letter-spacing: .04em; text-align: center; }
+
+  .gate-box {
+    width: 100%; background: #FEF2F2; border: 1.5px dashed #FECACA; border-radius: 8px;
+    padding: 8px 14px; text-align: center; margin: 4px 0;
+  }
+  .gate-box .t { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; font-weight: 700; color: #991B1B; }
+  .gate-box .s { font-size: 9px; color: #B91C1C; margin-top: 2px; }
+
+  .block {
+    width: 100%; border-radius: 10px; padding: 12px 14px; margin: 6px 0;
+  }
+  .block.a { background: #E9F7EF; border: 2px solid #1E8449; }
+  .block.b { background: #EBF5FB; border: 2px solid #1A5276; }
+
+  .block-title {
+    font-size: 12px; font-weight: 700; text-align: center;
+    padding-bottom: 6px; margin-bottom: 8px; border-bottom: 1px solid rgba(0,0,0,.08);
+  }
+  .block.a .block-title { color: #1E5C3A; }
+  .block.b .block-title { color: #1A5276; }
+
+  .step {
+    background: #fff; border-radius: 6px; padding: 6px 9px; margin-bottom: 6px;
+    font-size: 10px; border-left: 3px solid #1E8449;
+  }
+  .block.b .step { border-left-color: #1A5276; }
+  .step .n {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 14px; height: 14px; border-radius: 50%;
+    background: #1E8449; color: #fff; font-weight: 700; font-size: 8px;
+    margin-right: 5px; font-family: 'IBM Plex Sans', sans-serif;
+  }
+  .block.b .step .n { background: #1A5276; }
+  .step .lbl { font-weight: 700; color: #555; }
+  .step .branch {
+    display: block; margin-top: 4px; margin-left: 19px; font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px; color: #333;
+  }
+  .step .branch .arrow-r { color: #999; }
+
+  .filters {
+    background: #fff; border-radius: 6px; padding: 6px 9px; margin-bottom: 8px;
+    font-size: 9px; color: #555; border: 1px dashed #AED6F1;
+  }
+  .filters .lbl { font-weight: 700; color: #1A5276; text-transform: uppercase; letter-spacing: .03em; font-size: 8.5px; }
+
+  .pill {
+    display: inline-block; font-size: 8.5px; font-weight: 700;
+    padding: 1px 6px; border-radius: 10px; margin: 1px 3px 1px 0;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .p-cierre     { background: #F1F3F5; color: #495057; }
+  .p-ok         { background: #D5F5E3; color: #1E5C3A; }
+  .p-bug        { background: #FEE2E2; color: #991B1B; }
+  .p-precursor  { background: #FEF3C7; color: #92400E; }
+  .p-candidato  { background: #EBF5FB; color: #1A5276; }
+  .p-nada       { background: #F1F3F5; color: #868E96; }
+
+  .output-box { width: 100%; border-radius: 7px; overflow: hidden; background: #F3E8FF; border: 1px solid #C4B5FD; margin-top: 4px; }
+  .output-header {
+    color: #fff; font-size: 11px; font-weight: 600;
+    padding: 7px 12px; background: #5B21B6;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .output-section { padding: 8px 12px; border-bottom: 1px solid #C4B5FD; }
+  .output-section:last-child { border-bottom: none; }
+  .output-section-title {
+    font-size: 9px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .05em; margin-bottom: 4px; color: #5B21B6;
+  }
+  .output-col-item {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; color: #111; line-height: 1.7;
+  }
+
+  .lifecycle-tag {
+    display: inline-block; font-size: 9px; font-weight: 700;
+    padding: 1px 6px; border-radius: 10px; margin-top: 2px;
+    background: #FEF3C7; color: #B7770D;
+  }
+
+  .note {
+    max-width: 780px; margin: 20px auto 0;
+    background: #F8F9FA; border: 1px solid #dee2e6;
+    border-left: 3px solid #6c757d;
+    border-radius: 0 6px 6px 0;
+    padding: 8px 14px; font-size: 11px; color: #555;
+  }
+  .note strong { color: #333; }
+  .note code {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; background: #fff; padding: 1px 4px; border-radius: 3px;
+  }
+</style>
+</head>
+<body>
+
+<p class="title">4b_reclamos/herramienta — buscar_pago (diagrama de flujo)</p>
+<p class="sub">Entrada: reclamos filtrados por TIPO_RECLAMO · Salida: evidencia con nivel de confianza — el supervisor decide, el script nunca cierra el reclamo</p>
+
+<div class="col">
+
+  <p class="group-label">inputs — de dónde lee</p>
+  <div class="row3" style="margin-bottom:8px;">
+    <div class="input-box manual">
+      <div class="src">4b_reclamos</div>
+      <div class="fname">reclamos_YYYY-MM.xlsx</div>
+      <div class="cols">filtrado por TIPO_RECLAMO<br>MZ · LT · RECLAMO (texto)</div>
+    </div>
+    <div class="input-box auto">
+      <div class="src">3 repos por ciclo</div>
+      <div class="fname">tabla_predio() + referencias_pago()</div>
+      <div class="cols">jass_system (ago, activo)<br>…\Julio\jass_system - Julio<br>…\Junio\jass_system - junio</div>
+    </div>
+    <div class="input-box auto">
+      <div class="src">shared/ — 13 precursores</div>
+      <div class="fname">abonos_rezagados · blancos_* · …</div>
+      <div class="cols">reidentificacion(_cargo) · ajustes_cargo<br>aportes_tanque_manuales · etc.</div>
+    </div>
+  </div>
+
+  <div class="arrow-down">↓</div>
+
+  <div class="gate-box">
+    <div class="t">GATE  —  DATA_boletas["MES ANTERIOR"] del ciclo activo == 0 ?</div>
+    <div class="s">SÍ → cierra sin buscar más &nbsp;·&nbsp; NO → reclamo vivo, sigue al embudo</div>
+  </div>
+  <span class="pill p-cierre" style="margin:2px 0 6px;">RESUELTO_YA</span>
+
+  <div class="arrow-down">↓</div>
+
+  <div class="block a">
+    <div class="block-title">BLOQUE A — EXPLICAR ¿la plata ya está adentro del sistema?</div>
+
+    <div class="step">
+      <span class="n">A0</span><span class="lbl">Historial completo del predio</span> — tabla_predio() + referencias_pago(), 3 repos
+      <span class="branch"><span class="arrow-r">→</span> entró y MES_ANT quedó en 0 &nbsp; <span class="pill p-ok">INFUNDADO</span> (mostrar el recibo)</span>
+      <span class="branch"><span class="arrow-r">→</span> entró y MES_ANT siguió &gt; 0 &nbsp; <span class="pill p-bug">MAL_IMPUTADO</span> (bug real, plata a otro concepto)</span>
+    </div>
+
+    <div class="step">
+      <span class="n">A1</span><span class="lbl">¿Algún precursor ya cuenta la historia?</span> — 5 usos, no solo "explicar"
+      <span class="branch"><span class="arrow-r">→</span> evento en shared/ <span class="pill p-precursor">EXPLICADO_POR_PRECURSOR</span></span>
+      <span class="branch"><span class="arrow-r">→</span> aporte al tanque, no era agua <span class="pill p-precursor">PAGÓ_PERO_NO_ERA_AGUA</span></span>
+      <span class="branch"><span class="arrow-r">→</span> pagó antes, se aplicó después <span class="pill p-precursor">PAGÓ_ANTES_APLICADO_DESPUÉS</span></span>
+    </div>
+  </div>
+
+  <div class="arrow-down">↓ nada lo explica</div>
+
+  <div class="block b">
+    <div class="block-title">BLOQUE B — BUSCAR ¿dónde se fue?</div>
+
+    <div class="filters">
+      <span class="lbl">filtros previos, antes de proponer nada</span><br>
+      precursores apagan candidatos con dueño · ventana temporal (≤1 mes, o arrastre continuo con MES_ANT&gt;0 en todos los meses intermedios) · cobrador nombrado en el texto reduce el pool casi a 0
+    </div>
+
+    <div class="step">
+      <span class="n">B1</span><span class="lbl">Pool de blancos sin reclamar</span> — blancos_acumulados · blancos_efectivo · hoja "Reporte" pre-mayo (mz=blanco)
+      <span class="branch"><span class="arrow-r">→</span> <span class="pill p-candidato">CANDIDATO_BLANCO</span></span>
+    </div>
+
+    <div class="step">
+      <span class="n">B2</span><span class="lbl">Registrado en OTRO predio del mismo ciclo</span> — ~300 pagos, no lista curada
+      <span class="branch"><span class="arrow-r">→</span> origen distinto, tipeo/OCR (confundible() + subconjuntos(), de verificar_lotes.py) <span class="pill p-candidato">CANDIDATO_TIPEO</span></span>
+      <span class="branch"><span class="arrow-r">→</span> mismo origen, 1 pago cubrió 2 lotes y solo se acreditó 1 (caso K-3/K-4) <span class="pill p-candidato">CANDIDATO_MULTILOTE</span></span>
+    </div>
+
+    <div class="step">
+      <span class="n">B3</span><span class="lbl">Exceso no resuelto de un predio confundible</span> — arrastre_devolucion_{06,07,08}, ESTADO≠resuelto
+      <span class="branch"><span class="arrow-r">→</span> <span class="pill p-candidato">CANDIDATO_EXCESO</span></span>
+    </div>
+
+    <div class="step" style="border-left-color:#999;">
+      <span class="lbl">Regla de propuesta</span> (heredada de verificar_lotes.py): solo se propone si la lista de candidatos queda en exactamente 1. Con 2+: <span class="pill p-nada">"N candidatos"</span>, sin elegir.
+    </div>
+  </div>
+
+  <div class="arrow-down">↓ nada encontrado</div>
+  <span class="pill p-nada" style="margin-bottom:8px;">SIN_EVIDENCIA</span>
+  <div class="sub" style="margin:0 0 4px;">pedir recibo o captura de yape</div>
+
+  <div class="arrow-down">↓</div>
+
+  <div class="output-box">
+    <div class="output-header">verificacion_reclamos_YYYY-MM.xlsx (nombre tentativo)</div>
+    <div class="output-section">
+      <div class="output-section-title">Columnas</div>
+      <div class="output-col-item">MZ · LT · TIPO_RECLAMO · RECLAMO (texto original)</div>
+      <div class="output-col-item">VEREDICTO · EVIDENCIA (candidato + motivo, si aplica)</div>
+      <div class="output-col-item">RESOLUCION (supervisor llena)</div>
+    </div>
+    <div class="output-section">
+      <div class="output-section-title">Valores de VEREDICTO</div>
+      <span class="pill p-cierre">RESUELTO_YA</span>
+      <span class="pill p-ok">INFUNDADO</span>
+      <span class="pill p-bug">MAL_IMPUTADO</span>
+      <span class="pill p-precursor">EXPLICADO_POR_PRECURSOR</span>
+      <span class="pill p-candidato">CANDIDATO_*</span>
+      <span class="pill p-nada">SIN_EVIDENCIA</span>
+    </div>
+    <div class="output-section">
+      <span class="lifecycle-tag">temporal · vista operacional, se regenera cada corrida</span>
+    </div>
+  </div>
+
+</div>
+
+<div class="note">
+  <strong>Genérica por TIPO_RECLAMO desde el día 1</strong> — el mismo embudo sirve para "ya pagué
+  mi medidor" (<code>convenio</code>), no solo <code>mes_anterior</code>.<br><br>
+  <strong>Solo reporta, nunca cierra el reclamo</strong> — el supervisor decide en
+  <code>resolucion_reclamos_YYYY-MM.xlsx</code>, mismo patrón que <code>verificar_lotes.py</code>
+  nunca escribe <code>mesa_N.xlsx</code>.<br><br>
+  <strong>Blocker a resolver antes de codificar</strong> — <code>reporte_referencias_pago.py</code>
+  apunta <code>"2026-07"</code> al repo activo (hoy agosto) en vez de
+  <code>PycharmProjects\Julio\jass_system - Julio</code>. Ya roto hoy, no es un problema de
+  septiembre. Ver <code>docs/decisiones/buscar_pago.md</code>.
+</div>
+
+</body>
+</html>

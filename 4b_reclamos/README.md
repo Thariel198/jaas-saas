@@ -39,6 +39,10 @@ Sub-módulo independiente que gestiona el ciclo de vida completo de los reclamos
 │   └── validacion_correcciones_YYYY-MM.xlsx  # Verificación de correcciones aplicadas
 ├── trazabilidad/
 │   └── trazabilidad_reclamos.xlsx         # Auditoría permanente (nunca se borra)
+├── herramienta/                           # Utilidades on-demand, fuera del ciclo mensual
+│   ├── README.md                          #   (ver herramienta/README.md)
+│   ├── clasificar_tipo_reclamo.py
+│   └── buscar_pago.py                     #   diseñado, pendiente de codificar
 ├── backup/
 │   └── reclamos/                          # Backups de reclamos_YYYY-MM previos
 ├── tests/

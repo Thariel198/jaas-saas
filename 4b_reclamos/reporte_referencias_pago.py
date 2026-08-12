@@ -34,6 +34,26 @@ HIST_DIR = BASE_DIR.parent / "obligaciones" / "inputs" / "planillas anteriores"
 
 _ARCHIVOS_HISTORICOS = rh._ARCHIVOS_HISTORICOS
 
+
+def _repo_de_ciclo(mes_ano: str) -> Path:
+    """Repo donde vive el output crudo de ese ciclo: el suyo propio congelado
+    si ya cerró (rh.REPOS_CICLO_CERRADO), o el repo activo si es el ciclo
+    vigente -- así ningún ciclo depende de hardcodear "cuál mes es hoy"."""
+    return rh.REPOS_CICLO_CERRADO.get(mes_ano, BASE_DIR.parent)
+
+
+def _ciclos_recientes() -> list[tuple[str, Path]]:
+    """(mes_ano, ruta a planilla_cobrado) de cada ciclo posterior a mayo: los
+    cerrados de rh.REPOS_CICLO_CERRADO + el vigente de shared/ciclo_activo.json
+    (si no es ya uno de los cerrados). Se recalcula en cada llamada -- barato,
+    y así recoge el ciclo activo sin reiniciar el proceso cuando el mes rueda."""
+    ciclos = {m: rh._planilla_ciclo_cerrado(m) for m in rh.REPOS_CICLO_CERRADO}
+    activo = ciclo.activo(default=None)
+    if activo and activo not in ciclos:
+        ciclos[activo] = BASE_DIR.parent / "5_cobranza" / "outputs" / "planilla_cobrado.xlsx"
+    return sorted(ciclos.items())
+
+
 _AZUL = (26/255, 82/255, 118/255)
 _AZUL_BG = (235/255, 245/255, 251/255)
 _GRIS = (0.42, 0.45, 0.5)
@@ -146,16 +166,14 @@ def referencias_pago(mz: str, lt: str, tabla: pd.DataFrame | None = None) -> lis
         else:
             out.append({"MES": mes, "MEDIO": "EFECTIVO", "FECHA_HORA": "--", "MONTO": monto_mes})
 
-    # Junio y julio: total real pagado (yape+efectivo) desde el planilla_cobrado
-    # de CADA ciclo (junio vive en el repo "jass_system - junio", julio en el
-    # activo) vs. lo que la tabla de arriba muestra aplicado a conceptos --
-    # desde junio 2026 el exceso se RETIENE (no se aplica ni se muestra solo,
-    # ver nota del reporte), asi que puede haber una diferencia real y
-    # legitima. Se muestra como linea aparte, nunca mezclada.
-    _PLANILLAS_RECIENTES = [
-        ("2026-06", rh._planilla_junio()),
-        ("2026-07", BASE_DIR.parent / "5_cobranza" / "outputs" / "planilla_cobrado.xlsx"),
-    ]
+    # Cada ciclo posterior a mayo: total real pagado (yape+efectivo) desde el
+    # planilla_cobrado DE SU PROPIO CICLO (los cerrados en su repo congelado,
+    # el vigente en el repo activo -- ver _ciclos_recientes()) vs. lo que la
+    # tabla de arriba muestra aplicado a conceptos -- desde junio 2026 el
+    # exceso se RETIENE (no se aplica ni se muestra solo, ver nota del
+    # reporte), asi que puede haber una diferencia real y legitima. Se
+    # muestra como linea aparte, nunca mezclada.
+    _PLANILLAS_RECIENTES = _ciclos_recientes()
     for mes_ciclo, f in _PLANILLAS_RECIENTES:
         # Los overlays entran a la cascada del ciclo pero NO viven en
         # planilla_cobrado -- van primero para que aparezcan aunque el ciclo
@@ -247,14 +265,17 @@ def _overlays_de_plata(mz: str, lt: str, mes_ciclo: str) -> list[dict]:
     return out
 
 
-_PAGOS_EFECTIVO_CRUDO = {
-    "2026-06": ciclo.resolver(rh.REPO_JUNIO / "4_pagos" / "efectivo" / "outputs",
-                              "pagos_efectivo", "2026-06"),
-    # legacy_sin_periodo: 4_pagos del repo activo todavía escribe sin periodo
-    # (migra en la tanda B); junio ya está renombrado y no lo necesita.
-    "2026-07": ciclo.resolver(BASE_DIR.parent / "4_pagos" / "efectivo" / "outputs",
-                              "pagos_efectivo", "2026-07", legacy_sin_periodo=True),
-}
+def _pagos_efectivo_crudo_path(mes_ciclo: str) -> Path:
+    """Repo propio si el ciclo cerró, repo activo si es el vigente (ver
+    _repo_de_ciclo). legacy_sin_periodo=True porque el ciclo activo todavía
+    escribe pagos_efectivo.xlsx sin periodo además del nombre canónico
+    (migra en la tanda B) y los repos cerrados de junio/julio quedaron con
+    esa convención -- ciclo.resolver prueba el nombre con periodo primero,
+    así que no cambia nada para los ciclos que ya migraron."""
+    return ciclo.resolver(_repo_de_ciclo(mes_ciclo) / "4_pagos" / "efectivo" / "outputs",
+                          "pagos_efectivo", mes_ciclo, legacy_sin_periodo=True)
+
+
 _cache_pagos_efectivo: dict[str, pd.DataFrame] = {}
 
 
@@ -266,10 +287,9 @@ def _cargar_pagos_efectivo_crudo(mes_ciclo: str) -> pd.DataFrame | None:
     vez de trazabilidad; trazabilidad sigue siendo la fuente del COBRADOR
     resuelto (para pagos divididos entre mesas)."""
     if mes_ciclo not in _cache_pagos_efectivo:
-        p = _PAGOS_EFECTIVO_CRUDO.get(mes_ciclo)
-        if p is None or not p.exists():
-            if p is not None:
-                _avisar_falta(p, f"pagos_efectivo de {mes_ciclo}")
+        p = _pagos_efectivo_crudo_path(mes_ciclo)
+        if not p.exists():
+            _avisar_falta(p, f"pagos_efectivo de {mes_ciclo}")
             _cache_pagos_efectivo[mes_ciclo] = pd.DataFrame()
         else:
             df = pd.read_excel(p, header=1)
@@ -315,12 +335,13 @@ def _cobrador_fecha_efectivo_crudo(mz: str, lt: str, mes_ciclo: str) -> tuple[st
     return dia, cobrador
 
 
-_PAGOS_YAPE_CRUDO = {
-    "2026-06": ciclo.resolver(rh.REPO_JUNIO / "4_pagos" / "yape" / "motor_matching" / "outputs",
-                              "pagos_yape_tepago", "2026-06"),
-    "2026-07": ciclo.resolver(BASE_DIR.parent / "4_pagos" / "yape" / "motor_matching" / "outputs",
-                              "pagos_yape_tepago", "2026-07", legacy_sin_periodo=True),
-}
+def _pagos_yape_crudo_path(mes_ciclo: str) -> Path:
+    """Mismo criterio que _pagos_efectivo_crudo_path: repo propio si el ciclo
+    cerró, repo activo si es el vigente."""
+    return ciclo.resolver(_repo_de_ciclo(mes_ciclo) / "4_pagos" / "yape" / "motor_matching" / "outputs",
+                          "pagos_yape_tepago", mes_ciclo, legacy_sin_periodo=True)
+
+
 _cache_pagos_yape_crudo: dict[str, pd.DataFrame] = {}
 
 
@@ -332,10 +353,9 @@ def _cargar_pagos_yape_crudo(mes_ciclo: str) -> pd.DataFrame | None:
     cruce: esta fecha ya viene resuelta contra MZ/LOTE, sin necesidad de
     adivinar el origen."""
     if mes_ciclo not in _cache_pagos_yape_crudo:
-        p = _PAGOS_YAPE_CRUDO.get(mes_ciclo)
-        if p is None or not p.exists():
-            if p is not None:
-                _avisar_falta(p, f"pagos_yape_tepago de {mes_ciclo}")
+        p = _pagos_yape_crudo_path(mes_ciclo)
+        if not p.exists():
+            _avisar_falta(p, f"pagos_yape_tepago de {mes_ciclo}")
             _cache_pagos_yape_crudo[mes_ciclo] = pd.DataFrame()
         else:
             df = pd.read_excel(p, header=1)

@@ -175,40 +175,135 @@ def _fila_historica(mz: str, lt: str, df: pd.DataFrame | None, mes: str, nombre_
             "PAGO_COMPLETO": True, "NOTA": ""}
 
 
-REPO_JUNIO = Path(r"C:\Users\wilde\PycharmProjects\Junio\jass_system - junio")
+# Cada ciclo posterior a mayo (post-ledger) que ya cerró vive congelado en su
+# propio repo -- el pipeline se copia entero por mes (ver CLAUDE.md). Cuando un
+# mes nuevo cierra, se agrega su línea acá; no hace falta tocar ninguna función.
+REPOS_CICLO_CERRADO = {
+    "2026-06": Path(r"C:\Users\wilde\PycharmProjects\Junio\jass_system - junio"),
+    "2026-07": Path(r"C:\Users\wilde\PycharmProjects\Julio\jass_system - Julio"),
+}
 
 
-def _planilla_junio() -> Path:
+def _planilla_ciclo_cerrado(mes_ano: str) -> Path:
     """Ciclo cerrado: el nombre canónico lleva el periodo
     (planilla_cobrado_2026-06.xlsx). shared/ciclo.resolver acepta también los
-    nombres históricos, así que un rename del archivo ya no vuelve a dejar todas
-    las filas de junio sin consumo ni referencia de pago (bug del 05/08/2026)."""
-    return ciclo.resolver(REPO_JUNIO / "5_cobranza" / "outputs", "planilla_cobrado", "2026-06")
+    nombres históricos (mes en español, ej. planilla_cobrado_julio.xlsx), así
+    que un rename del archivo ya no vuelve a dejar todas las filas de ese mes
+    sin consumo ni referencia de pago (bug del 05/08/2026)."""
+    return ciclo.resolver(REPOS_CICLO_CERRADO[mes_ano] / "5_cobranza" / "outputs",
+                          "planilla_cobrado", mes_ano)
 
 
-_JUNIO_PLANILLA_COBRADO = _planilla_junio()
-_dfp_junio_cache: pd.DataFrame | None = None
+_dfp_ciclo_cerrado_cache: dict[str, pd.DataFrame] = {}
 
 
-def _cargar_dfp_junio() -> pd.DataFrame | None:
-    """planilla_cobrado.xlsx de junio vive en el repo 'jass_system - junio'
-    (ciclo ya cerrado, congelado ahí) -- no en el activo, que solo tiene el
-    ciclo vigente. Cacheado a nivel modulo: se reusa entre predios en una
-    corrida por lote.
+def _cargar_dfp_ciclo_cerrado(mes_ano: str) -> pd.DataFrame | None:
+    """planilla_cobrado.xlsx de un ciclo cerrado vive en su propio repo
+    congelado (jass_system - <mes>) -- no en el activo, que solo tiene el
+    ciclo vigente. Cacheado a nivel modulo por mes_ano: se reusa entre predios
+    en una corrida por lote.
 
-    Si el repo cerrado no esta donde dice el path, se AVISA: cuando fallaba en
-    silencio (04/08/2026, el repo se movio a PycharmProjects\\Junio\\) toda fila
-    de junio salia sin consumo/mant y sin referencia de pago -- se leia como un
-    pago fantasma (caso K-9: mostraba multa 30 en vez de los S/38 reales)."""
-    global _dfp_junio_cache
-    if _dfp_junio_cache is None:
-        if _JUNIO_PLANILLA_COBRADO.exists():
-            _dfp_junio_cache = pd.read_excel(_JUNIO_PLANILLA_COBRADO, sheet_name="planilla_cobrado", header=1)
+    Si el repo cerrado no esta donde dice REPOS_CICLO_CERRADO, se AVISA: cuando
+    fallaba en silencio (04/08/2026, el repo de junio se movio a
+    PycharmProjects\\Junio\\) toda fila de ese mes salia sin consumo/mant y sin
+    referencia de pago -- se leia como un pago fantasma (caso K-9: mostraba
+    multa 30 en vez de los S/38 reales)."""
+    if mes_ano not in _dfp_ciclo_cerrado_cache:
+        ruta = _planilla_ciclo_cerrado(mes_ano)
+        if ruta.exists():
+            _dfp_ciclo_cerrado_cache[mes_ano] = pd.read_excel(ruta, sheet_name="planilla_cobrado", header=1)
         else:
-            print(f"  AVISO: no se encontro el ciclo cerrado de junio -> {_JUNIO_PLANILLA_COBRADO}\n"
-                  f"         las filas de 2026-06 van a salir sin consumo/mantenimiento.")
-            _dfp_junio_cache = pd.DataFrame()
-    return _dfp_junio_cache
+            print(f"  AVISO: no se encontro el ciclo cerrado de {mes_ano} -> {ruta}\n"
+                  f"         las filas de {mes_ano} van a salir sin consumo/mantenimiento.")
+            _dfp_ciclo_cerrado_cache[mes_ano] = pd.DataFrame()
+    return _dfp_ciclo_cerrado_cache[mes_ano]
+
+
+_PLANILLA_MES_DIR = BASE_DIR.parent / "shared" / "planilla_mes"
+_planilla_correcta_cache: dict[str, pd.DataFrame] = {}
+
+
+def _cargar_planilla_correcta(mes_ano: str) -> pd.DataFrame | None:
+    """shared/planilla_mes/planilla_<mes_ano>.xlsx -- el CARGO real (2_planilla),
+    verificado exacto contra DATA_boletas.xlsx. planilla_cobrado.xlsx puede quedar
+    desactualizado si 5_cobranza no se re-corrio despues de una correccion de
+    2_planilla (caso confirmado: D1-6/S-5 julio, ver LEER_ANTES.md) -- de ahi
+    viene el CARGO (mes_actual/mantenimiento/mes_anterior/corte), nunca de
+    planilla_cobrado."""
+    if mes_ano in _planilla_correcta_cache:
+        return _planilla_correcta_cache[mes_ano]
+    ruta = _PLANILLA_MES_DIR / f"planilla_{mes_ano}.xlsx"
+    if not ruta.exists():
+        _planilla_correcta_cache[mes_ano] = None
+        return None
+    try:
+        df = pd.read_excel(ruta, header=1, dtype=str)
+        df.columns = [str(c).strip().upper() for c in df.columns]
+        df["MZ"] = df["MZ"].astype(str).str.strip()
+        df["LT"] = df["LT"].astype(str).str.strip()
+    except Exception:
+        df = None
+    _planilla_correcta_cache[mes_ano] = df
+    return df
+
+
+_abonos_rezagados_cache: pd.DataFrame | None = None
+
+
+def _abono_rezagado_predio(mz: str, lt: str, mes_ano: str) -> float:
+    """Suma de abonos_rezagados.xlsx para este predio+mes_ano_aplica -- plata
+    real que 5_cobranza nunca alcanzo a aplicar (archivo posterior a las
+    corridas del ciclo, ver LEER_ANTES.md). El reporte la tiene que sumar acá
+    para no mostrar un TOTAL PAGADO menor a la plata real (ya se ve aparte en
+    la tabla de Referencia de pago, pero el total de arriba tiene que cuadrar)."""
+    global _abonos_rezagados_cache
+    if _abonos_rezagados_cache is None:
+        ruta = BASE_DIR.parent / "shared" / "abonos_rezagados.xlsx"
+        if ruta.exists():
+            df = pd.read_excel(ruta, sheet_name="abonos_rezagados", header=1, dtype=str)
+            df["MZ"] = df["MZ"].astype(str).str.strip()
+            df["LT"] = df["LT"].astype(str).str.strip()
+            df["MONTO"] = pd.to_numeric(df["MONTO"], errors="coerce").fillna(0.0)
+            _abonos_rezagados_cache = df
+        else:
+            _abonos_rezagados_cache = pd.DataFrame()
+    df = _abonos_rezagados_cache
+    if df.empty:
+        return 0.0
+    sub = df[(df["MZ"] == mz) & (df["LT"] == lt)
+             & (df["MES_ANO_APLICA"].astype(str).str.strip() == mes_ano)]
+    return round(float(sub["MONTO"].sum()), 2)
+
+
+_ajustes_cargo_cache: pd.DataFrame | None = None
+
+
+def _corte_exonerado(mz: str, lt: str) -> bool:
+    """ajustes_cargo.xlsx con CONCEPTO=CORTE_RECONEXION para este predio -- no
+    corresponde, sin importar en que mes_ano_aplica se vaya a ejecutar el
+    efecto (puede ser el siguiente ciclo si julio ya cerro, ver S-5/F1-4 en
+    LEER_ANTES.md) ni si tiene CLASE=EXONERACION escrita (F1-4 no la tiene,
+    el motivo dice "anula" igual). Toda fila CORTE_RECONEXION vista hasta hoy
+    es una anulacion, nunca un cargo nuevo. Para el HISTORIAL no hay que
+    esperar a que se aplique: ya sabemos que no es deuda real, no se puede
+    mostrar como pagada con plata que en realidad se acredito en otro lado
+    (multa/acuerdos)."""
+    global _ajustes_cargo_cache
+    if _ajustes_cargo_cache is None:
+        ruta = BASE_DIR.parent / "shared" / "ajustes_cargo.xlsx"
+        if ruta.exists():
+            df = pd.read_excel(ruta, header=1, dtype=str)
+            df["MZ"] = df["MZ"].astype(str).str.strip()
+            df["LT"] = df["LT"].astype(str).str.strip()
+            _ajustes_cargo_cache = df
+        else:
+            _ajustes_cargo_cache = pd.DataFrame()
+    df = _ajustes_cargo_cache
+    if df.empty:
+        return False
+    sub = df[(df["MZ"] == mz) & (df["LT"] == lt)
+             & (df["CONCEPTO"].astype(str).str.strip().str.upper() == "CORTE_RECONEXION")]
+    return not sub.empty
 
 
 def _datos_ciclo(mz: str, lt: str, dfp: pd.DataFrame) -> dict | None:
@@ -221,17 +316,36 @@ def _datos_ciclo(mz: str, lt: str, dfp: pd.DataFrame) -> dict | None:
         return None
     r = fila.iloc[0]
     mes_ano = str(r.get("MES_ANO", "")).strip()
-    consumo_debido = _numf(r.get("MES_ACTUAL")) + _numf(r.get("MANTENIMIENTO"))
-    mes_ant_debido = _numf(r.get("MES_ANTERIOR"))
-    corte_debido = _numf(r.get("CORTE_RECONEXION"))
-    total_pagado = _numf(r.get("MONTO_YAPE")) + _numf(r.get("MONTO_EFECTIVO"))
+
+    # CARGO real: shared/planilla_mes (2_planilla), no planilla_cobrado -- ver
+    # docstring de _cargar_planilla_correcta. Si no hay copia disponible para
+    # ese mes_ano, cae al valor de dfp (comportamiento anterior).
+    planilla_ok = _cargar_planilla_correcta(mes_ano) if mes_ano else None
+    if planilla_ok is not None:
+        fila_ok = planilla_ok[(planilla_ok["MZ"] == mz) & (planilla_ok["LT"] == lt)]
+    else:
+        fila_ok = None
+    if fila_ok is not None and not fila_ok.empty:
+        r_ok = fila_ok.iloc[0]
+        fuente = r_ok
+    else:
+        fuente = r
+    consumo_debido = _numf(fuente.get("MES_ACTUAL"))
+    mant_debido = _numf(fuente.get("MANTENIMIENTO"))
+    mes_ant_debido = _numf(fuente.get("MES_ANTERIOR"))
+    corte_debido = 0.0 if _corte_exonerado(mz, lt) else _numf(fuente.get("CORTE_RECONEXION"))
+
+    abono_extra = _abono_rezagado_predio(mz, lt, mes_ano) if mes_ano else 0.0
+    total_pagado = _numf(r.get("MONTO_YAPE")) + _numf(r.get("MONTO_EFECTIVO")) + abono_extra
     consumo = min(consumo_debido, total_pagado)
     restante = max(0.0, total_pagado - consumo)
+    mant = min(mant_debido, restante)
+    restante = max(0.0, restante - mant)
     mes_ant = min(mes_ant_debido, restante)
     restante = max(0.0, restante - mes_ant)
     corte = min(corte_debido, restante)
-    return {"mes_ano": mes_ano, "consumo": consumo, "mes_ant": mes_ant, "corte": corte,
-            "hubo_pago": total_pagado > 0.005}
+    return {"mes_ano": mes_ano, "consumo": consumo, "mant": mant, "mes_ant": mes_ant,
+            "corte": corte, "hubo_pago": total_pagado > 0.005}
 
 
 def _filas_recientes(mz: str, lt: str, eventos: pd.DataFrame, dfp: pd.DataFrame) -> list[dict]:
@@ -242,15 +356,17 @@ def _filas_recientes(mz: str, lt: str, eventos: pd.DataFrame, dfp: pd.DataFrame)
 
     resumen, historial = rs._resumen_y_historial(mz, lt, eventos)
 
-    # Un ciclo por cada planilla_cobrado disponible -- julio (activo, pasado
-    # por el llamador) y junio (repo 'jass_system - junio', ciclo cerrado).
-    # Antes solo se calculaba consumo/mant/mes_ant/corte para julio ("el
-    # ciclo actual"); junio, aunque ya vive en el ledger, siempre quedaba en
-    # 0 en esos 4 campos -- bug: el total de junio no cuadraba contra lo
-    # realmente pagado (ej. C-16: pago 33 en junio, la tabla solo mostraba 25
-    # de multa, los 8 de consumo+mant desaparecian).
+    # Un ciclo por cada planilla_cobrado disponible -- el activo (pasado por
+    # el llamador, hoy agosto) y cada ciclo posterior a mayo que ya cerró
+    # (REPOS_CICLO_CERRADO: junio, julio, ...). Antes solo se calculaba
+    # consumo/mant/mes_ant/corte para "el ciclo actual" resuelto a mano por
+    # cada llamador; un mes que cerraba y dejaba de ser "el activo"
+    # desaparecía en silencio de la tabla (bug real: julio se cayó cuando el
+    # repo activo rodó a agosto). Con REPOS_CICLO_CERRADO ningún ciclo cerrado
+    # depende de cuál sea el repo activo hoy.
     datos_por_ciclo: dict[str, dict] = {}
-    for fuente in (dfp, _cargar_dfp_junio()):
+    fuentes = [dfp] + [_cargar_dfp_ciclo_cerrado(m) for m in REPOS_CICLO_CERRADO]
+    for fuente in fuentes:
         if fuente is None or fuente.empty:
             continue
         d = _datos_ciclo(mz, lt, fuente)
@@ -273,15 +389,23 @@ def _filas_recientes(mz: str, lt: str, eventos: pd.DataFrame, dfp: pd.DataFrame)
                   "CONVENIO": 0, "MULTA": 0, "ACUERDOS": 0, "NOTA": ""}
         for _, r in del_mes.iterrows():
             concepto = r["CONCEPTO"]
+            # DEBIA = CARGO + AJUSTE del mes (ver reporte_seguimiento._resumen_y_historial).
+            # Cuando un AJUSTE perdona/salda deuda (condonacion, correccion del bug de
+            # signo), DEBIA queda negativo -- esa parte tambien salda la deuda aunque
+            # no sea un PAGO en efectivo, y hay que sumarla para que el total cuadre
+            # contra la plata real (ver LEER_ANTES.md, caso L-4/D-16/D1-6/S-5 09/08/2026).
+            # Un DEBIA positivo es CARGO nuevo, no plata: no se resta del pagado.
+            saldado = float(r["PAGO"]) + max(0.0, -float(r["DEBIA"]))
             if concepto == "MULTA":
-                fila_d["MULTA"] = r["PAGO"]
+                fila_d["MULTA"] = saldado
             elif concepto == "ACUERDOS":
-                fila_d["ACUERDOS"] = r["PAGO"]
+                fila_d["ACUERDOS"] = saldado
             elif concepto == "CONVENIO":
-                fila_d["CONVENIO"] = r["PAGO"]
+                fila_d["CONVENIO"] = saldado
         d = datos_por_ciclo.get(mes)
         if d:
             fila_d["CONSUMO"] = d["consumo"]
+            fila_d["MANT"] = d["mant"]
             fila_d["MES_ANT"] = d["mes_ant"]
             fila_d["CORTE"] = d["corte"]
         fila_d["TOTAL"] = sum(fila_d[c] for c in CONCEPTOS_TABLA)
@@ -391,7 +515,41 @@ def _dibujar_tabla_historico(page, x: float, y: float, w: float, tabla: pd.DataF
     return y
 
 
-def _dibujar_pagina(doc, mz: str, lt: str, nombre: str, tabla: pd.DataFrame) -> None:
+_ROJO = (0.62, 0.10, 0.10)
+
+
+def _dibujar_saldo_pendiente(page, x: float, y: float, w: float, saldo: dict) -> float:
+    """Caja con la deuda de pueblo (Multa/Acuerdos/Convenio) que todavia falta
+    pagar, al cierre del mes que reporta la tabla — no incluye agua ni
+    mantenimiento, que viven en otro precursor. Los valores se leen en vivo
+    de seguimiento_pueblo.xlsx (via calcular_tabla), asi que reflejan cualquier
+    correccion ya aplicada al ledger."""
+    rh_box = 22
+    total = float(saldo.get("TOTAL", 0.0))
+    al_dia = total <= 0.005
+    color_total = _VERDE if al_dia else _ROJO
+    page.draw_rect(fitz.Rect(x, y, x + w, y + rh_box),
+                    fill=_AZUL_BG if al_dia else (0.99, 0.94, 0.90), color=None)
+    page.insert_text((x + 6, y + rh_box - 7), "SALDO PENDIENTE (Multa + Acuerdos + Convenio)",
+                      fontsize=9, fontname="hebo", color=_NEGRO)
+
+    partes = [("Multa", saldo.get("MULTA", 0.0)), ("Acuerdos", saldo.get("ACUERDOS", 0.0)),
+              ("Convenio", saldo.get("CONVENIO", 0.0))]
+    texto_partes = "  ·  ".join(f"{n}: S/ {v:,.2f}" for n, v in partes if abs(v) > 0.005) or "al día"
+    tw_partes = fitz.get_text_length(texto_partes, fontname="helv", fontsize=8.5)
+
+    texto_total = f"TOTAL: S/ {total:,.2f}"
+    tw_total = fitz.get_text_length(texto_total, fontname="hebo", fontsize=10)
+
+    page.insert_text((x + w - tw_total - 10, y + rh_box - 7), texto_total, fontsize=10, fontname="hebo",
+                      color=color_total)
+    page.insert_text((x + w - tw_total - 20 - tw_partes, y + rh_box - 7), texto_partes, fontsize=8.5,
+                      fontname="helv", color=_GRIS)
+    return y + rh_box
+
+
+def _dibujar_pagina(doc, mz: str, lt: str, nombre: str, tabla: pd.DataFrame,
+                     saldo_pendiente: dict | None = None) -> float:
     page = doc.new_page(width=_PAGE_W, height=_PAGE_H)
     w = _PAGE_W - 2 * _M
     y = _M
@@ -405,11 +563,18 @@ def _dibujar_pagina(doc, mz: str, lt: str, nombre: str, tabla: pd.DataFrame) -> 
                       fontname="helv", color=_GRIS)
     y += 14
     y = _dibujar_tabla_historico(page, _M, y, w, tabla)
-    y += 20
+    y += 12
+
+    if saldo_pendiente is not None:
+        y = _dibujar_saldo_pendiente(page, _M, y, w, saldo_pendiente)
+        y += 10
+    else:
+        y += 8
 
     nota = ("Desde junio 2026 el exceso pagado ya no se muestra ni se aplica solo — se retiene hasta "
             "que el vecino reclame. Meses sin \"OK\" son meses sin pago registrado en el archivo de esa fecha.")
     page.insert_text((_M, y), nota, fontsize=7.5, fontname="helv", color=_GRIS)
+    return y + 12
 
 
 def generar_pdf(mz: str, lt: str, salida: Path | None = None) -> Path:
