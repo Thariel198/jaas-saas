@@ -71,11 +71,9 @@ jass_system - agosto1     31/07/2026
 jass_system - agosto2     02/08/2026
 ```
 
+No son el respaldo oficial de las mesas — ese es `7_cierre/archivo/<mes>/` (§3).
 Son fotos a mitad de ciclo: útiles como red, peligrosas como fuente de verdad
 (ver "Restaurar mal tiene un costo propio" en §4).
-
-No son basura, pero **no son el respaldo oficial de las mesas** — ese es
-`7_cierre/archivo/<mes>/` (ver abajo). Sirven como red extra entre commits.
 
 ---
 
@@ -102,7 +100,7 @@ y la corrección vale más que el relato original.
 
 ```
 26/07 15:33:22   7_cierre cierra el ciclo 2026-07 (estado_ciclo.json lo registra
-                 al segundo). Su paso 4 hace exactamente lo que debe:
+                 al segundo). Sus 3 ultimos pasos hacen lo que deben:
 
                    paso2_cosechar  copia las 7 mesas a 7_cierre/archivo/2026-07/
                    paso3_freeze    congela el ciclo
