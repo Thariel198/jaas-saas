@@ -468,6 +468,9 @@ def barrer(meses: list[str]) -> pd.DataFrame:
                        retuvo y entregó después). En junio fueron 7 filas por
                        S/430 que se detectaron y se aplicaron en julio."""
     boletas = vl.leer_boletas()
+    # Un ciclo esta CERRADO si tiene su <mes>_procesado.xlsx: ahi la
+    # conciliacion del mes ya termino y el veredicto es definitivo.
+    cerrados = set(rh.REPOS_CICLO_CERRADO)
     ar = _leer_precursor("abonos_rezagados")
     rez = {(_norm(r["MZ"]), _norm(r["LT"]), round(_numf(r["MONTO"]), 2))
            for _, r in ar.iterrows()} if not ar.empty else set()
@@ -498,6 +501,14 @@ def barrer(meses: list[str]) -> pd.DataFrame:
                 chk = verificar_una(r["YAPE"], r["FECHA"], mz, lt, dias=5,
                                     nombre=nombre, mes=mes)
                 estado, detalle = chk["estado"], chk["detalle"]
+                # En el ciclo ABIERTO la conciliacion todavia no termino: pueden
+                # entrar transacciones despues del ultimo reporte del banco y
+                # motor_matching puede volver a correr. Decir "el yape no entro"
+                # ahi es prematuro -- se marca aparte y se concluye al cerrar.
+                if estado == "NO_EXISTE" and mes not in cerrados:
+                    estado = "NO_EXISTE_PROVISIONAL"
+                    detalle = (f"{detalle} || OJO: el ciclo {mes} sigue ABIERTO, "
+                               f"la conciliacion no termino. Confirmar al cerrar el mes")
             filas.append({
                 "MES": mes, "MZ": mz, "LT": lt, "NOMBRE": nombre,
                 "MONTO": r["MONTO"], "MONTO_YAPE": r["YAPE"], "COBRADOR": r["COBRADOR"],
@@ -536,7 +547,8 @@ _SECCIONES = [("¿De quién es?", "MES", "NOMBRE"),
               ("Resolución", "RESOLUCION", "RESOLUCION")]
 
 _COLOR_ESTADO = {
-    "NO_EXISTE":       ("FEE2E2", "991B1B"),   # el yape no entro: lo grave
+    "NO_EXISTE":            ("FEE2E2", "991B1B"),   # ciclo cerrado: concluyente
+    "NO_EXISTE_PROVISIONAL": ("FEF3C7", "92400E"),  # ciclo abierto: falta cerrar
     "POSIBLE":         ("FEF9E7", "7D6608"),
     "SIN_FECHA":       ("FEF9E7", "7D6608"),
     "FUERA_DE_RANGO":  ("F1F3F5", "868E96"),
@@ -613,15 +625,26 @@ def main(meses: list[str], sufijo: str) -> None:
     for e, n in df["ESTADO"].value_counts().items():
         print(f"    {n:>3}  {e}")
 
+    def _por_cobrador(g):
+        for cob, sub in g.groupby("COBRADOR"):
+            print(f"    {cob:<22} S/{sub['MONTO_YAPE'].sum():>8,.2f}  "
+                  f"({len(sub)} filas: "
+                  f"{' · '.join(f'{r.MZ}-{r.LT}' for r in sub.itertuples())})")
+
     perdidos = df[df["ESTADO"] == "NO_EXISTE"]
     if not perdidos.empty:
-        print(f"\n  YAPE QUE NO ENTRO A LA JASS — {len(perdidos)} filas, "
-              f"S/{perdidos['MONTO_YAPE'].sum():,.2f}")
-        for cob, g in perdidos.groupby("COBRADOR"):
-            print(f"    {cob:<22} S/{g['MONTO_YAPE'].sum():>8,.2f}  "
-                  f"({len(g)} filas: {' · '.join(f'{r.MZ}-{r.LT}' for r in g.itertuples())})")
+        print(f"\n  YAPE QUE NO ENTRO A LA JASS — ciclos CERRADOS, concluyente")
+        print(f"  {len(perdidos)} filas · S/{perdidos['MONTO_YAPE'].sum():,.2f}")
+        _por_cobrador(perdidos)
         print("\n  No dice quien se quedo con la plata: pedir la captura del yape al "
               "vecino,\n  ahi sale el numero de destino.")
+
+    prov = df[df["ESTADO"] == "NO_EXISTE_PROVISIONAL"]
+    if not prov.empty:
+        print(f"\n  PROVISIONAL — ciclo ABIERTO, la conciliacion no termino")
+        print(f"  {len(prov)} filas · S/{prov['MONTO_YAPE'].sum():,.2f}   "
+              f"NO reclamar todavia: confirmar al cerrar el mes")
+        _por_cobrador(prov)
 
     out = escribir(df, sufijo)
     print(f"\n  -> {out}")
