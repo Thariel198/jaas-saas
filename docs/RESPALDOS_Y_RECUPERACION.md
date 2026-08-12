@@ -1,8 +1,16 @@
 # Respaldos y recuperación — dónde está cada cosa y cómo se recupera
 
 Referencia permanente (no un evento activo — para eso está `LEER_ANTES.md`).
-Escrito el 2026-08-12, después de recuperar las mesas de julio que se habían
-borrado el 26/07 y de casi perder las de agosto corriendo tests.
+Escrito el 2026-08-12 a raíz de dos sustos, uno falso y uno real:
+
+- **falso:** las mesas de julio estaban vacías y se leyó como pérdida de datos.
+  Era el estado normal de un ciclo cerrado — `7_cierre` las había archivado en
+  `7_cierre/archivo/2026-07/`, donde estuvieron todo el tiempo (§4).
+- **real:** correr `pytest 4_pagos/efectivo/tests` sobrescribió mesa_1 y mesa_2
+  del ciclo EN CURSO con las fixtures de los tests (§5).
+
+La lección común a los dos: **antes de concluir que algo se perdió, buscar dónde
+el sistema ya lo guarda** — y antes de correr algo, saber si escribe.
 
 ---
 
@@ -53,25 +61,32 @@ falta tocar ninguna función.
 mes en español) vs `planilla_cobrado.xlsx` (sin periodo, en el activo).
 `shared/ciclo.py:resolver()` acepta las tres formas.
 
-### Copias sueltas del repo (sin git, pero salvaron julio)
+### Copias sueltas del repo (sin git)
 
 ```
-jass_system - 5           18/07/2026    mesas de julio, 374 filas CON fecha
-jass_system - copia (3)   15/07/2026    idéntica a la anterior (mismo hash)
+jass_system - 5           18/07/2026    mesas de julio, 374 filas — pero SIN las
+jass_system - copia (3)   15/07/2026      correcciones manuales del 21/07
 jass_system - copia-2     11/07/2026    373 filas, hasta el 07/07
 jass_system - agosto1     31/07/2026
 jass_system - agosto2     02/08/2026
 ```
 
-No son basura: son el único respaldo de la fuente entre commits.
+Son fotos a mitad de ciclo: útiles como red, peligrosas como fuente de verdad
+(ver "Restaurar mal tiene un costo propio" en §4).
+
+No son basura, pero **no son el respaldo oficial de las mesas** — ese es
+`7_cierre/archivo/<mes>/` (ver abajo). Sirven como red extra entre commits.
 
 ---
 
 ## 3. Inventario de respaldos automáticos
 
+**El primero de la lista es el que hay que mirar antes que cualquier otro.**
+
 | Carpeta | Qué guarda | Quién la escribe |
 |---|---|---|
-| `4_pagos/efectivo/backup/` | `discrepancias_*`, migraciones, y desde hoy `mesas_pre_reset_<ts>/` | `main.py`, `utils_templates.respaldar_si_tiene_datos` |
+| **`7_cierre/archivo/<mes>/`** | **las 7 mesas + planilla_cobrado + arrastres + correcciones_lote del ciclo, tal como quedaron al cerrar** | **`7_cierre/consolidar_cierre.py:paso2_cosechar`** |
+| `4_pagos/efectivo/backup/` | `discrepancias_*`, migraciones, y desde 12/08 `mesas_pre_reset_<ts>/` | `main.py`, `utils_templates.respaldar_si_tiene_datos` |
 | `4b_reclamos/backup/reclamos/` | `reclamos_<mes>_<ts>.xlsx` antes de cada regeneración | `4b_reclamos/main.py:_backup_con_timestamp` |
 | `shared/backups_ledger/` | `seguimiento_pueblo_pre_*`, `registro_cortes_pre_*` | tools del ledger, antes de cada mutación |
 | `3_boletas/backup/DATA_boletas/` | snapshot antes de cada `apply_correction` | `shared/data_boletas_repo` |
@@ -80,33 +95,66 @@ No son basura: son el único respaldo de la fuente entre commits.
 
 ---
 
-## 4. El incidente del 26/07/2026 — cómo se perdieron y recuperaron las mesas de julio
+## 4. Las mesas vacías de un ciclo cerrado son NORMALES — no un borrado
+
+Este apartado empezó siendo el relato de un incidente. **Era una alarma falsa**,
+y la corrección vale más que el relato original.
 
 ```
-26/07 15:33   se corre 4_pagos/efectivo/crear_templates.py para preparar agosto
-              → hacía wb.save() sobre las 7 mesas, sin guarda ni backup
-              → borra las 374 filas de julio escritas a mano
-              → las 7 quedan en 16.774 bytes (template pristino)
+26/07 15:33:22   7_cierre cierra el ciclo 2026-07 (estado_ciclo.json lo registra
+                 al segundo). Su paso 4 hace exactamente lo que debe:
 
-              NO se perdió plata: los 442 pagos ya estaban consolidados.
-              SÍ se perdió la fuente → julio dejó de ser auditable.
+                   paso2_cosechar  copia las 7 mesas a 7_cierre/archivo/2026-07/
+                   paso3_freeze    congela el ciclo
+                   paso4_limpiar   recién entonces las resetea a template
 
-12/08         se detecta al correr buscar_pago: "mesas de julio = 0 filas"
-              se recupera desde "jass_system - 5" (copia del 18/07)
-              → 374 filas, 18 con yape, 146 con comentario
+                 y su guarda es justamente esa: solo resetea lo que verificó
+                 que ya está archivado ("LIMPIAR — omitido (no hay cosecha
+                 confirmada)" si falta).
+
+12/08            al correr buscar_pago aparece "mesas de julio = 0 filas" y se
+                 interpreta como pérdida de datos. NO LO ERA: el respaldo estaba
+                 en 7_cierre/archivo/2026-07/, en los DOS repos (Julio y activo).
+                 No se buscó ahí.
 ```
 
-### Por qué git NO sirvió para julio y sí para agosto
+**Regla que sale de esto:** si las mesas de un ciclo cerrado están vacías, eso es
+el estado esperado. La fuente de ese ciclo vive en `7_cierre/archivo/<mes>/`.
+Antes de gritar pérdida de datos, mirar ahí.
 
-Esta es la parte que hay que recordar: **la fuente correcta depende del ciclo.**
+### Restaurar mal tiene un costo propio
+
+En la recuperación del 12/08 se restauró desde `jass_system - 5` (copia del
+18/07) en vez del archivo oficial (26/07). Las dos tienen 374 filas, pero entre
+el 18 y el 21/07 alguien había corregido dos filas a mano:
+
+```
+G-23   copia 18/07     MONTO=71  EFECTIVO=0   YAPE=71
+       archivo 26/07   MONTO=71  EFECTIVO=22  YAPE=49
+                       "Se dividió su Yape en efectivo y yape para que cuadre
+                        con la segregación del reporte del banco"
+```
+
+Restaurar la copia vieja revivió el estado previo a esa corrección, y
+`verificar_yape` volvió a reportar G-23 y F-14 como problemas ya resueltos.
+**Restaurar de más atrás no es conservador: reintroduce trabajo ya deshecho.**
+
+### Orden de preferencia para restaurar mesas
+
+1. **`7_cierre/archivo/<mes>/`** — el archivo oficial del cierre. Es el estado
+   final del ciclo, con las correcciones manuales aplicadas.
+2. **git**, si hay un commit posterior a la última jornada de cobranza.
+3. **copia suelta del repo**, como último recurso.
+
+Sobre git: **sirve o no según el ciclo.**
 
 | Fuente | Julio | Agosto |
 |---|---|---|
-| git | `42dee24` (06/07) tiene 263 filas y **`FECHA` vacía en todas** — las mesas se siguieron llenando después y no se volvieron a commitear | `5e3bdf3` (06/08) es posterior a la cobranza del 01-02/08 → completo |
-| copia suelta | `jass_system - 5` (18/07): 374 filas con `FECHA` | no hay copia de agosto |
+| git | `42dee24` (06/07): 263 filas y **`FECHA` vacía en todas** — las mesas se siguieron llenando después y no se volvieron a commitear | `5e3bdf3` (06/08): posterior a la cobranza del 01-02/08 → completo |
+| copia suelta | `jass_system - 5` (18/07): 374 filas con `FECHA`, pero **sin las correcciones del 21/07** | no hay copia de agosto |
+| archivo de cierre | `7_cierre/archivo/2026-07/`: 374 filas **con** las correcciones | el ciclo aún no cerró |
 
-**Antes de restaurar, comparar ambas fuentes.** Y después verificar que las
-fechas correspondan al ciclo:
+Después de restaurar, verificar que las fechas correspondan al ciclo:
 
 ```python
 # cada mesa debe tener FECHA del ciclo al que pertenece
@@ -129,13 +177,21 @@ está contando las filas reales en vez de las de su fixture.
 
 Arreglo pendiente: monkeypatchear `INPUTS_DIR` a un `tmp_path` en el setup.
 
-### `crear_templates.py` — ya tiene guarda (12/08)
+### `crear_templates.py` — el que SÍ podía borrar sin red (ya tiene guarda, 12/08)
 
-Ahora se niega si alguna mesa tiene cobros escritos, listando cuántas filas se
-perderían, y exige `--force`. Además `utils_templates.crear_mesa_vacio` respalda
-siempre a `backup/mesas_pre_reset_<ts>/` antes de pisar — eso cubre también a
-`7_cierre`, que es el otro que resetea mesas (ese sí legítimamente: archiva
-primero y pide consentimiento).
+Ojo: **este script no fue el culpable del 26/07** (fue `7_cierre`, que archivó
+antes — ver §4). Pero es el único que reseteaba mesas sin archivar ni respaldar:
+un `wb.save()` directo sobre las 7. Si alguien lo corría a mitad de ciclo, ahí sí
+se perdía todo.
+
+Desde el 12/08 se niega si alguna mesa tiene cobros escritos, listando cuántas
+filas se perderían, y exige `--force`. Además `utils_templates.crear_mesa_vacio`
+respalda siempre a `backup/mesas_pre_reset_<ts>/` antes de pisar — la guarda vive
+en el primitivo compartido para que la tengan los dos que resetean mesas, no solo
+el que se acuerde.
+
+`7_cierre` no necesitaba la guarda (archiva y pide consentimiento), pero el
+respaldo extra no le estorba.
 
 ### `git stash` con `.xlsx` abiertos en Excel
 
