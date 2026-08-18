@@ -84,18 +84,24 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
-BASE_DIR = Path(__file__).parent.parent          # 4b_reclamos/
+HERRAMIENTA_DIR = Path(__file__).parent          # 4b_reclamos/herramienta/ (este archivo)
+BASE_DIR = HERRAMIENTA_DIR.parent                # 4b_reclamos/
 REPO_DIR = BASE_DIR.parent                       # raíz del repo activo
 SHARED_DIR = REPO_DIR / "shared"
 
+sys.path.insert(0, str(HERRAMIENTA_DIR))
 sys.path.insert(0, str(BASE_DIR))
 sys.path.insert(0, str(SHARED_DIR))
 sys.path.insert(0, str(REPO_DIR / "4_pagos" / "efectivo"))
 
 import ciclo                            # noqa: E402
 import reporte_historico as rh          # noqa: E402
-import reporte_referencias_pago as rrp   # noqa: E402
 import verificar_lotes as vl            # noqa: E402  (confundible + subconjuntos + boletas)
+
+# reporte_referencias_pago.py se absorbió acá el 2026-08-18 (ver mas abajo,
+# seccion "REFERENCIA DE PAGO -- absorbido de reporte_referencias_pago.py"):
+# menos archivos con importaciones cruzadas que se rompen si alguno se mueve
+# de carpeta.
 
 # La lectura de las mesas y toda la verificacion del yape contra el banco viven
 # en verificar_yape.py, que ademas corre sola para barrer TODO el pueblo. Aca se
@@ -210,7 +216,7 @@ def _pagos_del_ciclo(mes: str) -> pd.DataFrame:
     marcado como perdido: está atribuido a un vecino (ver decisión de diseño)."""
     filas = []
 
-    yape = rrp._cargar_pagos_yape_crudo(mes)
+    yape = _cargar_pagos_yape_crudo(mes)
     if yape is not None and not yape.empty:
         for _, r in yape.iterrows():
             filas.append({
@@ -221,7 +227,7 @@ def _pagos_del_ciclo(mes: str) -> pd.DataFrame:
                 "MENSAJE": _txt(r.get("MENSAJE")), "CANAL": "YAPE",
             })
 
-    efec = rrp._cargar_pagos_efectivo_crudo(mes)
+    efec = _cargar_pagos_efectivo_crudo(mes)
     if efec is not None and not efec.empty:
         for _, r in efec.iterrows():
             filas.append({
@@ -302,13 +308,13 @@ def _blancos_disponibles() -> pd.DataFrame:
 
     # pre-mayo: la hoja "Reporte" de cada planilla histórica, mz="blanco"
     for archivo, mes in rh._ARCHIVOS_HISTORICOS:
-        hojas = rrp._cargar_hojas_historicas(archivo)
+        hojas = _cargar_hojas_historicas(archivo)
         dfr = hojas.get("Reporte")
         if dfr is None:
             continue
-        cmz = rrp._col(dfr, "mz")
-        cmonto, cfecha = rrp._col(dfr, "monto"), rrp._col(dfr, "fecha de operacion")
-        corigen, cmsg = rrp._col(dfr, "origen"), rrp._col(dfr, "mensaje")
+        cmz = _col(dfr, "mz")
+        cmonto, cfecha = _col(dfr, "monto"), _col(dfr, "fecha de operacion")
+        corigen, cmsg = _col(dfr, "origen"), _col(dfr, "mensaje")
         if cmz is None:
             continue
         sub = dfr[dfr[cmz].astype(str).str.strip().str.lower() == "blanco"]
@@ -1114,6 +1120,494 @@ def escribir(df: pd.DataFrame, mes: str) -> Path:
         print(f"\n  AVISO: {out.name} esta abierto en Excel — se guardo como {alt.name}")
         return alt
     return out
+
+
+# ============================================================================
+# REFERENCIA DE PAGO -- absorbido de reporte_referencias_pago.py (2026-08-18)
+#
+# "De donde vino cada pago": yape con fecha/hora exacta, o efectivo, y su
+# monto -- lo que reporte_historico.py imprime debajo del historial mensual.
+# Vivia en un archivo aparte que reporte_historico.py y verificar_yape.py
+# importaban -- se junta acá porque buscar_pago.py ya reusaba 2 de sus
+# funciones (_cargar_pagos_yape_crudo / _cargar_pagos_efectivo_crudo) y
+# quedar repartido en 3 archivos que se importan entre si es justo el patron
+# fragil que se rompio el 2026-08-17 cuando uno de los 3 se movio de carpeta.
+#
+# Fuentes por rango de fecha:
+#   - Oct 2025 -> Ene 2026: hoja "Cobranza" (Estado=c + Medio) decide yape/efectivo;
+#     si es yape, la hoja "Reporte" del mismo archivo trae fecha/hora exacta.
+#   - Feb 2026 -> May 2026: mismo criterio, pero el monto de efectivo sale de la
+#     hoja "Efectivo" dedicada (mas preciso que el total de Cobranza).
+#   - Jun 2026 -> Jul 2026: no hay archivo que preserve fecha/hora por transaccion
+#     para la mayoria de pagos yape (motor_matching no lo persiste) -- se muestra
+#     el total del ciclo desde planilla_cobrado.xlsx, sin desglose de hora.
+# ============================================================================
+
+HIST_DIR_REFS = BASE_DIR.parent / "obligaciones" / "inputs" / "planillas anteriores"
+_ARCHIVOS_HISTORICOS_REFS = rh._ARCHIVOS_HISTORICOS
+
+_AZUL = (26/255, 82/255, 118/255)
+_AZUL_BG = (235/255, 245/255, 251/255)
+_GRIS = (0.42, 0.45, 0.5)
+_NEGRO = (0.12, 0.16, 0.22)
+_VERDE = (0.02, 0.37, 0.27)
+_ZEBRA = (243/255, 244/255, 246/255)
+
+
+def _norm_col(s: str) -> str:
+    """Normaliza NOMBRE DE COLUMNA (sin tildes/mayus) para _col() -- distinto
+    de _norm() (arriba, importado de verificar_yape.py), que normaliza
+    VALORES de MZ/LT/nombre. Mismo nombre en los dos archivos originales,
+    renombrado acá para que puedan convivir en uno solo."""
+    s = unicodedata.normalize("NFKD", str(s)).encode("ascii", "ignore").decode()
+    return s.lower().replace("\n", " ").strip()
+
+
+def _col(df: pd.DataFrame, *candidatos: str):
+    normed = {}
+    for c in df.columns:
+        k = _norm_col(c)
+        if k not in normed:
+            normed[k] = c
+    for cand in candidatos:
+        cn = _norm_col(cand)
+        if cn in normed:
+            return normed[cn]
+    for cand in candidatos:
+        cn = _norm_col(cand)
+        for k, real in normed.items():
+            if cn in k:
+                return real
+    return None
+
+
+_cache_hojas_refs: dict[str, dict] = {}
+_avisados_refs: set[str] = set()
+
+
+def _avisar_falta_refs(p: Path, que: str) -> None:
+    """Un archivo de ciclo cerrado que no esta donde dice el path se avisa UNA
+    vez por corrida (esto se llama por predio). Fallaba en silencio hasta el
+    04/08/2026 y las filas sin origen se leian como pagos fantasma."""
+    if str(p) in _avisados_refs:
+        return
+    _avisados_refs.add(str(p))
+    print(f"  AVISO: falta {que} -> {p}")
+
+
+def _cargar_hojas_historicas(archivo: str) -> dict:
+    """Cachea Cobranza/Reporte/Efectivo de UN archivo historico a nivel modulo
+    -- sin esto, una corrida por lote reabre los mismos 8 excels una vez POR
+    PREDIO (~500 predios x 8 archivos = ~4000 lecturas en vez de 8)."""
+    if archivo in _cache_hojas_refs:
+        return _cache_hojas_refs[archivo]
+    p = HIST_DIR_REFS / archivo
+    hojas = {}
+    if p.exists():
+        hojas["Cobranza"] = pd.read_excel(p, sheet_name="Cobranza", header=0)
+        try:
+            hojas["Reporte"] = pd.read_excel(p, sheet_name="Reporte", header=0)
+        except Exception:
+            hojas["Reporte"] = None
+    _cache_hojas_refs[archivo] = hojas
+    return hojas
+
+
+def referencias_pago(mz: str, lt: str, tabla: pd.DataFrame | None = None,
+                     incluir_overlays: bool = True) -> list[dict]:
+    """Lista de {MES, MEDIO, FECHA_HORA, MONTO} -- una entrada por pago detectado.
+
+    El MONTO de cada mes SIEMPRE es el TOTAL que ya calculo _fila_historica()
+    (mismo numero que aparece en la tabla de arriba) -- no una relectura aparte
+    de una columna suelta. Hasta mayo 2026 ese total ya incluye mantenimiento
+    arrastrado y exceso devuelto via "mes anterior" (asi se manejaba antes);
+    la hoja Reporte/Efectivo solo aporta DONDE vino la plata (yape con hora,
+    o efectivo), no el monto -- eso evita que un monto parcial de una sola
+    transaccion descuadre contra el total real del mes."""
+    out = []
+
+    mapa_raw = rh._cargar_mapa_raw()
+    mz_hist, lt_hist = mapa_raw.get((mz, lt), (mz, lt))
+
+    for archivo, mes in _ARCHIVOS_HISTORICOS_REFS:
+        hojas = _cargar_hojas_historicas(archivo)
+        dfc = hojas.get("Cobranza")
+        if dfc is None:
+            continue
+        cmz, clt, cest, cmed = _col(dfc, "mz"), _col(dfc, "lt", "lote"), _col(dfc, "estado"), _col(dfc, "medio")
+        sub = dfc[(dfc[cmz].astype(str).str.strip() == mz_hist) & (dfc[clt].astype(str).str.strip() == lt_hist)]
+        if sub.empty or str(sub.iloc[0][cest]).strip().lower() != "c":
+            continue
+
+        fila_mes = None
+        if tabla is not None:
+            m = tabla[tabla["MES"] == mes]
+            if not m.empty:
+                fila_mes = m.iloc[0]
+        monto_mes = float(fila_mes["TOTAL"]) if fila_mes is not None else None
+        if monto_mes is None or monto_mes <= 0.005:
+            continue
+
+        medio = str(sub.iloc[0][cmed]).strip().lower()
+        if medio == "y":
+            dfr = hojas.get("Reporte")
+            if dfr is None:
+                out.append({"MES": mes, "MEDIO": "YAPE", "FECHA_HORA": "sin hoja Reporte", "MONTO": monto_mes})
+                continue
+            cmzr, cltr = _col(dfr, "mz"), _col(dfr, "lote", "lt")
+            ctr, cfr = _col(dfr, "tipo de transaccion"), _col(dfr, "fecha de operacion")
+            subr = dfr[(dfr[cmzr].astype(str).str.strip() == mz_hist) & (dfr[cltr].astype(str).str.strip() == lt_hist)]
+            subr = subr[subr[ctr].astype(str).str.upper().str.startswith("TE PAG", na=False)]
+            fecha = str(subr.iloc[0][cfr]) if not subr.empty else "sin match en Reporte"
+            out.append({"MES": mes, "MEDIO": "YAPE", "FECHA_HORA": fecha, "MONTO": monto_mes})
+        else:
+            out.append({"MES": mes, "MEDIO": "EFECTIVO", "FECHA_HORA": "--", "MONTO": monto_mes})
+
+    # Cada ciclo posterior a mayo: total real pagado (yape+efectivo) desde el
+    # planilla_cobrado DE SU PROPIO CICLO (los cerrados en su repo congelado,
+    # el vigente en el repo activo -- ver _ciclos_recientes()) vs. lo que la
+    # tabla de arriba muestra aplicado a conceptos -- desde junio 2026 el
+    # exceso se RETIENE (no se aplica ni se muestra solo, ver nota del
+    # reporte), asi que puede haber una diferencia real y legitima. Se
+    # muestra como linea aparte, nunca mezclada.
+    _PLANILLAS_RECIENTES = _ciclos_recientes()
+    for mes_ciclo, f in _PLANILLAS_RECIENTES:
+        # Los overlays entran a la cascada del ciclo pero NO viven en
+        # planilla_cobrado -- van primero para que aparezcan aunque el ciclo
+        # no tenga fila de yape/efectivo.
+        if incluir_overlays:
+            out.extend(_overlays_de_plata(mz, lt, mes_ciclo))
+        if not f.exists():
+            _avisar_falta_refs(f, f"referencias de pago de {mes_ciclo}")
+            continue
+        dfp = pd.read_excel(f, sheet_name="planilla_cobrado", header=1)
+        subp = dfp[(dfp["MZ"].astype(str).str.strip() == mz) & (dfp["LT"].astype(str).str.strip() == lt)]
+        if subp.empty:
+            continue
+        r = subp.iloc[0]
+        yape = rh._numf(r.get("MONTO_YAPE"))
+        efectivo = rh._numf(r.get("MONTO_EFECTIVO"))
+        total_real = yape + efectivo
+        total_aplicado = 0.0
+        if tabla is not None:
+            m = tabla[tabla["MES"] == mes_ciclo]
+            if not m.empty:
+                total_aplicado = float(m.iloc[0]["TOTAL"])
+        if yape > 0.005:
+            # pagos_yape_tepago.xlsx directo -- ya viene resuelto 1 a 1 por
+            # MZ/LOTE, no hace falta adivinar nada. _yape_fecha_hora (cruce
+            # de nombre por prefijo contra el banco crudo) se sacó del
+            # camino: cuando el origen registrado en maestro_yape.xlsx es
+            # generico (ej. J-1: origen = "Janet Villanueva", la tesorera --
+            # su nombre aparece en decenas de transacciones ajenas) pegaba
+            # fechas de pagos de otros predios (bug encontrado 01/08/2026).
+            fecha_yape = _fecha_yape_cruda(mz, lt, mes_ciclo)
+            out.append({"MES": mes_ciclo, "MEDIO": "YAPE",
+                        "FECHA_HORA": fecha_yape or "sin match en pagos_yape_tepago.xlsx (total del ciclo)",
+                        "MONTO": yape})
+        if efectivo > 0.005:
+            dia, cobrador = _cobrador_efectivo(mz, lt, mes_ciclo)
+            detalle = f"{dia} · {cobrador}" if cobrador else "sin detalle de transaccion (total del ciclo)"
+            out.append({"MES": mes_ciclo, "MEDIO": "EFECTIVO", "FECHA_HORA": detalle, "MONTO": efectivo})
+        # Si total_real y total_aplicado no coinciden (en cualquier sentido),
+        # no se afirma de donde viene ni a donde fue la diferencia -- esto
+        # solia mostrar una nota especulando el origen (blancos/abonos/
+        # condonacion/convenio instalacion) y generaba confusion, porque esa
+        # explicacion no esta confirmada (a veces es solo lo que la secretaria
+        # declaro despues). Se deja en blanco a proposito: se muestra
+        # unicamente el pago real encontrado, sin inventar el resto.
+
+    return out
+
+
+_ABONOS_REZAGADOS_REFS = BASE_DIR.parent / "shared" / "abonos_rezagados.xlsx"
+_BLANCOS_EFECTIVO_REFS = BASE_DIR.parent / "shared" / "blancos_efectivo.xlsx"
+_cache_overlays_refs: dict[str, pd.DataFrame] = {}
+
+
+def _cargar_overlay(p: Path) -> pd.DataFrame:
+    if str(p) not in _cache_overlays_refs:
+        if not p.exists():
+            _avisar_falta_refs(p, "overlay de pagos")
+            _cache_overlays_refs[str(p)] = pd.DataFrame()
+        else:
+            df = pd.read_excel(p, header=1)
+            df.columns = [str(c).strip().upper() for c in df.columns]
+            _cache_overlays_refs[str(p)] = df
+    return _cache_overlays_refs[str(p)]
+
+
+def _overlays_de_plata(mz: str, lt: str, mes_ciclo: str) -> list[dict]:
+    """Plata real que entra a la cascada del ciclo pero NO esta en
+    MONTO_YAPE/MONTO_EFECTIVO de planilla_cobrado: abonos que el cobrador
+    retuvo y se regularizaron despues, y efectivo que habia entrado como
+    blanco. Sin estas lineas el pago que salda la deuda queda sin origen
+    visible y se lee como pago fantasma (caso encontrado 05/08/2026: los 4
+    abonos retenidos por Wagner en julio -- S-5, D-16, D1-6, L-4)."""
+    out = []
+    for p, medio, quien_cols in ((_ABONOS_REZAGADOS_REFS, "ABONO REZ.", ("RETENIDO_POR", "CANAL_ORIGEN")),
+                                  (_BLANCOS_EFECTIVO_REFS, "BLANCO EF.", ("ORIGEN", "CANAL"))):
+        df = _cargar_overlay(p)
+        if df.empty or "MES_ANO_APLICA" not in df.columns:
+            continue
+        sub = df[(df["MZ"].astype(str).str.strip() == mz) &
+                 (df["LT"].apply(_norm_lote) == _norm_lote(lt)) &
+                 (df["MES_ANO_APLICA"].astype(str).str.strip() == mes_ciclo)]
+        for _, r in sub.iterrows():
+            quien = " · ".join(str(r[c]).strip() for c in quien_cols
+                               if c in df.columns and pd.notna(r.get(c)))
+            fecha_raw = r.get("FECHA_REAL", "")
+            fecha = str(fecha_raw).strip() if pd.notna(fecha_raw) else "sin fecha registrada"
+            out.append({"MES": mes_ciclo, "MEDIO": medio,
+                        "FECHA_HORA": f"{fecha} · del ciclo {r.get('MES_CICLO')} · {quien}",
+                        "MONTO": float(r["MONTO"])})
+    return out
+
+
+def _repo_de_ciclo(mes_ano: str) -> Path:
+    """Repo donde vive el output crudo de ese ciclo: el suyo propio congelado
+    si ya cerró (rh.REPOS_CICLO_CERRADO), o el repo activo si es el ciclo
+    vigente -- así ningún ciclo depende de hardcodear "cuál mes es hoy"."""
+    return rh.REPOS_CICLO_CERRADO.get(mes_ano, BASE_DIR.parent)
+
+
+def _ciclos_recientes() -> list[tuple[str, Path]]:
+    """(mes_ano, ruta a planilla_cobrado) de cada ciclo posterior a mayo: los
+    cerrados de rh.REPOS_CICLO_CERRADO + el vigente de shared/ciclo_activo.json
+    (si no es ya uno de los cerrados). Se recalcula en cada llamada -- barato,
+    y así recoge el ciclo activo sin reiniciar el proceso cuando el mes rueda."""
+    ciclos = {m: rh._planilla_ciclo_cerrado(m) for m in rh.REPOS_CICLO_CERRADO}
+    activo = ciclo.activo(default=None)
+    if activo and activo not in ciclos:
+        ciclos[activo] = BASE_DIR.parent / "5_cobranza" / "outputs" / "planilla_cobrado.xlsx"
+    return sorted(ciclos.items())
+
+
+def _pagos_efectivo_crudo_path(mes_ciclo: str) -> Path:
+    """Repo propio si el ciclo cerró, repo activo si es el vigente (ver
+    _repo_de_ciclo). legacy_sin_periodo=True porque el ciclo activo todavía
+    escribe pagos_efectivo.xlsx sin periodo además del nombre canónico
+    (migra en la tanda B) y los repos cerrados de junio/julio quedaron con
+    esa convención -- ciclo.resolver prueba el nombre con periodo primero,
+    así que no cambia nada para los ciclos que ya migraron."""
+    return ciclo.resolver(_repo_de_ciclo(mes_ciclo) / "4_pagos" / "efectivo" / "outputs",
+                          "pagos_efectivo", mes_ciclo, legacy_sin_periodo=True)
+
+
+_cache_pagos_efectivo_refs: dict[str, pd.DataFrame] = {}
+
+
+def _cargar_pagos_efectivo_crudo(mes_ciclo: str) -> pd.DataFrame | None:
+    """FECHA real por transaccion -- trazabilidad_{mes}.xlsx (hoja
+    solo_un_cobrador) tiene FECHA_COBRO vacio para TODO julio (bug de
+    construccion, 221/221 filas verificado 01/08/2026) aunque el archivo
+    crudo que la alimenta si trae fecha. Se usa como fuente de la fecha en
+    vez de trazabilidad; trazabilidad sigue siendo la fuente del COBRADOR
+    resuelto (para pagos divididos entre mesas)."""
+    if mes_ciclo not in _cache_pagos_efectivo_refs:
+        p = _pagos_efectivo_crudo_path(mes_ciclo)
+        if not p.exists():
+            _avisar_falta_refs(p, f"pagos_efectivo de {mes_ciclo}")
+            _cache_pagos_efectivo_refs[mes_ciclo] = pd.DataFrame()
+        else:
+            df = pd.read_excel(p, header=1)
+            df.columns = [str(c).strip() for c in df.columns]
+            _cache_pagos_efectivo_refs[mes_ciclo] = df
+    return _cache_pagos_efectivo_refs[mes_ciclo]
+
+
+def _fecha_efectivo_cruda(mz: str, lt: str, mes_ciclo: str, cobrador: str) -> str | None:
+    df = _cargar_pagos_efectivo_crudo(mes_ciclo)
+    if df is None or df.empty or "FECHA" not in df.columns:
+        return None
+    sub = df[(df["MZ"].astype(str).str.strip() == mz) & (df["LT"].astype(str).str.strip() == str(lt))]
+    if sub.empty:
+        return None
+    if cobrador and "COBRADOR" in sub.columns:
+        con_cobrador = sub[sub["COBRADOR"].astype(str).str.strip() == cobrador]
+        if not con_cobrador.empty:
+            sub = con_cobrador
+    fechas = sub["FECHA"].dropna()
+    if fechas.empty:
+        return None
+    return " · ".join(sorted({str(f) for f in fechas}))
+
+
+def _cobrador_fecha_efectivo_crudo(mz: str, lt: str, mes_ciclo: str) -> tuple[str, str] | None:
+    """Respaldo cuando el predio NO aparece en trazabilidad_{mes}.xlsx en
+    absoluto (135 de 357 casos de julio, verificado 01/08/2026 -- gap
+    distinto al de FECHA_COBRO vacio: acá falta la fila entera). Se toma
+    directo de pagos_efectivo.xlsx filtrando ESTADO=solo_un_cobrador (mismo
+    criterio que usaría trazabilidad si el predio estuviera ahí)."""
+    df = _cargar_pagos_efectivo_crudo(mes_ciclo)
+    if df is None or df.empty or "ESTADO" not in df.columns:
+        return None
+    sub = df[(df["MZ"].astype(str).str.strip() == mz) & (df["LT"].astype(str).str.strip() == str(lt)) &
+              (df["ESTADO"] == "solo_un_cobrador")]
+    if sub.empty:
+        return None
+    r = sub.iloc[0]
+    fecha = r.get("FECHA")
+    dia = str(fecha) if pd.notna(fecha) else "(fecha no registrada)"
+    cobrador = str(r.get("COBRADOR", "")).strip()
+    return dia, cobrador
+
+
+def _pagos_yape_crudo_path(mes_ciclo: str) -> Path:
+    """Mismo criterio que _pagos_efectivo_crudo_path: repo propio si el ciclo
+    cerró, repo activo si es el vigente."""
+    return ciclo.resolver(_repo_de_ciclo(mes_ciclo) / "4_pagos" / "yape" / "motor_matching" / "outputs",
+                          "pagos_yape_tepago", mes_ciclo, legacy_sin_periodo=True)
+
+
+_cache_pagos_yape_crudo_refs: dict[str, pd.DataFrame] = {}
+
+
+def _cargar_pagos_yape_crudo(mes_ciclo: str) -> pd.DataFrame | None:
+    """FECHA real por transaccion, directo de pagos_yape_tepago.xlsx (lo que
+    alimenta maestro_yape.xlsx) -- respaldo cuando _yape_fecha_hora() no
+    encuentra match cruzando maestro_yape contra el banco crudo (cruce por
+    nombre truncado + fecha, se cae seguido). Un paso mas atras que ese
+    cruce: esta fecha ya viene resuelta contra MZ/LOTE, sin necesidad de
+    adivinar el origen."""
+    if mes_ciclo not in _cache_pagos_yape_crudo_refs:
+        p = _pagos_yape_crudo_path(mes_ciclo)
+        if not p.exists():
+            _avisar_falta_refs(p, f"pagos_yape_tepago de {mes_ciclo}")
+            _cache_pagos_yape_crudo_refs[mes_ciclo] = pd.DataFrame()
+        else:
+            df = pd.read_excel(p, header=1)
+            df.columns = [str(c).strip() for c in df.columns]
+            _cache_pagos_yape_crudo_refs[mes_ciclo] = df
+    return _cache_pagos_yape_crudo_refs[mes_ciclo]
+
+
+def _norm_lote(v) -> str:
+    """pagos_yape_tepago.xlsx guarda LOTE como numero (4.0) para lotes sin
+    letra -- comparar como texto plano ("4") sin esto nunca matchea, aunque
+    la fila SI exista (bug encontrado 01/08/2026, caso I-4: el dato estaba,
+    la comparacion de texto lo escondia)."""
+    s = str(v).strip()
+    if s.endswith(".0"):
+        s = s[:-2]
+    return s
+
+
+def _fecha_yape_cruda(mz: str, lt: str, mes_ciclo: str) -> str | None:
+    df = _cargar_pagos_yape_crudo(mes_ciclo)
+    if df is None or df.empty or "FECHA" not in df.columns or "LOTE" not in df.columns:
+        return None
+    sub = df[(df["MZ"].astype(str).str.strip() == mz) & (df["LOTE"].apply(_norm_lote) == _norm_lote(lt))]
+    fechas = sub["FECHA"].dropna()
+    if fechas.empty:
+        return None
+    return " · ".join(sorted({str(f) for f in fechas}))
+
+
+def _cobrador_efectivo(mz: str, lt: str, mes_ciclo: str) -> tuple[str, str]:
+    """Dia de cobro y cobrador para un pago en efectivo de junio/julio 2026.
+    Fuente primaria: 4_pagos/efectivo/trazabilidad/trazabilidad_{mes}.xlsx
+    (hoja solo_un_cobrador). Dos gaps verificados en julio (01/08/2026), los
+    dos con respaldo en pagos_efectivo.xlsx (el crudo que alimenta la
+    trazabilidad):
+      1. El predio SI esta en trazabilidad pero FECHA_COBRO vacio (221/221
+         filas de julio) -> _fecha_efectivo_cruda().
+      2. El predio NO esta en trazabilidad en absoluto (135/357 de julio,
+         gap distinto) -> _cobrador_fecha_efectivo_crudo().
+    Un solo fix acá cubre cualquier reporte que llame referencias_pago()."""
+    f = BASE_DIR.parent / "4_pagos" / "efectivo" / "trazabilidad" / f"trazabilidad_{mes_ciclo}.xlsx"
+    df = None
+    if f.exists():
+        try:
+            df = pd.read_excel(f, sheet_name="solo_un_cobrador", header=1)
+        except Exception:
+            df = None
+
+    sub = None
+    if df is not None:
+        sub = df[(df["MZ"].astype(str).str.strip() == mz) & (df["LT"].astype(str).str.strip() == str(lt))]
+
+    if sub is None or sub.empty:
+        crudo = _cobrador_fecha_efectivo_crudo(mz, lt, mes_ciclo)
+        return crudo if crudo else ("", "")
+
+    r = sub.iloc[0]
+    cobrador = str(r.get("COBRADOR", "")).strip()
+    fecha = r.get("FECHA_COBRO")
+    if pd.notna(fecha):
+        dia = str(fecha)
+    else:
+        dia = _fecha_efectivo_cruda(mz, lt, mes_ciclo, cobrador) or "(fecha no registrada)"
+    return dia, cobrador
+
+
+def _dibujar_tabla_referencias(page, x: float, y: float, w: float, refs: list[dict]) -> float:
+    headers = ["Mes", "Medio", "Fecha / hora", "Monto"]
+    anchos = [70, 80, w - 70 - 80 - 110, 110]
+    rh_row = 16
+
+    page.insert_text((x, y), "Referencia de pago (de donde vino cada pago)", fontsize=9, fontname="hebo", color=_AZUL)
+    y += 16
+
+    page.draw_rect(fitz.Rect(x, y, x + w, y + rh_row), fill=_AZUL_BG, color=None)
+    cx = x
+    for h, cw in zip(headers, anchos):
+        page.insert_text((cx + 4, y + rh_row - 5), h, fontsize=8, fontname="hebo", color=_AZUL)
+        cx += cw
+    y += rh_row
+
+    for n, r in enumerate(refs):
+        if n % 2 == 1:
+            page.draw_rect(fitz.Rect(x, y, x + w, y + rh_row), fill=_ZEBRA, color=None)
+        cx = x
+        page.insert_text((cx + 4, y + rh_row - 5), str(r["MES"]), fontsize=8, fontname="hebo", color=_NEGRO)
+        cx += anchos[0]
+        es_nota = r["MEDIO"] == "(nota)"
+        color_medio = _GRIS if es_nota else (_VERDE if r["MEDIO"] == "YAPE" else _GRIS)
+        page.insert_text((cx + 4, y + rh_row - 5), r["MEDIO"], fontsize=8, fontname="hebo", color=color_medio)
+        cx += anchos[1]
+        page.insert_text((cx + 4, y + rh_row - 5), str(r["FECHA_HORA"]), fontsize=7.5 if es_nota else 8,
+                          fontname="helv", color=_GRIS if es_nota else _NEGRO)
+        cx += anchos[2]
+        if not es_nota:
+            texto_monto = f"S/ {r['MONTO']:,.2f}"
+            tw = fitz.get_text_length(texto_monto, fontname="hebo", fontsize=8)
+            page.insert_text((cx + anchos[-1] - 6 - tw, y + rh_row - 5), texto_monto, fontsize=8, fontname="hebo", color=_NEGRO)
+        y += rh_row
+
+    return y
+
+
+def verificar_predio(mz: str, lt: str, tabla: pd.DataFrame | None = None, refs: list[dict] | None = None) -> list[dict]:
+    """Compara, mes a mes, el TOTAL de la tabla de historial contra la suma de
+    referencias de pago de ese mes. Devuelve solo los meses que NO cuadran
+    (lista vacia = todo cuadra)."""
+    if tabla is None:
+        tabla = rh.tabla_predio(mz, lt)
+        tabla = rh.corregir_tabla_por_redirects(tabla, mz, lt, rh._cargar_redirects())
+    if refs is None:
+        refs = referencias_pago(mz, lt)
+
+    ref_por_mes: dict[str, float] = {}
+    for r in refs:
+        ref_por_mes[r["MES"]] = ref_por_mes.get(r["MES"], 0.0) + r["MONTO"]
+
+    _MESES_RECIENTES = {"2026-06", "2026-07"}
+
+    problemas = []
+    for _, row in tabla.iterrows():
+        mes = row["MES"]
+        total_tabla = float(row["TOTAL"])
+        total_ref = ref_por_mes.get(mes, 0.0)
+        # jun-jul: no se afirma el origen de una diferencia (ver
+        # referencias_pago) -- un descuadre en cualquier sentido ahi es
+        # esperado, no se marca como "problema" del reporte.
+        if mes in _MESES_RECIENTES:
+            continue
+        if abs(total_tabla - total_ref) > 0.5:
+            problemas.append({"MES": mes, "TOTAL_TABLA": total_tabla, "TOTAL_REFERENCIA": total_ref,
+                               "DIFERENCIA": round(total_tabla - total_ref, 2)})
+    return problemas
 
 
 def main(mes: str) -> None:

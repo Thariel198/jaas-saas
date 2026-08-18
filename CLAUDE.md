@@ -1,6 +1,6 @@
 # jass_system — Referencia de sesión
 
-Reglas operativas que aplican en toda sesión. Detalle y contexto en `docs/metodologia_desarrollo.md`.
+Reglas operativas que aplican en toda sesión. El guardrail portable está en `AGENTS.md` y el estado de decisiones en `docs/decisiones/estado_decisiones.md`. Detalle y contexto en `docs/metodologia_desarrollo.md`.
 
 ---
 
@@ -87,6 +87,8 @@ Todas las columnas Excel — sin importar si las llenó un humano o el sistema �
 8. **Verificar sincronía del README al cerrar sesión.** Antes de cerrar, confirmar que README.md refleje la estructura real de módulos actual. Si hay desajuste, corregirlo antes de actualizar memoria/pendientes.
 9. **Preservación cableada antes de agregar una columna humana a un output regenerado.** Si un `main.py` regenera un archivo y se le agrega una columna que llena un humano, la preservación (3 capas: backup + leer decisión previa + reaplicar por clave) es parte del mismo diseño, no un parche posterior. Si no se puede preservar, no agregar esa columna a un output regenerable — va a un input propio. (El bug B5 fue exactamente esto: columna manual pisada por regeneración ciega.)
 10. **`LEER_ANTES.md` en la raíz del repo/pipeline antes de tocar cualquier módulo, cuando hay un evento activo que rompe el flujo normal.** Un evento activo = plata/datos que saltan de un ciclo o repo a otro, un repo cerrado con limpieza pendiente, o cualquier situación que un lector nuevo (humano o agente) no puede inferir leyendo un solo módulo. Un `README.md` de módulo documenta cómo funciona ese módulo; un `LEER_ANTES.md` de raíz documenta lo excepcional que atraviesa varios módulos o repos. Se crea al detectar el evento, no al final de la sesión, y se borra cuando el evento se cierra (todas las filas de su tabla de estado quedan ejecutadas).
+11. **Decisiones cerradas quedan bloqueadas.** Si una regla ya fue validada en un RETOMAR, README, LEER_ANTES o decisión explícita del usuario, no se reinterpreta ni se cambia en otra sesión. Antes de editar código, el agente debe identificar la instrucción nueva que autoriza el cambio; si no existe, conserva el comportamiento y pregunta. Un `SOURCE` técnico no reemplaza la evidencia de negocio ya acordada.
+12. **Pedido ambiguo o de ejecución → Plan Mode antes de actuar.** Si el pedido no es 100% inequívoco, o implica ejecutar/generar algo, entrar en Plan Mode: redactar el prompt/plan exacto que se va a correr, esperar aprobación explícita del usuario, recién entonces ejecutar. No alcanza con preguntar "¿lo hago?" en texto suelto — usar el mecanismo de Plan Mode para que el usuario vea y valide el plan antes de la ejecución.
 
 ---
 

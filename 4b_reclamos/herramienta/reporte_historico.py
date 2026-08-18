@@ -30,12 +30,13 @@ import fitz  # PyMuPDF
 import pandas as pd
 
 BASE_DIR = Path(__file__).parent
-sys.path.insert(0, str(BASE_DIR.parent / "shared"))
+REPO_ROOT = BASE_DIR.parent.parent
+sys.path.insert(0, str(REPO_ROOT / "shared"))
 import seguimiento_repo as repo  # noqa: E402
 import ciclo  # noqa: E402
 
-HIST_DIR = BASE_DIR.parent / "obligaciones" / "inputs" / "planillas anteriores"
-REASIGNACIONES_PATH = BASE_DIR.parent / "0_padron" / "reasignaciones_candidata.xlsx"
+HIST_DIR = REPO_ROOT / "obligaciones" / "inputs" / "planillas anteriores"
+REASIGNACIONES_PATH = REPO_ROOT / "0_padron" / "reasignaciones_candidata.xlsx"
 
 # (archivo, MES_ANO) — orden cronológico real, no alfabético del nombre de archivo
 _ARCHIVOS_HISTORICOS = [
@@ -163,16 +164,20 @@ def _fila_historica(mz: str, lt: str, df: pd.DataFrame | None, mes: str, nombre_
              or (_val(r, df, "Reunión") + _val(r, df, "Faena")))
     acuerdos = _val(r, df, "Techado")
 
+    deuda = {"DEUDA_CONSUMO": consumo, "DEUDA_MANT": mant, "DEUDA_MES_ANT": mes_ant,
+             "DEUDA_CORTE": corte, "DEUDA_CONVENIO": convenio, "DEUDA_MULTA": multa,
+             "DEUDA_ACUERDOS": acuerdos}
+
     if not pagado:
         # No pagó nada ese mes -> no se muestra ningun concepto como cubierto
         return {"MES": mes, "CONSUMO": 0, "MANT": 0, "MES_ANT": 0, "CORTE": 0,
                 "CONVENIO": 0, "MULTA": 0, "ACUERDOS": 0, "TOTAL": 0.0, "PAGO_COMPLETO": False,
-                "NOTA": "No pago nada"}
+                "NOTA": "No pago nada", **deuda}
 
     total = consumo + mant + mes_ant + corte + convenio + multa + acuerdos
     return {"MES": mes, "CONSUMO": consumo, "MANT": mant, "MES_ANT": mes_ant, "CORTE": corte,
             "CONVENIO": convenio, "MULTA": multa, "ACUERDOS": acuerdos, "TOTAL": total,
-            "PAGO_COMPLETO": True, "NOTA": ""}
+            "PAGO_COMPLETO": True, "NOTA": "", **deuda}
 
 
 # Cada ciclo posterior a mayo (post-ledger) que ya cerró vive congelado en su
@@ -219,7 +224,7 @@ def _cargar_dfp_ciclo_cerrado(mes_ano: str) -> pd.DataFrame | None:
     return _dfp_ciclo_cerrado_cache[mes_ano]
 
 
-_PLANILLA_MES_DIR = BASE_DIR.parent / "shared" / "planilla_mes"
+_PLANILLA_MES_DIR = REPO_ROOT / "shared" / "planilla_mes"
 _planilla_correcta_cache: dict[str, pd.DataFrame] = {}
 
 
@@ -258,9 +263,9 @@ def _abono_rezagado_predio(mz: str, lt: str, mes_ano: str) -> float:
     la tabla de Referencia de pago, pero el total de arriba tiene que cuadrar)."""
     global _abonos_rezagados_cache
     if _abonos_rezagados_cache is None:
-        ruta = BASE_DIR.parent / "shared" / "abonos_rezagados.xlsx"
+        ruta = REPO_ROOT / "shared" / "abonos_rezagados.xlsx"
         if ruta.exists():
-            df = pd.read_excel(ruta, sheet_name="abonos_rezagados", header=1, dtype=str)
+            df = pd.read_excel(ruta, sheet_name="Abonos_Raw", header=1, dtype=str)
             df["MZ"] = df["MZ"].astype(str).str.strip()
             df["LT"] = df["LT"].astype(str).str.strip()
             df["MONTO"] = pd.to_numeric(df["MONTO"], errors="coerce").fillna(0.0)
@@ -290,7 +295,7 @@ def _corte_exonerado(mz: str, lt: str) -> bool:
     (multa/acuerdos)."""
     global _ajustes_cargo_cache
     if _ajustes_cargo_cache is None:
-        ruta = BASE_DIR.parent / "shared" / "ajustes_cargo.xlsx"
+        ruta = REPO_ROOT / "shared" / "ajustes_cargo.xlsx"
         if ruta.exists():
             df = pd.read_excel(ruta, header=1, dtype=str)
             df["MZ"] = df["MZ"].astype(str).str.strip()
@@ -306,7 +311,8 @@ def _corte_exonerado(mz: str, lt: str) -> bool:
     return not sub.empty
 
 
-def _datos_ciclo(mz: str, lt: str, dfp: pd.DataFrame) -> dict | None:
+def _datos_ciclo(mz: str, lt: str, dfp: pd.DataFrame,
+                 incluir_abonos_rezagados: bool = True) -> dict | None:
     """Consumo/mant/mes_ant/corte de UN ciclo (junio o julio), capados por
     cascada P1(agua)->P2(mes anterior)->P2b(corte) contra lo realmente pagado
     ese ciclo -- si pagó menos de lo debido, eso es lo que se acredita, no de
@@ -335,7 +341,8 @@ def _datos_ciclo(mz: str, lt: str, dfp: pd.DataFrame) -> dict | None:
     mes_ant_debido = _numf(fuente.get("MES_ANTERIOR"))
     corte_debido = 0.0 if _corte_exonerado(mz, lt) else _numf(fuente.get("CORTE_RECONEXION"))
 
-    abono_extra = _abono_rezagado_predio(mz, lt, mes_ano) if mes_ano else 0.0
+    abono_extra = (_abono_rezagado_predio(mz, lt, mes_ano)
+                   if incluir_abonos_rezagados and mes_ano else 0.0)
     total_pagado = _numf(r.get("MONTO_YAPE")) + _numf(r.get("MONTO_EFECTIVO")) + abono_extra
     consumo = min(consumo_debido, total_pagado)
     restante = max(0.0, total_pagado - consumo)
@@ -344,17 +351,66 @@ def _datos_ciclo(mz: str, lt: str, dfp: pd.DataFrame) -> dict | None:
     mes_ant = min(mes_ant_debido, restante)
     restante = max(0.0, restante - mes_ant)
     corte = min(corte_debido, restante)
+    restante = max(0.0, restante - corte)
+    convenio = min(_numf(fuente.get("CONVENIO")), restante)
+    restante = max(0.0, restante - convenio)
+    multa = min(_numf(fuente.get("MULTA")), restante)
+    restante = max(0.0, restante - multa)
+    acuerdos = min(_numf(fuente.get("ACUERDOS_ASAMBLEA")), restante)
     return {"mes_ano": mes_ano, "consumo": consumo, "mant": mant, "mes_ant": mes_ant,
-            "corte": corte, "hubo_pago": total_pagado > 0.005}
+            "corte": corte, "hubo_pago": total_pagado > 0.005,
+            "deuda_consumo": consumo_debido, "deuda_mant": mant_debido,
+            "deuda_mes_ant": mes_ant_debido, "deuda_corte": corte_debido,
+            "deuda_convenio": _numf(fuente.get("CONVENIO")),
+            "deuda_multa": _numf(fuente.get("MULTA")),
+            "deuda_acuerdos": _numf(fuente.get("ACUERDOS_ASAMBLEA")),
+            "deuda_total": (consumo_debido + mant_debido + mes_ant_debido + corte_debido
+                            + _numf(fuente.get("CONVENIO")) + _numf(fuente.get("MULTA"))
+                            + _numf(fuente.get("ACUERDOS_ASAMBLEA"))),
+            "pago_consumo": consumo, "pago_mant": mant,
+            "pago_mes_ant": mes_ant, "pago_corte": corte,
+            "pago_convenio": convenio, "pago_multa": multa, "pago_acuerdos": acuerdos}
 
 
-def _filas_recientes(mz: str, lt: str, eventos: pd.DataFrame, dfp: pd.DataFrame) -> list[dict]:
+def _filas_recientes(mz: str, lt: str, eventos: pd.DataFrame, dfp: pd.DataFrame,
+                     incluir_abonos_rezagados: bool = True,
+                     deuda_conceptos_desde_ledger: bool = False) -> list[dict]:
     """Junio en adelante: seguimiento_pueblo + planilla_cobrado. Reusa la logica
     ya construida en reporte_seguimiento.py (cascada vieja, sin exponer exceso)."""
-    sys.path.insert(0, str(BASE_DIR))
+    sys.path.insert(0, str(BASE_DIR.parent))
     import reporte_seguimiento as rs
 
     resumen, historial = rs._resumen_y_historial(mz, lt, eventos)
+
+    ledger_por_mes: dict[str, dict[str, float]] = {}
+    ledger_deuda_por_mes: dict[str, dict[str, float]] = {}
+    if deuda_conceptos_desde_ledger:
+        ev_predio = eventos[(eventos["MZ"].astype(str).str.strip() == mz) &
+                            (eventos["LT"].astype(str).str.strip() == lt)].copy()
+        ev_predio["MES"] = ev_predio["MES"].astype(str).str.strip()
+        ev_predio["CONCEPTO"] = ev_predio["CONCEPTO"].astype(str).str.strip().str.upper()
+        running: dict[str, float] = {}
+        for mes in sorted(ev_predio["MES"].unique()):
+            deuda_mes: dict[str, float] = running.copy()
+            for concepto in ("MULTA", "ACUERDOS", "CONVENIO"):
+                sub = ev_predio[(ev_predio["MES"] == mes) &
+                                (ev_predio["CONCEPTO"] == concepto)]
+                if not sub.empty:
+                    antes_del_pago = (running.get(concepto, 0.0)
+                                      + pd.to_numeric(sub["CARGO"], errors="coerce").fillna(0).sum()
+                                      + pd.to_numeric(sub["AJUSTE"], errors="coerce").fillna(0).sum())
+                    deuda_mes[concepto] = max(0.0, round(antes_del_pago, 2))
+                    running[concepto] = max(0.0, round(
+                        antes_del_pago
+                        - pd.to_numeric(sub["PAGO"], errors="coerce").fillna(0).sum(), 2))
+            ledger_deuda_por_mes[mes] = deuda_mes.copy()
+            ledger_por_mes[mes] = running.copy()
+
+    def _saldo_ledger(mes: str, concepto: str) -> float | None:
+        anteriores = [m for m in ledger_por_mes if m <= mes]
+        if not anteriores:
+            return None
+        return ledger_por_mes[max(anteriores)].get(concepto, 0.0)
 
     # Un ciclo por cada planilla_cobrado disponible -- el activo (pasado por
     # el llamador, hoy agosto) y cada ciclo posterior a mayo que ya cerró
@@ -369,7 +425,7 @@ def _filas_recientes(mz: str, lt: str, eventos: pd.DataFrame, dfp: pd.DataFrame)
     for fuente in fuentes:
         if fuente is None or fuente.empty:
             continue
-        d = _datos_ciclo(mz, lt, fuente)
+        d = _datos_ciclo(mz, lt, fuente, incluir_abonos_rezagados)
         if d and d["mes_ano"]:
             datos_por_ciclo[d["mes_ano"]] = d
 
@@ -379,7 +435,7 @@ def _filas_recientes(mz: str, lt: str, eventos: pd.DataFrame, dfp: pd.DataFrame)
     # consumo -como A-6 en julio- nunca generaba fila, aunque si hubiera pagado)
     meses = set(historial["MES"].astype(str).unique())
     for mes_ano, d in datos_por_ciclo.items():
-        if d["hubo_pago"]:
+        if d["hubo_pago"] or d["deuda_total"] > 0.005:
             meses.add(mes_ano)
 
     filas = []
@@ -387,8 +443,15 @@ def _filas_recientes(mz: str, lt: str, eventos: pd.DataFrame, dfp: pd.DataFrame)
         del_mes = historial[historial["MES"] == mes]
         fila_d = {"MES": mes, "CONSUMO": 0, "MANT": 0, "MES_ANT": 0, "CORTE": 0,
                   "CONVENIO": 0, "MULTA": 0, "ACUERDOS": 0, "NOTA": ""}
+        for c in ("CONSUMO", "MANT", "MES_ANT", "CORTE", "CONVENIO", "MULTA", "ACUERDOS"):
+            fila_d[f"DEUDA_{c}"] = 0.0
+            fila_d[f"PAGO_{c}"] = 0.0
         for _, r in del_mes.iterrows():
             concepto = r["CONCEPTO"]
+            c = str(concepto).strip().upper()
+            if c in ("MULTA", "ACUERDOS", "CONVENIO"):
+                fila_d[f"DEUDA_{c}"] += max(0.0, _numf(r.get("DEBIA")))
+                fila_d[f"PAGO_{c}"] += max(0.0, _numf(r["PAGO"]))
             # DEBIA = CARGO + AJUSTE del mes (ver reporte_seguimiento._resumen_y_historial).
             # Cuando un AJUSTE perdona/salda deuda (condonacion, correccion del bug de
             # signo), DEBIA queda negativo -- esa parte tambien salda la deuda aunque
@@ -408,6 +471,25 @@ def _filas_recientes(mz: str, lt: str, eventos: pd.DataFrame, dfp: pd.DataFrame)
             fila_d["MANT"] = d["mant"]
             fila_d["MES_ANT"] = d["mes_ant"]
             fila_d["CORTE"] = d["corte"]
+            for c in ("CONSUMO", "MANT", "MES_ANT", "CORTE"):
+                fila_d[f"DEUDA_{c}"] = d[f"deuda_{c.lower()}"]
+                fila_d[f"PAGO_{c}"] = d[f"pago_{c.lower()}"]
+            for c in ("CONVENIO", "MULTA", "ACUERDOS"):
+                fila_d[f"DEUDA_{c}"] = d[f"deuda_{c.lower()}"]
+            if deuda_conceptos_desde_ledger:
+                for c in ("CONVENIO", "MULTA", "ACUERDOS"):
+                    if mes in ledger_deuda_por_mes:
+                        fila_d[f"DEUDA_{c}"] = ledger_deuda_por_mes[mes].get(c, 0.0)
+                    else:
+                        meses_saldo = [m for m in ledger_por_mes if m <= mes]
+                        if meses_saldo:
+                            fila_d[f"DEUDA_{c}"] = ledger_por_mes[max(meses_saldo)].get(c, 0.0)
+            if incluir_abonos_rezagados and not deuda_conceptos_desde_ledger:
+                for c in ("CONVENIO", "MULTA", "ACUERDOS"):
+                    fila_d[c] = d[f"pago_{c.lower()}"]
+                    fila_d[f"PAGO_{c}"] = d[f"pago_{c.lower()}"]
+        fila_d["DEUDA_TOTAL"] = sum(fila_d[f"DEUDA_{c}"] for c in CONCEPTOS_TABLA)
+        fila_d["PAGO_TOTAL"] = sum(fila_d[f"PAGO_{c}"] for c in CONCEPTOS_TABLA)
         fila_d["TOTAL"] = sum(fila_d[c] for c in CONCEPTOS_TABLA)
         fila_d["PAGO_COMPLETO"] = fila_d["TOTAL"] > 0.005
         filas.append(fila_d)
@@ -416,14 +498,16 @@ def _filas_recientes(mz: str, lt: str, eventos: pd.DataFrame, dfp: pd.DataFrame)
 
 def tabla_predio(mz: str, lt: str, historicos: dict | None = None,
                   eventos: pd.DataFrame | None = None, dfp: pd.DataFrame | None = None,
-                  mapa_raw: dict | None = None, nombre_actual: str = "") -> pd.DataFrame:
+                  mapa_raw: dict | None = None, nombre_actual: str = "",
+                  incluir_abonos_rezagados: bool = True,
+                  deuda_conceptos_desde_ledger: bool = False) -> pd.DataFrame:
     historicos = historicos if historicos is not None else _cargar_historicos()
     eventos = eventos if eventos is not None else repo._leer_eventos()
     mapa_raw = mapa_raw if mapa_raw is not None else _cargar_mapa_raw()
     if not nombre_actual:
         nombre_actual = repo._lookup_nombres().get((mz, lt), "")
     if dfp is None:
-        f = BASE_DIR.parent / "5_cobranza" / "outputs" / "planilla_cobrado.xlsx"
+        f = REPO_ROOT / "5_cobranza" / "outputs" / "planilla_cobrado.xlsx"
         dfp = pd.read_excel(f, sheet_name="planilla_cobrado", header=1)
 
     mz_hist, lt_hist = mapa_raw.get((mz, lt), (mz, lt))
@@ -436,16 +520,31 @@ def tabla_predio(mz: str, lt: str, historicos: dict | None = None,
                           "NOTA": "(sin dato en el archivo de este mes)"})
         else:
             filas.append(f)
-    filas.extend(_filas_recientes(mz, lt, eventos, dfp))
-    return pd.DataFrame(filas, columns=["MES", "CONSUMO", "MANT", "MES_ANT", "CORTE",
-                                         "CONVENIO", "MULTA", "ACUERDOS", "TOTAL", "PAGO_COMPLETO", "NOTA"])
+    filas.extend(_filas_recientes(
+        mz, lt, eventos, dfp, incluir_abonos_rezagados,
+        deuda_conceptos_desde_ledger,
+    ))
+    tabla = pd.DataFrame(filas, columns=["MES", "CONSUMO", "MANT", "MES_ANT", "CORTE",
+                                          "CONVENIO", "MULTA", "ACUERDOS", "TOTAL", "PAGO_COMPLETO", "NOTA",
+                                          *[f"DEUDA_{c}" for c in CONCEPTOS_TABLA],
+                                          *[f"PAGO_{c}" for c in CONCEPTOS_TABLA], "DEUDA_TOTAL", "PAGO_TOTAL"])
+    for c in CONCEPTOS_TABLA:
+        deuda = f"DEUDA_{c}"
+        pago = f"PAGO_{c}"
+        tabla[deuda] = tabla[deuda].fillna(0.0)
+        tabla[pago] = tabla[pago].fillna(tabla[c]).fillna(0.0)
+    tabla["DEUDA_TOTAL"] = tabla["DEUDA_TOTAL"].fillna(
+        tabla[[f"DEUDA_{c}" for c in CONCEPTOS_TABLA]].sum(axis=1))
+    tabla["PAGO_TOTAL"] = tabla["PAGO_TOTAL"].fillna(
+        tabla[[f"PAGO_{c}" for c in CONCEPTOS_TABLA]].sum(axis=1))
+    return tabla
 
 
 def _predios_a_reportar() -> list[tuple[str, str]]:
     """Filtra CONFIRMACION a los predios que realmente necesitan el reporte —
     si ya está al día (SALDO=0 en seguimiento_pueblo), no hace falta imprimirle
     nada, su boleta normal ya lo deja conforme."""
-    sys.path.insert(0, str(BASE_DIR))
+    sys.path.insert(0, str(BASE_DIR.parent))
     import reporte_seguimiento as rs
 
     eventos = repo._leer_eventos()
@@ -470,48 +569,60 @@ _M = 30
 
 
 def _dibujar_tabla_historico(page, x: float, y: float, w: float, tabla: pd.DataFrame) -> float:
-    headers = ["Mes", "Pago", "Consumo", "Mant.", "Mes ant.", "Corte", "Convenio", "Multa", "Acuerdos", "TOTAL PAGADO"]
-    resto = w - 70 - 40 - 110
+    headers = ["Mes", "Tipo", "Consumo", "Mant.", "Mes ant.", "Corte",
+               "Convenio", "Multa", "Acuerdos", "Total"]
+    resto = w - 58 - 48 - 78
     col = resto / 7
-    anchos = [70, 40, col, col, col, col, col, col, col, 110]
+    anchos = [58, 48, col, col, col, col, col, col, col, 78]
 
-    rh = 18
+    rh = 13
     page.draw_rect(fitz.Rect(x, y, x + w, y + rh), fill=_AZUL_BG, color=None)
     cx = x
     for h, cw in zip(headers, anchos):
-        page.insert_text((cx + 4, y + rh - 6), h, fontsize=8, fontname="hebo", color=_AZUL)
+        page.insert_text((cx + 4, y + rh - 4), h, fontsize=7, fontname="hebo", color=_AZUL)
         cx += cw
     y += rh
 
-    for n, (_, r) in enumerate(tabla.iterrows()):
+    meses = tabla
+    for n, (_, r) in enumerate(meses.iterrows()):
+        es_ultimo_mes = n == len(meses) - 1
+        filas_mes = 3 if es_ultimo_mes else 2
         if n % 2 == 1:
-            page.draw_rect(fitz.Rect(x, y, x + w, y + rh), fill=_ZEBRA, color=None)
-        cx = x
-        page.insert_text((cx + 4, y + rh - 6), str(r["MES"]), fontsize=8, fontname="hebo", color=_NEGRO)
-        cx += anchos[0]
-
-        check = "OK" if r["PAGO_COMPLETO"] else "-"
-        color_chk = _VERDE if r["PAGO_COMPLETO"] else _GRIS
-        page.insert_text((cx + 8, y + rh - 6), check, fontsize=8, fontname="hebo", color=color_chk)
-        cx += anchos[1]
-
-        for i, campo in enumerate(CONCEPTOS_TABLA):
-            v = r[campo]
-            texto = f"{v:,.2f}" if abs(v) > 0.005 else "—"
-            tw = fitz.get_text_length(texto, fontname="helv", fontsize=8)
-            page.insert_text((cx + anchos[2 + i] - 6 - tw, y + rh - 6), texto, fontsize=8, fontname="helv",
-                              color=_NEGRO)
-            cx += anchos[2 + i]
-
-        texto_total = f"S/ {r['TOTAL']:,.2f}" if r["TOTAL"] > 0.005 else "—"
-        tw = fitz.get_text_length(texto_total, fontname="hebo", fontsize=8)
-        page.insert_text((cx + anchos[-1] - 6 - tw, y + rh - 6), texto_total, fontsize=8, fontname="hebo",
-                          color=_NEGRO)
+            page.draw_rect(fitz.Rect(x, y, x + w, y + rh * filas_mes), fill=_ZEBRA, color=None)
+        tipos = [("DEUDA", "DEUDA_", _NEGRO), ("PAGO", "PAGO_", _VERDE)]
+        if es_ultimo_mes:
+            tipos.append(("SALDO", "DEUDA_", _ROJO))
+        saldo = max(0.0, float(r.get("DEUDA_TOTAL", 0.0) or 0.0)
+                    - float(r.get("PAGO_TOTAL", 0.0) or 0.0))
+        for tipo, prefix, color in tipos:
+            cx = x
+            page.insert_text((cx + 4, y + rh - 6), str(r["MES"]) if tipo == "DEUDA" else "",
+                             fontsize=6.5, fontname="hebo", color=_NEGRO)
+            cx += anchos[0]
+            page.insert_text((cx + 4, y + rh - 4), tipo, fontsize=6.5, fontname="hebo", color=color)
+            cx += anchos[1]
+            total = 0.0
+            for c in CONCEPTOS_TABLA:
+                v = float(r.get(f"{prefix}{c}", 0.0) or 0.0)
+                if tipo == "SALDO":
+                    v = max(0.0, v - float(r.get(f"PAGO_{c}", 0.0) or 0.0))
+                total += v
+                texto = f"{v:,.2f}" if abs(v) > 0.005 else "—"
+                tw = fitz.get_text_length(texto, fontname="helv", fontsize=6.5)
+                page.insert_text((cx + anchos[2] - 5 - tw, y + rh - 4), texto,
+                                 fontsize=6.5, fontname="helv", color=color)
+                cx += anchos[2]
+            if tipo == "SALDO":
+                total = saldo
+            texto = f"S/ {total:,.2f}" if total > 0.005 else "—"
+            tw = fitz.get_text_length(texto, fontname="hebo", fontsize=6.5)
+            page.insert_text((cx + anchos[-1] - 5 - tw, y + rh - 4), texto,
+                             fontsize=6.5, fontname="hebo", color=color)
+            y += rh
 
         if r["NOTA"]:
             pass  # nota se omite en la tabla, ya lo dice el check "-"
 
-        y += rh
     return y
 
 
@@ -559,7 +670,7 @@ def _dibujar_pagina(doc, mz: str, lt: str, nombre: str, tabla: pd.DataFrame,
                       fontsize=12, fontname="hebo", color=(1, 1, 1))
     y += 42
 
-    page.insert_text((_M, y), "Pago por mes y concepto (octubre 2025 -> julio 2026)", fontsize=9,
+    page.insert_text((_M, y), "Historial mensual: deuda, pago y saldo por concepto (octubre 2025 -> ciclo vigente)", fontsize=9,
                       fontname="helv", color=_GRIS)
     y += 14
     y = _dibujar_tabla_historico(page, _M, y, w, tabla)
@@ -571,8 +682,8 @@ def _dibujar_pagina(doc, mz: str, lt: str, nombre: str, tabla: pd.DataFrame,
     else:
         y += 8
 
-    nota = ("Desde junio 2026 el exceso pagado ya no se muestra ni se aplica solo — se retiene hasta "
-            "que el vecino reclame. Meses sin \"OK\" son meses sin pago registrado en el archivo de esa fecha.")
+    nota = ("Desde junio 2026 el exceso pagado ya no se muestra ni se aplica solo — se retiene hasta que el "
+            "vecino reclame. Se conserva todo el historial mensual, incluso meses sin pago.")
     page.insert_text((_M, y), nota, fontsize=7.5, fontname="helv", color=_GRIS)
     return y + 12
 
@@ -600,7 +711,7 @@ def generar_boletas_individuales(predios: list[tuple[str, str]] | None = None,
     historicos = _cargar_historicos()
     eventos = repo._leer_eventos()
     mapa_raw = _cargar_mapa_raw()
-    f = BASE_DIR.parent / "5_cobranza" / "outputs" / "planilla_cobrado.xlsx"
+    f = REPO_ROOT / "5_cobranza" / "outputs" / "planilla_cobrado.xlsx"
     dfp = pd.read_excel(f, sheet_name="planilla_cobrado", header=1)
     nombres = repo._lookup_nombres()
 
@@ -626,7 +737,7 @@ def generar_lote(predios: list[tuple[str, str]] | None = None, salida: Path | No
     historicos = _cargar_historicos()
     eventos = repo._leer_eventos()
     mapa_raw = _cargar_mapa_raw()
-    f = BASE_DIR.parent / "5_cobranza" / "outputs" / "planilla_cobrado.xlsx"
+    f = REPO_ROOT / "5_cobranza" / "outputs" / "planilla_cobrado.xlsx"
     dfp = pd.read_excel(f, sheet_name="planilla_cobrado", header=1)
     nombres = repo._lookup_nombres()
 

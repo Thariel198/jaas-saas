@@ -11,6 +11,7 @@ que corre todos los meses.
 |---|---|---|
 | `clasificar_tipo_reclamo.py` | Clasifica `TIPO_RECLAMO` por palabra clave en el texto de `RECLAMO`, duplicando la fila si el reclamo mezcla más de un concepto | Cada mes, después de que `4b_reclamos/main.py` generó `reclamos_YYYY-MM.xlsx` y antes de que el supervisor termine de clasificar a mano |
 | `buscar_pago.py` | Para los reclamos `TIPO_RECLAMO=mes_anterior`, busca evidencia del pago en todo el historial del predio (3 repos por ciclo), en los precursores de `shared/` y en los pools de pagos sin identificar | On-demand, cuando hay un lote de reclamos "ya pagué mes anterior" para verificar |
+| `reporte_historico.py` | Arma `tabla_predio()`: el historial completo de un lote (consumo, mantenimiento, pagos, saldo) cruzando el ciclo activo con los repos congelados de `REPOS_CICLO_CERRADO`. Lee `shared/ciclo_activo.json` (vía `shared/ciclo.py`) para el mes_ano vigente — **no** lee `shared/reporte_acumulado_procesado/estado_ciclo.json` (el del campo `estado: CERRADO/ABIERTO`) | On-demand, para reportes de historial puntuales; reusado por `buscar_pago.py` |
 
 ## clasificar_tipo_reclamo.py
 
@@ -181,5 +182,7 @@ encuadre equivocado de "consumo+mant primero" como si fuera una anomalía).
 4b_reclamos/herramienta/
 ├── README.md                      # este archivo
 ├── clasificar_tipo_reclamo.py     # clasifica TIPO_RECLAMO, corre cada mes
-└── buscar_pago.py                 # busca el pago de los reclamos mes_anterior
+├── buscar_pago.py                 # busca el pago de los reclamos mes_anterior
+├── reporte_historico.py           # tabla_predio(): historial de un lote (lee ciclo_activo.json)
+└── verificar_yape.py
 ```
