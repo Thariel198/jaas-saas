@@ -2,6 +2,10 @@
 
 Sistema de gestión mensual de cobros de agua para la JASS. Automatiza el ciclo completo: desde la lectura de medidores hasta el cierre del mes con arrastres para el siguiente ciclo.
 
+**Incidente agosto/septiembre 2026:** el centro de control, checklist y diagramas de
+flujo están en [`plan_reclamos_2026_08/`](plan_reclamos_2026_08/). El plan operativo
+detallado está en [`README_PLAN_RECLAMOS_2026-08.md`](README_PLAN_RECLAMOS_2026-08.md).
+
 ---
 
 ## Pipeline de módulos
@@ -45,13 +49,13 @@ No es un módulo del pipeline sino el **substrato** permanente que `7_cierre` al
 | Sub-contexto | Qué hace | Estado |
 |---|---|---|
 | `libro_mayor/caja` | Ledger append-only del **dinero** (HECHO): abonos y devoluciones por canal, `ABONO_ID` determinista, multi-tenant (`JASS_ID`). Reemplaza al descartado `7b_historial_pagos`. Responde "¿pagué? ¿cuándo? ¿canal? ¿cuánto?". | Fase 1 cerrada — pendiente de implementación |
-| `libro_mayor/estado_cuenta` | Ledger append-only de la **deuda** (cargos) + **motor de aplicación** que imputa abonos a cargos por prioridad. Rediseña `seguimiento_pueblo`. Responde "tu pago fue a multa, aún debes medidor". | Fase 1 cerrada — pendiente de implementación |
+| `libro_mayor/estado_cuenta` | Ledger append-only de la **deuda** (cargos) + **motor de aplicación** que imputa abonos a cargos por prioridad. Rediseña `seguimiento_pueblo`. Responde "tu pago fue a multa, aún debes medidor". | Transición implementada desde 2026-08; persiste temporalmente en `seguimiento_pueblo.xlsx` |
 
 `caja` y `estado_cuenta` son **un solo contexto con dos agregados**, no dos módulos: el motor de aplicación imputa abonos a cargos atómicamente (consistencia fuerte), lo que exige una sola frontera transaccional. El **contrato de interfaz del ledger** (entidades ABONO/CARGO/APLICACIÓN, `JASS_ID`, motor) vive byte-idéntico en `libro_mayor/caja/README.md` y `libro_mayor/estado_cuenta/README.md`. Ver `libro_mayor/README.md`.
 
-**Reglas puras — `libro_mayor/dominio/`** (Fase 1, spec cerrado 2026-07-14): taxonomía de conceptos, cascada de prioridad P1-P6, política de corte, saldo derivado e identidad determinista, extraídas del código real como funciones **puras** y **tenant-agnósticas** (montos en `int` de céntimos, sin `TOL`, cero I/O). Las importan los dos agregados; el motor de aplicación las invoca. Detalle de las 6 firmas en `docs/RETOMAR_dominio_saldo_unico_2026-07-13.md`.
+**Reglas puras — `libro_mayor/dominio/`** (Fase 1, spec cerrado 2026-07-14): taxonomía de conceptos, cascada de prioridad P1-P6, política de corte, saldo derivado e identidad determinista, extraídas del código real como funciones **puras** y **tenant-agnósticas** (montos en `int` de céntimos, sin `TOL`, cero I/O). Las importan los dos agregados; el motor de aplicación las invoca. Detalle de las 6 firmas en `docs/retomar/RETOMAR_dominio_saldo_unico_2026-07-13.md`.
 
-**Carga inicial — `backfill_ledger/`** (tarea de desarrollo, Fase 2 no empezada): el ledger nace vacío, pero desde oct-2025 ya hay meses de pagos, deudas y cortes en el sistema viejo (`4_pagos`, `seguimiento_pueblo`). `backfill_ledger/` es la **tarea puntual** de sembrar esa historia — no es un módulo del pipeline mensual ni parte del diseño de `libro_mayor/`. Ver `backfill_ledger/README.md`.
+**Carga inicial sin backfill (D-005):** la cuenta completa empieza en agosto de 2026. Agua y corte se abren desde el arrastre cerrado de julio; la historia anterior permanece en sus archivos originales y no se reconstruye.
 
 **Extracto de cuenta + arquitectura de render** (decisión ⑫, 2026-07-13): el historial multi-mes de un predio ("esto pasó en tu cuenta") es una tool de solo lectura de `estado_cuenta` (`extracto_predio`), distinta de la boleta ("esto debes ahora", 1 mes). **Ningún módulo de negocio imprime**: cada dueño de datos arma sus filas (`3_boletas` la boleta, `estado_cuenta` el extracto) y un servicio **stateless** `render(plantilla, filas) → PDF` las convierte. `3_boletas` **no se renombra** a `3_impresor` — se queda como dueño de datos de la boleta.
 

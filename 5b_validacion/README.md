@@ -26,7 +26,7 @@ fue creciendo. El `estado_ciclo.validado` deja de gatear a `5_cobranza` (disuelt
 el **asiento** del mes.
 
 **Estado:** diseño cerrado, ledger **sin implementar**. El código descrito abajo sigue
-corriendo hasta entonces. Ver `docs/RETOMAR_dominio_saldo_unico_2026-07-13.md` §11.
+corriendo hasta entonces. Ver `docs/retomar/RETOMAR_dominio_saldo_unico_2026-07-13.md` §11.
 
 ---
 
@@ -49,9 +49,9 @@ el mismo rango), y el cuadre se hace sumando los baldes que componen cada lado.
 
 ## Cuándo se corre
 
-Después de `5_cobranza` (necesita `planilla_cobrado.xlsx`) y con el reporte crudo del
-mes ya en `shared/reporte_mes_crudo/`. Su resultado (`estado_ciclo.json` con
-`validado:true`) es lo que habilita a `5_cobranza` a exportar el `arrastre_consolidado`.
+Después de la proyección final de `5_cobranza` y con el reporte crudo del mes ya en
+`shared/reporte_mes_crudo/`. Si todo cuadra, sella en `estado_ciclo.json` el hash exacto
+de `snapshot_ledger_YYYY-MM.json`; ese sello habilita a `7_cierre` a comprometerlo.
 
 ---
 
@@ -59,7 +59,7 @@ mes ya en `shared/reporte_mes_crudo/`. Su resultado (`estado_ciclo.json` con
 
 ```
 shared/reporte_mes_crudo/                        reporte bancario crudo (TE PAGÓ / PAGASTE)
-5_cobranza/outputs/planilla_cobrado.xlsx         agua registrada por el sistema
+5_cobranza/outputs/planilla_cobrado_YYYY-MM.xlsx agua registrada por el sistema
 4_pagos/yape/motor_matching/outputs/
    pagos_yape_tepago.xlsx · _retorno · _devolucion · _pagaste · blancos_mes.xlsx
 4_pagos/efectivo/outputs/pagos_efectivo.xlsx
@@ -129,5 +129,5 @@ descuadres por plata sin balde. En el backlog del ledger esta capacidad es
 - Correr antes de que el reporte crudo del mes esté completo en `shared/reporte_mes_crudo/`
   → descuadre falso por pagos aún no en el crudo.
 - Confundir la ventana de TE PAGÓ con la de PAGASTE.
-- Esperar que el `arrastre_consolidado` de `5_cobranza` salga sin haber corrido esta
-  validación (necesita `estado_ciclo.json` con `validado:true`).
+- Modificar o regenerar el snapshot después de validar: cambia el hash e invalida el gate
+  de `7_cierre`; hay que volver a correr esta validación.

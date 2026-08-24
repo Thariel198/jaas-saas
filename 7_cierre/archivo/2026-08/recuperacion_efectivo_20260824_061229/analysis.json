@@ -1,0 +1,5699 @@
+{
+  "work": "C:\\Users\\wilde\\AppData\\Local\\Temp\\opencode\\jass_august_ledger_j6mnz7y8",
+  "snapshot_anterior": "f29d58dfcefaa18ab4e59417dc227a1e9fd08fd5d04f7cca871837b238ffc705",
+  "snapshot_correcto": "64375c9dd5eb183c26e18510da3bbcf78dd381d848e5bb6ab8d50897e9e7eebe",
+  "objetivos_anteriores": 3462,
+  "objetivos_correctos": 3462,
+  "cargos_son_identicos": true,
+  "deltas": [
+    {
+      "mz": "A",
+      "lt": "1",
+      "concepto": "ACUERDOS",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 10.0,
+      "delta": 10.0
+    },
+    {
+      "mz": "A",
+      "lt": "1",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 8.0,
+      "delta": 8.0
+    },
+    {
+      "mz": "A",
+      "lt": "1",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "A",
+      "lt": "3",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "A",
+      "lt": "3",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "A1",
+      "lt": "1",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 13.0,
+      "delta": 13.0
+    },
+    {
+      "mz": "A1",
+      "lt": "1",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "A1",
+      "lt": "11",
+      "concepto": "ACUERDOS",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 75.0,
+      "delta": 75.0
+    },
+    {
+      "mz": "A1",
+      "lt": "11",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "A1",
+      "lt": "11",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "A1",
+      "lt": "3",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 104.0,
+      "delta": 104.0
+    },
+    {
+      "mz": "A1",
+      "lt": "3",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "A1",
+      "lt": "3A",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 8.0,
+      "delta": 8.0
+    },
+    {
+      "mz": "A1",
+      "lt": "3A",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "A1",
+      "lt": "4",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "A1",
+      "lt": "4",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "A1",
+      "lt": "5",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 8.0,
+      "delta": 8.0
+    },
+    {
+      "mz": "A1",
+      "lt": "5",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "A1",
+      "lt": "6",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 6.0,
+      "delta": 6.0
+    },
+    {
+      "mz": "A1",
+      "lt": "6",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "A1",
+      "lt": "7",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 10.0,
+      "delta": 10.0
+    },
+    {
+      "mz": "A1",
+      "lt": "7",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "B",
+      "lt": "1",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 12.0,
+      "delta": 12.0
+    },
+    {
+      "mz": "B",
+      "lt": "1",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "B",
+      "lt": "10",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 6.0,
+      "delta": 6.0
+    },
+    {
+      "mz": "B",
+      "lt": "10",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "B",
+      "lt": "12",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 6.0,
+      "delta": 6.0
+    },
+    {
+      "mz": "B",
+      "lt": "12",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "B",
+      "lt": "12A",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 16.0,
+      "delta": 16.0
+    },
+    {
+      "mz": "B",
+      "lt": "12A",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "B",
+      "lt": "18",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 6.0,
+      "delta": 6.0
+    },
+    {
+      "mz": "B",
+      "lt": "18",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "B",
+      "lt": "2",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 11.0,
+      "delta": 11.0
+    },
+    {
+      "mz": "B",
+      "lt": "2",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "B",
+      "lt": "20",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "B",
+      "lt": "20",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "B",
+      "lt": "3",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 8.0,
+      "delta": 8.0
+    },
+    {
+      "mz": "B",
+      "lt": "3",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "B",
+      "lt": "5",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 84.0,
+      "delta": 84.0
+    },
+    {
+      "mz": "B",
+      "lt": "5",
+      "concepto": "CONVENIO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 42.0,
+      "delta": 42.0
+    },
+    {
+      "mz": "B",
+      "lt": "5",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "B",
+      "lt": "6",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 20.0,
+      "delta": 20.0
+    },
+    {
+      "mz": "B",
+      "lt": "6",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "B",
+      "lt": "7",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 18.0,
+      "delta": 18.0
+    },
+    {
+      "mz": "B",
+      "lt": "7",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "B1",
+      "lt": "1",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 7.0,
+      "delta": 7.0
+    },
+    {
+      "mz": "B1",
+      "lt": "1",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "B1",
+      "lt": "12",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 14.0,
+      "delta": 14.0
+    },
+    {
+      "mz": "B1",
+      "lt": "12",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "B1",
+      "lt": "13",
+      "concepto": "ACUERDOS",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 75.0,
+      "delta": 75.0
+    },
+    {
+      "mz": "B1",
+      "lt": "13",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 42.0,
+      "delta": 42.0
+    },
+    {
+      "mz": "B1",
+      "lt": "13",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "B1",
+      "lt": "13",
+      "concepto": "MULTA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 30.0,
+      "delta": 30.0
+    },
+    {
+      "mz": "B1",
+      "lt": "14",
+      "concepto": "ACUERDOS",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 30.0,
+      "delta": 30.0
+    },
+    {
+      "mz": "B1",
+      "lt": "14",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 13.0,
+      "delta": 13.0
+    },
+    {
+      "mz": "B1",
+      "lt": "14",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "B1",
+      "lt": "4",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 23.0,
+      "delta": 23.0
+    },
+    {
+      "mz": "B1",
+      "lt": "4",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "B1",
+      "lt": "5",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 9.0,
+      "delta": 9.0
+    },
+    {
+      "mz": "B1",
+      "lt": "5",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "B1",
+      "lt": "5",
+      "concepto": "MULTA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 30.0,
+      "delta": 30.0
+    },
+    {
+      "mz": "B1",
+      "lt": "9",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 14.0,
+      "delta": 14.0
+    },
+    {
+      "mz": "B1",
+      "lt": "9",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "C",
+      "lt": "1",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 16.0,
+      "delta": 16.0
+    },
+    {
+      "mz": "C",
+      "lt": "1",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "C",
+      "lt": "11",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 14.0,
+      "delta": 14.0
+    },
+    {
+      "mz": "C",
+      "lt": "11",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "C",
+      "lt": "12",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 13.0,
+      "delta": 13.0
+    },
+    {
+      "mz": "C",
+      "lt": "12",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "C",
+      "lt": "13",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "C",
+      "lt": "13",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "C",
+      "lt": "15",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 10.0,
+      "delta": 10.0
+    },
+    {
+      "mz": "C",
+      "lt": "15",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "C",
+      "lt": "16",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 13.0,
+      "delta": 13.0
+    },
+    {
+      "mz": "C",
+      "lt": "16",
+      "concepto": "CONVENIO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 25.0,
+      "delta": 25.0
+    },
+    {
+      "mz": "C",
+      "lt": "16",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "C",
+      "lt": "17",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "C",
+      "lt": "17",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "C",
+      "lt": "17",
+      "concepto": "MULTA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 11.0,
+      "delta": 11.0
+    },
+    {
+      "mz": "C",
+      "lt": "18",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 8.0,
+      "delta": 8.0
+    },
+    {
+      "mz": "C",
+      "lt": "18",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "C",
+      "lt": "19",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 21.0,
+      "delta": 21.0
+    },
+    {
+      "mz": "C",
+      "lt": "19",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "C",
+      "lt": "2",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "C",
+      "lt": "2",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "C",
+      "lt": "20",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 15.0,
+      "delta": 15.0
+    },
+    {
+      "mz": "C",
+      "lt": "20",
+      "concepto": "CONVENIO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 10.0,
+      "delta": 10.0
+    },
+    {
+      "mz": "C",
+      "lt": "20",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "C",
+      "lt": "23",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 18.0,
+      "delta": 18.0
+    },
+    {
+      "mz": "C",
+      "lt": "23",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "C",
+      "lt": "24",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "C",
+      "lt": "24",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "C",
+      "lt": "25",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 13.0,
+      "delta": 13.0
+    },
+    {
+      "mz": "C",
+      "lt": "25",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "C",
+      "lt": "26",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "C",
+      "lt": "26",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "C",
+      "lt": "30",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 20.0,
+      "delta": 20.0
+    },
+    {
+      "mz": "C",
+      "lt": "30",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "C",
+      "lt": "32",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "C",
+      "lt": "32",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "C",
+      "lt": "33",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 14.0,
+      "delta": 14.0
+    },
+    {
+      "mz": "C",
+      "lt": "33",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "C",
+      "lt": "36",
+      "concepto": "ACUERDOS",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 31.0,
+      "delta": 31.0
+    },
+    {
+      "mz": "C",
+      "lt": "36",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "C",
+      "lt": "36",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "C",
+      "lt": "37",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 6.0,
+      "delta": 6.0
+    },
+    {
+      "mz": "C",
+      "lt": "37",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "C",
+      "lt": "39",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 30.0,
+      "delta": 30.0
+    },
+    {
+      "mz": "C",
+      "lt": "39",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "C",
+      "lt": "4",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 9.0,
+      "delta": 9.0
+    },
+    {
+      "mz": "C",
+      "lt": "4",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "C",
+      "lt": "5",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 19.0,
+      "delta": 19.0
+    },
+    {
+      "mz": "C",
+      "lt": "5",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "C",
+      "lt": "6",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 7.0,
+      "delta": 7.0
+    },
+    {
+      "mz": "C",
+      "lt": "6",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "C",
+      "lt": "8B",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 43.0,
+      "delta": 43.0
+    },
+    {
+      "mz": "C",
+      "lt": "8B",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "C",
+      "lt": "9A",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 8.0,
+      "delta": 8.0
+    },
+    {
+      "mz": "C",
+      "lt": "9A",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "C1",
+      "lt": "1",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 11.0,
+      "delta": 11.0
+    },
+    {
+      "mz": "C1",
+      "lt": "1",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "C1",
+      "lt": "13",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 9.0,
+      "delta": 9.0
+    },
+    {
+      "mz": "C1",
+      "lt": "13",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "C1",
+      "lt": "3",
+      "concepto": "ACUERDOS",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "C1",
+      "lt": "3",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "C1",
+      "lt": "3",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "C1",
+      "lt": "4",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "C1",
+      "lt": "4",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "C1",
+      "lt": "6",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "C1",
+      "lt": "6",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "C1",
+      "lt": "9",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "C1",
+      "lt": "9",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "D",
+      "lt": "1",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "D",
+      "lt": "1",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "D",
+      "lt": "10",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 9.0,
+      "delta": 9.0
+    },
+    {
+      "mz": "D",
+      "lt": "10",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "D",
+      "lt": "11",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 9.0,
+      "delta": 9.0
+    },
+    {
+      "mz": "D",
+      "lt": "11",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "D",
+      "lt": "17",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 20.0,
+      "delta": 20.0
+    },
+    {
+      "mz": "D",
+      "lt": "17",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "D",
+      "lt": "19",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 16.0,
+      "delta": 16.0
+    },
+    {
+      "mz": "D",
+      "lt": "19",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "D",
+      "lt": "2",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "D",
+      "lt": "2",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "D",
+      "lt": "4",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 26.0,
+      "delta": 26.0
+    },
+    {
+      "mz": "D",
+      "lt": "4",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "D1",
+      "lt": "2",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "D1",
+      "lt": "2",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "D1",
+      "lt": "4",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "D1",
+      "lt": "4",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "D1",
+      "lt": "6",
+      "concepto": "ACUERDOS",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 30.0,
+      "delta": 30.0
+    },
+    {
+      "mz": "D1",
+      "lt": "6",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "D1",
+      "lt": "6",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "E",
+      "lt": "1",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "E",
+      "lt": "1",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "E",
+      "lt": "10",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 17.0,
+      "delta": 17.0
+    },
+    {
+      "mz": "E",
+      "lt": "10",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "E",
+      "lt": "12",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 18.0,
+      "delta": 18.0
+    },
+    {
+      "mz": "E",
+      "lt": "12",
+      "concepto": "CONVENIO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 26.0,
+      "delta": 26.0
+    },
+    {
+      "mz": "E",
+      "lt": "12",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "E",
+      "lt": "14",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 9.0,
+      "delta": 9.0
+    },
+    {
+      "mz": "E",
+      "lt": "14",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "E",
+      "lt": "14B",
+      "concepto": "ACUERDOS",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 9.0,
+      "delta": 9.0
+    },
+    {
+      "mz": "E",
+      "lt": "14B",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 8.0,
+      "delta": 8.0
+    },
+    {
+      "mz": "E",
+      "lt": "14B",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "E",
+      "lt": "2",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 23.0,
+      "delta": 23.0
+    },
+    {
+      "mz": "E",
+      "lt": "2",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "E",
+      "lt": "3",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 11.0,
+      "delta": 11.0
+    },
+    {
+      "mz": "E",
+      "lt": "3",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "E",
+      "lt": "4",
+      "concepto": "ACUERDOS",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 47.0,
+      "delta": 47.0
+    },
+    {
+      "mz": "E",
+      "lt": "4",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 28.0,
+      "delta": 28.0
+    },
+    {
+      "mz": "E",
+      "lt": "4",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "E",
+      "lt": "6",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 9.0,
+      "delta": 9.0
+    },
+    {
+      "mz": "E",
+      "lt": "6",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "E",
+      "lt": "7",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "E",
+      "lt": "7",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "E",
+      "lt": "8",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 8.0,
+      "delta": 8.0
+    },
+    {
+      "mz": "E",
+      "lt": "9",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 27.0,
+      "delta": 27.0
+    },
+    {
+      "mz": "E",
+      "lt": "9",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "E1",
+      "lt": "1",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "E1",
+      "lt": "1",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "E1",
+      "lt": "3",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 7.0,
+      "delta": 7.0
+    },
+    {
+      "mz": "E1",
+      "lt": "3",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "E1",
+      "lt": "4",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "E1",
+      "lt": "4",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "E1",
+      "lt": "7",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 9.0,
+      "delta": 9.0
+    },
+    {
+      "mz": "E1",
+      "lt": "7",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "F",
+      "lt": "10",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 27.0,
+      "delta": 27.0
+    },
+    {
+      "mz": "F",
+      "lt": "10",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "F",
+      "lt": "13",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 23.0,
+      "delta": 23.0
+    },
+    {
+      "mz": "F",
+      "lt": "13",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "F",
+      "lt": "14",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 42.0,
+      "delta": 42.0
+    },
+    {
+      "mz": "F",
+      "lt": "14",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "F",
+      "lt": "3",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 13.0,
+      "delta": 13.0
+    },
+    {
+      "mz": "F",
+      "lt": "3",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "F",
+      "lt": "3A",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "F",
+      "lt": "3A",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "F",
+      "lt": "5",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 32.0,
+      "delta": 32.0
+    },
+    {
+      "mz": "F",
+      "lt": "5",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "F",
+      "lt": "7",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 73.0,
+      "delta": 73.0
+    },
+    {
+      "mz": "F",
+      "lt": "7",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "F",
+      "lt": "8",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 10.0,
+      "delta": 10.0
+    },
+    {
+      "mz": "F",
+      "lt": "8",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "F1",
+      "lt": "1",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 9.0,
+      "delta": 9.0
+    },
+    {
+      "mz": "F1",
+      "lt": "10",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "F1",
+      "lt": "10",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "F1",
+      "lt": "13",
+      "concepto": "ACUERDOS",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 57.0,
+      "delta": 57.0
+    },
+    {
+      "mz": "F1",
+      "lt": "13",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "F1",
+      "lt": "13",
+      "concepto": "CORTE_RECONEXION",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 18.0,
+      "delta": 18.0
+    },
+    {
+      "mz": "F1",
+      "lt": "13",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "F1",
+      "lt": "2",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "F1",
+      "lt": "2",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "F1",
+      "lt": "6",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "F1",
+      "lt": "6",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "F1",
+      "lt": "9",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "F1",
+      "lt": "9",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "G",
+      "lt": "1",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 22.0,
+      "delta": 22.0
+    },
+    {
+      "mz": "G",
+      "lt": "1",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "G",
+      "lt": "11",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 10.0,
+      "delta": 10.0
+    },
+    {
+      "mz": "G",
+      "lt": "11",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "G",
+      "lt": "15",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 18.0,
+      "delta": 18.0
+    },
+    {
+      "mz": "G",
+      "lt": "15",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "G",
+      "lt": "16",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "G",
+      "lt": "16",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "G",
+      "lt": "16A",
+      "concepto": "ACUERDOS",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 75.0,
+      "delta": 75.0
+    },
+    {
+      "mz": "G",
+      "lt": "16A",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 23.0,
+      "delta": 23.0
+    },
+    {
+      "mz": "G",
+      "lt": "16A",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "G",
+      "lt": "16A",
+      "concepto": "MULTA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 20.0,
+      "delta": 20.0
+    },
+    {
+      "mz": "G",
+      "lt": "17",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "G",
+      "lt": "17",
+      "concepto": "CONVENIO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 10.0,
+      "delta": 10.0
+    },
+    {
+      "mz": "G",
+      "lt": "17",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "G",
+      "lt": "18",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "G",
+      "lt": "18",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "G",
+      "lt": "19",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 18.0,
+      "delta": 18.0
+    },
+    {
+      "mz": "G",
+      "lt": "19",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "G",
+      "lt": "2",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 20.0,
+      "delta": 20.0
+    },
+    {
+      "mz": "G",
+      "lt": "2",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "G",
+      "lt": "20",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 19.0,
+      "delta": 19.0
+    },
+    {
+      "mz": "G",
+      "lt": "20",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "G",
+      "lt": "21",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 23.0,
+      "delta": 23.0
+    },
+    {
+      "mz": "G",
+      "lt": "21",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "G",
+      "lt": "21A",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 31.0,
+      "delta": 31.0
+    },
+    {
+      "mz": "G",
+      "lt": "21A",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "G",
+      "lt": "22",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 41.0,
+      "delta": 41.0
+    },
+    {
+      "mz": "G",
+      "lt": "22",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "G",
+      "lt": "6",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 23.0,
+      "delta": 23.0
+    },
+    {
+      "mz": "G",
+      "lt": "6",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "G",
+      "lt": "7",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 20.0,
+      "delta": 20.0
+    },
+    {
+      "mz": "G",
+      "lt": "7",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "G",
+      "lt": "8",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 21.0,
+      "delta": 21.0
+    },
+    {
+      "mz": "G",
+      "lt": "8",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "G1",
+      "lt": "2",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 6.0,
+      "delta": 6.0
+    },
+    {
+      "mz": "G1",
+      "lt": "2",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "G1",
+      "lt": "4",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "G1",
+      "lt": "4",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "G1",
+      "lt": "5",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "G1",
+      "lt": "5",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "H",
+      "lt": "10",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "H",
+      "lt": "10",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "H",
+      "lt": "11",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "H",
+      "lt": "11",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "H",
+      "lt": "12",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 10.0,
+      "delta": 10.0
+    },
+    {
+      "mz": "H",
+      "lt": "12",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "H",
+      "lt": "15",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 8.0,
+      "delta": 8.0
+    },
+    {
+      "mz": "H",
+      "lt": "15",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "H",
+      "lt": "17",
+      "concepto": "ACUERDOS",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 25.0,
+      "delta": 25.0
+    },
+    {
+      "mz": "H",
+      "lt": "17",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 37.0,
+      "delta": 37.0
+    },
+    {
+      "mz": "H",
+      "lt": "17",
+      "concepto": "CONVENIO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 50.0,
+      "delta": 50.0
+    },
+    {
+      "mz": "H",
+      "lt": "17",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "H",
+      "lt": "18",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 7.0,
+      "delta": 7.0
+    },
+    {
+      "mz": "H",
+      "lt": "18",
+      "concepto": "CONVENIO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "H",
+      "lt": "18",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "H",
+      "lt": "19",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 15.0,
+      "delta": 15.0
+    },
+    {
+      "mz": "H",
+      "lt": "19",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "H",
+      "lt": "2",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 18.0,
+      "delta": 18.0
+    },
+    {
+      "mz": "H",
+      "lt": "2",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "H",
+      "lt": "3",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 24.0,
+      "delta": 24.0
+    },
+    {
+      "mz": "H",
+      "lt": "3",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "H",
+      "lt": "4",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 10.0,
+      "delta": 10.0
+    },
+    {
+      "mz": "H",
+      "lt": "4",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "H",
+      "lt": "5",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 18.0,
+      "delta": 18.0
+    },
+    {
+      "mz": "H",
+      "lt": "5",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "H",
+      "lt": "8",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 15.0,
+      "delta": 15.0
+    },
+    {
+      "mz": "H",
+      "lt": "8",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "H",
+      "lt": "9",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 27.0,
+      "delta": 27.0
+    },
+    {
+      "mz": "H",
+      "lt": "9",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "H1",
+      "lt": "11",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 15.0,
+      "delta": 15.0
+    },
+    {
+      "mz": "H1",
+      "lt": "11",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "H1",
+      "lt": "15",
+      "concepto": "ACUERDOS",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 50.0,
+      "delta": 50.0
+    },
+    {
+      "mz": "H1",
+      "lt": "2",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "H1",
+      "lt": "2",
+      "concepto": "CONVENIO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 50.0,
+      "delta": 50.0
+    },
+    {
+      "mz": "H1",
+      "lt": "2",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "H1",
+      "lt": "3",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "H1",
+      "lt": "3",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "H1",
+      "lt": "35",
+      "concepto": "ACUERDOS",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 50.0,
+      "delta": 50.0
+    },
+    {
+      "mz": "H1",
+      "lt": "35",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 7.0,
+      "delta": 7.0
+    },
+    {
+      "mz": "H1",
+      "lt": "35",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "H1",
+      "lt": "6",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 8.0,
+      "delta": 8.0
+    },
+    {
+      "mz": "H1",
+      "lt": "6",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "H1",
+      "lt": "7",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 7.0,
+      "delta": 7.0
+    },
+    {
+      "mz": "H1",
+      "lt": "7",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "H1",
+      "lt": "8",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 20.0,
+      "delta": 20.0
+    },
+    {
+      "mz": "H1",
+      "lt": "8",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "H1",
+      "lt": "9",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "H1",
+      "lt": "9",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "I",
+      "lt": "1",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 17.0,
+      "delta": 17.0
+    },
+    {
+      "mz": "I",
+      "lt": "1",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "I",
+      "lt": "10",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "I",
+      "lt": "10",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "I",
+      "lt": "11",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 1.0,
+      "delta": 1.0
+    },
+    {
+      "mz": "I",
+      "lt": "12",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 8.0,
+      "delta": 8.0
+    },
+    {
+      "mz": "I",
+      "lt": "12",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "I",
+      "lt": "15",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 12.0,
+      "delta": 12.0
+    },
+    {
+      "mz": "I",
+      "lt": "15",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "I",
+      "lt": "17",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 8.0,
+      "delta": 8.0
+    },
+    {
+      "mz": "I",
+      "lt": "17",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "I",
+      "lt": "18",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 11.0,
+      "delta": 11.0
+    },
+    {
+      "mz": "I",
+      "lt": "18",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "I",
+      "lt": "2B",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "I",
+      "lt": "2B",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "I",
+      "lt": "5",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 25.0,
+      "delta": 25.0
+    },
+    {
+      "mz": "I",
+      "lt": "5",
+      "concepto": "CONVENIO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 72.0,
+      "delta": 72.0
+    },
+    {
+      "mz": "I",
+      "lt": "5",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "I",
+      "lt": "8",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "I",
+      "lt": "8",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "I",
+      "lt": "9",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "I",
+      "lt": "9",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "J",
+      "lt": "11",
+      "concepto": "ACUERDOS",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 75.0,
+      "delta": 75.0
+    },
+    {
+      "mz": "J",
+      "lt": "11",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "J",
+      "lt": "11",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "J",
+      "lt": "13",
+      "concepto": "ACUERDOS",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 75.0,
+      "delta": 75.0
+    },
+    {
+      "mz": "J",
+      "lt": "13",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 11.0,
+      "delta": 11.0
+    },
+    {
+      "mz": "J",
+      "lt": "13",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "J",
+      "lt": "4",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "J",
+      "lt": "4",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "J",
+      "lt": "7",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 9.0,
+      "delta": 9.0
+    },
+    {
+      "mz": "J",
+      "lt": "7",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "J",
+      "lt": "8",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 11.0,
+      "delta": 11.0
+    },
+    {
+      "mz": "J",
+      "lt": "9",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 10.0,
+      "delta": 10.0
+    },
+    {
+      "mz": "J",
+      "lt": "9",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "K",
+      "lt": "1",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 13.0,
+      "delta": 13.0
+    },
+    {
+      "mz": "K",
+      "lt": "1",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "K",
+      "lt": "10",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "K",
+      "lt": "10",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "K",
+      "lt": "13",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 7.0,
+      "delta": 7.0
+    },
+    {
+      "mz": "K",
+      "lt": "13",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "K",
+      "lt": "14",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 7.0,
+      "delta": 7.0
+    },
+    {
+      "mz": "K",
+      "lt": "14",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "K",
+      "lt": "6",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 39.0,
+      "delta": 39.0
+    },
+    {
+      "mz": "K",
+      "lt": "6",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "K",
+      "lt": "7",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 9.0,
+      "delta": 9.0
+    },
+    {
+      "mz": "K",
+      "lt": "7",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "K",
+      "lt": "8",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 12.0,
+      "delta": 12.0
+    },
+    {
+      "mz": "K",
+      "lt": "8",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "L",
+      "lt": "1",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 9.0,
+      "delta": 9.0
+    },
+    {
+      "mz": "L",
+      "lt": "12",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 12.0,
+      "delta": 12.0
+    },
+    {
+      "mz": "L",
+      "lt": "12",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "L",
+      "lt": "13",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "L",
+      "lt": "13",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "L",
+      "lt": "14",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 18.0,
+      "delta": 18.0
+    },
+    {
+      "mz": "L",
+      "lt": "14",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "L",
+      "lt": "15",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 8.0,
+      "delta": 8.0
+    },
+    {
+      "mz": "L",
+      "lt": "15",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "L",
+      "lt": "2",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 27.0,
+      "delta": 27.0
+    },
+    {
+      "mz": "L",
+      "lt": "6",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 3.0,
+      "correcto": 14.0,
+      "delta": 11.0
+    },
+    {
+      "mz": "L",
+      "lt": "6",
+      "concepto": "CONVENIO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "L",
+      "lt": "6",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "L",
+      "lt": "8",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 21.0,
+      "delta": 21.0
+    },
+    {
+      "mz": "L",
+      "lt": "8",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "M",
+      "lt": "1",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 21.0,
+      "delta": 21.0
+    },
+    {
+      "mz": "M",
+      "lt": "1",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "M",
+      "lt": "10",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 9.0,
+      "delta": 9.0
+    },
+    {
+      "mz": "M",
+      "lt": "10",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "M",
+      "lt": "11",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "M",
+      "lt": "11",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "M",
+      "lt": "12",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "M",
+      "lt": "12",
+      "concepto": "CONVENIO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 80.0,
+      "delta": 80.0
+    },
+    {
+      "mz": "M",
+      "lt": "12",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "M",
+      "lt": "12",
+      "concepto": "MULTA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 30.0,
+      "delta": 30.0
+    },
+    {
+      "mz": "M",
+      "lt": "14",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 6.0,
+      "delta": 6.0
+    },
+    {
+      "mz": "M",
+      "lt": "14",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "M",
+      "lt": "15",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "M",
+      "lt": "15",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "M",
+      "lt": "16",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 6.0,
+      "delta": 6.0
+    },
+    {
+      "mz": "M",
+      "lt": "16",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "M",
+      "lt": "17",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "M",
+      "lt": "17",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "M",
+      "lt": "18",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "M",
+      "lt": "18",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "M",
+      "lt": "19",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 15.0,
+      "delta": 15.0
+    },
+    {
+      "mz": "M",
+      "lt": "19",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "M",
+      "lt": "2",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 10.0,
+      "delta": 10.0
+    },
+    {
+      "mz": "M",
+      "lt": "2",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "M",
+      "lt": "20",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 23.0,
+      "delta": 23.0
+    },
+    {
+      "mz": "M",
+      "lt": "20",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "M",
+      "lt": "22",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 16.0,
+      "delta": 16.0
+    },
+    {
+      "mz": "M",
+      "lt": "22",
+      "concepto": "CONVENIO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 25.0,
+      "delta": 25.0
+    },
+    {
+      "mz": "M",
+      "lt": "22",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "M",
+      "lt": "3",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "M",
+      "lt": "3",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "M",
+      "lt": "4",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "M",
+      "lt": "4",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "M",
+      "lt": "5",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 10.0,
+      "delta": 10.0
+    },
+    {
+      "mz": "M",
+      "lt": "5",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "M",
+      "lt": "7",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 14.0,
+      "delta": 14.0
+    },
+    {
+      "mz": "M",
+      "lt": "7",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "M",
+      "lt": "8",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 10.0,
+      "delta": 10.0
+    },
+    {
+      "mz": "M",
+      "lt": "8",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "M",
+      "lt": "9",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 13.0,
+      "delta": 13.0
+    },
+    {
+      "mz": "M",
+      "lt": "9",
+      "concepto": "CONVENIO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 25.0,
+      "delta": 25.0
+    },
+    {
+      "mz": "M",
+      "lt": "9",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "N",
+      "lt": "2",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 16.0,
+      "delta": 16.0
+    },
+    {
+      "mz": "N",
+      "lt": "2",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "N",
+      "lt": "3",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 6.0,
+      "delta": 6.0
+    },
+    {
+      "mz": "N",
+      "lt": "3",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "N",
+      "lt": "4",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "N",
+      "lt": "4",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "O",
+      "lt": "1",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 8.0,
+      "delta": 8.0
+    },
+    {
+      "mz": "O",
+      "lt": "1",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "O",
+      "lt": "10",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 9.0,
+      "delta": 9.0
+    },
+    {
+      "mz": "O",
+      "lt": "10",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "O",
+      "lt": "12",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 7.0,
+      "delta": 7.0
+    },
+    {
+      "mz": "O",
+      "lt": "12",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 1.0,
+      "delta": 1.0
+    },
+    {
+      "mz": "O",
+      "lt": "13",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 16.0,
+      "delta": 16.0
+    },
+    {
+      "mz": "O",
+      "lt": "13",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "O",
+      "lt": "14",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 6.0,
+      "delta": 6.0
+    },
+    {
+      "mz": "O",
+      "lt": "14",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "O",
+      "lt": "15",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 40.0,
+      "delta": 40.0
+    },
+    {
+      "mz": "O",
+      "lt": "15",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "O",
+      "lt": "15",
+      "concepto": "MULTA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 15.0,
+      "delta": 15.0
+    },
+    {
+      "mz": "O",
+      "lt": "17",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "O",
+      "lt": "17",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "O",
+      "lt": "19",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 6.0,
+      "delta": 6.0
+    },
+    {
+      "mz": "O",
+      "lt": "19",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "O",
+      "lt": "20",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 38.0,
+      "delta": 38.0
+    },
+    {
+      "mz": "O",
+      "lt": "20",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "O",
+      "lt": "21",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 16.0,
+      "delta": 16.0
+    },
+    {
+      "mz": "O",
+      "lt": "26",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "O",
+      "lt": "26",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "O",
+      "lt": "27",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 14.0,
+      "delta": 14.0
+    },
+    {
+      "mz": "O",
+      "lt": "27",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "O",
+      "lt": "28",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 8.0,
+      "delta": 8.0
+    },
+    {
+      "mz": "O",
+      "lt": "3",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 7.0,
+      "delta": 7.0
+    },
+    {
+      "mz": "O",
+      "lt": "3",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "O",
+      "lt": "4",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "O",
+      "lt": "4",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "O",
+      "lt": "5",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "O",
+      "lt": "5",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "O",
+      "lt": "6",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 6.0,
+      "delta": 6.0
+    },
+    {
+      "mz": "O",
+      "lt": "6",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "O",
+      "lt": "7",
+      "concepto": "ACUERDOS",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 75.0,
+      "delta": 75.0
+    },
+    {
+      "mz": "O",
+      "lt": "7",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "O",
+      "lt": "7",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "O",
+      "lt": "8",
+      "concepto": "ACUERDOS",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 4.0,
+      "delta": 4.0
+    },
+    {
+      "mz": "O",
+      "lt": "8",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 11.0,
+      "delta": 11.0
+    },
+    {
+      "mz": "O",
+      "lt": "8",
+      "concepto": "CONVENIO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 25.0,
+      "delta": 25.0
+    },
+    {
+      "mz": "O",
+      "lt": "8",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "O",
+      "lt": "9",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 15.0,
+      "delta": 15.0
+    },
+    {
+      "mz": "O",
+      "lt": "9",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "P",
+      "lt": "1",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 12.0,
+      "delta": 12.0
+    },
+    {
+      "mz": "P",
+      "lt": "1",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "P",
+      "lt": "11A",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 8.0,
+      "delta": 8.0
+    },
+    {
+      "mz": "P",
+      "lt": "11A",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "P",
+      "lt": "12",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 14.0,
+      "delta": 14.0
+    },
+    {
+      "mz": "P",
+      "lt": "12",
+      "concepto": "CONVENIO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 16.0,
+      "delta": 16.0
+    },
+    {
+      "mz": "P",
+      "lt": "12",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "P",
+      "lt": "13",
+      "concepto": "ACUERDOS",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 44.0,
+      "delta": 44.0
+    },
+    {
+      "mz": "P",
+      "lt": "13",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "P",
+      "lt": "13",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "P",
+      "lt": "14",
+      "concepto": "ACUERDOS",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 35.0,
+      "delta": 35.0
+    },
+    {
+      "mz": "P",
+      "lt": "14",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "P",
+      "lt": "14",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "P",
+      "lt": "17",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 6.0,
+      "delta": 6.0
+    },
+    {
+      "mz": "P",
+      "lt": "17",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "P",
+      "lt": "18",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 13.0,
+      "delta": 13.0
+    },
+    {
+      "mz": "P",
+      "lt": "18",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "P",
+      "lt": "19",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 13.0,
+      "delta": 13.0
+    },
+    {
+      "mz": "P",
+      "lt": "19",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "P",
+      "lt": "2",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 12.0,
+      "delta": 12.0
+    },
+    {
+      "mz": "P",
+      "lt": "2",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "P",
+      "lt": "4",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 42.0,
+      "delta": 42.0
+    },
+    {
+      "mz": "Q",
+      "lt": "11",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 29.0,
+      "delta": 29.0
+    },
+    {
+      "mz": "Q",
+      "lt": "11",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "Q",
+      "lt": "12",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 13.0,
+      "delta": 13.0
+    },
+    {
+      "mz": "Q",
+      "lt": "14",
+      "concepto": "ACUERDOS",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 20.0,
+      "delta": 20.0
+    },
+    {
+      "mz": "Q",
+      "lt": "14",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 7.0,
+      "delta": 7.0
+    },
+    {
+      "mz": "Q",
+      "lt": "14",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "Q",
+      "lt": "15",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "Q",
+      "lt": "15",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "Q",
+      "lt": "2",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 16.0,
+      "delta": 16.0
+    },
+    {
+      "mz": "Q",
+      "lt": "2",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "Q",
+      "lt": "7",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 11.0,
+      "delta": 11.0
+    },
+    {
+      "mz": "Q",
+      "lt": "7",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "Q",
+      "lt": "8",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 18.0,
+      "delta": 18.0
+    },
+    {
+      "mz": "Q",
+      "lt": "8",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "Q",
+      "lt": "9",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 15.0,
+      "delta": 15.0
+    },
+    {
+      "mz": "R",
+      "lt": "2",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 12.0,
+      "delta": 12.0
+    },
+    {
+      "mz": "R",
+      "lt": "2",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "R",
+      "lt": "4",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "R",
+      "lt": "4",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "R",
+      "lt": "5",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 13.0,
+      "delta": 13.0
+    },
+    {
+      "mz": "R",
+      "lt": "5",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "R",
+      "lt": "7",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 27.0,
+      "delta": 27.0
+    },
+    {
+      "mz": "R",
+      "lt": "7",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "R",
+      "lt": "8",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 12.0,
+      "delta": 12.0
+    },
+    {
+      "mz": "R",
+      "lt": "8",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "S",
+      "lt": "10",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 10.0,
+      "delta": 10.0
+    },
+    {
+      "mz": "S",
+      "lt": "10",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "S",
+      "lt": "11",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "S",
+      "lt": "11",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "S",
+      "lt": "12",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "S",
+      "lt": "12",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "S",
+      "lt": "13",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 7.0,
+      "delta": 7.0
+    },
+    {
+      "mz": "S",
+      "lt": "13",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "S",
+      "lt": "3",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 27.0,
+      "delta": 27.0
+    },
+    {
+      "mz": "S",
+      "lt": "3",
+      "concepto": "CONVENIO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 50.0,
+      "delta": 50.0
+    },
+    {
+      "mz": "S",
+      "lt": "3",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "S",
+      "lt": "4",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 16.0,
+      "delta": 16.0
+    },
+    {
+      "mz": "S",
+      "lt": "4",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "S",
+      "lt": "7",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "S",
+      "lt": "7",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "S",
+      "lt": "9",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 8.0,
+      "delta": 8.0
+    },
+    {
+      "mz": "S",
+      "lt": "9",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "T",
+      "lt": "13",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 7.0,
+      "delta": 7.0
+    },
+    {
+      "mz": "T",
+      "lt": "13",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "T",
+      "lt": "14",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 14.0,
+      "delta": 14.0
+    },
+    {
+      "mz": "T",
+      "lt": "14",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "T",
+      "lt": "15",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 8.0,
+      "delta": 8.0
+    },
+    {
+      "mz": "T",
+      "lt": "19",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 14.0,
+      "delta": 14.0
+    },
+    {
+      "mz": "T",
+      "lt": "19",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "T",
+      "lt": "3",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "T",
+      "lt": "3",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "T",
+      "lt": "4",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 13.0,
+      "delta": 13.0
+    },
+    {
+      "mz": "T",
+      "lt": "4",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "T",
+      "lt": "5",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "T",
+      "lt": "5",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "T",
+      "lt": "6",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 100.0,
+      "delta": 100.0
+    },
+    {
+      "mz": "T",
+      "lt": "6",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "T",
+      "lt": "7",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 15.0,
+      "delta": 15.0
+    },
+    {
+      "mz": "T",
+      "lt": "7",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "T",
+      "lt": "8",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 11.0,
+      "delta": 11.0
+    },
+    {
+      "mz": "T",
+      "lt": "8",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "U",
+      "lt": "1",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 6.0,
+      "delta": 6.0
+    },
+    {
+      "mz": "U",
+      "lt": "1",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "U",
+      "lt": "2",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 8.0,
+      "delta": 8.0
+    },
+    {
+      "mz": "U",
+      "lt": "3",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "U",
+      "lt": "3",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "U",
+      "lt": "4",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "U",
+      "lt": "4",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "U",
+      "lt": "5",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 13.0,
+      "delta": 13.0
+    },
+    {
+      "mz": "U",
+      "lt": "5",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "U",
+      "lt": "6",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 11.0,
+      "delta": 11.0
+    },
+    {
+      "mz": "U",
+      "lt": "6",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "V",
+      "lt": "11",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 15.0,
+      "delta": 15.0
+    },
+    {
+      "mz": "V",
+      "lt": "11",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "V",
+      "lt": "13",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 12.0,
+      "delta": 12.0
+    },
+    {
+      "mz": "V",
+      "lt": "13",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "V",
+      "lt": "16",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 14.0,
+      "delta": 14.0
+    },
+    {
+      "mz": "V",
+      "lt": "16",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "V",
+      "lt": "5",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 16.0,
+      "delta": 16.0
+    },
+    {
+      "mz": "V",
+      "lt": "5",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "V",
+      "lt": "6",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 14.0,
+      "delta": 14.0
+    },
+    {
+      "mz": "V",
+      "lt": "6",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "W",
+      "lt": "14",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "W",
+      "lt": "14",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "W",
+      "lt": "16",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 19.0,
+      "delta": 19.0
+    },
+    {
+      "mz": "W",
+      "lt": "16",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "W",
+      "lt": "17",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 7.0,
+      "delta": 7.0
+    },
+    {
+      "mz": "W",
+      "lt": "17",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "W",
+      "lt": "19",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 12.0,
+      "delta": 12.0
+    },
+    {
+      "mz": "W",
+      "lt": "19",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "W",
+      "lt": "3",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 8.0,
+      "delta": 8.0
+    },
+    {
+      "mz": "W",
+      "lt": "3",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "W",
+      "lt": "4",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 21.0,
+      "delta": 21.0
+    },
+    {
+      "mz": "W",
+      "lt": "4",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "W",
+      "lt": "5",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 13.0,
+      "delta": 13.0
+    },
+    {
+      "mz": "W",
+      "lt": "5",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "W",
+      "lt": "7",
+      "concepto": "ACUERDOS",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 25.0,
+      "delta": 25.0
+    },
+    {
+      "mz": "W",
+      "lt": "7",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "W",
+      "lt": "7",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "W",
+      "lt": "9",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "W",
+      "lt": "9",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "X",
+      "lt": "1",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 13.0,
+      "delta": 13.0
+    },
+    {
+      "mz": "X",
+      "lt": "1",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "X",
+      "lt": "10",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 15.0,
+      "delta": 15.0
+    },
+    {
+      "mz": "X",
+      "lt": "10",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "X",
+      "lt": "13",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 9.0,
+      "delta": 9.0
+    },
+    {
+      "mz": "X",
+      "lt": "13",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "X",
+      "lt": "17",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 6.0,
+      "delta": 6.0
+    },
+    {
+      "mz": "X",
+      "lt": "17",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "X",
+      "lt": "21",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 6.0,
+      "delta": 6.0
+    },
+    {
+      "mz": "X",
+      "lt": "21",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "X",
+      "lt": "3",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 14.0,
+      "delta": 14.0
+    },
+    {
+      "mz": "X",
+      "lt": "3",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "X",
+      "lt": "32",
+      "concepto": "ACUERDOS",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 75.0,
+      "delta": 75.0
+    },
+    {
+      "mz": "X",
+      "lt": "32",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "X",
+      "lt": "32",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "X",
+      "lt": "4",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 22.0,
+      "delta": 22.0
+    },
+    {
+      "mz": "X",
+      "lt": "4",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "X",
+      "lt": "6",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 13.0,
+      "delta": 13.0
+    },
+    {
+      "mz": "X",
+      "lt": "6",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "X",
+      "lt": "7",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "X",
+      "lt": "7",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "X",
+      "lt": "9",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 12.0,
+      "delta": 12.0
+    },
+    {
+      "mz": "X",
+      "lt": "9",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "Y",
+      "lt": "1",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 12.0,
+      "delta": 12.0
+    },
+    {
+      "mz": "Y",
+      "lt": "1",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "Y",
+      "lt": "3",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 16.0,
+      "delta": 16.0
+    },
+    {
+      "mz": "Y",
+      "lt": "6",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 46.0,
+      "delta": 46.0
+    },
+    {
+      "mz": "Y",
+      "lt": "6",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "Y",
+      "lt": "9",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 10.0,
+      "delta": 10.0
+    },
+    {
+      "mz": "Y",
+      "lt": "9",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "Z",
+      "lt": "11",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 7.0,
+      "delta": 7.0
+    },
+    {
+      "mz": "Z",
+      "lt": "11",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "Z",
+      "lt": "12",
+      "concepto": "ACUERDOS",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 30.0,
+      "delta": 30.0
+    },
+    {
+      "mz": "Z",
+      "lt": "12",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "Z",
+      "lt": "12",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "Z",
+      "lt": "15",
+      "concepto": "ACUERDOS",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 30.0,
+      "delta": 30.0
+    },
+    {
+      "mz": "Z",
+      "lt": "15",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "Z",
+      "lt": "15",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "Z",
+      "lt": "16",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "Z",
+      "lt": "16",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "Z",
+      "lt": "17",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 34.0,
+      "delta": 34.0
+    },
+    {
+      "mz": "Z",
+      "lt": "18",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 22.0,
+      "delta": 22.0
+    },
+    {
+      "mz": "Z",
+      "lt": "18",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "Z",
+      "lt": "2",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 14.0,
+      "delta": 14.0
+    },
+    {
+      "mz": "Z",
+      "lt": "2",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "Z",
+      "lt": "4",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "Z",
+      "lt": "4",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    },
+    {
+      "mz": "Z",
+      "lt": "9",
+      "concepto": "AGUA",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 5.0,
+      "delta": 5.0
+    },
+    {
+      "mz": "Z",
+      "lt": "9",
+      "concepto": "MANTENIMIENTO",
+      "source": "5_cobranza",
+      "antes": 0.0,
+      "correcto": 3.0,
+      "delta": 3.0
+    }
+  ],
+  "resumen": {
+    "combinaciones_afectadas": 631,
+    "predios_afectados": 300,
+    "aumentos": 6493.0,
+    "reducciones": 0,
+    "delta_por_source": {
+      "5_cobranza": 6493.0
+    }
+  },
+  "sha256_archivo_recuperado": "4710346c7464208645f87a872d7359c7caf9119e3d4bfe924f8bab72280e87bd"
+}

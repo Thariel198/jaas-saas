@@ -4,8 +4,8 @@ Sesión larga, dos bloques: **(A) diseño del ledger** (Opus → transcrito en S
 esta misma sesión) y **(B) trabajo operativo de corte** (Haiku/Sonnet, mismo día,
 detalle al final — dejó 2 bugs de código corregidos y verificados).
 
-Amplía `docs/RETOMAR_ledger_contrato_final_2026-07-11.md` y
-`docs/RETOMAR_libro_mayor_2026-07-12.md` (siguen vigentes como historia).
+Amplía `docs/retomar/RETOMAR_ledger_contrato_final_2026-07-11.md` y
+`docs/retomar/RETOMAR_libro_mayor_2026-07-12.md` (siguen vigentes como historia).
 
 ---
 

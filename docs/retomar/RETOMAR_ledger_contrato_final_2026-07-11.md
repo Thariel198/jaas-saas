@@ -1,6 +1,6 @@
 # RETOMAR — Ledger 8_caja + 8b_estado_cuenta: CONTRATO FINAL cerrado · 2026-07-11
 
-Sesión Opus. Amplía y reemplaza `docs/RETOMAR_8_caja_8b_estado_cuenta_2026-07-11.md`
+Sesión Opus. Amplía y reemplaza `docs/retomar/RETOMAR_8_caja_8b_estado_cuenta_2026-07-11.md`
 (ese archivo queda como historia — el contrato de acá lo superó).
 
 ---
@@ -160,7 +160,7 @@ FASE 2 SEGUNDA ETAPA (aislada, tocar módulo vivo):
 Mismo plan que el handoff anterior (repo-copia, PARTE 0/1/2). Único ajuste: al
 sembrar cargos históricos, NO traer las aplicaciones viejas de `seguimiento` —
 se re-derivan con el motor nuevo (ver decisión ⑧). Detalle completo en
-`docs/RETOMAR_8_caja_8b_estado_cuenta_2026-07-11.md` sección "Backfill histórico"
+`docs/retomar/RETOMAR_8_caja_8b_estado_cuenta_2026-07-11.md` sección "Backfill histórico"
 (esa parte del archivo viejo sigue vigente, no se reescribió).
 
 Trampas ya identificadas (sin cambios): (A) replay independiente por mes; (B)
@@ -191,7 +191,7 @@ para producir pagos de efectivo. NO correr downstream de 4_pagos para sembrar ca
 
 - mesa_4 A-1/D-6/S-8 (reclasificados en el input, siguen como reclamo activo).
 - El ciclo julio en vivo (5_cobranza/5b desactualizados, 6_corte, 4b_reclamos) —
-  ver `docs/RETOMAR_ciclo_julio_2026-07-09.md`.
+  ver `docs/retomar/RETOMAR_ciclo_julio_2026-07-09.md`.
 
 ---
 

@@ -1,0 +1,19 @@
+{
+  "ledger_coincide_snapshot_cerrado": true,
+  "diferencias_con_snapshot_cerrado": 0,
+  "resultado_simulado": {
+    "eventos": 631,
+    "skipped": false,
+    "backup": "C:\\Users\\wilde\\AppData\\Local\\Temp\\opencode\\jass_august_ledger_j6mnz7y8\\backups_ledger\\commits\\seguimiento_pueblo_pre_commit_2026-08_20260824_060946.xlsx"
+  },
+  "segunda_corrida": {
+    "eventos": 0,
+    "skipped": true,
+    "backup": null
+  },
+  "eventos": 631,
+  "pago": 6493.0,
+  "ajuste": 0.0,
+  "predios": 300,
+  "ledger_simulado": "C:\\Users\\wilde\\AppData\\Local\\Temp\\opencode\\jass_august_ledger_j6mnz7y8\\seguimiento_pueblo_simulado.xlsx"
+}

@@ -26,7 +26,11 @@ Decisión de diseño: docs/decisiones/seguimiento_pueblo.md
 """
 
 import logging
+import hashlib
+import json
 import os
+import shutil
+import tempfile
 import time
 from datetime import datetime
 from pathlib import Path
@@ -42,9 +46,17 @@ log = logging.getLogger(__name__)
 _SHARED = Path(__file__).parent
 
 SEGUIMIENTO_PATH = _SHARED / "seguimiento_pueblo.xlsx"
+ANULACIONES_PATH = _SHARED / "anulaciones_ledger.json"
 SHEET_NAME       = "Eventos"
 
-CONCEPTOS_VALIDOS = {"MULTA", "ACUERDOS", "CONVENIO"}
+CONCEPTOS_VALIDOS = {
+    "AGUA", "MANTENIMIENTO", "CORTE_RECONEXION",
+    "MULTA", "ACUERDOS", "CONVENIO", "OTROS",
+}
+CONCEPTOS_ORDEN = (
+    "AGUA", "MANTENIMIENTO", "CORTE_RECONEXION",
+    "CONVENIO", "ACUERDOS", "MULTA", "OTROS",
+)
 TIPOS_EVENTO      = ("CARGO", "PAGO", "AJUSTE")
 TOL_SALDO         = 0.005  # redondeo de céntimos: por debajo de esto el saldo es 0
 
@@ -214,7 +226,27 @@ _COLS_TEXTO = ("MZ", "LT", "CONCEPTO", "MES", "TIPO_EVENTO", "SOURCE", "AUDIT_RE
 _COLS_NUM   = ("CARGO", "PAGO", "AJUSTE", "SALDO")
 
 
-def _leer_eventos() -> pd.DataFrame:
+def _audit_refs_anulados() -> set[str]:
+    """Referencias anuladas lógicamente; el ledger físico permanece append-only."""
+    if not ANULACIONES_PATH.exists():
+        return set()
+    try:
+        data = json.loads(ANULACIONES_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise RuntimeError(f"No se pudo leer {ANULACIONES_PATH}: {exc}") from exc
+
+    refs = set()
+    for anulacion in data.get("anulaciones", []):
+        if anulacion.get("estado", "ACTIVA") == "REVOCADA":
+            continue
+        for evento in anulacion.get("eventos", []):
+            ref = str(evento.get("audit_ref", "")).strip()
+            if ref:
+                refs.add(ref)
+    return refs
+
+
+def _leer_eventos(incluir_anulados: bool = False) -> pd.DataFrame:
     """Lee todos los eventos como DataFrame. Vacío (sin filas) si el archivo no existe.
     MZ/LT y demás columnas de texto se leen forzadas a str — sin esto, Excel infiere LT
     numérico ("6" → int64) y rompe la normalización downstream."""
@@ -230,12 +262,16 @@ def _leer_eventos() -> pd.DataFrame:
             df[col] = ""
     for col in _COLS_NUM:
         df[col] = pd.to_numeric(df[col], errors="coerce")
+    if not incluir_anulados:
+        refs = _audit_refs_anulados()
+        if refs:
+            df = df[~df["AUDIT_REF"].astype(str).str.strip().isin(refs)].copy()
     return df
 
 
 def _ya_registrado(source: str, audit_ref: str, mz: str, lt: str, concepto: str) -> bool:
     """Idempotencia: mismo (source, audit_ref, mz, lt, concepto) no duplica."""
-    df = _leer_eventos()
+    df = _leer_eventos(incluir_anulados=True)
     if df.empty:
         return False
     mask = (
@@ -380,6 +416,145 @@ def registrar_ajuste(mz, lt, concepto, mes, monto, *, source: str, audit_ref: st
     REASIGNACION); sin ella queda SIN_CLASIFICAR, visible a propósito."""
     return _registrar(mz, lt, concepto, mes, monto, "AJUSTE", source=source, audit_ref=audit_ref,
                       motivo=motivo, clase=clase)
+
+
+def reconciliar_objetivos_batch(mes: str, snapshot_hash: str,
+                                objetivos: list[dict], cargos: list[dict] | None = None) -> dict:
+    """Compromete en un solo write el objetivo mensual producido por 5_cobranza.
+
+    `objetivos` expresa SET_DEBE por (source,mz,lt,concepto). Para la transición
+    también incluye claves que ya existan en el ledger y ya no estén en el
+    snapshot, con objetivo cero. El archivo se guarda atómicamente y cada evento
+    usa una referencia determinista ligada al hash del snapshot.
+    """
+    if not snapshot_hash:
+        raise ValueError("snapshot_hash no puede ser vacío")
+    cargos = cargos or []
+    df = _leer_eventos()
+    df_todos = _leer_eventos(incluir_anulados=True)
+    cols = [c[0] for c in _COLS]
+    if df.empty:
+        df = pd.DataFrame(columns=cols)
+
+    targets: dict[tuple[str, str, str, str], tuple[float, str]] = {}
+    for obj in objetivos:
+        source = str(obj["source"]).strip()
+        mz, lt = _norm(obj["mz"]), _norm(obj["lt"])
+        concepto = _validar_concepto(obj["concepto"])
+        monto = round(float(obj["monto_objetivo"]), 2)
+        if not source or not _clave_valida(mz, lt) or monto < -TOL_SALDO:
+            raise ValueError(f"objetivo inválido: {obj}")
+        targets[(source, mz, lt, concepto)] = (max(monto, 0.0), str(obj.get("clase") or "COBRANZA"))
+
+    # Una fuente que escribió provisionalmente y desapareció del resultado final
+    # debe converger a cero durante el primer cierre con este contrato.
+    if not df.empty:
+        prev = df[
+            (df["MES"].astype(str) == str(mes)) &
+            (df["SOURCE"].astype(str).isin({"5_cobranza", "abonos_rezagados"}))
+        ]
+        for _, row in prev.iterrows():
+            key = (str(row["SOURCE"]).strip(), _norm(row["MZ"]), _norm(row["LT"]),
+                   _validar_concepto(row["CONCEPTO"]))
+            targets.setdefault(key, (0.0, "ABONO_REZAGADO" if key[0] == "abonos_rezagados" else "COBRANZA"))
+
+    existentes = {
+        (str(r["SOURCE"]).strip(), str(r["AUDIT_REF"]).strip(), _norm(r["MZ"]),
+         _norm(r["LT"]), str(r["CONCEPTO"]).strip().upper())
+        for _, r in df_todos.iterrows()
+    }
+    saldos: dict[tuple[str, str, str], float] = {}
+    if not df.empty:
+        orden = df.sort_values(["MZ", "LT", "CONCEPTO", "MES", "TIMESTAMP"])
+        for _, row in orden.iterrows():
+            if str(row["MES"]) <= str(mes):
+                saldos[(_norm(row["MZ"]), _norm(row["LT"]), str(row["CONCEPTO"]).strip().upper())] = float(row["SALDO"])
+
+    nuevas = []
+    ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    def agregar(mz, lt, concepto, tipo, monto, source, audit_ref, clase, motivo="",
+                mes_evento=None):
+        mz_n, lt_n = _norm(mz), _norm(lt)
+        concepto_n = _validar_concepto(concepto)
+        identidad = (source, audit_ref, mz_n, lt_n, concepto_n)
+        if identidad in existentes:
+            return
+        key_saldo = (mz_n, lt_n, concepto_n)
+        previo = saldos.get(key_saldo, 0.0)
+        cargo = pago = ajuste = None
+        if tipo == "CARGO":
+            cargo, nuevo = monto, previo + monto
+        elif tipo == "PAGO":
+            pago, nuevo = monto, previo - monto
+        else:
+            ajuste, nuevo = monto, previo + monto
+        saldos[key_saldo] = round(nuevo, 2)
+        nuevas.append({
+            "MZ": mz_n, "LT": lt_n, "CONCEPTO": concepto_n, "MES": str(mes_evento or mes),
+            "TIPO_EVENTO": tipo, "CARGO": cargo, "PAGO": pago, "AJUSTE": ajuste,
+            "SALDO": round(nuevo, 2), "SOURCE": source, "AUDIT_REF": audit_ref,
+            "TIMESTAMP": ts, "CLASE": clase, "MOTIVO": motivo,
+        })
+        existentes.add(identidad)
+
+    for cargo in sorted(cargos, key=lambda x: (str(x["mz"]), str(x["lt"]), str(x["concepto"]))):
+        agregar(cargo["mz"], cargo["lt"], cargo["concepto"], "CARGO",
+                round(float(cargo["monto"]), 2), str(cargo["source"]),
+                str(cargo["audit_ref"]), str(cargo.get("clase") or "GENESIS"),
+                str(cargo.get("motivo") or ""), cargo.get("mes"))
+
+    for (source, mz, lt, concepto), (objetivo, clase) in sorted(targets.items()):
+        sub = df[
+            (df["MES"].astype(str) == str(mes)) &
+            (df["SOURCE"].astype(str).str.strip() == source) &
+            (df["MZ"].astype(str).map(_norm) == mz) &
+            (df["LT"].astype(str).map(_norm) == lt) &
+            (df["CONCEPTO"].astype(str).str.strip().str.upper() == concepto)
+        ]
+        ya = round(float(sub["PAGO"].fillna(0).sum() - sub["AJUSTE"].fillna(0).sum()), 2)
+        delta = round(objetivo - ya, 2)
+        historia = "|".join(sorted(
+            f"{str(r['TIPO_EVENTO'])}:{str(r['AUDIT_REF'])}:{r.get('PAGO')}:{r.get('AJUSTE')}"
+            for _, r in sub.iterrows()
+        ))
+        predecesor = hashlib.sha256(historia.encode("utf-8")).hexdigest()[:12]
+        ref_base = (f"cierre|{mes}|{snapshot_hash[:16]}|{source}|{mz}|{lt}|{concepto}"
+                    f"|{predecesor}|{ya:.2f}->{objetivo:.2f}")
+        if delta > TOL_SALDO:
+            agregar(mz, lt, concepto, "PAGO", delta, source, ref_base + "|PAGO", clase)
+        elif delta < -TOL_SALDO:
+            agregar(mz, lt, concepto, "AJUSTE", -delta, source, ref_base + "|AJUSTE",
+                    "CORRECCION_SISTEMA", "cierre: el objetivo final es menor que lo acreditado provisionalmente")
+
+    if not nuevas:
+        return {"eventos": 0, "skipped": True, "backup": None}
+
+    backup_dir = SEGUIMIENTO_PATH.parent / "backups_ledger" / "commits"
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    backup = None
+    if SEGUIMIENTO_PATH.exists():
+        backup = backup_dir / f"seguimiento_pueblo_pre_commit_{mes}_{datetime.now():%Y%m%d_%H%M%S}.xlsx"
+        shutil.copy2(SEGUIMIENTO_PATH, backup)
+        wb = load_workbook(SEGUIMIENTO_PATH)
+        ws = wb[SHEET_NAME] if SHEET_NAME in wb.sheetnames else wb.active
+    else:
+        wb = Workbook()
+        ws = wb.active
+        ws.title = SHEET_NAME
+        _write_headers(ws)
+
+    for fila in nuevas:
+        next_row = max(ws.max_row + 1, 3)
+        for ci, (nombre, sec, _ancho, align) in enumerate(_COLS, start=1):
+            _dat(ws.cell(row=next_row, column=ci), fila[nombre], sec[2], sec[3], align=align)
+    _save_atomic(wb, SEGUIMIENTO_PATH)
+    verificacion = _leer_eventos()
+    refs_guardadas = set(verificacion["AUDIT_REF"].astype(str).str.strip())
+    faltantes = {fila["AUDIT_REF"] for fila in nuevas} - refs_guardadas
+    if faltantes:
+        raise RuntimeError(f"Commit ledger incompleto; faltan referencias: {sorted(faltantes)}")
+    return {"eventos": len(nuevas), "skipped": False, "backup": backup}
 
 # ── API pública: lectura ─────────────────────────────────────────────────────
 
@@ -542,6 +717,7 @@ def deudores(concepto, minimo: float = 0.0) -> pd.DataFrame:
 # Contrato: docs/formato_vista_seguimiento_pueblo.html
 
 VISTA_PATH = _SHARED / "vista_seguimiento_pueblo.xlsx"
+VISTA_PROVISIONAL_PATH = _SHARED / "vista_seguimiento_provicional.xlsx"
 
 _SEC_PREDIO_V = ("EBF5FB", "1A5276", "F4FAFF", "1A5276")
 # (header_bg, header_fg, deuda_fg, pago_fg, saldo_bg, saldo_fg, ajuste_fg, declarado_fg)
@@ -840,7 +1016,7 @@ def _escribir_hoja_historial_convenio(ws, nombres: dict, df_conv: pd.DataFrame) 
 
 def generar_vista(ruta: Path | None = None) -> Path:
     """Regenera vista_seguimiento_pueblo.xlsx completa desde el registro
-    (3 hojas por concepto + CONVENIO_HISTORIAL desde el snapshot de génesis).
+    (una hoja por concepto + CONVENIO_HISTORIAL desde el snapshot de génesis).
     Nunca es la fuente — se puede borrar y recrear en cualquier momento."""
     ruta = ruta or VISTA_PATH
     df = _leer_eventos()
@@ -848,7 +1024,7 @@ def generar_vista(ruta: Path | None = None) -> Path:
 
     wb = Workbook()
     wb.remove(wb.active)
-    for concepto in ("MULTA", "ACUERDOS", "CONVENIO"):
+    for concepto in CONCEPTOS_ORDEN:
         ws = wb.create_sheet(concepto)
         df_c = df[df["CONCEPTO"].astype(str).str.strip().str.upper() == concepto]
         _escribir_hoja_vista(ws, concepto, df_c, nombres)
@@ -861,6 +1037,45 @@ def generar_vista(ruta: Path | None = None) -> Path:
 
     _save_atomic(wb, ruta)
     log.info(f"vista_seguimiento_pueblo regenerada -> {ruta}")
+    return ruta
+
+
+def generar_vista_provisional(mes: str, snapshot_hash: str, snapshot: dict,
+                              ruta: Path | None = None, estado_validacion: str = "VALIDADO",
+                              alerta: str = "") -> Path:
+    """Renderiza el resultado futuro de un snapshot sin mutar el ledger real."""
+    ruta = ruta or VISTA_PROVISIONAL_PATH
+    ledger_real = SEGUIMIENTO_PATH
+    with tempfile.TemporaryDirectory(prefix="vista_provisional_") as tmp:
+        ledger_temporal = Path(tmp) / "estado_cuenta_provisional.xlsx"
+        if ledger_real.exists():
+            shutil.copy2(ledger_real, ledger_temporal)
+        globals()["SEGUIMIENTO_PATH"] = ledger_temporal
+        try:
+            reconciliar_objetivos_batch(
+                mes, snapshot_hash, snapshot.get("objetivos", []), snapshot.get("cargos", []))
+            generar_vista(ruta)
+        finally:
+            globals()["SEGUIMIENTO_PATH"] = ledger_real
+
+    wb = load_workbook(ruta)
+    if "PROVISIONAL" in wb.sheetnames:
+        del wb["PROVISIONAL"]
+    ws = wb.create_sheet("PROVISIONAL", 0)
+    ws["A1"] = "VISTA PROVISIONAL - NO ES EL LEDGER OFICIAL"
+    ws["A2"] = "MES"
+    ws["B2"] = mes
+    ws["A3"] = "SNAPSHOT"
+    ws["B3"] = snapshot_hash
+    ws["A4"] = "ESTADO"
+    ws["B4"] = estado_validacion
+    ws["A5"] = "ALERTA"
+    ws["B5"] = alerta or "Sin alertas de validación"
+    ws["A6"] = "ALCANCE"
+    ws["B6"] = "Simula exactamente el batch que 7_cierre comprometerá si las fuentes no cambian."
+    ws.column_dimensions["A"].width = 22
+    ws.column_dimensions["B"].width = 90
+    _save_atomic(wb, ruta)
     return ruta
 
 

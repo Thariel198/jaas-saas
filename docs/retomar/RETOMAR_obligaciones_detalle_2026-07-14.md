@@ -1,6 +1,6 @@
 # RETOMAR — `obligaciones/` CERRADO · Fase 1 de diseño COMPLETA (salvo 6b) · 2026-07-14→15, revisado 07-16 (Opus)
 
-Continúa `docs/RETOMAR_dominio_saldo_unico_2026-07-13.md` (§10 = spec de `dominio/`,
+Continúa `docs/retomar/RETOMAR_dominio_saldo_unico_2026-07-13.md` (§10 = spec de `dominio/`,
 §11 = cierre de `5_cobranza`/`5b`/`6_corte`). Este doc es el punto de entrada de la
 próxima sesión.
 

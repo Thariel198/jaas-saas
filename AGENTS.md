@@ -69,9 +69,10 @@ libro_mayor/ = substrato permanente, no una etapa numerada
 - Ejecuta desde la raiz con UTF-8 cuando el README/RETOMAR no exija otro contexto:
   `py -u -X utf8 MODULO/main.py`. Los flujos con varios scripts y pasos humanos se
   toman del README del modulo; no asumas que `main.py` cubre todo.
-- No hay suite global confiable. Verificacion enfocada: `py -m pytest ruta/test.py -q`
-  o `py ruta/test.py` cuando el test define setup en `main()` y la documentacion lo
-  declara standalone. Inspecciona el test/conftest antes de elegir.
+- No hay suite global confiable. Toda prueba pasa por el runner seguro: pytest con
+  `py -m test_safety.run pytest ruta/test.py -q`; un test standalone con
+  `py -m test_safety.run script ruta/test.py`. Esta prohibido ejecutar directamente
+  `pytest`, `py -m pytest` o `py ruta/test.py`; el Guard Rail rechaza esos comandos.
 - Tests y scripts pueden escribir `.xlsx`. Deben redirigir toda ruta a temporales;
   compara `git status --short` antes y despues. Nunca uses datos reales como fixtures.
 - Tras un fix, ejecuta el caso afectado y uno no afectado; luego ejecuta los consumidores

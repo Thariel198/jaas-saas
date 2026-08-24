@@ -26,7 +26,7 @@ El `DEUDA_MULTA = (MULTA+ACUERDOS) − max(0, pagado−cargo_agua)` de abajo **d
 `+40 a PENALIDAD_MULTA` pasa a ser el CARGO `corte_reconexion`.
 
 **Estado:** módulo separado en el código pre-ledger (sigue corriendo single-motivo). La fusión
-en `6_corte` es trabajo de Fase 2 (código). Ver `docs/RETOMAR_dominio_saldo_unico_2026-07-13.md`
+en `6_corte` es trabajo de Fase 2 (código). Ver `docs/retomar/RETOMAR_dominio_saldo_unico_2026-07-13.md`
 §11 y `docs/arquitectura_pipeline_futuro.html`.
 
 ---
@@ -39,10 +39,10 @@ Módulo espejo de `6_corte` que ejecuta el ciclo de penalidad por deuda de multa
 
 ## Qué hace
 
-1. **Genera la lista de multas** (`generar_lista_multas.py`): filtra `planilla_cobrado.xlsx` por `DEUDA_MULTA > 0`, donde `DEUDA_MULTA = (MULTA + ACUERDOS_ASAMBLEA) − max(0, pagado − cargo_agua)`. CONVENIO excluido. Produce `lista_multas.xlsx`.
+1. **Genera la lista de multas** (`generar_lista_multas.py`): filtra `planilla_cobrado_YYYY-MM.xlsx` por `DEUDA_MULTA > 0`, donde `DEUDA_MULTA = (MULTA + ACUERDOS_ASAMBLEA) − max(0, pagado − cargo_agua)`. CONVENIO excluido. Produce `lista_multas.xlsx`.
 2. **Aplica la penalidad** (`aplicar_penalidad_multas.py`): suma `+40` a `PENALIDAD_MULTA` en `shared/planilla_mes/planilla_YYYY-MM.xlsx`. Genera audit log para idempotencia; re-correr no duplica.
 3. **Espera ventana de gracia** (2 días): el usuario puede saldar toda su deuda (agua + multa + acuerdos) para salvarse del corte físico.
-4. **Clasifica el resultado** (`seguimiento_multas.py`): cruza lista_multas con `planilla_cobrado.xlsx` ciclo 2 y separa en: salvados, corte físico, arrastre.
+4. **Clasifica el resultado** (`seguimiento_multas.py`): cruza lista_multas con `planilla_cobrado_YYYY-MM.xlsx` ciclo 2 y separa en: salvados, corte físico, arrastre.
 
 ## Diferencias clave vs 6_corte
 
@@ -95,7 +95,7 @@ Módulo espejo de `6_corte` que ejecuta el ciclo de penalidad por deuda de multa
 
 | Recurso | Tipo | Quién lo gobierna |
 |---|---|---|
-| `5_cobranza/outputs/planilla_cobrado.xlsx` | archivo (lectura) | `5_cobranza/` — ciclo 1 y ciclo 2 |
+| `5_cobranza/outputs/planilla_cobrado_YYYY-MM.xlsx` | archivo (lectura) | `5_cobranza/` — ciclo 1 y ciclo 2 |
 | `shared/planilla_mes/planilla_YYYY-MM.xlsx` | archivo (escritura) | `aplicar_penalidad_multas.py` — único writer de `PENALIDAD_MULTA` |
 | `shared/registro_cortes.xlsx` | archivo (lectura + append) | compartido con `6_corte` — ambos módulos registran cortes aquí |
 | `4_pagos/yape/.../pagos_yape_tepago.xlsx` | archivo (lectura) | `seguimiento_multas.py` — trazabilidad del pago |

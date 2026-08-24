@@ -1,7 +1,7 @@
 # RETOMAR — libro_mayor: bounded context + baldes + conexión 4b · 2026-07-12 15:57
 
 Sesión Opus (diseño). Amplía y **reemplaza** como handoff activo a
-`docs/RETOMAR_ledger_contrato_final_2026-07-11.md` (ese queda como historia — esta
+`docs/retomar/RETOMAR_ledger_contrato_final_2026-07-11.md` (ese queda como historia — esta
 sesión lo superó en 3 frentes: reubicación a `libro_mayor/`, eliminación de `7b`, y
 las decisiones ⑨ y ⑩).
 
@@ -188,7 +188,7 @@ resuelve los reclamos. Un blanco reclamado se corrige con `identificar_abono` (�
 
 **Bloqueo real:** esto necesita `caja_repo.py`, `cuenta_repo.py` y `motor_aplicacion.py`,
 que aún NO existen → Fase 2 primero. El backfill (repo-copia, PARTE 0/1/2) está descrito
-en `docs/RETOMAR_ledger_contrato_final_2026-07-11.md` y sigue vigente con un ajuste:
+en `docs/retomar/RETOMAR_ledger_contrato_final_2026-07-11.md` y sigue vigente con un ajuste:
 al sembrar, NO traer aplicaciones viejas de seguimiento — se re-derivan.
 
 Trampas ya identificadas: (A) replay independiente por mes (no arrastrar estado acumulado);

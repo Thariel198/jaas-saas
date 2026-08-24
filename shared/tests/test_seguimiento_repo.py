@@ -1,4 +1,6 @@
 import sys
+import shutil
+import tempfile
 from pathlib import Path
 
 THIS = Path(__file__).resolve()
@@ -7,11 +9,13 @@ sys.path.insert(0, str(ROOT / "shared"))
 
 import seguimiento_repo as repo
 
-# Redirigir a un archivo temporal — no tocar el real
-TMP = ROOT / "shared" / "_tmp_test_seguimiento_pueblo.xlsx"
+# Redirigir a temporales del sistema, fuera del workspace real.
+TEST_ROOT = Path(tempfile.mkdtemp(prefix="jass_seguimiento_test_"))
+TMP = TEST_ROOT / "seguimiento_pueblo.xlsx"
 if TMP.exists():
     TMP.unlink()
 repo.SEGUIMIENTO_PATH = TMP
+repo.ANULACIONES_PATH = TEST_ROOT / "anulaciones_ledger.json"
 
 errores = []
 
@@ -68,25 +72,27 @@ check(ec.iloc[1]["MES"] == "2026-08" and ec.iloc[1]["DEUDA"] == 0.0 and ec.iloc[
 d = repo.deudores("CONVENIO", minimo=100)
 check(len(d) == 1 and d.iloc[0]["MZ"] == "A" and d.iloc[0]["LT"] == "6", "deudores(CONVENIO, 100) devuelve A-6")
 
-# 9) validación de concepto inválido
+# 9) cuenta completa: agua es válido; un concepto desconocido no.
+r_agua = repo.registrar_cargo("X", "1", "AGUA", "2026-07", 10, source="test", audit_ref="x")
+check(r_agua["saldo_resultante"] == 10.0, "acepta AGUA en la cuenta completa")
 try:
-    repo.registrar_cargo("X", "1", "AGUA", "2026-07", 10, source="test", audit_ref="x")
-    check(False, "debería rechazar concepto inválido AGUA")
+    repo.registrar_cargo("X", "1", "DESCONOCIDO", "2026-07", 10, source="test", audit_ref="x2")
+    check(False, "debería rechazar un concepto desconocido")
 except ValueError:
-    check(True, "rechaza concepto inválido AGUA")
+    check(True, "rechaza concepto desconocido")
 
 # 10) generar_vista — 3 hojas por concepto + Ajustes (+ CONVENIO_HISTORIAL si
 # existe el snapshot de génesis), doble header, dash para mes sin evento.
 # Desde el 06/08/2026 cada mes son 5 columnas: DEUDA · PAGO · DECLARADO · AJUSTE ·
 # SALDO. El AJUSTE ya no se suma dentro de DEUDA (una corrección se leía como deuda
 # nueva) y el PAGO se parte por CLASES_SUMAN_CAJA: DECLARADO salda deuda pero no es plata.
-VISTA_TMP = ROOT / "shared" / "_tmp_test_vista.xlsx"
+VISTA_TMP = TEST_ROOT / "vista.xlsx"
 repo.generar_vista(VISTA_TMP)
 check(VISTA_TMP.exists(), "generar_vista crea el archivo")
 
 import openpyxl
 wb = openpyxl.load_workbook(VISTA_TMP)
-esperadas = {"MULTA", "ACUERDOS", "CONVENIO", "Ajustes"}
+esperadas = set(repo.CONCEPTOS_VALIDOS) | {"Ajustes"}
 if repo._MEDIDOR_SALDO_PATH_VISTA.exists():
     esperadas.add("CONVENIO_HISTORIAL")
 check(set(wb.sheetnames) == esperadas, f"hojas = {sorted(esperadas)}, obtuve {wb.sheetnames}")
@@ -124,7 +130,7 @@ VISTA_TMP.unlink()
 
 # 11) Escritura atómica — un corte a mitad de camino no debe corromper el archivo
 import os
-ATOM_TMP = ROOT / "shared" / "_tmp_test_atomico.xlsx"
+ATOM_TMP = TEST_ROOT / "atomico.xlsx"
 if ATOM_TMP.exists():
     ATOM_TMP.unlink()
 repo.SEGUIMIENTO_PATH = ATOM_TMP
@@ -190,6 +196,7 @@ saldo_run3 = repo.get_saldo("Z", "1", "CONVENIO", "2026-07")
 ajuste_run3 = repo.ajuste_reconciliado("Z", "1", "CONVENIO", "2026-07", "5_cobranza")
 check(saldo_run3 == saldo_run1, f"idempotencia: saldo estable entre corrida 1 y 3 ({saldo_run1} vs {saldo_run3})")
 check(ajuste_run3 == ajuste_run1, f"idempotencia: el ajuste no se re-dispara ({ajuste_run1} vs {ajuste_run3})")
+shutil.rmtree(TEST_ROOT, ignore_errors=True)
 
 print()
 if errores:

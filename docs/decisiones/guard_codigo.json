@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "estado": "ABIERTO",
+  "decision": "D-004",
+  "motivo": "Preservar la regla validada del reporte de siete lotes: planillas historicas hasta mayo y ledger desde junio.",
+  "targets": [
+    "4b_reclamos/herramienta/reporte_historico.py",
+    "4b_reclamos/reporte_deuda_ledger.py",
+    "docs/decisiones/guard_codigo.json",
+    "C:/Users/wilde/.claude/guardrail_preflight.ps1"
+  ]
+}

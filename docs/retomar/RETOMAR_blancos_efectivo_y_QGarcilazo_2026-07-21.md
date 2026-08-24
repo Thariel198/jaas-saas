@@ -1,6 +1,6 @@
 # RETOMAR — blancos_efectivo (5º precursor) + Q-6/Garcilazo cerrado · Sesión 2026-07-21
 
-Continúa `docs/RETOMAR_backfill_diseno_flujo_2026-07-20.md` — esa sesión dejó **una
+Continúa `docs/retomar/RETOMAR_backfill_diseno_flujo_2026-07-20.md` — esa sesión dejó **una
 sola pregunta de diseño abierta para hoy**: el flujo de backfill para G-12 (S/45,
 blanco de efectivo que el bug B6 descartó en silencio en junio). Hoy se cerró esa
 pregunta, se descubrió que el patrón era más grande (5 blancos, no 1), se codificó

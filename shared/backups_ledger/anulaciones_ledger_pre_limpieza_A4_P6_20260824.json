@@ -1,0 +1,1654 @@
+{
+  "schema": 1,
+  "anulaciones": [
+    {
+      "id": "ANULACION-PARES-SNAPSHOT-CORRUPTO-2026-08",
+      "estado": "ACTIVA",
+      "mes": "2026-08",
+      "anulado_en": "2026-08-24T06:29:55",
+      "autorizacion": "Usuario autoriz\u00f3 anulaci\u00f3n l\u00f3gica en conversaci\u00f3n 2026-08-24",
+      "motivo": "Eliminar de las proyecciones 44 PAGO provisionales y sus 44 AJUSTE compensatorios causados por el output efectivo sobrescrito por pytest",
+      "snapshot_causa": "f29d58dfcefaa18ab4e59417dc227a1e9fd08fd5d04f7cca871837b238ffc705",
+      "snapshot_recuperado": "64375c9dd5eb183c26e18510da3bbcf78dd381d848e5bb6ab8d50897e9e7eebe",
+      "pares": 44,
+      "monto_por_lado": 1612.0,
+      "ledger_sha256": "7b34a5fb5b2619a8b0acd10697f04728f5d34fe3df71502deaf7fd0f7b03de73",
+      "eventos": [
+        {
+          "fila_excel": 1499,
+          "audit_ref": "recon_2026-08_5_cobranza_ACUERDOS_A_1_1786800025.122134",
+          "mz": "A",
+          "lt": "1",
+          "concepto": "ACUERDOS",
+          "tipo_evento": "PAGO",
+          "monto": 10.0
+        },
+        {
+          "fila_excel": 1501,
+          "audit_ref": "recon_2026-08_5_cobranza_CONVENIO_C_16_1786800120.280549",
+          "mz": "C",
+          "lt": "16",
+          "concepto": "CONVENIO",
+          "tipo_evento": "PAGO",
+          "monto": 25.0
+        },
+        {
+          "fila_excel": 1502,
+          "audit_ref": "recon_2026-08_5_cobranza_MULTA_C_17_1786800124.409722",
+          "mz": "C",
+          "lt": "17",
+          "concepto": "MULTA",
+          "tipo_evento": "PAGO",
+          "monto": 11.0
+        },
+        {
+          "fila_excel": 1503,
+          "audit_ref": "recon_2026-08_5_cobranza_CONVENIO_C_20_1786800129.805758",
+          "mz": "C",
+          "lt": "20",
+          "concepto": "CONVENIO",
+          "tipo_evento": "PAGO",
+          "monto": 10.0
+        },
+        {
+          "fila_excel": 1504,
+          "audit_ref": "recon_2026-08_5_cobranza_ACUERDOS_C_36_1786800269.826789",
+          "mz": "C",
+          "lt": "36",
+          "concepto": "ACUERDOS",
+          "tipo_evento": "PAGO",
+          "monto": 31.0
+        },
+        {
+          "fila_excel": 1505,
+          "audit_ref": "recon_2026-08_5_cobranza_ACUERDOS_E_4_1786800306.36892",
+          "mz": "E",
+          "lt": "4",
+          "concepto": "ACUERDOS",
+          "tipo_evento": "PAGO",
+          "monto": 47.0
+        },
+        {
+          "fila_excel": 1506,
+          "audit_ref": "recon_2026-08_5_cobranza_ACUERDOS_E_14B_1786800323.488099",
+          "mz": "E",
+          "lt": "14B",
+          "concepto": "ACUERDOS",
+          "tipo_evento": "PAGO",
+          "monto": 9.0
+        },
+        {
+          "fila_excel": 1507,
+          "audit_ref": "recon_2026-08_5_cobranza_ACUERDOS_G_16A_1786800372.14262",
+          "mz": "G",
+          "lt": "16A",
+          "concepto": "ACUERDOS",
+          "tipo_evento": "PAGO",
+          "monto": 75.0
+        },
+        {
+          "fila_excel": 1508,
+          "audit_ref": "recon_2026-08_5_cobranza_MULTA_G_16A_1786800373.643974",
+          "mz": "G",
+          "lt": "16A",
+          "concepto": "MULTA",
+          "tipo_evento": "PAGO",
+          "monto": 20.0
+        },
+        {
+          "fila_excel": 1509,
+          "audit_ref": "recon_2026-08_5_cobranza_CONVENIO_G_17_1786800376.700998",
+          "mz": "G",
+          "lt": "17",
+          "concepto": "CONVENIO",
+          "tipo_evento": "PAGO",
+          "monto": 10.0
+        },
+        {
+          "fila_excel": 1510,
+          "audit_ref": "recon_2026-08_5_cobranza_CONVENIO_H_17_1786800413.679443",
+          "mz": "H",
+          "lt": "17",
+          "concepto": "CONVENIO",
+          "tipo_evento": "PAGO",
+          "monto": 50.0
+        },
+        {
+          "fila_excel": 1511,
+          "audit_ref": "recon_2026-08_5_cobranza_ACUERDOS_H_17_1786800415.216873",
+          "mz": "H",
+          "lt": "17",
+          "concepto": "ACUERDOS",
+          "tipo_evento": "PAGO",
+          "monto": 25.0
+        },
+        {
+          "fila_excel": 1512,
+          "audit_ref": "recon_2026-08_5_cobranza_CONVENIO_H_18_1786800417.199237",
+          "mz": "H",
+          "lt": "18",
+          "concepto": "CONVENIO",
+          "tipo_evento": "PAGO",
+          "monto": 5.0
+        },
+        {
+          "fila_excel": 1513,
+          "audit_ref": "recon_2026-08_5_cobranza_CONVENIO_I_5_1786800433.215064",
+          "mz": "I",
+          "lt": "5",
+          "concepto": "CONVENIO",
+          "tipo_evento": "PAGO",
+          "monto": 72.0
+        },
+        {
+          "fila_excel": 1514,
+          "audit_ref": "recon_2026-08_5_cobranza_ACUERDOS_J_11_1786800473.544557",
+          "mz": "J",
+          "lt": "11",
+          "concepto": "ACUERDOS",
+          "tipo_evento": "PAGO",
+          "monto": 75.0
+        },
+        {
+          "fila_excel": 1515,
+          "audit_ref": "recon_2026-08_5_cobranza_ACUERDOS_J_13_1786800476.517809",
+          "mz": "J",
+          "lt": "13",
+          "concepto": "ACUERDOS",
+          "tipo_evento": "PAGO",
+          "monto": 75.0
+        },
+        {
+          "fila_excel": 1516,
+          "audit_ref": "recon_2026-08_5_cobranza_CONVENIO_M_9_1786800539.265661",
+          "mz": "M",
+          "lt": "9",
+          "concepto": "CONVENIO",
+          "tipo_evento": "PAGO",
+          "monto": 25.0
+        },
+        {
+          "fila_excel": 1517,
+          "audit_ref": "recon_2026-08_5_cobranza_CONVENIO_M_12_1786800544.790818",
+          "mz": "M",
+          "lt": "12",
+          "concepto": "CONVENIO",
+          "tipo_evento": "PAGO",
+          "monto": 80.0
+        },
+        {
+          "fila_excel": 1518,
+          "audit_ref": "recon_2026-08_5_cobranza_MULTA_M_12_1786800546.885133",
+          "mz": "M",
+          "lt": "12",
+          "concepto": "MULTA",
+          "tipo_evento": "PAGO",
+          "monto": 30.0
+        },
+        {
+          "fila_excel": 1519,
+          "audit_ref": "recon_2026-08_5_cobranza_CONVENIO_M_22_1786800562.483343",
+          "mz": "M",
+          "lt": "22",
+          "concepto": "CONVENIO",
+          "tipo_evento": "PAGO",
+          "monto": 25.0
+        },
+        {
+          "fila_excel": 1520,
+          "audit_ref": "recon_2026-08_5_cobranza_ACUERDOS_O_7_1786801159.655537",
+          "mz": "O",
+          "lt": "7",
+          "concepto": "ACUERDOS",
+          "tipo_evento": "PAGO",
+          "monto": 75.0
+        },
+        {
+          "fila_excel": 1521,
+          "audit_ref": "recon_2026-08_5_cobranza_CONVENIO_O_8_1786801161.944878",
+          "mz": "O",
+          "lt": "8",
+          "concepto": "CONVENIO",
+          "tipo_evento": "PAGO",
+          "monto": 25.0
+        },
+        {
+          "fila_excel": 1522,
+          "audit_ref": "recon_2026-08_5_cobranza_ACUERDOS_O_8_1786801163.877904",
+          "mz": "O",
+          "lt": "8",
+          "concepto": "ACUERDOS",
+          "tipo_evento": "PAGO",
+          "monto": 4.0
+        },
+        {
+          "fila_excel": 1523,
+          "audit_ref": "recon_2026-08_5_cobranza_MULTA_O_15_1786801177.318803",
+          "mz": "O",
+          "lt": "15",
+          "concepto": "MULTA",
+          "tipo_evento": "PAGO",
+          "monto": 15.0
+        },
+        {
+          "fila_excel": 1524,
+          "audit_ref": "recon_2026-08_5_cobranza_ACUERDOS_P_13_1786801227.475839",
+          "mz": "P",
+          "lt": "13",
+          "concepto": "ACUERDOS",
+          "tipo_evento": "PAGO",
+          "monto": 44.0
+        },
+        {
+          "fila_excel": 1525,
+          "audit_ref": "recon_2026-08_5_cobranza_ACUERDOS_P_14_1786801230.340675",
+          "mz": "P",
+          "lt": "14",
+          "concepto": "ACUERDOS",
+          "tipo_evento": "PAGO",
+          "monto": 35.0
+        },
+        {
+          "fila_excel": 1526,
+          "audit_ref": "recon_2026-08_5_cobranza_ACUERDOS_Q_14_1786801257.636167",
+          "mz": "Q",
+          "lt": "14",
+          "concepto": "ACUERDOS",
+          "tipo_evento": "PAGO",
+          "monto": 20.0
+        },
+        {
+          "fila_excel": 1527,
+          "audit_ref": "recon_2026-08_5_cobranza_CONVENIO_S_3_1786801278.94813",
+          "mz": "S",
+          "lt": "3",
+          "concepto": "CONVENIO",
+          "tipo_evento": "PAGO",
+          "monto": 50.0
+        },
+        {
+          "fila_excel": 1528,
+          "audit_ref": "recon_2026-08_5_cobranza_ACUERDOS_W_7_1786801378.839052",
+          "mz": "W",
+          "lt": "7",
+          "concepto": "ACUERDOS",
+          "tipo_evento": "PAGO",
+          "monto": 25.0
+        },
+        {
+          "fila_excel": 1529,
+          "audit_ref": "recon_2026-08_5_cobranza_ACUERDOS_X_32_1786801419.548386",
+          "mz": "X",
+          "lt": "32",
+          "concepto": "ACUERDOS",
+          "tipo_evento": "PAGO",
+          "monto": 75.0
+        },
+        {
+          "fila_excel": 1531,
+          "audit_ref": "recon_2026-08_5_cobranza_ACUERDOS_Z_12_1786801452.927188",
+          "mz": "Z",
+          "lt": "12",
+          "concepto": "ACUERDOS",
+          "tipo_evento": "PAGO",
+          "monto": 30.0
+        },
+        {
+          "fila_excel": 1532,
+          "audit_ref": "recon_2026-08_5_cobranza_ACUERDOS_Z_15_1786801459.278075",
+          "mz": "Z",
+          "lt": "15",
+          "concepto": "ACUERDOS",
+          "tipo_evento": "PAGO",
+          "monto": 30.0
+        },
+        {
+          "fila_excel": 1533,
+          "audit_ref": "recon_2026-08_5_cobranza_ACUERDOS_A1_11_1786801483.022555",
+          "mz": "A1",
+          "lt": "11",
+          "concepto": "ACUERDOS",
+          "tipo_evento": "PAGO",
+          "monto": 75.0
+        },
+        {
+          "fila_excel": 1534,
+          "audit_ref": "recon_2026-08_5_cobranza_MULTA_B1_5_1786801495.352464",
+          "mz": "B1",
+          "lt": "5",
+          "concepto": "MULTA",
+          "tipo_evento": "PAGO",
+          "monto": 30.0
+        },
+        {
+          "fila_excel": 1535,
+          "audit_ref": "recon_2026-08_5_cobranza_ACUERDOS_B1_13_1786801508.037006",
+          "mz": "B1",
+          "lt": "13",
+          "concepto": "ACUERDOS",
+          "tipo_evento": "PAGO",
+          "monto": 75.0
+        },
+        {
+          "fila_excel": 1536,
+          "audit_ref": "recon_2026-08_5_cobranza_MULTA_B1_13_1786801509.800819",
+          "mz": "B1",
+          "lt": "13",
+          "concepto": "MULTA",
+          "tipo_evento": "PAGO",
+          "monto": 30.0
+        },
+        {
+          "fila_excel": 1537,
+          "audit_ref": "recon_2026-08_5_cobranza_ACUERDOS_B1_14_1786801512.103038",
+          "mz": "B1",
+          "lt": "14",
+          "concepto": "ACUERDOS",
+          "tipo_evento": "PAGO",
+          "monto": 30.0
+        },
+        {
+          "fila_excel": 1538,
+          "audit_ref": "recon_2026-08_5_cobranza_ACUERDOS_C1_3_1786801518.825595",
+          "mz": "C1",
+          "lt": "3",
+          "concepto": "ACUERDOS",
+          "tipo_evento": "PAGO",
+          "monto": 5.0
+        },
+        {
+          "fila_excel": 1540,
+          "audit_ref": "recon_2026-08_5_cobranza_ACUERDOS_D1_6_1786801549.053047",
+          "mz": "D1",
+          "lt": "6",
+          "concepto": "ACUERDOS",
+          "tipo_evento": "PAGO",
+          "monto": 30.0
+        },
+        {
+          "fila_excel": 1541,
+          "audit_ref": "recon_2026-08_5_cobranza_ACUERDOS_F1_13_1786801579.306843",
+          "mz": "F1",
+          "lt": "13",
+          "concepto": "ACUERDOS",
+          "tipo_evento": "PAGO",
+          "monto": 57.0
+        },
+        {
+          "fila_excel": 1542,
+          "audit_ref": "recon_2026-08_5_cobranza_CONVENIO_H1_2_1786801592.184139",
+          "mz": "H1",
+          "lt": "2",
+          "concepto": "CONVENIO",
+          "tipo_evento": "PAGO",
+          "monto": 50.0
+        },
+        {
+          "fila_excel": 1544,
+          "audit_ref": "recon_2026-08_5_cobranza_ACUERDOS_H1_15_1786801612.391918",
+          "mz": "H1",
+          "lt": "15",
+          "concepto": "ACUERDOS",
+          "tipo_evento": "PAGO",
+          "monto": 39.0
+        },
+        {
+          "fila_excel": 1545,
+          "audit_ref": "recon_2026-08_5_cobranza_ACUERDOS_H1_35_1786801617.022102",
+          "mz": "H1",
+          "lt": "35",
+          "concepto": "ACUERDOS",
+          "tipo_evento": "PAGO",
+          "monto": 50.0
+        },
+        {
+          "fila_excel": 1548,
+          "audit_ref": "recon_2026-08_5_cobranza_CONVENIO_L_6_1787017282.045931",
+          "mz": "L",
+          "lt": "6",
+          "concepto": "CONVENIO",
+          "tipo_evento": "PAGO",
+          "monto": 3.0
+        },
+        {
+          "fila_excel": 2683,
+          "audit_ref": "cierre|2026-08|f29d58dfcefaa18a|5_cobranza|A|1|ACUERDOS|970e71b35f4e|10.00->0.00|AJUSTE",
+          "mz": "A",
+          "lt": "1",
+          "concepto": "ACUERDOS",
+          "tipo_evento": "AJUSTE",
+          "monto": 10.0
+        },
+        {
+          "fila_excel": 2697,
+          "audit_ref": "cierre|2026-08|f29d58dfcefaa18a|5_cobranza|A1|11|ACUERDOS|e2ceead528d3|75.00->0.00|AJUSTE",
+          "mz": "A1",
+          "lt": "11",
+          "concepto": "ACUERDOS",
+          "tipo_evento": "AJUSTE",
+          "monto": 75.0
+        },
+        {
+          "fila_excel": 2702,
+          "audit_ref": "cierre|2026-08|f29d58dfcefaa18a|5_cobranza|B1|13|ACUERDOS|0244f521fc26|75.00->0.00|AJUSTE",
+          "mz": "B1",
+          "lt": "13",
+          "concepto": "ACUERDOS",
+          "tipo_evento": "AJUSTE",
+          "monto": 75.0
+        },
+        {
+          "fila_excel": 2703,
+          "audit_ref": "cierre|2026-08|f29d58dfcefaa18a|5_cobranza|B1|13|MULTA|a992f2a37f02|30.00->0.00|AJUSTE",
+          "mz": "B1",
+          "lt": "13",
+          "concepto": "MULTA",
+          "tipo_evento": "AJUSTE",
+          "monto": 30.0
+        },
+        {
+          "fila_excel": 2704,
+          "audit_ref": "cierre|2026-08|f29d58dfcefaa18a|5_cobranza|B1|14|ACUERDOS|b0cfc6a23c57|30.00->0.00|AJUSTE",
+          "mz": "B1",
+          "lt": "14",
+          "concepto": "ACUERDOS",
+          "tipo_evento": "AJUSTE",
+          "monto": 30.0
+        },
+        {
+          "fila_excel": 2705,
+          "audit_ref": "cierre|2026-08|f29d58dfcefaa18a|5_cobranza|B1|5|MULTA|2b275326a5b5|30.00->0.00|AJUSTE",
+          "mz": "B1",
+          "lt": "5",
+          "concepto": "MULTA",
+          "tipo_evento": "AJUSTE",
+          "monto": 30.0
+        },
+        {
+          "fila_excel": 2706,
+          "audit_ref": "cierre|2026-08|f29d58dfcefaa18a|5_cobranza|C|16|CONVENIO|80231b33c24b|25.00->0.00|AJUSTE",
+          "mz": "C",
+          "lt": "16",
+          "concepto": "CONVENIO",
+          "tipo_evento": "AJUSTE",
+          "monto": 25.0
+        },
+        {
+          "fila_excel": 2707,
+          "audit_ref": "cierre|2026-08|f29d58dfcefaa18a|5_cobranza|C|17|MULTA|82bec5956ab2|11.00->0.00|AJUSTE",
+          "mz": "C",
+          "lt": "17",
+          "concepto": "MULTA",
+          "tipo_evento": "AJUSTE",
+          "monto": 11.0
+        },
+        {
+          "fila_excel": 2708,
+          "audit_ref": "cierre|2026-08|f29d58dfcefaa18a|5_cobranza|C|20|CONVENIO|3686a223ec18|10.00->0.00|AJUSTE",
+          "mz": "C",
+          "lt": "20",
+          "concepto": "CONVENIO",
+          "tipo_evento": "AJUSTE",
+          "monto": 10.0
+        },
+        {
+          "fila_excel": 2715,
+          "audit_ref": "cierre|2026-08|f29d58dfcefaa18a|5_cobranza|C|36|ACUERDOS|7191b1e49a3c|31.00->0.00|AJUSTE",
+          "mz": "C",
+          "lt": "36",
+          "concepto": "ACUERDOS",
+          "tipo_evento": "AJUSTE",
+          "monto": 31.0
+        },
+        {
+          "fila_excel": 2727,
+          "audit_ref": "cierre|2026-08|f29d58dfcefaa18a|5_cobranza|C1|3|ACUERDOS|b123fd0bd25f|5.00->0.00|AJUSTE",
+          "mz": "C1",
+          "lt": "3",
+          "concepto": "ACUERDOS",
+          "tipo_evento": "AJUSTE",
+          "monto": 5.0
+        },
+        {
+          "fila_excel": 2740,
+          "audit_ref": "cierre|2026-08|f29d58dfcefaa18a|5_cobranza|D1|6|ACUERDOS|a222b9fc9d7e|30.00->0.00|AJUSTE",
+          "mz": "D1",
+          "lt": "6",
+          "concepto": "ACUERDOS",
+          "tipo_evento": "AJUSTE",
+          "monto": 30.0
+        },
+        {
+          "fila_excel": 2741,
+          "audit_ref": "cierre|2026-08|f29d58dfcefaa18a|5_cobranza|E|14B|ACUERDOS|631ac65f9b1d|9.00->0.00|AJUSTE",
+          "mz": "E",
+          "lt": "14B",
+          "concepto": "ACUERDOS",
+          "tipo_evento": "AJUSTE",
+          "monto": 9.0
+        },
+        {
+          "fila_excel": 2742,
+          "audit_ref": "cierre|2026-08|f29d58dfcefaa18a|5_cobranza|E|4|ACUERDOS|e2370ab86f89|47.00->0.00|AJUSTE",
+          "mz": "E",
+          "lt": "4",
+          "concepto": "ACUERDOS",
+          "tipo_evento": "AJUSTE",
+          "monto": 47.0
+        },
+        {
+          "fila_excel": 2751,
+          "audit_ref": "cierre|2026-08|f29d58dfcefaa18a|5_cobranza|F1|13|ACUERDOS|d2fc4b296047|57.00->0.00|AJUSTE",
+          "mz": "F1",
+          "lt": "13",
+          "concepto": "ACUERDOS",
+          "tipo_evento": "AJUSTE",
+          "monto": 57.0
+        },
+        {
+          "fila_excel": 2752,
+          "audit_ref": "cierre|2026-08|f29d58dfcefaa18a|5_cobranza|G|16A|ACUERDOS|f05ce9f99fda|75.00->0.00|AJUSTE",
+          "mz": "G",
+          "lt": "16A",
+          "concepto": "ACUERDOS",
+          "tipo_evento": "AJUSTE",
+          "monto": 75.0
+        },
+        {
+          "fila_excel": 2753,
+          "audit_ref": "cierre|2026-08|f29d58dfcefaa18a|5_cobranza|G|16A|MULTA|2969a7ed4027|20.00->0.00|AJUSTE",
+          "mz": "G",
+          "lt": "16A",
+          "concepto": "MULTA",
+          "tipo_evento": "AJUSTE",
+          "monto": 20.0
+        },
+        {
+          "fila_excel": 2754,
+          "audit_ref": "cierre|2026-08|f29d58dfcefaa18a|5_cobranza|G|17|CONVENIO|88f01c5b4506|10.00->0.00|AJUSTE",
+          "mz": "G",
+          "lt": "17",
+          "concepto": "CONVENIO",
+          "tipo_evento": "AJUSTE",
+          "monto": 10.0
+        },
+        {
+          "fila_excel": 2755,
+          "audit_ref": "cierre|2026-08|f29d58dfcefaa18a|5_cobranza|H|17|ACUERDOS|ab262960eacf|25.00->0.00|AJUSTE",
+          "mz": "H",
+          "lt": "17",
+          "concepto": "ACUERDOS",
+          "tipo_evento": "AJUSTE",
+          "monto": 25.0
+        },
+        {
+          "fila_excel": 2756,
+          "audit_ref": "cierre|2026-08|f29d58dfcefaa18a|5_cobranza|H|17|CONVENIO|86b4b3e6bc7d|50.00->0.00|AJUSTE",
+          "mz": "H",
+          "lt": "17",
+          "concepto": "CONVENIO",
+          "tipo_evento": "AJUSTE",
+          "monto": 50.0
+        },
+        {
+          "fila_excel": 2757,
+          "audit_ref": "cierre|2026-08|f29d58dfcefaa18a|5_cobranza|H|18|CONVENIO|49d25332d5ed|5.00->0.00|AJUSTE",
+          "mz": "H",
+          "lt": "18",
+          "concepto": "CONVENIO",
+          "tipo_evento": "AJUSTE",
+          "monto": 5.0
+        },
+        {
+          "fila_excel": 2762,
+          "audit_ref": "cierre|2026-08|f29d58dfcefaa18a|5_cobranza|H1|15|ACUERDOS|d49ca72a1190|39.00->0.00|AJUSTE",
+          "mz": "H1",
+          "lt": "15",
+          "concepto": "ACUERDOS",
+          "tipo_evento": "AJUSTE",
+          "monto": 39.0
+        },
+        {
+          "fila_excel": 2767,
+          "audit_ref": "cierre|2026-08|f29d58dfcefaa18a|5_cobranza|H1|2|CONVENIO|e99ad25abe27|50.00->0.00|AJUSTE",
+          "mz": "H1",
+          "lt": "2",
+          "concepto": "CONVENIO",
+          "tipo_evento": "AJUSTE",
+          "monto": 50.0
+        },
+        {
+          "fila_excel": 2768,
+          "audit_ref": "cierre|2026-08|f29d58dfcefaa18a|5_cobranza|H1|35|ACUERDOS|df20162d4356|50.00->0.00|AJUSTE",
+          "mz": "H1",
+          "lt": "35",
+          "concepto": "ACUERDOS",
+          "tipo_evento": "AJUSTE",
+          "monto": 50.0
+        },
+        {
+          "fila_excel": 2775,
+          "audit_ref": "cierre|2026-08|f29d58dfcefaa18a|5_cobranza|I|5|CONVENIO|4273bac1f528|72.00->0.00|AJUSTE",
+          "mz": "I",
+          "lt": "5",
+          "concepto": "CONVENIO",
+          "tipo_evento": "AJUSTE",
+          "monto": 72.0
+        },
+        {
+          "fila_excel": 2779,
+          "audit_ref": "cierre|2026-08|f29d58dfcefaa18a|5_cobranza|J|11|ACUERDOS|5bbc3669411d|75.00->0.00|AJUSTE",
+          "mz": "J",
+          "lt": "11",
+          "concepto": "ACUERDOS",
+          "tipo_evento": "AJUSTE",
+          "monto": 75.0
+        },
+        {
+          "fila_excel": 2780,
+          "audit_ref": "cierre|2026-08|f29d58dfcefaa18a|5_cobranza|J|13|ACUERDOS|f3d613d28a10|75.00->0.00|AJUSTE",
+          "mz": "J",
+          "lt": "13",
+          "concepto": "ACUERDOS",
+          "tipo_evento": "AJUSTE",
+          "monto": 75.0
+        },
+        {
+          "fila_excel": 2789,
+          "audit_ref": "cierre|2026-08|f29d58dfcefaa18a|5_cobranza|L|6|CONVENIO|d434427ec1b8|3.00->0.00|AJUSTE",
+          "mz": "L",
+          "lt": "6",
+          "concepto": "CONVENIO",
+          "tipo_evento": "AJUSTE",
+          "monto": 3.0
+        },
+        {
+          "fila_excel": 2790,
+          "audit_ref": "cierre|2026-08|f29d58dfcefaa18a|5_cobranza|M|12|CONVENIO|e33d54e2e22b|80.00->0.00|AJUSTE",
+          "mz": "M",
+          "lt": "12",
+          "concepto": "CONVENIO",
+          "tipo_evento": "AJUSTE",
+          "monto": 80.0
+        },
+        {
+          "fila_excel": 2791,
+          "audit_ref": "cierre|2026-08|f29d58dfcefaa18a|5_cobranza|M|12|MULTA|898c4be070dd|30.00->0.00|AJUSTE",
+          "mz": "M",
+          "lt": "12",
+          "concepto": "MULTA",
+          "tipo_evento": "AJUSTE",
+          "monto": 30.0
+        },
+        {
+          "fila_excel": 2792,
+          "audit_ref": "cierre|2026-08|f29d58dfcefaa18a|5_cobranza|M|22|CONVENIO|7926e2729530|25.00->0.00|AJUSTE",
+          "mz": "M",
+          "lt": "22",
+          "concepto": "CONVENIO",
+          "tipo_evento": "AJUSTE",
+          "monto": 25.0
+        },
+        {
+          "fila_excel": 2795,
+          "audit_ref": "cierre|2026-08|f29d58dfcefaa18a|5_cobranza|M|9|CONVENIO|c2974c946e35|25.00->0.00|AJUSTE",
+          "mz": "M",
+          "lt": "9",
+          "concepto": "CONVENIO",
+          "tipo_evento": "AJUSTE",
+          "monto": 25.0
+        },
+        {
+          "fila_excel": 2796,
+          "audit_ref": "cierre|2026-08|f29d58dfcefaa18a|5_cobranza|O|15|MULTA|e2b905b38e75|15.00->0.00|AJUSTE",
+          "mz": "O",
+          "lt": "15",
+          "concepto": "MULTA",
+          "tipo_evento": "AJUSTE",
+          "monto": 15.0
+        },
+        {
+          "fila_excel": 2807,
+          "audit_ref": "cierre|2026-08|f29d58dfcefaa18a|5_cobranza|O|7|ACUERDOS|42de0ead89f2|75.00->0.00|AJUSTE",
+          "mz": "O",
+          "lt": "7",
+          "concepto": "ACUERDOS",
+          "tipo_evento": "AJUSTE",
+          "monto": 75.0
+        },
+        {
+          "fila_excel": 2808,
+          "audit_ref": "cierre|2026-08|f29d58dfcefaa18a|5_cobranza|O|8|ACUERDOS|2e77807f8e8e|4.00->0.00|AJUSTE",
+          "mz": "O",
+          "lt": "8",
+          "concepto": "ACUERDOS",
+          "tipo_evento": "AJUSTE",
+          "monto": 4.0
+        },
+        {
+          "fila_excel": 2809,
+          "audit_ref": "cierre|2026-08|f29d58dfcefaa18a|5_cobranza|O|8|CONVENIO|285e53eeb1af|25.00->0.00|AJUSTE",
+          "mz": "O",
+          "lt": "8",
+          "concepto": "CONVENIO",
+          "tipo_evento": "AJUSTE",
+          "monto": 25.0
+        },
+        {
+          "fila_excel": 2810,
+          "audit_ref": "cierre|2026-08|f29d58dfcefaa18a|5_cobranza|P|13|ACUERDOS|e935b070e318|44.00->0.00|AJUSTE",
+          "mz": "P",
+          "lt": "13",
+          "concepto": "ACUERDOS",
+          "tipo_evento": "AJUSTE",
+          "monto": 44.0
+        },
+        {
+          "fila_excel": 2811,
+          "audit_ref": "cierre|2026-08|f29d58dfcefaa18a|5_cobranza|P|14|ACUERDOS|54512ab0a972|35.00->0.00|AJUSTE",
+          "mz": "P",
+          "lt": "14",
+          "concepto": "ACUERDOS",
+          "tipo_evento": "AJUSTE",
+          "monto": 35.0
+        },
+        {
+          "fila_excel": 2814,
+          "audit_ref": "cierre|2026-08|f29d58dfcefaa18a|5_cobranza|Q|14|ACUERDOS|2fb450b67986|20.00->0.00|AJUSTE",
+          "mz": "Q",
+          "lt": "14",
+          "concepto": "ACUERDOS",
+          "tipo_evento": "AJUSTE",
+          "monto": 20.0
+        },
+        {
+          "fila_excel": 2815,
+          "audit_ref": "cierre|2026-08|f29d58dfcefaa18a|5_cobranza|S|3|CONVENIO|c4b68140ba56|50.00->0.00|AJUSTE",
+          "mz": "S",
+          "lt": "3",
+          "concepto": "CONVENIO",
+          "tipo_evento": "AJUSTE",
+          "monto": 50.0
+        },
+        {
+          "fila_excel": 2829,
+          "audit_ref": "cierre|2026-08|f29d58dfcefaa18a|5_cobranza|W|7|ACUERDOS|e38535cb222a|25.00->0.00|AJUSTE",
+          "mz": "W",
+          "lt": "7",
+          "concepto": "ACUERDOS",
+          "tipo_evento": "AJUSTE",
+          "monto": 25.0
+        },
+        {
+          "fila_excel": 2834,
+          "audit_ref": "cierre|2026-08|f29d58dfcefaa18a|5_cobranza|X|32|ACUERDOS|0d62b63ac7c9|75.00->0.00|AJUSTE",
+          "mz": "X",
+          "lt": "32",
+          "concepto": "ACUERDOS",
+          "tipo_evento": "AJUSTE",
+          "monto": 75.0
+        },
+        {
+          "fila_excel": 2835,
+          "audit_ref": "cierre|2026-08|f29d58dfcefaa18a|5_cobranza|Z|12|ACUERDOS|ce526498e3ef|30.00->0.00|AJUSTE",
+          "mz": "Z",
+          "lt": "12",
+          "concepto": "ACUERDOS",
+          "tipo_evento": "AJUSTE",
+          "monto": 30.0
+        },
+        {
+          "fila_excel": 2836,
+          "audit_ref": "cierre|2026-08|f29d58dfcefaa18a|5_cobranza|Z|15|ACUERDOS|ac1d1309b004|30.00->0.00|AJUSTE",
+          "mz": "Z",
+          "lt": "15",
+          "concepto": "ACUERDOS",
+          "tipo_evento": "AJUSTE",
+          "monto": 30.0
+        }
+      ]
+    },
+    {
+      "id": "ANULACION-DECLARADOS-SECRETARIA-Y-EXONERACIONES-2026-07",
+      "estado": "ACTIVA",
+      "mes": "2026-06/2026-07",
+      "anulado_en": "2026-08-24T08:53:54",
+      "autorizacion": "Usuario autoriz\u00f3 limpieza de pagos declarados, cadena t\u00e9cnica y tres exoneraciones en conversaci\u00f3n 2026-08-24",
+      "motivo": "Retirar pagos declarados sin evidencia y su cadena t\u00e9cnica; mover C-19, F1-10 y R-5 a precursores pendientes de exoneraci\u00f3n post-reimputaci\u00f3n",
+      "pagos_declarados": 24,
+      "monto_declarado": 1063.0,
+      "ajustes_causales": 47,
+      "ajustes_exoneracion": 3,
+      "deuda_restaurada": 1055.0,
+      "ledger_sha256": "7b34a5fb5b2619a8b0acd10697f04728f5d34fe3df71502deaf7fd0f7b03de73",
+      "eventos": [
+        {
+          "fila_excel": 1416,
+          "audit_ref": "notas_2026-07|B1-12-ACUERDOS",
+          "mz": "B1",
+          "lt": "12",
+          "concepto": "ACUERDOS",
+          "mes": "2026-07",
+          "tipo_evento": "PAGO",
+          "monto": 50.0
+        },
+        {
+          "fila_excel": 1441,
+          "audit_ref": "recon_2026-07_ACUERDOS_B1_12_1785430821.533353",
+          "mz": "B1",
+          "lt": "12",
+          "concepto": "ACUERDOS",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": -50.0
+        },
+        {
+          "fila_excel": 1466,
+          "audit_ref": "notas_2026-07|B1-12-ACUERDOS-condonacion-estable-30072026",
+          "mz": "B1",
+          "lt": "12",
+          "concepto": "ACUERDOS",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": 50.0
+        },
+        {
+          "fila_excel": 1415,
+          "audit_ref": "notas_2026-07|B1-12-MULTA",
+          "mz": "B1",
+          "lt": "12",
+          "concepto": "MULTA",
+          "mes": "2026-07",
+          "tipo_evento": "PAGO",
+          "monto": 13.0
+        },
+        {
+          "fila_excel": 1440,
+          "audit_ref": "recon_2026-07_MULTA_B1_12_1785430819.775857",
+          "mz": "B1",
+          "lt": "12",
+          "concepto": "MULTA",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": -13.0
+        },
+        {
+          "fila_excel": 1465,
+          "audit_ref": "notas_2026-07|B1-12-MULTA-condonacion-estable-30072026",
+          "mz": "B1",
+          "lt": "12",
+          "concepto": "MULTA",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": 13.0
+        },
+        {
+          "fila_excel": 1473,
+          "audit_ref": "notas_2026-07|C-19-MULTA",
+          "mz": "C",
+          "lt": "19",
+          "concepto": "MULTA",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": -50.0
+        },
+        {
+          "fila_excel": 1418,
+          "audit_ref": "notas_2026-07|C-21-MULTA",
+          "mz": "C",
+          "lt": "21",
+          "concepto": "MULTA",
+          "mes": "2026-07",
+          "tipo_evento": "PAGO",
+          "monto": 50.0
+        },
+        {
+          "fila_excel": 1430,
+          "audit_ref": "recon_2026-07_MULTA_C_21_1785430146.110605",
+          "mz": "C",
+          "lt": "21",
+          "concepto": "MULTA",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": -50.0
+        },
+        {
+          "fila_excel": 1449,
+          "audit_ref": "notas_2026-07|C-21-MULTA-revertir-condonacion-fallida",
+          "mz": "C",
+          "lt": "21",
+          "concepto": "MULTA",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": 100.0
+        },
+        {
+          "fila_excel": 1492,
+          "audit_ref": "notas_2026-07|F-12-CONVENIO-redirigido-31072026",
+          "mz": "F",
+          "lt": "12",
+          "concepto": "CONVENIO",
+          "mes": "2026-06",
+          "tipo_evento": "PAGO",
+          "monto": 50.0
+        },
+        {
+          "fila_excel": 1493,
+          "audit_ref": "notas_2026-07|F-12-CONVENIO-correccion-etiqueta-31072026",
+          "mz": "F",
+          "lt": "12",
+          "concepto": "CONVENIO",
+          "mes": "2026-06",
+          "tipo_evento": "AJUSTE",
+          "monto": 50.0
+        },
+        {
+          "fila_excel": 1494,
+          "audit_ref": "notas_2026-07|F-12-CONVENIO-redirigido-31072026-v2",
+          "mz": "F",
+          "lt": "12",
+          "concepto": "CONVENIO",
+          "mes": "2026-07",
+          "tipo_evento": "PAGO",
+          "monto": 50.0
+        },
+        {
+          "fila_excel": 1472,
+          "audit_ref": "notas_2026-07|F1-10-MULTA",
+          "mz": "F1",
+          "lt": "10",
+          "concepto": "MULTA",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": -30.0
+        },
+        {
+          "fila_excel": 1411,
+          "audit_ref": "notas_2026-07|F1-5-ACUERDOS",
+          "mz": "F1",
+          "lt": "5",
+          "concepto": "ACUERDOS",
+          "mes": "2026-07",
+          "tipo_evento": "PAGO",
+          "monto": 50.0
+        },
+        {
+          "fila_excel": 1442,
+          "audit_ref": "recon_2026-07_ACUERDOS_F1_5_1785430966.350795",
+          "mz": "F1",
+          "lt": "5",
+          "concepto": "ACUERDOS",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": -50.0
+        },
+        {
+          "fila_excel": 1453,
+          "audit_ref": "notas_2026-07|F1-5-ACUERDOS-condonacion-estable-30072026",
+          "mz": "F1",
+          "lt": "5",
+          "concepto": "ACUERDOS",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": 50.0
+        },
+        {
+          "fila_excel": 1476,
+          "audit_ref": "notas_2026-07|G-18-CONVENIO",
+          "mz": "G",
+          "lt": "18",
+          "concepto": "CONVENIO",
+          "mes": "2026-07",
+          "tipo_evento": "PAGO",
+          "monto": 25.0
+        },
+        {
+          "fila_excel": 1481,
+          "audit_ref": "recon_2026-07_CONVENIO_G_18_1785539689.463652",
+          "mz": "G",
+          "lt": "18",
+          "concepto": "CONVENIO",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": -25.0
+        },
+        {
+          "fila_excel": 1488,
+          "audit_ref": "notas_2026-07|G-18-CONVENIO-estabilizador-31072026",
+          "mz": "G",
+          "lt": "18",
+          "concepto": "CONVENIO",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": 25.0
+        },
+        {
+          "fila_excel": 1412,
+          "audit_ref": "notas_2026-07|G1-14-ACUERDOS",
+          "mz": "G1",
+          "lt": "14",
+          "concepto": "ACUERDOS",
+          "mes": "2026-07",
+          "tipo_evento": "PAGO",
+          "monto": 75.0
+        },
+        {
+          "fila_excel": 1443,
+          "audit_ref": "recon_2026-07_ACUERDOS_G1_14_1785430981.472752",
+          "mz": "G1",
+          "lt": "14",
+          "concepto": "ACUERDOS",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": -75.0
+        },
+        {
+          "fila_excel": 1454,
+          "audit_ref": "notas_2026-07|G1-14-ACUERDOS-condonacion-estable-30072026",
+          "mz": "G1",
+          "lt": "14",
+          "concepto": "ACUERDOS",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": 75.0
+        },
+        {
+          "fila_excel": 1402,
+          "audit_ref": "notas_2026-07|L-16-ACUERDOS",
+          "mz": "L",
+          "lt": "16",
+          "concepto": "ACUERDOS",
+          "mes": "2026-07",
+          "tipo_evento": "PAGO",
+          "monto": 50.0
+        },
+        {
+          "fila_excel": 1444,
+          "audit_ref": "recon_2026-07_ACUERDOS_L_16_1785431007.904225",
+          "mz": "L",
+          "lt": "16",
+          "concepto": "ACUERDOS",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": -50.0
+        },
+        {
+          "fila_excel": 1452,
+          "audit_ref": "notas_2026-07|L-16-ACUERDOS-condonacion-estable-30072026",
+          "mz": "L",
+          "lt": "16",
+          "concepto": "ACUERDOS",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": 50.0
+        },
+        {
+          "fila_excel": 1403,
+          "audit_ref": "notas_2026-07|N-5-MULTA",
+          "mz": "N",
+          "lt": "5",
+          "concepto": "MULTA",
+          "mes": "2026-07",
+          "tipo_evento": "PAGO",
+          "monto": 50.0
+        },
+        {
+          "fila_excel": 1445,
+          "audit_ref": "recon_2026-07_MULTA_N_5_1785431011.999074",
+          "mz": "N",
+          "lt": "5",
+          "concepto": "MULTA",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": -50.0
+        },
+        {
+          "fila_excel": 1455,
+          "audit_ref": "notas_2026-07|N-5-MULTA-condonacion-estable-30072026",
+          "mz": "N",
+          "lt": "5",
+          "concepto": "MULTA",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": 50.0
+        },
+        {
+          "fila_excel": 1404,
+          "audit_ref": "notas_2026-07|Q-10-MULTA",
+          "mz": "Q",
+          "lt": "10",
+          "concepto": "MULTA",
+          "mes": "2026-07",
+          "tipo_evento": "PAGO",
+          "monto": 50.0
+        },
+        {
+          "fila_excel": 1446,
+          "audit_ref": "recon_2026-07_MULTA_Q_10_1785431018.497489",
+          "mz": "Q",
+          "lt": "10",
+          "concepto": "MULTA",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": -50.0
+        },
+        {
+          "fila_excel": 1456,
+          "audit_ref": "notas_2026-07|Q-10-MULTA-condonacion-estable-30072026",
+          "mz": "Q",
+          "lt": "10",
+          "concepto": "MULTA",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": 50.0
+        },
+        {
+          "fila_excel": 1414,
+          "audit_ref": "notas_2026-07|Q-11-ACUERDOS",
+          "mz": "Q",
+          "lt": "11",
+          "concepto": "ACUERDOS",
+          "mes": "2026-07",
+          "tipo_evento": "PAGO",
+          "monto": 75.0
+        },
+        {
+          "fila_excel": 1433,
+          "audit_ref": "recon_2026-07_ACUERDOS_Q_11_1785430563.595867",
+          "mz": "Q",
+          "lt": "11",
+          "concepto": "ACUERDOS",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": -75.0
+        },
+        {
+          "fila_excel": 1458,
+          "audit_ref": "notas_2026-07|Q-11-ACUERDOS-condonacion-estable-30072026",
+          "mz": "Q",
+          "lt": "11",
+          "concepto": "ACUERDOS",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": 75.0
+        },
+        {
+          "fila_excel": 1413,
+          "audit_ref": "notas_2026-07|Q-11-MULTA",
+          "mz": "Q",
+          "lt": "11",
+          "concepto": "MULTA",
+          "mes": "2026-07",
+          "tipo_evento": "PAGO",
+          "monto": 20.0
+        },
+        {
+          "fila_excel": 1432,
+          "audit_ref": "recon_2026-07_MULTA_Q_11_1785430562.007236",
+          "mz": "Q",
+          "lt": "11",
+          "concepto": "MULTA",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": -20.0
+        },
+        {
+          "fila_excel": 1457,
+          "audit_ref": "notas_2026-07|Q-11-MULTA-condonacion-estable-30072026",
+          "mz": "Q",
+          "lt": "11",
+          "concepto": "MULTA",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": 20.0
+        },
+        {
+          "fila_excel": 1420,
+          "audit_ref": "notas_2026-07|Q-4-ACUERDOS-condonacion-unificacion-Q5",
+          "mz": "Q",
+          "lt": "4",
+          "concepto": "ACUERDOS",
+          "mes": "2026-07",
+          "tipo_evento": "PAGO",
+          "monto": 75.0
+        },
+        {
+          "fila_excel": 1448,
+          "audit_ref": "recon_2026-07_ACUERDOS_Q_4_1785431025.286066",
+          "mz": "Q",
+          "lt": "4",
+          "concepto": "ACUERDOS",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": -75.0
+        },
+        {
+          "fila_excel": 1451,
+          "audit_ref": "notas_2026-07|Q-4-ACUERDOS-revertir-condonacion-fallida",
+          "mz": "Q",
+          "lt": "4",
+          "concepto": "ACUERDOS",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": 150.0
+        },
+        {
+          "fila_excel": 1469,
+          "audit_ref": "notas_2026-07|Q-4-ACUERDOS-recondonacion-definitiva-30072026",
+          "mz": "Q",
+          "lt": "4",
+          "concepto": "ACUERDOS",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": -75.0
+        },
+        {
+          "fila_excel": 1419,
+          "audit_ref": "notas_2026-07|Q-4-MULTA-condonacion-unificacion-Q5",
+          "mz": "Q",
+          "lt": "4",
+          "concepto": "MULTA",
+          "mes": "2026-07",
+          "tipo_evento": "PAGO",
+          "monto": 50.0
+        },
+        {
+          "fila_excel": 1447,
+          "audit_ref": "recon_2026-07_MULTA_Q_4_1785431023.3108",
+          "mz": "Q",
+          "lt": "4",
+          "concepto": "MULTA",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": -50.0
+        },
+        {
+          "fila_excel": 1450,
+          "audit_ref": "notas_2026-07|Q-4-MULTA-revertir-condonacion-fallida",
+          "mz": "Q",
+          "lt": "4",
+          "concepto": "MULTA",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": 100.0
+        },
+        {
+          "fila_excel": 1468,
+          "audit_ref": "notas_2026-07|Q-4-MULTA-recondonacion-definitiva-30072026",
+          "mz": "Q",
+          "lt": "4",
+          "concepto": "MULTA",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": -50.0
+        },
+        {
+          "fila_excel": 1405,
+          "audit_ref": "notas_2026-07|R-4-ACUERDOS",
+          "mz": "R",
+          "lt": "4",
+          "concepto": "ACUERDOS",
+          "mes": "2026-07",
+          "tipo_evento": "PAGO",
+          "monto": 30.0
+        },
+        {
+          "fila_excel": 1434,
+          "audit_ref": "recon_2026-07_ACUERDOS_R_4_1785430576.959658",
+          "mz": "R",
+          "lt": "4",
+          "concepto": "ACUERDOS",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": -30.0
+        },
+        {
+          "fila_excel": 1459,
+          "audit_ref": "notas_2026-07|R-4-ACUERDOS-condonacion-estable-30072026",
+          "mz": "R",
+          "lt": "4",
+          "concepto": "ACUERDOS",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": 30.0
+        },
+        {
+          "fila_excel": 1474,
+          "audit_ref": "notas_2026-07|R-5-MULTA",
+          "mz": "R",
+          "lt": "5",
+          "concepto": "MULTA",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": -12.0
+        },
+        {
+          "fila_excel": 1406,
+          "audit_ref": "notas_2026-07|S-1-ACUERDOS",
+          "mz": "S",
+          "lt": "1",
+          "concepto": "ACUERDOS",
+          "mes": "2026-07",
+          "tipo_evento": "PAGO",
+          "monto": 55.0
+        },
+        {
+          "fila_excel": 1435,
+          "audit_ref": "recon_2026-07_ACUERDOS_S_1_1785430584.013605",
+          "mz": "S",
+          "lt": "1",
+          "concepto": "ACUERDOS",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": -55.0
+        },
+        {
+          "fila_excel": 1460,
+          "audit_ref": "notas_2026-07|S-1-ACUERDOS-condonacion-estable-30072026",
+          "mz": "S",
+          "lt": "1",
+          "concepto": "ACUERDOS",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": 55.0
+        },
+        {
+          "fila_excel": 1409,
+          "audit_ref": "notas_2026-07|S-12-MULTA",
+          "mz": "S",
+          "lt": "12",
+          "concepto": "MULTA",
+          "mes": "2026-07",
+          "tipo_evento": "PAGO",
+          "monto": 30.0
+        },
+        {
+          "fila_excel": 1438,
+          "audit_ref": "recon_2026-07_MULTA_S_12_1785430602.884064",
+          "mz": "S",
+          "lt": "12",
+          "concepto": "MULTA",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": -30.0
+        },
+        {
+          "fila_excel": 1463,
+          "audit_ref": "notas_2026-07|S-12-MULTA-condonacion-estable-30072026",
+          "mz": "S",
+          "lt": "12",
+          "concepto": "MULTA",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": 30.0
+        },
+        {
+          "fila_excel": 1475,
+          "audit_ref": "notas_2026-07|S-5-ACUERDOS",
+          "mz": "S",
+          "lt": "5",
+          "concepto": "ACUERDOS",
+          "mes": "2026-07",
+          "tipo_evento": "PAGO",
+          "monto": 30.0
+        },
+        {
+          "fila_excel": 1482,
+          "audit_ref": "recon_2026-07_ACUERDOS_S_5_1785539971.337677",
+          "mz": "S",
+          "lt": "5",
+          "concepto": "ACUERDOS",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": -30.0
+        },
+        {
+          "fila_excel": 1487,
+          "audit_ref": "notas_2026-07|S-5-ACUERDOS-estabilizador-31072026",
+          "mz": "S",
+          "lt": "5",
+          "concepto": "ACUERDOS",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": 30.0
+        },
+        {
+          "fila_excel": 1407,
+          "audit_ref": "notas_2026-07|S-8-MULTA",
+          "mz": "S",
+          "lt": "8",
+          "concepto": "MULTA",
+          "mes": "2026-07",
+          "tipo_evento": "PAGO",
+          "monto": 22.0
+        },
+        {
+          "fila_excel": 1436,
+          "audit_ref": "recon_2026-07_MULTA_S_8_1785430593.602069",
+          "mz": "S",
+          "lt": "8",
+          "concepto": "MULTA",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": -22.0
+        },
+        {
+          "fila_excel": 1461,
+          "audit_ref": "notas_2026-07|S-8-MULTA-condonacion-estable-30072026",
+          "mz": "S",
+          "lt": "8",
+          "concepto": "MULTA",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": 22.0
+        },
+        {
+          "fila_excel": 1408,
+          "audit_ref": "notas_2026-07|S-9-ACUERDOS",
+          "mz": "S",
+          "lt": "9",
+          "concepto": "ACUERDOS",
+          "mes": "2026-07",
+          "tipo_evento": "PAGO",
+          "monto": 38.0
+        },
+        {
+          "fila_excel": 1437,
+          "audit_ref": "recon_2026-07_ACUERDOS_S_9_1785430596.632505",
+          "mz": "S",
+          "lt": "9",
+          "concepto": "ACUERDOS",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": -38.0
+        },
+        {
+          "fila_excel": 1462,
+          "audit_ref": "notas_2026-07|S-9-ACUERDOS-condonacion-estable-30072026",
+          "mz": "S",
+          "lt": "9",
+          "concepto": "ACUERDOS",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": 38.0
+        },
+        {
+          "fila_excel": 1471,
+          "audit_ref": "notas_2026-07|T-7-ACUERDOS",
+          "mz": "T",
+          "lt": "7",
+          "concepto": "ACUERDOS",
+          "mes": "2026-07",
+          "tipo_evento": "PAGO",
+          "monto": 45.0
+        },
+        {
+          "fila_excel": 1483,
+          "audit_ref": "recon_2026-07_ACUERDOS_T_7_1785539990.32987",
+          "mz": "T",
+          "lt": "7",
+          "concepto": "ACUERDOS",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": -45.0
+        },
+        {
+          "fila_excel": 1485,
+          "audit_ref": "notas_2026-07|T-7-ACUERDOS-estabilizador-31072026",
+          "mz": "T",
+          "lt": "7",
+          "concepto": "ACUERDOS",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": 45.0
+        },
+        {
+          "fila_excel": 1470,
+          "audit_ref": "notas_2026-07|T-7-CONVENIO",
+          "mz": "T",
+          "lt": "7",
+          "concepto": "CONVENIO",
+          "mes": "2026-07",
+          "tipo_evento": "PAGO",
+          "monto": 50.0
+        },
+        {
+          "fila_excel": 1484,
+          "audit_ref": "recon_2026-07_CONVENIO_T_7_1785539991.615704",
+          "mz": "T",
+          "lt": "7",
+          "concepto": "CONVENIO",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": -50.0
+        },
+        {
+          "fila_excel": 1486,
+          "audit_ref": "notas_2026-07|T-7-CONVENIO-estabilizador-31072026",
+          "mz": "T",
+          "lt": "7",
+          "concepto": "CONVENIO",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": 50.0
+        },
+        {
+          "fila_excel": 1410,
+          "audit_ref": "notas_2026-07|V-6-MULTA",
+          "mz": "V",
+          "lt": "6",
+          "concepto": "MULTA",
+          "mes": "2026-07",
+          "tipo_evento": "PAGO",
+          "monto": 30.0
+        },
+        {
+          "fila_excel": 1439,
+          "audit_ref": "recon_2026-07_MULTA_V_6_1785430666.244405",
+          "mz": "V",
+          "lt": "6",
+          "concepto": "MULTA",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": -30.0
+        },
+        {
+          "fila_excel": 1464,
+          "audit_ref": "notas_2026-07|V-6-MULTA-condonacion-estable-30072026",
+          "mz": "V",
+          "lt": "6",
+          "concepto": "MULTA",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": 30.0
+        }
+      ]
+    },
+    {
+      "id": "ANULACION-AJUSTES-D1-6-L-4-O-2-2026-07",
+      "estado": "ACTIVA",
+      "mes": "2026-07",
+      "anulado_en": "2026-08-24T09:26:33",
+      "autorizacion": "Usuario autoriz\u00f3 limpiar los ajustes de D1-6, L-4 y O-2 en conversaci\u00f3n 2026-08-24",
+      "motivo": "Retirar ajustes t\u00e9cnicos de D1-6 y L-4 conservando sus pagos reales; retirar temporalmente la exoneraci\u00f3n de O-2 conservando su precursor",
+      "eventos_anulados": 4,
+      "deuda_restaurada": 45.0,
+      "ledger_sha256": "7b34a5fb5b2619a8b0acd10697f04728f5d34fe3df71502deaf7fd0f7b03de73",
+      "eventos": [
+        {
+          "fila_excel": 1346,
+          "audit_ref": "recon_2026-07_MULTA_D1_6_1784591129.038673",
+          "mz": "D1",
+          "lt": "6",
+          "concepto": "MULTA",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": -12.0
+        },
+        {
+          "fila_excel": 1341,
+          "audit_ref": "recon_2026-07_MULTA_L_4_1784590624.851986",
+          "mz": "L",
+          "lt": "4",
+          "concepto": "MULTA",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": -17.0
+        },
+        {
+          "fila_excel": 1395,
+          "audit_ref": "fix_race_condition_yape_20260713_L_4_MULTA",
+          "mz": "L",
+          "lt": "4",
+          "concepto": "MULTA",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": 14.0
+        },
+        {
+          "fila_excel": 1495,
+          "audit_ref": "reclamos_2026-08-01|O-2-MULTA",
+          "mz": "O",
+          "lt": "2",
+          "concepto": "MULTA",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": -30.0
+        }
+      ]
+    },
+    {
+      "id": "ANULACION-LOTE-FANTASMA-E-14A-2026-07",
+      "estado": "ACTIVA",
+      "mes": "2026-07",
+      "anulado_en": "2026-08-24T09:36:46",
+      "autorizacion": "Usuario autoriz\u00f3 eliminar todo evento de E-14A en conversaci\u00f3n 2026-08-24",
+      "motivo": "E-14A no existe en el padr\u00f3n; el cargo real fue reidentificado completamente a E-14B",
+      "eventos_anulados": 2,
+      "efecto_neto": 0.0,
+      "ledger_sha256": "7b34a5fb5b2619a8b0acd10697f04728f5d34fe3df71502deaf7fd0f7b03de73",
+      "eventos": [
+        {
+          "fila_excel": 1375,
+          "audit_ref": "genesis_tardia_2026-07_ACUERDOS_E_14A",
+          "mz": "E",
+          "lt": "14A",
+          "concepto": "ACUERDOS",
+          "mes": "2026-07",
+          "tipo_evento": "CARGO",
+          "monto": 75.0
+        },
+        {
+          "fila_excel": 1497,
+          "audit_ref": "reidentificacion_cargo|E-14A-a-E-14B|ACUERDOS|origen",
+          "mz": "E",
+          "lt": "14A",
+          "concepto": "ACUERDOS",
+          "mes": "2026-07",
+          "tipo_evento": "AJUSTE",
+          "monto": -75.0
+        }
+      ]
+    }
+  ]
+}

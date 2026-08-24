@@ -172,5 +172,5 @@ falta MULTA → todo lo de abajo (convenio) se atribuye mal en el extracto.
 Este módulo cierra el diseño de la disolución de `5_cobranza` post-ledger: todo lo que
 `5_cobranza` hacía se reparte entre el motor (aplicar), queries (saldo/arrastre), tools
 de lectura (reportes) y **este emisor** (los cargos no-agua). Ver
-`docs/RETOMAR_dominio_saldo_unico_2026-07-13.md` y el contrato en
+`docs/retomar/RETOMAR_dominio_saldo_unico_2026-07-13.md` y el contrato en
 `libro_mayor/estado_cuenta/README.md`.

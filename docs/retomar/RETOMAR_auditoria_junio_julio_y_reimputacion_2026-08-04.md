@@ -257,7 +257,7 @@ NUEVOS
   4b_reclamos/reporte_deuda_ledger.py
   4b_reclamos/reporte_reimputacion_cascada.py
   4b_reclamos/outputs/reporte_reimputacion_cascada_2026-07.pdf  (+ .xlsx)
-  docs/RETOMAR_auditoria_junio_julio_y_reimputacion_2026-08-04.md   (este archivo)
+  docs/retomar/RETOMAR_auditoria_junio_julio_y_reimputacion_2026-08-04.md   (este archivo)
 
 REGENERADOS
   4b_reclamos/outputs/reporte_convenio_multa_referencias_2026-07.pdf

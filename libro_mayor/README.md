@@ -46,7 +46,7 @@ bounded context, no como dos módulos separados. Razón dura, no estética:
 ```
 libro_mayor/
 ├── dominio/          reglas + entidades puras (MovimientoCaja, Cargo, Aplicacion,
-│                     Ajuste), céntimos int, sin I/O — ver docs/RETOMAR_dominio_saldo_unico
+│                     Ajuste), céntimos int, sin I/O — ver docs/retomar/RETOMAR_dominio_saldo_unico
 ├── caja/             caja_repo.py — writer único (abonos), se escribe desde cero.
 ├── estado_cuenta/    cuenta_repo.py + motor_aplicacion.py (cargos, aplicaciones)
 ├── tools/            estado_cuenta · explicar_reclamo · auditoria (agent-callable)
@@ -147,7 +147,7 @@ Al empezar a diseñar `riesgo_corte` (backlog de la sesión anterior) surgió qu
 — cerrar `libro_mayor/dominio/` (reglas puras extraídas de `6_corte`/`5_cobranza`)
 y migrar agua/mant/corte al ledger ANTES de seguir con el catálogo de capacidades.
 Detalle completo, inventario de ledgers existentes y roadmap B1-B4:
-`docs/RETOMAR_dominio_saldo_unico_2026-07-13.md`.
+`docs/retomar/RETOMAR_dominio_saldo_unico_2026-07-13.md`.
 
 ## Sesión 24/07/2026 — decisión ⑬: `reactivación` como 3er SUB_CONCEPTO de CONVENIO
 

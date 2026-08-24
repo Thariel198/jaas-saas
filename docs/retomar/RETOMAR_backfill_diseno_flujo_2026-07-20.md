@@ -1,6 +1,6 @@
 # RETOMAR — Backfill: diseñar el flujo para pagos nunca procesados · Sesión 2026-07-20 (2ª parte)
 
-Continúa `docs/RETOMAR_junio_restauracion_y_precursores_ledger_2026-07-20.md` (mismo día,
+Continúa `docs/retomar/RETOMAR_junio_restauracion_y_precursores_ledger_2026-07-20.md` (mismo día,
 escrito a mitad de sesión) — esa parte ya se cerró casi entera. Esta es la 2ª mitad del
 día: se terminó de vaciar `mesa_5` y quedó **una sola pregunta de diseño abierta**, la que
 da nombre a este doc.

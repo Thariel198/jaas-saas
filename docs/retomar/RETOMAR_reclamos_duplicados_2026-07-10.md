@@ -148,7 +148,7 @@ CLAUDE.md — cambio a un módulo existente/nuevo con dimensión de arquitectura
 4b_reclamos/outputs/reclamos_2026-07.xlsx   regenerado (gitignored, no aparece en git status)
 4b_reclamos/backup/reclamos/*.xlsx  varios backups automáticos de hoy (gitignored)
 docs/aprendizaje/Aprendizaje html/placeholder_disfrazado_de_manual_20260710.html   nuevo, sin commitear (?? en git status)
-docs/RETOMAR_reclamos_duplicados_2026-07-10.md   este archivo
+docs/retomar/RETOMAR_reclamos_duplicados_2026-07-10.md   este archivo
 ```
 
 ## SIGUIENTE_ACCION — orden sugerido

@@ -1,3 +1,225 @@
+# LEER ANTES — estado_cuenta completo comienza en agosto, sin backfill (21/08/2026)
+
+```text
+arrastre cerrado julio + lecturas/planilla agosto + audit de corte + pagos
+                                  |
+                                  v
+                  snapshot completo de 5_cobranza
+                                  |
+                                  v
+                     commit único de 7_cierre
+```
+
+- Agosto abre `AGUA` y `CORTE_RECONEXION` desde el arrastre cerrado de julio; no reconstruye meses anteriores.
+- `AGUA` y `MANTENIMIENTO` nuevos salen de lecturas + `2_planilla`; los cargos nuevos de corte salen del audit de `6_corte`.
+- Desde septiembre, `2_planilla` lee agua, mantenimiento y corte del ledger comprometido, no de `arrastre_consolidado`.
+- El nombre físico `seguimiento_pueblo.xlsx` se conserva durante la transición, pero su taxonomía ya es la de `estado_cuenta`.
+- `7_cierre` sigue siendo el único commit oficial. No ejecutar el cierre real sin completar la lista de corte vigente.
+
+# LEER ANTES — la cascada se reordena a CA1 y se re-imputan S/2,545.50 de pagos viejos (13/08/2026) — PLAN CERRADO, SIN EJECUTAR
+
+**Si venís a tocar `5_cobranza`, `seguimiento_pueblo.xlsx` o cualquier reporte de deuda de
+multa/acuerdos/convenio: leé esto primero.** Hay un cambio grande decidido y todavía no
+aplicado, y el orden en que se hagan las cosas importa.
+
+Decisión completa, números y validaciones: **`docs/decisiones/reimputacion_cascada_ca1.md`**.
+Acá solo el estado y lo que no se puede improvisar.
+
+## Estado — qué está hecho y qué no
+
+```
+✔ decidido       la cascada del tramo pueblo pasa a CONVENIO → ACUERDOS → MULTA
+                 (el dinero cubre primero lo que SOLO el dinero salda; la multa se
+                 recupera con faena o se exonera)
+✔ PASO 0 HECHO   4b_reclamos/reporte_reimputacion_cascada.py corregido y re-corrido:
+                 ventana derivada del ledger + tope = plata real por concepto.
+                 14/14 validaciones OK. Sigue siendo simulación, no escribe nada.
+✔ medido         88 predios · S/3,003.50, en dos manos:
+                    S/2,608.50  origen jun/jul → ASIENTO MANUAL (ciclos cerrados)
+                    S/  395.00  origen agosto  → lo hace el código (pasos 4b + 5)
+✔ auditado       7 predios afectados, cada uno con su causa escrita en el reporte
+                 (3 EXCLUIDO · 4 RECORTADO)
+
+✔ PASO 4 HECHO   la cascada ya está en CA1: 5_cobranza/main.py::_descomponer_saldo
+                 tiene P3 CONVENIO · P4 ACUERDOS · P5 MULTA (corte sigue en P2).
+                 Se reordenaron los 4 lugares acoplados por posición y los 3 tests
+                 del módulo pasan.
+
+✘ NADA escrito en el ledger — verificado: 1563 eventos, 0 asientos de reimputacion_ca1
+
+✔ NO hay trampa armada. Se ensayó la escritura, la validación falló por sepultamiento
+  y se restauró el backup en el acto. El ledger y la planilla vuelven a estar de acuerdo,
+  así que **agosto puede seguir su curso normal**: 5_cobranza, lista de corte y cierre.
+
+🟡 LA RE-IMPUTACIÓN VA DESPUÉS DE CERRAR AGOSTO — no antes
+   Escribir un asiento con MES pasado no sirve si el concepto tiene un evento
+   posterior: queda SEPULTADO (SALDO es un total corrido guardado, no se recalcula).
+   Al escribir después del cierre, el asiento es la última fila de los dos conceptos
+   y no hay nada que lo entierre.
+
+   AHORA        5_cobranza --force → agosto se re-imputa solo (la cascada ya está en CA1)
+                6_corte → lista de corte normal → ... → 7_cierre
+   POST-CIERRE  re-correr el reporte → congelar → --escribir → validar
+                todos los asientos con MES = 2026-08 (NO 2026-09: 2_planilla lee el
+                mes anterior, y con 09 la planilla de septiembre no los vería)
+   SEPTIEMBRE   2_planilla toma la re-imputación · 5_cobranza usa la cascada nueva
+
+   → el paso 4b (regenerar planilla_2026-08) YA NO HACE FALTA por este cambio
+```
+
+## El orden no es negociable
+
+```
+① re-imputar (asientos en el ledger)      ANTES de correr 5_cobranza otra vez
+   por qué: SALDO es una columna ALMACENADA. Si una corrida escribe un evento de
+   agosto para un predio, el asiento con MES=2026-06 ordena antes y queda
+   SEPULTADO — sin efecto y en silencio. Hoy hay 0 sepultados; no es garantía.
+
+② cambiar el código                        ANTES de cerrar reclamos de "ya pagué"
+   por qué: si se escribe un ABONO_REZAGADO/DECLARACION con el orden viejo vivo,
+   esa plata nueva se vuelve a imputar multa-primero y se recrea el problema.
+
+③ exonerar                                 DESPUÉS de re-imputar, nunca antes
+   por qué: la exoneración deja la multa en 0; el AJUSTE de la re-imputación
+   devuelve deuda de multa. Al revés, resucita una deuda ya perdonada y el predio
+   queda excluido del movimiento con su reclamo de convenio sin resolver.
+   ⚠ Esta lista VA A CRECER: con casi todo el pueblo debiendo solo multa, van a
+   reclamar y se va a exonerar a varios. Es el circuito buscado.
+
+④ los 8 movimientos de origen 2026-08      NO se escriben a mano, nunca
+   5_cobranza recalcula el mes entero y sabe revertir, pero su SET_TIENE cuenta
+   solo eventos con source="5_cobranza": no vería el asiento manual y movería la
+   plata DOS VECES.
+```
+
+## Lo que NO se toca (y por qué, para no re-discutirlo)
+
+```
+boletas de agosto     NO se regeneran. Salieron el 31/07 y se cobraron el 01/08, y
+                      DATA_boletas.xlsx tiene ~25 correcciones a mano de ese día
+                      (backups en 3_boletas/inputs/backups/). Regenerarlas las pisa
+                      → Regla 9 de CLAUDE.md. El vecino ve el cambio en SEPTIEMBRE.
+                      El paso final NO corre 3_boletas.
+
+⚠ planilla_2026-08    SÍ se regenera (paso 4b), y es obligatorio. 2_planilla lee
+                      MULTA/ACUERDOS/CONVENIO del LEDGER (main.py:144
+                      _join_saldo_pueblo → get_saldos_bulk), pero 5_cobranza lee la
+                      deuda por concepto DE LA PLANILLA (main.py:833-835). La planilla
+                      de agosto es una foto del ledger al cierre de julio: si la
+                      cascada nueva corre sobre esa foto, vuelve a cobrar el convenio
+                      que la re-imputación ya cubrió → COBRO DOBLE del medidor.
+                      2_planilla no tiene backup ni preservación → respaldar a mano antes.
+                      Después de 4b la planilla y las boletas de agosto ya entregadas
+                      dicen cosas distintas: es deliberado, no lo "arregles".
+
+lista de corte        NO se afecta ni se congela. El único corte vigente es por no pago
+                      de AGUA en 2 meses (6_corte usa CONCEPTOS_SALDO=[AGUA,MANTENIMIENTO];
+                      5_cobranza cuenta elegibles por SALDO>0 & MES_ANT>=8). La multa no
+                      entra en la decisión de corte.
+                      ⚠ El "corte por multa" se diseñó y NUNCA se ejecutó. Los README que
+                      lo describen (6b_corte_multas, el trigger del manifiesto) son diseño
+                      OBSOLETO, no comportamiento vigente. No los tomes como estado real.
+
+feb a mayo            NO se escribe nada. El ledger nace en junio y la deuda se sembró YA
+                      NETA de lo pagado antes: mover un pago de feb-may lo gasta dos veces.
+
+mes anterior          NO se toca. Vive en el bloque P1 (agua); la re-imputación solo mueve
+                      MULTA/ACUERDOS/CONVENIO.
+```
+
+## Cómo revertir un predio si un vecino aparece con un recibo
+
+El ledger es append-only: revertir = escribir el par inverso, nunca borrar filas.
+
+```
+herramienta (se crea en el paso 2, junto con la escritura):
+    py 4b_reclamos/reimputar_cascada.py --revertir <MZ> <LT>
+
+qué hace, y qué hay que hacer a mano si la herramienta todavía no existe:
+    ① busca los asientos con AUDIT_REF = reimputacion_ca1_<MZ>_<LT>_<ORIGEN>_<DESTINO>
+    ② escribe el par INVERSO con el mismo MES y CLASE=REASIGNACION
+       AJUSTE −X en el que había cedido · AJUSTE +X en el que había recibido
+       AUDIT_REF = reimputacion_ca1_REVERTIDO_<MZ>_<LT>_<ORIGEN>_<DESTINO>
+       MOTIVO = por qué se revierte + el recibo/evidencia que apareció
+    ③ apaga la fila del precursor en shared/reasignaciones_aplicacion.xlsx
+       (columna ESTADO = REVERTIDO, no se borra la fila)
+    ④ re-corre la validación: el predio tiene que volver al saldo de antes
+
+NO hace falta revertir el lote entero por un predio: cada movimiento es independiente
+y su AUDIT_REF es determinista.
+```
+
+## Los 10 predios cuyo reclamo queda abierto
+
+```
+J-1 Comedor Popular · J-6 Capilla del Pueblo    el convenio SE COBRA (cerrado 13/08)
+    nunca pagaron nada: cero eventos PAGO. El medidor es un bien que recibieron.
+        J-1 convenio S/ 75   ·   J-6 convenio S/100      → S/175 a cobrar
+    no hay nada que re-imputar en ellos
+    sus ACUERDOS quedan CONDONADOS (S/75 + S/75) — cerrado 13/08. La regla hacia
+    adelante es "techado y campo se pagan, solo la multa se exonera", pero esas dos
+    exoneraciones tienen su MOTIVO escrito y viene de la directiva, así que se mantienen.
+    ⚠ S-5 ACUERDOS −40 figura como EXONERACION y NO lo es: era plata real (el yape
+      que Wagner retuvo, recuperado en efectivo). NO revertir — la CLASE está mal
+      puesta, es deuda de documentación.
+
+## El MOTIVO escrito le gana a la memoria de cualquiera
+
+Regla fijada el 13/08/2026, y vale para todo el ledger, no solo para este evento:
+
+```
+si un asiento tiene MOTIVO escrito, ese motivo MANDA — por encima de lo que
+cualquiera recuerde hoy, incluido el usuario
+
+  caso que la fijó: la regla es "solo la multa se exonera", pero el ledger tenía
+  2 exoneraciones de ACUERDOS con motivo de la directiva. Ganó el ledger:
+  "obviamente en su momento la directiva habrá dicho condona acuerdos y a mí se me olvidó"
+```
+
+Consecuencia directa: **los 29 `AJUSTE` sin `MOTIVO` son los únicos asientos que no
+podrían defenderse solos en una discusión así.** Su explicación está en el `AUDIT_REF`
+(`notas_2026-07|...`, `recon_...`, `fix_race_condition_...`), pero mientras no esté en
+`MOTIVO`, cualquiera puede revertirlos de buena fe. Llenarlos dejó de ser cosmética.
+
+P-12 Judith Venturo · N-6 David Juárez          NO se exoneran (cerrado 13/08)
+    están en la lista de excluidos por el bug de la ventana del reporte, NO por una
+    decisión de la directiva. Son vecinos, no bienes del pueblo, y ninguno tiene
+    reclamo registrado en los 5 archivos de reclamos.
+        N-6   multa 20 DEBE · acuerdos 21 DEBE (ya pagó 29 reales en julio)
+        P-12  convenio 50 DEBE · multa 0 (no tiene ni un evento de multa)
+    ⚠ aparecer en una lista de auditoría NO es motivo para exonerar. Si algún día se
+      exonera la multa de N-6, el respaldo son las hojas de ASISTENCIA (sus S/20 son
+      tarifa de reunión) — no la lista.
+
+K-9 · A-4 · B-12A · C1-14 · D1-6 · L-4          se mueve solo lo que tienen de plata real
+```
+
+## Cómo se cierra este evento
+
+Cuando los 6 pasos de `docs/decisiones/reimputacion_cascada_ca1.md` estén ejecutados y
+validados, y el reporte para la directiva esté entregado. Mientras alguna de estas filas
+siga sin ejecutar, esta sección se queda:
+
+```
+[x] 0   corregir el reporte (ventana derivada del ledger · tope = plata real)
+[x] 4   _descomponer_saldo al orden CA1 · falta el detector CASCADA_FUERA_DE_ORDEN
+[x] 2b  herramienta 4b_reclamos/reimputar_cascada.py (dry run · backup · --revertir)
+
+  ── agosto sigue su curso, sin tocar el ledger ──
+[ ] A1  5_cobranza --force   (agosto se re-imputa solo con la cascada nueva)
+[ ] A2  6_corte              lista de corte
+[ ] A3  7_cierre             agosto cerrado
+
+  ── recién ahí, y ANTES de generar la planilla de septiembre ──
+[ ] B1  re-correr el reporte con los saldos post-cierre
+[ ] B2  --congelar           (el contrato de hoy es un ensayo, no se usa)
+[ ] B3  --escribir           todos los asientos con MES = 2026-08
+[ ] B4  validar capas 1+2+3
+[ ] B5  reporte desde el ledger para la directiva
+```
+
+---
+
 # LEER ANTES — correcciones_lote.xlsx resucitó una regla al revés (Roberto C1-9) + 2 lotes mal escritos + 1 pendiente (10/08/2026)
 
 **Si `correcciones_lote.xlsx` tiene una fila `C1-9 → C1-9` (misma MZ/LT origen y
@@ -509,7 +731,7 @@ que se fue es el ruido que el sistema generó alrededor de ellos.
        Los precursores no servían: abonos_rezagados/ajustes_cargo NO tocan el ledger de
        MULTA/ACUERDOS cuando no hay plata real del ciclo (5_cobranza solo escribe si hay
        diferencia contra el total_pagado REAL) — ver
-       docs/RETOMAR_notas_secretaria_julio_grupo2_2026-07-29.md § 3.1
+       docs/retomar/RETOMAR_notas_secretaria_julio_grupo2_2026-07-29.md § 3.1
        ⇒ se escribió registrar_pago DIRECTO en el ledger
           TIPO_EVENTO=PAGO · SOURCE=manual · AUDIT_REF=notas_2026-07|<predio>-<CONCEPTO>
               │
@@ -1435,7 +1657,7 @@ sección.
 
 ## Qué pasó
 
-C1-17 y C1-9 son el mismo predio (ver `docs/RETOMAR_agosto_override_C1-9_y_deuda_directiva.md`,
+C1-17 y C1-9 son el mismo predio (ver `docs/retomar/RETOMAR_agosto_override_C1-9_y_deuda_directiva.md`,
 error de `02_matching` que no detecta mismo titular en 2 lotes). El 27/07/2026
 se aplicó un override `CORREGIR_CAMPO NOMBRE` que solo le puso la etiqueta
 "CERRADO - VER C1-9 (mismo predio)" a C1-17 — **nunca se borró la fila**, lo

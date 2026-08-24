@@ -1,0 +1,19 @@
+{
+  "tipo": "RECUPERACION_EFECTIVO_POST_CIERRE",
+  "mes": "2026-08",
+  "aplicado_en": "2026-08-24T06:13:34",
+  "causa": "pytest 4b_reclamos sobrescribio pagos_efectivo_2026-08.xlsx con fixture A-5/S38",
+  "fuente": "7_cierre/archivo/2026-08/mesa_1.xlsx..mesa_7.xlsx",
+  "snapshot_cierre_original": "f29d58dfcefaa18ab4e59417dc227a1e9fd08fd5d04f7cca871837b238ffc705",
+  "snapshot_recuperado": "64375c9dd5eb183c26e18510da3bbcf78dd381d848e5bb6ab8d50897e9e7eebe",
+  "eventos_agregados": 631,
+  "pago_agregado": 6493.0,
+  "ajuste_agregado": 0.0,
+  "predios_afectados": 300,
+  "ledger_previo_sha256": "47ca68dd7874860547bfd0046d2a0bc7b64dc8628d04f299fc585d93c3919aa5",
+  "ledger_final_sha256": "7b34a5fb5b2619a8b0acd10697f04728f5d34fe3df71502deaf7fd0f7b03de73",
+  "backup_ledger": "C:\\Users\\wilde\\PycharmProjects\\jass_system\\shared\\backups_ledger\\commits\\seguimiento_pueblo_pre_commit_2026-08_20260824_061258.xlsx",
+  "backup_outputs": "C:\\Users\\wilde\\PycharmProjects\\jass_system\\5_cobranza\\outputs\\backups\\recuperacion_efectivo_2026-08_20260824_061229",
+  "segunda_corrida_eventos": 0,
+  "estado_ciclo": "El cierre original se conserva; esta recuperacion es un evento posterior auditado."
+}

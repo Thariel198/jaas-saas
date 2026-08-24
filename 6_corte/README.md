@@ -115,17 +115,17 @@ columnas reales de `registro_cortes`. Ledger **sin implementar**: hoy el código
 pre-ledger corre single-motivo (agua, `MES_ANTERIOR≥8` por monto — el proxy que
 PC1 reemplaza) y `6b_corte_multas` es un módulo separado que sigue corriendo; la
 unificación es trabajo de Fase 2 (código). Ver
-`docs/RETOMAR_dominio_saldo_unico_2026-07-13.md` §11 (histórico) y
+`docs/retomar/RETOMAR_dominio_saldo_unico_2026-07-13.md` §11 (histórico) y
 `docs/arquitectura_pipeline_futuro.html`.
 
 ---
 
 ## Qué hace
 
-1. **Genera la lista de corte** (`generar_lista.py`): filtra `planilla_cobrado.xlsx` (ciclo 1) por `SALDO > 0 AND MES_ANTERIOR ≥ 8` y produce `lista_corte.xlsx` con `PENALIDAD = S/20` y `TOTAL_A_PAGAR = SALDO + 20`.
+1. **Genera la lista de corte** (`generar_lista.py`): filtra `planilla_cobrado_YYYY-MM.xlsx` (ciclo 1) por `SALDO > 0 AND MES_ANTERIOR ≥ 8` y produce `lista_corte.xlsx` con `PENALIDAD = S/20` y `TOTAL_A_PAGAR = SALDO + 20`.
 2. **Aplica la penalidad** (`aplicar_penalidad.py`): suma `+20` a `CORTE_RECONEXION` en `shared/planilla_mes/planilla_YYYY-MM.xlsx` para cada usuario en lista_corte. Genera audit log para idempotencia; re-correr no duplica.
 3. **Espera ventana de gracia** (48 h): el usuario puede pagar S/20 por Yape o efectivo y salvarse del corte físico.
-4. **Clasifica el resultado** (`seguimiento.py`): cruza lista_corte con `planilla_cobrado.xlsx` ciclo 2 (post-ventana) y separa en tres grupos: pagaron penalidad, corte físico, arrastre.
+4. **Clasifica el resultado** (`seguimiento.py`): cruza lista_corte con `planilla_cobrado_YYYY-MM.xlsx` ciclo 2 (post-ventana) y separa en tres grupos: pagaron penalidad, corte físico, arrastre.
 
 ## Cuándo se corre
 
@@ -164,7 +164,7 @@ unificación es trabajo de Fase 2 (código). Ver
 
 | Recurso | Tipo | Quién lo gobierna |
 |---|---|---|
-| `5_cobranza/outputs/planilla_cobrado.xlsx` | archivo (lectura) | `5_cobranza/` — ciclo 1 y ciclo 2 |
+| `5_cobranza/outputs/planilla_cobrado_YYYY-MM.xlsx` | archivo (lectura) | `5_cobranza/` — ciclo 1 y ciclo 2 |
 | `shared/planilla_mes/planilla_YYYY-MM.xlsx` | archivo (escritura) | `6_corte/aplicar_penalidad.py` — único writer de `CORTE_RECONEXION` |
 
 **`aplicar_penalidad.py` es el único script del sistema que escribe sobre `shared/planilla_mes`.** Lo hace con backup automático, audit log (`audit_penalidad.xlsx`) e idempotencia — re-correr sobre la misma lista no suma el +20 dos veces.

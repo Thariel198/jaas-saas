@@ -41,7 +41,7 @@ deuda_directiva         ✅ shared/deuda_directiva.xlsx = 1 fila (Ronel S/62, 20
 ## Lo que se HIZO esta sesión (no re-hacer)
 
 ### 1. PENDIENTE 2 — deuda de la directiva → ✅ CERRADO · commiteado `2d12f76`
-Tres entregables (detalle en `docs/RETOMAR_agosto_override_C1-9_y_deuda_directiva.md` PENDIENTE 2):
+Tres entregables (detalle en `docs/retomar/RETOMAR_agosto_override_C1-9_y_deuda_directiva.md` PENDIENTE 2):
 - **Balde genérico en 5b**: `_cargar_otros_conceptos()` → Nivel 1a = `agua+blancos+tanque+otros`.
   Cerró el falso descuadre −62 ("saldo Ronel").
 - **Token controlado** `deuda_directiva` + color en `4_pagos/efectivo/main.py` `_CONCEPTO_BG/_TXT`.
@@ -108,7 +108,7 @@ Nota: el repo tiene además mucho modificado/untracked PRE-EXISTENTE que NO es d
 
 ## Para AGOSTO (no bloquean julio) — ver el otro RETOMAR
 
-`docs/RETOMAR_agosto_override_C1-9_y_deuda_directiva.md`:
+`docs/retomar/RETOMAR_agosto_override_C1-9_y_deuda_directiva.md`:
 - **PENDIENTE 1 — override C1-9 Roberto**: auditado, decisión A/B SIN elegir. El mecanismo
   `override.xlsx` actual NO alcanza (no toca hoja `cobranza` ni `usuarios_id`, solo renombra →
   crearía lote fantasma + faena doble). Aplicar antes de `2_planilla` de agosto.

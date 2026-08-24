@@ -1,6 +1,6 @@
 # RETOMAR — decisión de arquitectura: `libro_mayor` como ÚNICO ledger + arranque de `dominio/` · 2026-07-13 (2ª sesión Opus del día)
 
-Amplía `docs/RETOMAR_comunitario_y_extracto_2026-07-13.md` (misma fecha, sesión
+Amplía `docs/retomar/RETOMAR_comunitario_y_extracto_2026-07-13.md` (misma fecha, sesión
 Opus siguiente — empezó diseñando `riesgo_corte` y terminó destapando un problema
 de arquitectura más de fondo).
 
@@ -33,7 +33,7 @@ de arquitectura más de fondo).
 ## Cómo se llegó a esto
 
 Se retomó el proyecto queriendo diseñar las capacidades nuevas del backlog del
-ledger (`docs/RETOMAR_comunitario_y_extracto_2026-07-13.md`, sección 7). Se eligió
+ledger (`docs/retomar/RETOMAR_comunitario_y_extracto_2026-07-13.md`, sección 7). Se eligió
 empezar por `riesgo_corte` (recomendado por esa misma RETOMAR, por el bug de "2
 meses" descubierto en producción). Se extrajo la regla tal cual de
 `6_corte/generar_lista.py` (ver sección propia abajo) y al preguntar de dónde iba a

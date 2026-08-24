@@ -503,7 +503,7 @@ pagos manuales de la secretaria) — un "pago fantasma". El 31/07/2026,
 `5_cobranza` volvió a correr, no encontró respaldo, y revirtió ese pago con
 un `AJUSTE` negativo — pero el mecanismo de reversión deja el SALDO negativo
 en vez de restaurar la deuda real (mismo patrón ya documentado para F-12/D-1
-en `docs/RETOMAR_limpieza_ledger_y_reasignaciones_2026-07-31.md`, salvo que
+en `docs/retomar/RETOMAR_limpieza_ledger_y_reasignaciones_2026-07-31.md`, salvo que
 para estos 11 nadie hizo el segundo paso de estabilización).
 
 Investigación completa, con la tabla de "Referencia de pago" real de cada

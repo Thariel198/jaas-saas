@@ -1,7 +1,7 @@
 # RETOMAR — Restauración de junio + precursores manuales del ledger · Sesión 2026-07-20
 
 Handoff preventivo (se escribió a mitad de sesión, no al cierre — leer completo antes de
-tocar nada). Continúa `docs/RETOMAR_reconciliacion_junio_ledger_2026-07-19.md` (ayer) —
+tocar nada). Continúa `docs/retomar/RETOMAR_reconciliacion_junio_ledger_2026-07-19.md` (ayer) —
 hoy se cerró parte de lo pendiente de ese doc y aparecieron 2 casos nuevos sin resolver.
 
 ---

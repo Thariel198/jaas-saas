@@ -1,13 +1,13 @@
 # RETOMAR — 8_caja + 8b_estado_cuenta: diseño Fase 1 cerrado · Handoff 2026-07-11
 
-> ⚠️ **SUPERADO** por `docs/RETOMAR_ledger_contrato_final_2026-07-11.md` (misma
+> ⚠️ **SUPERADO** por `docs/retomar/RETOMAR_ledger_contrato_final_2026-07-11.md` (misma
 > fecha, sesión posterior). Este archivo queda como historia: el contrato de
 > interfaz de acá (5 decisiones ①-⑤) fue ampliado a 8 decisiones tras stress-test
 > contra el resto del pipeline (huecos 1-4) y el lente agentic SaaS / multi-tenant.
 > Leer el archivo nuevo primero.
 
 Diseño cerrado esta sesión (Opus). Leer de arriba a abajo antes de tocar nada.
-Reemplaza como handoff activo a `docs/RETOMAR_historial_pagos_2026-07-10.md`
+Reemplaza como handoff activo a `docs/retomar/RETOMAR_historial_pagos_2026-07-10.md`
 (ese queda como historia: explica por qué `importar_libros.py` se deprecó y de
 dónde salió 7b — que ahora se renombra a 8_caja).
 
@@ -203,7 +203,7 @@ FASE 2 SEGUNDA ETAPA (aislada, tocar módulo vivo):
 
 - mesa_4 A-1/D-6/S-8 (reclasificados en el input, siguen como reclamo activo).
 - El ciclo julio en vivo (5_cobranza/5b desactualizados, 6_corte, 4b_reclamos) —
-  ver `docs/RETOMAR_ciclo_julio_2026-07-09.md`. NO se tocó esta sesión.
+  ver `docs/retomar/RETOMAR_ciclo_julio_2026-07-09.md`. NO se tocó esta sesión.
 
 ---
 

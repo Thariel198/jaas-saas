@@ -25,7 +25,7 @@ código mecánico). Cambiar a Sonnet recién para implementar lo ya decidido.
 
 ## Bloque 1 — 4b_reclamos: dedup + rechazos convenio (✅ COMMITEADO, no tocar)
 
-Continuación de la sesión anterior (ver `docs/RETOMAR_reclamos_duplicados_2026-07-10.md`,
+Continuación de la sesión anterior (ver `docs/retomar/RETOMAR_reclamos_duplicados_2026-07-10.md`,
 ya puede archivarse/borrarse, este documento la reemplaza como handoff activo).
 
 - **Commit `59810e7`**: `_reconciliar_duplicados` en `4b_reclamos/main.py` — dedup
@@ -289,8 +289,8 @@ shared/reporte_acumulado_procesado/
   2026-07_banco.xlsx, 2026-07_procesado.xlsx  sin trackear, preexistentes (yape motor
                                                  en vivo), no relacionados a esta sesión
 
-docs/RETOMAR_reclamos_duplicados_2026-07-10.md   handoff de la sesión anterior,
+docs/retomar/RETOMAR_reclamos_duplicados_2026-07-10.md   handoff de la sesión anterior,
                                                     ya cubierto por Bloque 1 de este
                                                     documento — puede archivarse
-docs/RETOMAR_historial_pagos_2026-07-10.md       este archivo
+docs/retomar/RETOMAR_historial_pagos_2026-07-10.md       este archivo
 ```
