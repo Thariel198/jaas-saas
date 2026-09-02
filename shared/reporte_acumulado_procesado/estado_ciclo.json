@@ -10,16 +10,6 @@
     },
     "cerrado_en": "2026-07-03T05:08:54"
   },
-  "2099-12": {
-    "estado": "ABIERTO",
-    "arrastre": {
-      "generado": true,
-      "generado_en": "2026-07-02T17:51:17",
-      "validado": true,
-      "validado_en": "2026-07-09T05:50:35"
-    },
-    "ultima_actualizacion": "2026-07-09T05:50:35"
-  },
   "2026-07": {
     "estado": "CERRADO",
     "arrastre": {
@@ -33,11 +23,21 @@
     "cerrado_en": "2026-07-26T15:33:22"
   },
   "2026-08": {
-    "estado": "ABIERTO",
+    "estado": "CERRADO",
     "arrastre": {
       "generado": true,
-      "generado_en": "2026-08-10T08:07:15"
+      "generado_en": "2026-09-01T10:13:59",
+      "validado": false,
+      "gap_conocido": "Nivel 1a TE PAGO dif=+700.00 y efectivo dif=-22.00, aceptados por el usuario el 17/08/2026 como diferencias esperables: S/750 de reasignaciones duplicadas de tanque menos S/50 pendiente de Nelson Mon*, y S/22 de efectivo S-16.",
+      "snapshot_hash": "e38ed64a7e0bec14c6905830dd5e3edf1352e9ab8e1b19f3c30209d17c2979ec"
     },
-    "ultima_actualizacion": "2026-08-10T08:07:15"
+    "ultima_actualizacion": "2026-09-01T10:13:59",
+    "ledger": {
+      "comprometido": true,
+      "snapshot_hash": "f29d58dfcefaa18ab4e59417dc227a1e9fd08fd5d04f7cca871837b238ffc705",
+      "eventos": 1332,
+      "comprometido_en": "2026-08-24T04:20:33"
+    },
+    "cerrado_en": "2026-08-24T04:21:16"
   }
 }

@@ -20,6 +20,7 @@ from datetime import date
 from pathlib import Path
 
 import pandas as pd
+import pytest
 from openpyxl import Workbook
 
 THIS = Path(__file__).resolve()
@@ -32,13 +33,20 @@ TEST_ROOT = THIS.parent / "_tmp_reclamos"
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
-def _setup():
+def _setup(root: Path | None = None):
+    global TEST_ROOT
+    if root is not None:
+        TEST_ROOT = root
     if TEST_ROOT.exists():
         shutil.rmtree(TEST_ROOT)
     (TEST_ROOT / "outputs").mkdir(parents=True)
     (TEST_ROOT / "trazabilidad").mkdir(parents=True)
+    (TEST_ROOT / "inputs").mkdir(parents=True)
+    reclamos.BASE_DIR = TEST_ROOT
     reclamos.OUTPUTS_DIR = TEST_ROOT / "outputs"
     reclamos.TRAZAB_DIR  = TEST_ROOT / "trazabilidad"
+    reclamos.LOGS_DIR = TEST_ROOT / "logs"
+    reclamos.RECLAMOS_MANUALES_PATH = TEST_ROOT / "inputs" / "reclamos_manuales.xlsx"
     # En producción PAGOS_EFECTIVO_PATH apunta a 4_pagos/efectivo/outputs/;
     # en tests redirigimos a nuestra OUTPUTS_DIR sintética.
     reclamos.PAGOS_EFECTIVO_PATH = TEST_ROOT / "outputs" / "pagos_efectivo.xlsx"
@@ -47,6 +55,13 @@ def _setup():
 def _teardown():
     if TEST_ROOT.exists():
         shutil.rmtree(TEST_ROOT)
+
+
+@pytest.fixture(autouse=True)
+def _aislar_pytest(tmp_path):
+    _setup(tmp_path / "reclamos")
+    yield
+    _teardown()
 
 
 _COLS_PAGOS = ["MZ", "LT", "MONTO", "FECHA", "MESA",

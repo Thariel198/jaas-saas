@@ -64,8 +64,7 @@ sys.path.insert(0, str(SHARED_DIR))
 sys.path.insert(0, str(REPO_DIR / "4_pagos" / "efectivo"))
 
 import ciclo                            # noqa: E402
-import reporte_historico as rh          # noqa: E402
-import reporte_referencias_pago as rrp   # noqa: E402
+import comun                            # noqa: E402
 import verificar_lotes as vl            # noqa: E402  (leer_boletas)
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -242,7 +241,7 @@ def pagos_de_mesas(mes: str) -> pd.DataFrame:
     en 4_pagos/efectivo/main.py:leer_hoja, que lee `filas[3:]`."""
     if mes in _cache_mesas:
         return _cache_mesas[mes]
-    carpeta = rh.REPOS_CICLO_CERRADO.get(mes, REPO_DIR) / "4_pagos" / "efectivo" / "inputs"
+    carpeta = comun.REPOS_CICLO_CERRADO.get(mes, REPO_DIR) / "4_pagos" / "efectivo" / "inputs"
     filas = []
     for n in range(1, 8):
         ruta = carpeta / f"mesa_{n}.xlsx"
@@ -470,7 +469,7 @@ def barrer(meses: list[str]) -> pd.DataFrame:
     boletas = vl.leer_boletas()
     # Un ciclo esta CERRADO si tiene su <mes>_procesado.xlsx: ahi la
     # conciliacion del mes ya termino y el veredicto es definitivo.
-    cerrados = set(rh.REPOS_CICLO_CERRADO)
+    cerrados = set(comun.REPOS_CICLO_CERRADO)
     ar = _leer_precursor("abonos_rezagados")
     rez = {(_norm(r["MZ"]), _norm(r["LT"]), round(_numf(r["MONTO"]), 2))
            for _, r in ar.iterrows()} if not ar.empty else set()
@@ -481,7 +480,7 @@ def barrer(meses: list[str]) -> pd.DataFrame:
         if mesas.empty:
             print(f"    {mes}: mesas vacias — no se puede verificar este ciclo")
             continue
-        ya = rrp._cargar_pagos_yape_crudo(mes)
+        ya = comun._cargar_pagos_yape_crudo(mes)
         acreditados = ({(_norm(r["MZ"]), _norm(r["LOTE"])) for _, r in ya.iterrows()}
                        if ya is not None and not ya.empty else set())
         con_yape = mesas[mesas["YAPE"] > TOL]
@@ -660,7 +659,7 @@ if __name__ == "__main__":
 
     activo = ciclo.activo(default=None)
     if args.todos:
-        meses = sorted(set(rh.REPOS_CICLO_CERRADO) | ({activo} if activo else set()))
+        meses = sorted(set(comun.REPOS_CICLO_CERRADO) | ({activo} if activo else set()))
         sufijo = "todos"
     else:
         mes = args.mes or activo

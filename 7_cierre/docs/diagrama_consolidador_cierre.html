@@ -147,7 +147,7 @@
        SECCIÓN 2: Los 4 pasos internos
        ══════════════════════════════════════════════════ -->
   <section>
-    <h2>Los 4 pasos de consolidar_cierre.py</h2>
+    <h2>Los 5 pasos de consolidar_cierre.py</h2>
 
     <div class="timeline">
 
@@ -156,10 +156,9 @@
         <div class="tphase-header phase-red">① GATE</div>
         <div class="tphase-body">
           <div class="script-box" style="background:#FDEDEC;border-color:#F1948A;">
-            <div class="script-name" style="color:#922B21;">¿validado == true?</div>
-            <div class="script-desc">Lee estado_ciclo.json[mes].arrastre.validado<br>
-              (sellado por 5b_validacion). Si falta → <strong>aborta</strong>, no se cierra
-              un mes sin validar.</div>
+            <div class="script-name" style="color:#922B21;">proyección final + hash validado</div>
+            <div class="script-desc">Ejecuta 5_cobranza sin ledger y 5b_validacion. Si el snapshot
+              cambia o no valida → <strong>aborta</strong>.</div>
           </div>
           <span class="file-tag file-live file-block">estado_ciclo.json<br><small>fuente del gate</small></span>
         </div>
@@ -176,7 +175,7 @@
             <div class="script-desc">Canónicos derivados (BALDE 2) + fuentes de pago
               mutables del período. Carpeta TRACKEADA en git — la foto inmutable.</div>
           </div>
-          <span class="file-tag file-final file-block">arrastre_consolidado · planilla_cobrado · arrastre_devolucion</span>
+          <span class="file-tag file-final file-block">planilla_cobrado.xlsx · 3 hojas</span>
           <span class="file-tag file-final file-block">mesa_1..7.xlsx · correcciones_lote.xlsx</span>
         </div>
       </div>
@@ -185,14 +184,14 @@
 
       <!-- PASO 3 -->
       <div class="tphase">
-        <div class="tphase-header phase-green">③ FREEZE</div>
+        <div class="tphase-header phase-green">③ COMMIT</div>
         <div class="tphase-body">
           <div class="script-box" style="background:#E9F7EF;border-color:#A9DFBF;">
-            <div class="script-name" style="color:#1E5C3A;">estado = CERRADO</div>
-            <div class="script-desc">Sella estado_ciclo[mes].estado = "CERRADO" +
-              cerrado_en timestamp. A partir de acá el mes es inmutable por convención.</div>
+            <div class="script-name" style="color:#1E5C3A;">snapshot → ledger</div>
+            <div class="script-desc">Revalida el hash y aplica todos los eventos en un único
+              append batch atómico. Un reintento no duplica referencias.</div>
           </div>
-          <span class="file-tag file-final file-block">estado_ciclo.json (actualizado)</span>
+          <span class="file-tag file-final file-block">seguimiento_pueblo + ledger.comprometido</span>
         </div>
       </div>
 
@@ -200,10 +199,10 @@
 
       <!-- PASO 4 -->
       <div class="tphase">
-        <div class="tphase-header phase-yellow">④ LIMPIAR</div>
+        <div class="tphase-header phase-yellow">④ FREEZE + ⑤ LIMPIAR</div>
         <div class="tphase-body">
           <div class="script-box" style="background:#FEF9E7;border-color:#F0C040;">
-            <div class="script-name" style="color:#7D5A00;">reset + borrar basura</div>
+            <div class="script-name" style="color:#7D5A00;">CERRADO · reset · borrar basura</div>
             <div class="script-desc">Solo lo YA cosechado en el paso ②. mesa_*/correcciones
               vuelven a template vacío (fila-ejemplo). Borra pre_dedup/discrepancias.
               Month-stamped se deja quieto (no colisiona).</div>
@@ -233,12 +232,12 @@
       <div class="balde-cell balde-row-even">seguimiento_pueblo · blancos_acumulados · registro_cortes ·
         usuarios_id · data_boletas_audit · estado_ciclo.json · registro_operario_acumulado ·
         trazabilidad_cobranza/reclamos</div>
-      <div class="balde-cell balde-row-even">Nada. Vive siempre, julio le hace <em>append</em>.
-        Se consulta vivo filtrando por período — nunca se fotografía.</div>
+      <div class="balde-cell balde-row-even">7_cierre aplica un único <em>append batch</em>
+        desde el snapshot validado; las corridas provisionales no lo tocan.</div>
 
       <div class="balde-cell balde-row-odd balde-name-2">② Arrastre del mes<br><small>(foto + input de julio)</small></div>
-      <div class="balde-cell balde-row-odd">arrastre_consolidado · planilla_cobrado · arrastre_devolucion
-        (REVISION manual) · mesa_1..7.xlsx · correcciones_lote.xlsx</div>
+      <div class="balde-cell balde-row-odd">planilla_cobrado.xlsx (3 hojas, REVISION manual) ·
+        snapshot_ledger.json · mesa_1..7.xlsx · correcciones_lote.xlsx</div>
       <div class="balde-cell balde-row-odd"><strong>COSECHA</strong> a archivo/YYYY-MM/ (paso ②),
         luego <strong>RESET</strong> a template los mutables (paso ④). Julio lee el arrastre desde acá.</div>
 
@@ -269,9 +268,7 @@
           <ul class="input-list">
             <li><span class="file-tag file-live">estado_ciclo.json</span><br>
                 <small style="color:#888;">gate: arrastre.validado</small></li>
-            <li><span class="file-tag file-audit">arrastre_consolidado_YYYY-MM.xlsx</span><br>
-                <small style="color:#888;">de 5_cobranza/outputs/</small></li>
-            <li><span class="file-tag file-audit">planilla_cobrado.xlsx · arrastre_devolucion</span><br>
+            <li><span class="file-tag file-audit">planilla_cobrado_YYYY-MM.xlsx · 3 hojas</span><br>
                 <small style="color:#888;">de 5_cobranza/outputs/</small></li>
             <li><span class="file-tag file-audit">mesa_1..7.xlsx · correcciones_lote.xlsx</span><br>
                 <small style="color:#888;">de 4_pagos/efectivo/inputs/ · 5_cobranza/inputs/</small></li>

@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Cuaderno visual SDD: Captura OCR auditada de abonos rezagados">
+  <title>Captura OCR auditada de abonos rezagados · Cuaderno SDD</title>
+  <style>
+    :root { --paper:#f4f0e5; --card:#fffdf7; --ink:#142d35; --muted:#5d7074;
+      --line:#cfd3c8; --navy:#123e4a; --teal:#087f73; --teal-soft:#dcefeb;
+      --orange:#d66a2c; --orange-soft:#fae7d7; --green:#2c7757;
+      --green-soft:#e0f0e7; --display:Georgia,"Times New Roman",serif;
+      --body:"Segoe UI",Arial,sans-serif; --mono:"Cascadia Mono",Consolas,monospace; }
+    * { box-sizing:border-box; } html { scroll-behavior:smooth; }
+    body { margin:0; color:var(--ink); background:linear-gradient(rgba(18,62,74,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(18,62,74,.035) 1px,transparent 1px),var(--paper); background-size:28px 28px; font:16px/1.65 var(--body); }
+    a { color:var(--teal); } code,pre { font-family:var(--mono); }
+    .topbar { position:sticky; top:0; z-index:20; background:rgba(18,62,74,.97); border-bottom:1px solid rgba(255,255,255,.15); }
+    .topbar-inner { width:min(1120px,calc(100% - 32px)); min-height:55px; margin:auto; display:flex; align-items:center; justify-content:space-between; gap:16px; }
+    .brand { color:white; text-decoration:none; font:700 13px var(--mono); letter-spacing:.08em; }
+    .topbar nav { display:flex; gap:14px; } .topbar nav a { color:#d8eceb; text-decoration:none; font:12px var(--mono); }
+    .hero,.wrap { width:min(1040px,calc(100% - 40px)); margin:auto; } .hero { padding:68px 0 38px; }
+    .eyebrow { color:var(--orange); font:700 12px var(--mono); letter-spacing:.13em; text-transform:uppercase; }
+    h1,h2,h3,h4 { font-family:var(--display); font-weight:400; line-height:1.15; }
+    h1 { max-width:20ch; margin:10px 0 16px; font-size:clamp(39px,6vw,68px); letter-spacing:-.04em; }
+    h2 { margin:0; font-size:clamp(27px,4vw,40px); } h3 { margin:8px 0; font-size:22px; }
+    .lede { max-width:72ch; color:var(--muted); font-size:19px; }
+    .meta { display:flex; flex-wrap:wrap; gap:8px; margin-top:22px; }
+    .meta span { padding:6px 10px; border:1px solid var(--line); border-radius:3px; background:rgba(255,255,255,.5); color:var(--muted); font:12px var(--mono); }
+    .progress { margin:25px 0 8px; } .progress-label { display:flex; justify-content:space-between; color:var(--muted); font:12px var(--mono); }
+    .progress-track { height:10px; margin-top:7px; border-radius:99px; overflow:hidden; background:#d9ddd5; }
+    .progress-bar { height:100%; width:9%; background:linear-gradient(90deg,var(--teal),var(--green)); }
+    .next { margin:28px 0 38px; padding:17px 20px; border-left:4px solid var(--orange); border-radius:0 7px 7px 0; background:var(--orange-soft); }
+    .next strong { display:block; color:#704018; font:12px var(--mono); text-transform:uppercase; }
+    .section-label { margin:0 0 13px; color:var(--orange); font:700 12px var(--mono); letter-spacing:.1em; text-transform:uppercase; }
+    .chapter-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin-bottom:38px; }
+    .chapter-card { min-height:145px; padding:18px; border:1px solid var(--line); border-top:4px solid var(--line); border-radius:7px; color:inherit; background:var(--card); text-decoration:none; }
+    .chapter-card.activo { border-top-color:var(--orange); background:#fff8ef; } .chapter-card.completo { border-top-color:var(--green); }
+    .chapter-number,.chapter-status { display:block; font:11px var(--mono); } .chapter-number { color:var(--teal); } .chapter-status { margin-top:17px; color:var(--muted); }
+    .chapter-card.activo .chapter-status { color:var(--orange); } .chapter-card.completo .chapter-status { color:var(--green); }
+    .plate { margin-bottom:20px; padding:31px clamp(18px,4vw,40px); border:1px solid var(--line); border-radius:8px; background:var(--card); }
+    .chapter-head { display:flex; align-items:end; justify-content:space-between; gap:18px; padding-bottom:19px; border-bottom:1px solid var(--line); }
+    .chapter-head span { color:var(--orange); font:700 11px var(--mono); letter-spacing:.08em; } .chapter-head a { font:12px var(--mono); }
+    .markdown-body { padding-top:13px; } .markdown-body h1 { max-width:none; margin:20px 0 16px; font-size:34px; letter-spacing:-.02em; }
+    .markdown-body h2 { margin:31px 0 12px; font-size:28px; } .markdown-body h3 { margin-top:25px; }
+    .markdown-body p,.markdown-body li { max-width:78ch; } .markdown-body p { color:#354d53; }
+    .markdown-body code:not(pre code) { padding:2px 5px; border-radius:4px; background:var(--teal-soft); font-size:.88em; }
+    pre { margin:18px 0; padding:19px; overflow:auto; border-radius:7px; color:#e4f2f0; background:#112f38; font-size:13px; line-height:1.65; }
+    blockquote { margin:18px 0; padding:14px 18px; border-left:4px solid var(--teal); background:var(--teal-soft); }
+    .table-wrap { overflow-x:auto; } table { width:100%; margin:18px 0; border-collapse:collapse; }
+    th,td { padding:11px 13px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; } th { color:var(--teal); font:12px var(--mono); }
+    .task { list-style:none; margin-left:-22px; } .task input { width:17px; height:17px; vertical-align:-3px; accent-color:var(--teal); }
+    .history { margin:0; padding:0; list-style:none; } .history li { display:grid; grid-template-columns:180px 1fr; gap:4px 15px; padding:11px 0; border-bottom:1px dashed var(--line); }
+    .history strong { color:var(--teal); font:12px var(--mono); } .history span,.history small { color:var(--muted); font:12px var(--mono); } .history small { grid-column:2; }
+    footer { margin:44px 0 80px; padding-top:20px; border-top:1px solid var(--line); color:var(--muted); font:12px/1.7 var(--mono); }
+    @media(max-width:760px) { .hero,.wrap { width:min(100% - 24px,1040px); } .hero { padding:42px 0 26px; } .topbar nav a:not(:last-child) { display:none; } .plate { padding:24px 17px; } .chapter-head { align-items:start; } .history li { grid-template-columns:1fr; } .history small { grid-column:1; } }
+    @media print { .topbar,.chapter-grid { display:none; } body { background:white; font-size:11pt; } .hero,.wrap { width:100%; } .hero { padding:20px 0; } .plate { break-inside:avoid; } }
+  </style>
+</head>
+<body>
+  <div class="topbar"><div class="topbar-inner"><a class="brand" href="#top">SDD / CUADERNO</a><nav><a href="#chapters">Capítulos</a><a href="#history">Historial</a><a href="state.json">Estado JSON</a></nav></div></div>
+  <header class="hero" id="top">
+    <div class="eyebrow">jass_system · contrato vivo</div>
+    <h1>Captura OCR auditada de abonos rezagados</h1>
+    <p class="lede">Del pedido original a la evidencia verificable. El Markdown conserva el contrato; este cuaderno lo presenta como una ruta de lectura.</p>
+    <div class="meta"><span>ETAPA: EXPLORATION_DRAFT</span><span>OPCIÓN: PENDIENTE</span><span>CAMBIO: captura-ocr-abonos-rezagados</span></div>
+    <div class="progress"><div class="progress-label"><span>Progreso del workflow</span><span>9%</span></div><div class="progress-track"><div class="progress-bar"></div></div></div>
+  </header>
+  <main class="wrap">
+    <div class="next"><strong>Siguiente gate</strong>Investigar realidad y completar 01_exploracion.md; luego approve exploration.</div>
+    <p class="section-label" id="chapters">Ruta del cambio</p>
+    <div class="chapter-grid"><a class="chapter-card completo" href="#chapter-intake"><span class="chapter-number">CAPÍTULO 01</span><h3>Entrada</h3><span class="chapter-status">COMPLETO</span></a><a class="chapter-card activo" href="#chapter-exploration"><span class="chapter-number">CAPÍTULO 02</span><h3>Exploración</h3><span class="chapter-status">ACTIVO</span></a><a class="chapter-card pendiente" href="#chapter-problem"><span class="chapter-number">CAPÍTULO 03</span><h3>Problema</h3><span class="chapter-status">PENDIENTE</span></a><a class="chapter-card pendiente" href="#chapter-options"><span class="chapter-number">CAPÍTULO 04</span><h3>Opciones</h3><span class="chapter-status">PENDIENTE</span></a><a class="chapter-card pendiente" href="#chapter-decision"><span class="chapter-number">CAPÍTULO 05</span><h3>Decisión</h3><span class="chapter-status">PENDIENTE</span></a><a class="chapter-card pendiente" href="#chapter-spec"><span class="chapter-number">CAPÍTULO 06</span><h3>Contrato</h3><span class="chapter-status">PENDIENTE</span></a><a class="chapter-card pendiente" href="#chapter-design"><span class="chapter-number">CAPÍTULO 07</span><h3>Diseño</h3><span class="chapter-status">PENDIENTE</span></a><a class="chapter-card pendiente" href="#chapter-tasks"><span class="chapter-number">CAPÍTULO 08</span><h3>Tareas</h3><span class="chapter-status">PENDIENTE</span></a><a class="chapter-card pendiente" href="#chapter-verification"><span class="chapter-number">CAPÍTULO 09</span><h3>Verificación</h3><span class="chapter-status">PENDIENTE</span></a><a class="chapter-card pendiente" href="#chapter-close"><span class="chapter-number">CAPÍTULO 10</span><h3>Cierre</h3><span class="chapter-status">PENDIENTE</span></a></div>
+    <article class="plate chapter" id="chapter-intake"><div class="chapter-head"><div><span>CAPÍTULO 01</span><h2>Entrada</h2></div><a href="00_intake.md">Abrir Markdown</a></div><div class="markdown-body"><h1 id="intake-captura-ocr-auditada-de-abonos-rezagados">Intake: Captura OCR auditada de abonos rezagados</h1>
+<h2 id="pedido-original">Pedido original</h2>
+<p>Wilder solicita reemplazar el ingreso manual no auditado de <code>shared/abonos_rezagados.xlsx</code> por un flujo profesional que permita:</p>
+<ul>
+<li>capturar comprobantes mediante OCR;</li>
+<li>evitar que una misma imagen o registro se procese dos veces;</li>
+<li>someter los datos extraídos a verificación humana;</li>
+<li>registrar el pago aprobado en el sistema sin duplicarlo;</li>
+<li>confirmar de forma auditable que el pago quedó cargado.</li>
+</ul>
+<p>El alcance inicial confirmado es un MVP completo de punta a punta. Los comprobantes llegarán principalmente por WhatsApp y una persona los descargará o arrastrará a una bandeja de entrada. Un único revisor humano podrá corregir y aprobar cada extracción; su identidad, decisión y momento deben quedar auditados.</p>
+<p>Resultado observable esperado: para cada imagen debe poder demostrarse qué archivo se recibió, qué leyó el OCR, qué corrigió o decidió el revisor, si se creó un pago y con qué identidad se confirmó su presencia en el sistema.</p>
+<h2 id="evidencia-disponible">Evidencia disponible</h2>
+<h3 id="hechos-observados">Hechos observados</h3>
+<ul>
+<li><code>shared/abonos_rezagados.xlsx</code> es la fuente operativa actual y declara que su writer es humano. Contiene las hojas <code>Abonos_Raw</code>, <code>Mapa_Abonos</code> y <code>Categorias</code>.</li>
+<li>La inspección del 2026-08-22 encontró 43 registros en <code>Mapa_Abonos</code>. El archivo guarda datos como predio, monto, ciclo, canal, retenido por, evidencia, situación y estado del ledger, pero no conserva el archivo original del comprobante ni una identidad de imagen.</li>
+<li><code>shared/reclasificar_abonos.py</code> clasifica registros mediante conjuntos escritos en código: <code>CONFIRMADO</code>, <code>BLOQUEADO</code>, <code>YA_RESUELTO_MANUAL</code> y <code>REVISAR</code>.</li>
+<li><code>5_cobranza/main.py::_validar_abonos_manifest</code> evita filas activas inesperadas, faltantes, duplicadas o bloqueadas comparando <code>MZ + LT + MONTO + MES_CICLO + MES_ANO_APLICA</code> contra un manifest.</li>
+<li><code>5_cobranza/main.py::_cargar_abonos_rezagados</code> agrupa los abonos aprobados por predio y ciclo. El control actual comienza después de que los datos ya fueron transcritos al Excel; no demuestra el origen documental ni la revisión humana.</li>
+<li>En <code>shared/</code> no existe actualmente una colección de imágenes de comprobantes asociada a <code>abonos_rezagados.xlsx</code>; solo se encontró la vista PDF del estado de cuenta.</li>
+<li>El diseño objetivo de <code>jass_system</code> es multi-tenant, con <code>JASS_ID</code>, identidades deterministas, eventos append-only, PostgreSQL y Docker. El Excel actual debe tratarse como adapter transitorio, no como arquitectura final.</li>
+<li>Agosto de 2026 permanece abierto y la validación de caja tiene una diferencia conocida de S/700. Este cambio no autoriza cargar pagos reales, cerrar agosto ni ocultar esa diferencia.</li>
+</ul>
+<h3 id="supuestos-por-validar-durante-exploraci-n">Supuestos por validar durante exploración</h3>
+<ul>
+<li>Los comprobantes de WhatsApp tienen calidad y formatos suficientemente representativos para evaluar OCR con una muestra real.</li>
+<li>Una misma imagen puede reenviarse, renombrarse, recortarse o recomprimirse; por ello la duplicidad exacta y la similitud visual probablemente requerirán controles distintos.</li>
+<li>El revisor dispondrá de una identidad autenticable y de una interfaz local para revisar la imagen junto con los campos extraídos.</li>
+<li>La confirmación final deberá enlazar la captura con una identidad de abono o evento, no limitarse a marcar una celda como procesada.</li>
+</ul>
+<h2 id="preguntas-iniciales">Preguntas iniciales</h2>
+<h3 id="confirmado">Confirmado</h3>
+<ul>
+<li>Alcance: MVP completo <code>captura -&gt; OCR -&gt; revisión -&gt; registro -&gt; confirmación</code>.</li>
+<li>Entrada inicial: descarga o arrastre manual de imágenes recibidas por WhatsApp.</li>
+<li>Autoridad operativa: un revisor humano puede corregir, aprobar o rechazar.</li>
+<li>Autoridad SDD: Wilder elige opciones y aprueba cada gate; el agente recomienda y aporta evidencia, pero no aprueba decisiones en su nombre.</li>
+<li>Restricción: no modificar pagos ni ledgers reales durante diseño o pruebas. La primera ejecución real requerirá autorización explícita y superar los controles vigentes.</li>
+</ul>
+<h3 id="decisiones-abiertas-para-las-fases-de-exploraci-n-y-opciones">Decisiones abiertas para las fases de exploración y opciones</h3>
+<ul>
+<li>Motor OCR: local, servicio externo o enfoque híbrido.</li>
+<li>Campos mínimos que constituyen un candidato de abono y cuáles puede corregir el revisor.</li>
+<li>Reglas para duplicado exacto, documento visualmente similar y posible pago duplicado.</li>
+<li>Estados, transiciones y tratamiento de reapertura, rechazo y corrección posterior.</li>
+<li>Almacenamiento inmutable del original, retención, acceso y protección de datos personales.</li>
+<li>Interfaz de revisión humana y mecanismo de autenticación del revisor.</li>
+<li>Integración transitoria con <code>abonos_rezagados.xlsx</code> y el manifest, sin acoplar el dominio nuevo a Excel.</li>
+<li>Evidencia necesaria para declarar <code>REGISTRADO</code> y luego <code>CONFIRMADO</code>, considerando que el libro mayor objetivo todavía no está implementado y la caja oficial sigue bloqueada por la diferencia de S/700.</li>
+<li>Muestra representativa de comprobantes reales que podrá usarse para medir precisión, duplicados y tiempo de revisión sin exponer datos fuera del entorno autorizado.</li>
+</ul></div></article><article class="plate chapter" id="chapter-exploration"><div class="chapter-head"><div><span>CAPÍTULO 02</span><h2>Exploración</h2></div><a href="01_exploracion.md">Abrir Markdown</a></div><div class="markdown-body"><h1 id="exploraci-n-captura-ocr-auditada-de-abonos-rezagados">Exploración: Captura OCR auditada de abonos rezagados</h1>
+<h2 id="sistema-actual">Sistema actual</h2>
+<h3 id="flujo-ejecutable-observado">Flujo ejecutable observado</h3>
+<pre><code class="language-text">declaración o comprobante externo
+        |
+        v
+transcripción humana sin archivo original enlazado
+        |
+        v
+shared/abonos_rezagados.xlsx
+  Abonos_Raw -&gt; Mapa_Abonos -&gt; Categorias
+        |
+        +-&gt; shared/reclasificar_abonos.py
+        |      clasificaciones escritas en código
+        |
+        v
+5_cobranza/inputs/abonos_rezagados_manifest_2026-08.json
+        |
+        v
+5_cobranza.main._validar_abonos_manifest()
+  comparación exacta MZ + LT + MONTO + MES_CICLO + MES_ANO_APLICA
+        |
+        v
+_cargar_abonos_rezagados() -&gt; agrupación por predio y ciclo
+        |
+        v
+_aplicaciones_por_fuente() -&gt; reparto agregado por concepto
+        |
+        v
+snapshot_ledger_YYYY-MM.json -&gt; 5b_validacion -&gt; 7_cierre
+        |
+        v
+shared/seguimiento_pueblo.xlsx</code></pre>
+<h3 id="fuente-y-clasificaci-n">Fuente y clasificación</h3>
+<ul>
+<li><code>shared/abonos_rezagados.xlsx</code> declara un writer humano. No existe un importador de imágenes ni una bandeja documental antes de este archivo.</li>
+<li><code>Abonos_Raw</code> tiene 43 filas. Sus columnas registran predio, monto, balde, canal, fecha real, ciclo, canal de origen, persona que retuvo el dinero, evidencia textual, mes de aplicación, motivo y respaldo.</li>
+<li>Las 43 filas tienen texto en <code>EVIDENCIA</code>; dos no tienen valor en <code>RESPALDO</code>. El texto describe la evidencia, pero no referencia un archivo original mediante hash o ID.</li>
+<li>La distribución actual de <code>Mapa_Abonos</code> es: 20 <code>CONFIRMADO</code>, 13 <code>YA_RESUELTO_MANUAL</code>, 6 <code>REVISAR</code> y 4 <code>BLOQUEADO</code>.</li>
+<li><code>shared/reclasificar_abonos.py</code> contiene conjuntos de claves escritos en código. Al evaluar las 43 filas actuales sin escribir el Excel, 35 fueron clasificables y 8 produjeron <code>Fila sin clasificación</code>; el mapa no es reproducible íntegramente con el script presente.</li>
+</ul>
+<h3 id="manifest-y-control-previo-al-c-lculo">Manifest y control previo al cálculo</h3>
+<ul>
+<li>El manifest actual contiene 28 entradas: 24 <code>CONFIRMADO</code> y 4 <code>BLOQUEADO</code>, sin claves duplicadas según su contrato.</li>
+<li>Para <code>2026-08</code>, fuente y manifest sí coinciden: 20 filas en ambos, cero inesperadas, cero confirmadas faltantes y cero bloqueadas activas.</li>
+<li>Para <code>2026-07</code>, la fuente conserva 22 filas históricas mientras el manifest tiene 8; hay 14 filas no manifestadas y 4 bloqueadas activas. Esto no rompe agosto porque el lector filtra por <code>MES_ANO_APLICA</code>, pero el manifest no es un registro canónico global.</li>
+<li><code>_validar_abonos_manifest()</code> falla cerrado ante una fila activa inesperada, faltante, repetida o bloqueada. Es el control de integridad más fuerte del flujo actual.</li>
+</ul>
+<h3 id="transformaci-n-y-p-rdida-de-identidad">Transformación y pérdida de identidad</h3>
+<ul>
+<li><code>_cargar_abonos_rezagados()</code> suma las filas por <code>(MZ, LT)</code> y separa únicamente monto de ciclo cerrado y monto de ciclo vigente.</li>
+<li><code>_aplicaciones_por_fuente()</code> combina esos totales con la deuda y obtiene cuánto se aplica a cada concepto. Desde ese punto ya no existe relación 1:1 con <code>Abonos_Raw</code>.</li>
+<li><code>_objetivos_ledger()</code> produce objetivos por <code>(source, MZ, LT, concepto)</code>. El snapshot tiene hash criptográfico, pero no <code>EVIDENCIA_ID</code> ni <code>ABONO_ID</code> por pago.</li>
+<li><code>7_cierre</code> solo compromete el snapshot cuando el mismo hash fue validado por <code>5b_validacion</code>. El commit es idempotente a nivel de snapshot y objetivo agregado.</li>
+<li>En el ledger transitorio se observaron 19 eventos con <code>SOURCE=abonos_rezagados</code>: 18 <code>ABONO_REZAGADO</code> y una <code>CORRECCION_SISTEMA</code>, por S/668 aplicados. Todos tienen <code>AUDIT_REF</code>, pero representan porciones por concepto, no el movimiento completo ni el comprobante original.</li>
+</ul>
+<h3 id="consumidores-adicionales">Consumidores adicionales</h3>
+<ul>
+<li><code>4b_reclamos/herramienta/comun.py::_abonos_rezagados_predio()</code> lee directamente <code>Abonos_Raw</code> para sumar dinero por predio y mes en reportes.</li>
+<li><code>6_corte/generar_lista.py</code> consume <code>_cargar_abonos_rezagados()</code> para considerar estos importes en la decisión operativa de corte.</li>
+<li>Los tests y mini-pipelines de <code>5_cobranza</code> copian el Excel y el manifest para proyectar casos sin escribir el ledger real.</li>
+</ul>
+<h3 id="periodo-del-pago-y-periodo-de-aplicacion">Periodo del pago y periodo de aplicacion</h3>
+<pre><code class="language-text">MES_CICLO                         MES_ANO_APLICA
+mes real del pago                mes de regularizacion contable
+        |                                 |
+        v                                 v
+historial y referencia            snapshot / ledger / estado</code></pre>
+<ul>
+<li>El usuario confirmo que <code>MES_CICLO</code> determina el mes donde el dinero se muestra como pago y <code>MES_ANO_APLICA</code> el mes donde el sistema lo regulariza. Si ambos coinciden, el pago pertenece y se aplica al mismo ciclo.</li>
+<li>La cascada confirmada para un pago del ciclo prioriza la deuda antigua: <code>MES_ANTERIOR -&gt; MES_ACTUAL -&gt; MANTENIMIENTO -&gt; CORTE -&gt; CONVENIO -&gt; ACUERDOS -&gt; MULTA</code>. <code>5_cobranza/main.py</code> ya declara ese orden en <code>_CAMPOS_WATERFALL_CICLO_VIGENTE</code> y, para un ciclo cerrado, excluye consumo y mantenimiento del mes de regularizacion.</li>
+<li><code>4b_reclamos/herramienta/comun.py</code> diverge: agrupa el abono por <code>MES_ANO_APLICA</code> y su reparto del ciclo vigente usa <code>MES_ACTUAL -&gt; MANTENIMIENTO -&gt; MES_ANTERIOR</code>. La referencia ya puede mostrar <code>MES_CICLO</code>, pero la fila monetaria del historial permanece en el mes de aplicacion.</li>
+<li>Los eventos ledger <code>ABONO_REZAGADO</code> representan la porcion aplicada por concepto, no un segundo ingreso. Se observaron 19 eventos en 11 claves <code>predio + mes de aplicacion</code>; los 19 tienen una fila coincidente en <code>Abonos_Raw</code>. El ledger suma S/668 aplicados frente a S/2,231 declarados por las filas fuente de esas claves.</li>
+<li>La coincidencia anterior solo puede hacerse hoy por <code>predio + MES_ANO_APLICA</code>: el ledger transitorio no conserva <code>ABONO_ID</code>. Dos abonos del mismo predio regularizados en el mismo mes quedan agregados y no pueden conciliarse individualmente.</li>
+</ul>
+<h3 id="caso-observado-f1-4">Caso observado F1-4</h3>
+<ul>
+<li><code>Abonos_Raw</code> conserva una sola fila de S/101 con <code>MES_CICLO=2026-06</code> y <code>MES_ANO_APLICA=2026-08</code>, respaldada por <code>abono_rezagado/5.jpeg</code> e <code>OCR_ID=IMG-005-R01</code>. El S/117 anterior y el candidato S/10 no son pagos adicionales.</li>
+<li>La deuda reconstruida de junio, considerando la exoneracion del corte, es S/111: mes anterior S/29, consumo S/29, mantenimiento S/3 y multa S/50. Con la cascada confirmada, el abono S/101 se reparte <code>29 + 29 + 3 + 40</code> y deja S/10 de multa.</li>
+<li>El ledger conserva un <code>CARGO MULTA S/50</code> en junio y un <code>PAGO MULTA S/50</code> con <code>CLASE=ABONO_REZAGADO</code> en agosto. Ese PAGO es la aplicacion contable de parte de los S/101, no otra entrada de caja.</li>
+<li>El reporte actual muestra la referencia de S/101 en junio, pero la tabla mensual aplica S/79 en agosto (<code>S/29 mes anterior + S/50 multa</code>) y no expone los S/22 restantes. Esto demuestra que cambiar solo la etiqueta de la referencia no resuelve la periodizacion.</li>
+<li><code>RETOMAR_ABONOS_REZAGADOS_2026-08-15.md</code> todavia afirma que F1-4 pertenece a agosto; esa frase quedo obsoleta frente a la fuente actual y la confirmacion posterior del usuario.</li>
+</ul>
+<h3 id="arquitectura-objetivo-ya-decidida">Arquitectura objetivo ya decidida</h3>
+<pre><code class="language-text">HECHO DE DINERO                 INTERPRETACIÓN
+libro_mayor/caja               estado_cuenta
+MovimientoCaja / ABONO_ID ---&gt; Aplicacion / CARGO_ID
+          \________________ motor único ______________/</code></pre>
+<ul>
+<li><code>libro_mayor/</code> es el bounded context acordado para caja y estado de cuenta; el nuevo system-of-record no pertenece a <code>shared/</code>.</li>
+<li>El contrato de caja exige <code>JASS_ID</code>, céntimos enteros, writer único, eventos append-only y <code>ABONO_ID</code> determinista.</li>
+<li>Para efectivo, la identidad acordada se ancla a procedencia estable, no a fecha, monto o predio editables. El contrato ya contempla un gatillo humano de casi-duplicado.</li>
+<li>El ledger objetivo todavía no está implementado. <code>abonos_rezagados.xlsx</code> es un precursor durable y el futuro adapter deberá convertir cada abono nuevo en <code>registrar_movimiento</code>, sin duplicar el motor de aplicación.</li>
+</ul>
+<h2 id="hallazgos">Hallazgos</h2>
+<div class="table-wrap"><table><thead><tr>
+<th>ID</th>
+<th>Hallazgo</th>
+<th>Consecuencia observable</th>
+</tr></thead><tbody>
+<tr>
+<td>H-01</td>
+<td>El control exacto comienza después de la transcripción al Excel.</td>
+<td>Una foto repetida o una segunda transcripción con campos distintos puede entrar a la fuente antes de ser detectada.</td>
+</tr>
+<tr>
+<td>H-02</td>
+<td><code>EVIDENCIA</code> es texto libre, no una entidad documental.</td>
+<td>No se demuestra integridad del original ni se detecta el mismo archivo renombrado.</td>
+</tr>
+<tr>
+<td>H-03</td>
+<td>No hay registro de extracción OCR.</td>
+<td>No se conserva propuesta, confianza, versión, errores ni correcciones humanas.</td>
+</tr>
+<tr>
+<td>H-04</td>
+<td><code>SITUACION</code> no guarda historial de decisiones.</td>
+<td>No consta estructuradamente quién confirmó o rechazó, cuándo, qué cambió y por qué.</td>
+</tr>
+<tr>
+<td>H-05</td>
+<td>La clave del manifest es control de contenido, no identidad de pago.</td>
+<td>No enlaza imagen, candidato, decisión, movimiento y confirmación.</td>
+</tr>
+<tr>
+<td>H-06</td>
+<td>El cálculo agrega por predio y concepto.</td>
+<td>El ledger transitorio no puede confirmar si un abono individual específico ya fue cargado.</td>
+</tr>
+<tr>
+<td>H-07</td>
+<td>El hash del snapshot confirma una proyección completa.</td>
+<td>Demuestra integridad del lote, no procedencia individual de cada comprobante.</td>
+</tr>
+<tr>
+<td>H-08</td>
+<td>El clasificador no reconstruye 8 de 43 filas.</td>
+<td>Excel, script y decisiones humanas ya divergen.</td>
+</tr>
+<tr>
+<td>H-09</td>
+<td>Agosto tiene fuente y manifest alineados exactamente.</td>
+<td>La transición debe preservar este fail-closed hasta aportar evidencia equivalente.</td>
+</tr>
+<tr>
+<td>H-10</td>
+<td>Caja oficial permanece bloqueada por una diferencia de S/700.</td>
+<td>El MVP debe probarse en sombra; no hay autorización de cutover.</td>
+</tr>
+<tr>
+<td>H-11</td>
+<td><code>MES_CICLO</code> y <code>MES_ANO_APLICA</code> describen dos hechos distintos.</td>
+<td>Usar el mes de aplicación para agrupar el ingreso desplaza pagos históricos y cambia su cascada.</td>
+</tr>
+<tr>
+<td>H-12</td>
+<td>El reporte y <code>5_cobranza</code> usan distinto suborden dentro de la prioridad de agua.</td>
+<td>Un pago vigente puede aparecer repartido contra conceptos diferentes según el consumidor.</td>
+</tr>
+<tr>
+<td>H-13</td>
+<td>La fuente completa y el ledger aplicado pueden representar el mismo dinero con montos distintos.</td>
+<td>Sumarlos como entradas independientes duplica caja; reemplazar uno por otro oculta la aplicación contable.</td>
+</tr>
+<tr>
+<td>H-14</td>
+<td>El ledger transitorio perdió la identidad individual del abono al agregar por predio y concepto.</td>
+<td>La conciliación legacy solo puede ser agregada; el diseño objetivo necesita <code>ABONO_ID</code>.</td>
+</tr>
+<tr>
+<td>H-15</td>
+<td>La documentación operativa de F1-4 contradice la fuente y la confirmación más reciente.</td>
+<td>Debe actualizarse junto con el cambio para no reintroducir <code>MES_CICLO=2026-08</code>.</td>
+</tr>
+</tbody></table></div>
+<h3 id="distinciones-necesarias">Distinciones necesarias</h3>
+<pre><code class="language-text">archivo recibido != extracción OCR != candidato revisado
+                 != movimiento registrado != aplicación a deuda
+                 != confirmación de cierre</code></pre>
+<ul>
+<li>Duplicado de archivo y duplicado de pago no son lo mismo. Dos imágenes distintas pueden mostrar la misma operación; una imagen puede contener más de una operación.</li>
+<li>Aprobar que los campos fueron bien leídos no demuestra que el dinero existe o que no fue registrado previamente.</li>
+<li>Registrar un movimiento en caja y aplicarlo a conceptos son responsabilidades distintas. El OCR no debe decidir la cascada de deuda.</li>
+</ul>
+<h2 id="restricciones">Restricciones</h2>
+<h3 id="decisiones-y-contratos-cerrados">Decisiones y contratos cerrados</h3>
+<ul>
+<li>D-001: la referencia de pago confirma si el pago existe. Sin referencia no se reparte en el historial.</li>
+<li>D-002: un <code>SOURCE</code> técnico no constituye evidencia de pago.</li>
+<li>D-005: la cuenta completa empieza en agosto de 2026 sin backfill anterior.</li>
+<li><code>MES_CICLO</code> es el periodo economico del pago y <code>MES_ANO_APLICA</code> es el periodo de su regularizacion; no son campos intercambiables.</li>
+<li>La cascada de un pago del ciclo cubre primero <code>MES_ANTERIOR</code>, luego <code>MES_ACTUAL</code> y <code>MANTENIMIENTO</code>, y despues <code>CORTE -&gt; CONVENIO -&gt; ACUERDOS -&gt; MULTA</code>.</li>
+<li>Caja y estado de cuenta forman un solo bounded context con consistencia fuerte y un único motor de aplicación.</li>
+<li><code>JASS_ID</code> participa en identidades y eventos. Política por tenant entra por configuración; no se crean forks por JASS.</li>
+<li>El dinero nuevo se representa en céntimos enteros. El Excel con <code>float</code> es adapter.</li>
+<li>Correcciones de evidencia, decisiones o ledger se expresan como eventos posteriores; no se borran ni sobrescriben hechos auditables.</li>
+</ul>
+<h3 id="compatibilidad-y-migraci-n">Compatibilidad y migración</h3>
+<ul>
+<li><code>5_cobranza</code>, <code>4b_reclamos</code> y <code>6_corte</code> consumen hoy el Excel o su loader. El MVP no puede cambiar su contrato silenciosamente.</li>
+<li>El registro canónico debe existir antes del adapter legacy. La bandeja OCR no puede escribir directamente <code>abonos_rezagados.xlsx</code>.</li>
+<li>Caja oficial se alimenta después del cierre, no en caliente. Antes puede existir captura, revisión y staging, pero <code>CONFIRMADO_EN_CAJA</code> debe corresponder al commit real.</li>
+<li>Agosto sigue abierto, el snapshot no está validado y <code>7_cierre --confirmar</code> no está autorizado. Las pruebas usarán temporales, datos sintéticos o modo sombra.</li>
+</ul>
+<h3 id="seguridad-y-operaci-n">Seguridad y operación</h3>
+<ul>
+<li>Los comprobantes contienen datos personales y financieros. No deben salir del entorno autorizado sin decisión explícita sobre proveedor, retención y tratamiento.</li>
+<li>El OCR nunca puede aprobar ni publicar dinero. El revisor humano es obligatorio.</li>
+<li>Una coincidencia aproximada debe bloquear o alertar para revisión; no descartar evidencia automáticamente.</li>
+<li>Reintentos, reinicios y doble clic del operador deben ser idempotentes.</li>
+<li>No se afirmará precisión OCR ni umbrales de confianza antes de medir imágenes reales.</li>
+<li>Esta fase no selecciona OCR local, nube, híbrido, interfaz ni store; esas alternativas corresponden a <code>03_opciones.md</code>.</li>
+</ul>
+<h2 id="incertidumbres">Incertidumbres</h2>
+<ul>
+<li>El 2026-08-22 se incorporó una primera muestra de 8 JPEG manuscritos en <code>shared/abono_rezagado/</code>. La extracción asistida produjo 30 candidatos: 23 con confianza alta, 4 media y 3 baja; una fila no contiene monto identificable.</li>
+<li>Una imagen contiene hasta 10 candidatos, por lo que la relación evidencia 1:N queda confirmada para esta muestra.</li>
+<li>Doce candidatos recibieron alertas por repetición entre imágenes, coincidencia o mismo predio en <code>shared/abonos_rezagados.xlsx</code>. Esto confirma que duplicado documental y posible duplicado de pago requieren controles separados y revisión humana.</li>
+<li>El borrador verificable está en <code>shared/abono_rezagado/abonos_rezagados_ocr_borrador.xlsx</code>; tiene hashes SHA-256 para las 8 imágenes, enlaces al original y 30 decisiones humanas en <code>PENDIENTE</code>. No fue importado al manifest ni al ledger.</li>
+<li>La muestra todavía es pequeña y solo contiene notas manuscritas; no permite medir precisión para capturas bancarias, PDFs, reenvíos, recortes o recompresiones variadas.</li>
+<li>Falta definir qué referencia de negocio satisface D-001 para cada canal y tipo de abono.</li>
+<li>Falta elegir como representar en el adapter legacy un pago mostrado en <code>MES_CICLO</code> cuya aplicacion aparece en el ledger de <code>MES_ANO_APLICA</code>, sin doble conteo y sin ocultar el cambio de saldo. La ausencia de <code>ABONO_ID</code> impide una conciliacion individual completa.</li>
+<li>Falta decidir si la compatibilidad transitoria conciliara agregados por <code>predio + MES_ANO_APLICA</code> o si exigira primero una identidad puente por abono. Esta fase solo registra la divergencia; la comparacion corresponde a <code>03_opciones.md</code>.</li>
+<li>El capítulo didáctico <code>Ingenioro de IA/07_caso_abonos_rezagados.html</code> propone evidencia 1:N candidatos y conservación permanente. La cardinalidad 1:N ya tiene evidencia; la retención permanente sigue siendo una hipótesis hasta decidir la política aplicable.</li>
+</ul></div></article><article class="plate chapter" id="chapter-problem"><div class="chapter-head"><div><span>CAPÍTULO 03</span><h2>Problema</h2></div><a href="02_problema.md">Abrir Markdown</a></div><div class="markdown-body"><h1 id="problema-captura-ocr-auditada-de-abonos-rezagados">Problema: Captura OCR auditada de abonos rezagados</h1>
+<h2 id="brecha">Brecha</h2>
+<p>[COMPLETAR]</p>
+<p>Expresar la diferencia observable entre el comportamiento actual y el comportamiento necesario, sin adelantar solución.</p>
+<h2 id="objetivos">Objetivos</h2>
+<p>Definir resultados de negocio y técnicos verificables que este cambio debe conseguir.</p>
+<h2 id="no-objetivos">No-objetivos</h2>
+<p>Delimitar explícitamente lo que no se resolverá para impedir crecimiento accidental del alcance.</p>
+<h2 id="m-tricas-de-xito">Métricas de éxito</h2>
+<p>Definir señales cuantitativas o criterios binarios, su fuente de evidencia y el umbral de aceptación.</p>
+<h2 id="afectados">Afectados</h2>
+<p>Identificar usuarios, operadores, sistemas, datos y procesos que reciben impacto directo o indirecto.</p></div></article><article class="plate chapter" id="chapter-options"><div class="chapter-head"><div><span>CAPÍTULO 04</span><h2>Opciones</h2></div><a href="03_opciones.md">Abrir Markdown</a></div><div class="markdown-body"><h1 id="opciones-captura-ocr-auditada-de-abonos-rezagados">Opciones: Captura OCR auditada de abonos rezagados</h1>
+<h2 id="opcion-a">OPCION-A</h2>
+<p>[COMPLETAR]</p>
+<ul>
+<li>Valor y cobertura:</li>
+<li>Complejidad y costo:</li>
+<li>Riesgos e integridad:</li>
+<li>Migración y compatibilidad:</li>
+<li>Reversibilidad:</li>
+<li>Tiempo hasta evidencia:</li>
+</ul>
+<h2 id="opcion-b">OPCION-B</h2>
+<p>Describir una alternativa materialmente distinta; no presentar la misma solución con nombres diferentes.</p>
+<ul>
+<li>Valor y cobertura:</li>
+<li>Complejidad y costo:</li>
+<li>Riesgos e integridad:</li>
+<li>Migración y compatibilidad:</li>
+<li>Reversibilidad:</li>
+<li>Tiempo hasta evidencia:</li>
+</ul>
+<h2 id="comparaci-n">Comparación</h2>
+<p>Comparar con criterios comunes, explicitar tradeoffs y recomendar sin sustituir la decisión humana.</p></div></article><article class="plate chapter" id="chapter-decision"><div class="chapter-head"><div><span>CAPÍTULO 05</span><h2>Decisión</h2></div><a href="04_decision.md">Abrir Markdown</a></div><div class="markdown-body"><h1 id="decisi-n-captura-ocr-auditada-de-abonos-rezagados">Decisión: Captura OCR auditada de abonos rezagados</h1>
+<p>[COMPLETAR]</p>
+<p>Este archivo lo reemplaza el comando <code>choose</code>; no registrar una elección manualmente.</p></div></article><article class="plate chapter" id="chapter-spec"><div class="chapter-head"><div><span>CAPÍTULO 06</span><h2>Contrato</h2></div><a href="05_spec.md">Abrir Markdown</a></div><div class="markdown-body"><h1 id="especificaci-n-captura-ocr-auditada-de-abonos-rezagados">Especificación: Captura OCR auditada de abonos rezagados</h1>
+<h2 id="alcance">Alcance</h2>
+<p>[COMPLETAR]</p>
+<p>Definir entradas, salidas, actores y límites coherentes con la opción elegida y el problema aprobado.</p>
+<h2 id="requisitos">Requisitos</h2>
+<p>Usar identificadores estables (<code>REQ-001</code>) y lenguaje verificable. Evitar detalles de implementación prematuros.</p>
+<h2 id="invariantes">Invariantes</h2>
+<p>Documentar propiedades que siempre deben mantenerse, especialmente integridad de datos, auditoría e idempotencia.</p>
+<h2 id="criterios-de-aceptaci-n">Criterios de aceptación</h2>
+<p>Escribir escenarios observables (<code>AC-001</code>) trazados a requisitos, incluidos errores, bordes y regresiones.</p>
+<h2 id="fuera-de-alcance">Fuera de alcance</h2>
+<p>Repetir los límites relevantes para que diseño e implementación no amplíen el cambio silenciosamente.</p></div></article><article class="plate chapter" id="chapter-design"><div class="chapter-head"><div><span>CAPÍTULO 07</span><h2>Diseño</h2></div><a href="06_diseno.md">Abrir Markdown</a></div><div class="markdown-body"><h1 id="dise-o-captura-ocr-auditada-de-abonos-rezagados">Diseño: Captura OCR auditada de abonos rezagados</h1>
+<h2 id="arquitectura">Arquitectura</h2>
+<p>[COMPLETAR]</p>
+<p>Mostrar componentes, límites y flujo de datos. Justificar cómo realiza la especificación aprobada.</p>
+<h2 id="componentes">Componentes</h2>
+<p>Relacionar archivos o módulos afectados, responsabilidades, interfaces y consumidores reales.</p>
+<h2 id="datos-y-migraci-n">Datos y migración</h2>
+<p>Definir cambios de esquema o formato, compatibilidad, despliegue, rollback y preservación de auditoría.</p>
+<h2 id="riesgos">Riesgos</h2>
+<p>Enumerar modos de fallo, impacto, mitigación, observabilidad y decisiones todavía irreversibles.</p>
+<h2 id="estrategia-de-pruebas">Estrategia de pruebas</h2>
+<p>Trazar unitarias, integración, regresión y validación operativa contra requisitos y criterios de aceptación.</p></div></article><article class="plate chapter" id="chapter-tasks"><div class="chapter-head"><div><span>CAPÍTULO 08</span><h2>Tareas</h2></div><a href="07_tareas.md">Abrir Markdown</a></div><div class="markdown-body"><h1 id="tareas-captura-ocr-auditada-de-abonos-rezagados">Tareas: Captura OCR auditada de abonos rezagados</h1>
+<h2 id="definition-of-done">Definition of Done</h2>
+<p>[COMPLETAR]</p>
+<p>El cambio satisface todos los criterios aprobados, tiene evidencia reproducible y no deja divergencias documentales.</p>
+<h2 id="tareas">Tareas</h2>
+<ul>
+<li class="task"><input type="checkbox" disabled> TASK-001: Implementar el incremento mínimo trazado a requisitos y criterios de aceptación.</li>
+<li class="task"><input type="checkbox" disabled> TASK-002: Ejecutar pruebas del caso afectado y al menos una regresión no afectada.</li>
+<li class="task"><input type="checkbox" disabled> TASK-003: Actualizar documentación y registrar evidencia verificable.</li>
+</ul>
+<p>Cada tarea debe indicar dependencias, archivos previstos, validación y requisito que satisface antes de aprobar este gate.</p></div></article><article class="plate chapter" id="chapter-verification"><div class="chapter-head"><div><span>CAPÍTULO 09</span><h2>Verificación</h2></div><a href="08_verificacion.md">Abrir Markdown</a></div><div class="markdown-body"><h1 id="verificaci-n-captura-ocr-auditada-de-abonos-rezagados">Verificación: Captura OCR auditada de abonos rezagados</h1>
+<h2 id="matriz-de-trazabilidad">Matriz de trazabilidad</h2>
+<p>[COMPLETAR]</p>
+<p>Relacionar cada <code>REQ-<em></code> y <code>AC-</em></code> con implementación, prueba, comando, salida y ubicación de evidencia.</p>
+<h2 id="evidencia">Evidencia</h2>
+<p>Registrar comandos exactos, entorno, resultado y cualquier limitación. No declarar pruebas que no se ejecutaron.</p>
+<h2 id="regresiones">Regresiones</h2>
+<p>Incluir al menos un caso afectado y uno no afectado; revisar consumidores de cada salida modificada.</p>
+<h2 id="veredicto">Veredicto</h2>
+<p>Indicar <code>PASS</code>, <code>FAIL</code> o <code>BLOCKED</code>, con desviaciones entre problema, decisión, spec, diseño, tareas y código.</p></div></article><article class="plate chapter" id="chapter-close"><div class="chapter-head"><div><span>CAPÍTULO 10</span><h2>Cierre</h2></div><a href="09_cierre.md">Abrir Markdown</a></div><div class="markdown-body"><h1 id="cierre-captura-ocr-auditada-de-abonos-rezagados">Cierre: Captura OCR auditada de abonos rezagados</h1>
+<p>[COMPLETAR]</p>
+<p>Este archivo lo reemplaza <code>converge</code> después de validar todos los artefactos y tareas.</p></div></article>
+    <section class="plate" id="history"><div class="chapter-head"><div><span>TRAZABILIDAD</span><h2>Historial SDD</h2></div><a href="state.json">Abrir estado</a></div><ul class="history"><li><strong>APPROVE_INTAKE</strong><span>Wilder · 2026-08-22T15:31:19-05:00</span><small></small></li><li><strong>NEW</strong><span>Wilder · 2026-08-22T12:05:19-05:00</span><small>Cambio creado</small></li></ul></section>
+    <footer>Generado por Constructor SDD 0.2.0 · 2026-08-22T18:32:32-05:00<br>Vista regenerable: las fuentes de verdad son los archivos Markdown y state.json de esta carpeta.</footer>
+  </main>
+</body>
+</html>

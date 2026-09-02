@@ -75,7 +75,7 @@ está listo y validado.
 - **`boletas_sin_servicio.py` factura deuda real sin lectura** — predios con
   MULTA/ACUERDOS/CONVENIO en el ledger que no reciben boleta del ciclo (sin servicio)
   pero cuya deuda la mesa necesita cobrar. Suma agua vieja/corte del
-  `arrastre_consolidado` si existe.
+  `planilla_cobrado_YYYY-MM.xlsx`, hoja `arrastre_consolidado`, si existe.
   **Excluye** lotes viejos de reasignaciones pendientes de génesis (ej. B-29→B-20,
   C-45→C-43): su deuda se factura cuando los cargos se muevan al lote nuevo.
 - **`recibos_medidor_pagado.py`** lee `shared/vista_seguimiento_pueblo.xlsx` (hoja
@@ -116,7 +116,7 @@ python correcciones.py
 2_planilla/outputs/planilla_YYYY-MM.xlsx   ──►  enriquecimiento/main.py
 shared/seguimiento_pueblo.xlsx (repo)       ──►  boletas_sin_servicio.py
 shared/vista_seguimiento_pueblo.xlsx        ──►  recibos_medidor_pagado.py
-5_cobranza/outputs/arrastre_consolidado_*   ──►  boletas_sin_servicio.py (agua/corte vieja)
+5_cobranza/outputs/planilla_cobrado_*.xlsx  ──►  boletas_sin_servicio.py (`arrastre_consolidado`)
 ```
 
 ---

@@ -3,6 +3,7 @@ import re
 import unicodedata
 import pandas as pd
 import shutil
+import tempfile
 import fitz
 from pathlib import Path
 from docxtpl import DocxTemplate, InlineImage
@@ -11,9 +12,9 @@ from docx.shared import Mm
 from PyPDF2 import PdfMerger
 
 # ========================CONFIGURACION======================
-BASE_DIR = Path(".")
-INPUT_DIR = BASE_DIR / "Inputs"
-OUTPUT_DIR = BASE_DIR / "Outputs"
+BASE_DIR = Path(__file__).resolve().parent
+INPUT_DIR = BASE_DIR / "inputs"
+OUTPUT_DIR = Path(tempfile.gettempdir()) / "jass_system_boletas_test"
 IMAGES_DIR = OUTPUT_DIR / "Imagenes"
 
 DATA_BOLETAS_PATH = INPUT_DIR / "DATA_boletas.xlsx"

@@ -132,13 +132,21 @@ def _str_clean(val) -> str:
 
 
 def _norm_lt(val) -> str:
+    # El .replace(" ", "") no es cosmética: el operario escribió "14 B" en el
+    # registro del mes y esta función lo dejaba pasar tal cual, mientras que
+    # aplicar/proponer_sincronizacion.py sí lo limpiaban. Resultado: la
+    # sincronización con 0_padron daba OK (comparaba "14B") y el output se
+    # escribía con "14 B", así que la planilla terminó con DOS filas para
+    # E-14B — una con el consumo y otra con el cargo de ACUERDOS. 5_cobranza
+    # normaliza al leer, las dos colapsan a la misma clave del ledger y cada
+    # corrida deshacía lo que había escrito la anterior (18 filas de péndulo).
     s = _str_clean(val)
     if not s:
         return ""
     try:
         return str(int(float(s)))
     except (ValueError, TypeError):
-        return s.upper()
+        return s.upper().replace(" ", "")
 
 
 def _try_float(s: str) -> float | None:

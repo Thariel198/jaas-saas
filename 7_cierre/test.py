@@ -10,11 +10,13 @@ Escenarios cubiertos:
     vacío — las fuentes auto (yape) y los canónicos NO se tocan en outputs/
 """
 import builtins
+import hashlib
+import json
 import shutil
 import sys
 from pathlib import Path
 
-from openpyxl import Workbook
+from openpyxl import Workbook, load_workbook
 
 sys.path.insert(0, str(Path(__file__).parent))
 import config
@@ -35,6 +37,7 @@ def _setup_paths() -> None:
     config.EFECTIVO_DIR      = _TMP / "efectivo"
     config.YAPE_DIR          = _TMP / "yape_outputs"
     config.ESTADO_CICLO_PATH = _TMP / "estado_ciclo.json"
+    mod.repo.SEGUIMIENTO_PATH = _TMP / "seguimiento_pueblo.xlsx"
 
 
 import consolidar_cierre as mod  # noqa: E402 — después de definir _setup_paths
@@ -52,10 +55,20 @@ def _wb_simple(ruta: Path, filas: list) -> None:
 
 def _build_fixture() -> None:
     out = config.COBRANZA_DIR / "outputs"
-    _wb_simple(out / f"arrastre_consolidado_{MES}.xlsx", [["MZ", "LT", "TOTAL"], ["A", "7", 20]])
-    _wb_simple(out / "planilla_cobrado.xlsx", [["MZ", "LT", "SALDO"], ["A", "7", 0]])
-    _wb_simple(out / f"arrastre_devolucion_{MES}.xlsx", [["MZ", "LT", "EXCESO"], ["A", "7", 5]])
+    planilla_path = out / f"planilla_cobrado_{MES}.xlsx"
+    _wb_simple(planilla_path, [["MZ", "LT", "SALDO"], ["A", "7", 0]])
+    wb = load_workbook(planilla_path)
+    wb.active.title = "planilla_cobrado"
+    wb.create_sheet("arrastre_consolidado").append(["MZ", "LT", "TOTAL"])
+    wb.create_sheet("arrastre_devolucion").append(["MZ", "LT", "EXCESO"])
+    wb.save(planilla_path)
     _wb_simple(out / "trazabilidad_cobranza_pre_dedup_20260629_141501.xlsx", [["basura"]])
+    snapshot = {"schema": 1, "mes": MES, "objetivos": [], "cargos": []}
+    normalizado = json.dumps(snapshot, ensure_ascii=True, sort_keys=True,
+                             separators=(",", ":")).encode("utf-8")
+    snapshot_hash = hashlib.sha256(normalizado).hexdigest()
+    (out / f"snapshot_ledger_{MES}.json").write_text(
+        json.dumps({**snapshot, "snapshot_hash": snapshot_hash}), encoding="utf-8")
 
     inputs_efec = config.EFECTIVO_DIR / "inputs"
     _wb_simple(inputs_efec / "mesa_1.xlsx", [["COBRADOR"], ["dato real de junio — debe desaparecer"]])
@@ -74,7 +87,8 @@ def _build_fixture() -> None:
 
     config.ESTADO_CICLO_PATH.parent.mkdir(parents=True, exist_ok=True)
     config.ESTADO_CICLO_PATH.write_text(
-        '{"' + MES + '": {"estado": "ABIERTO", "arrastre": {"generado": true, "validado": true}}}',
+        json.dumps({MES: {"estado": "ABIERTO", "arrastre": {
+            "generado": True, "validado": True, "snapshot_hash": snapshot_hash}}}),
         encoding="utf-8")
 
 
@@ -86,6 +100,9 @@ def main() -> int:
 
     print("\n[1] Fixture...")
     _setup_paths()
+    mod.paso0_preparar = lambda _mes: None
+    mod.repo.generar_vista = lambda: None
+    mod.repo.exportar_vista_pdf = lambda: None
     _build_fixture()
 
     print("\n[2] GATE — ciclo no validado debe abortar...")
@@ -121,8 +138,8 @@ def main() -> int:
 
     print("\n[4] Verificando COSECHAR...")
     destino = config.archivo_mes_dir(MES)
-    esperados = [f"arrastre_consolidado_{MES}.xlsx", "planilla_cobrado.xlsx",
-                 f"arrastre_devolucion_{MES}.xlsx", "mesa_1.xlsx", "correcciones_lote.xlsx",
+    esperados = [f"planilla_cobrado_{MES}.xlsx", f"snapshot_ledger_{MES}.json",
+                  "mesa_1.xlsx", "correcciones_lote.xlsx",
                  "pagos_yape_tepago.xlsx", "pagos_yape_devolucion.xlsx", "pagos_yape_retorno.xlsx"]
     for nombre in esperados:
         existe = (destino / nombre).exists()

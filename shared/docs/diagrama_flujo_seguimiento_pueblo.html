@@ -83,7 +83,7 @@
 <body>
 
 <p class="title">seguimiento_pueblo — flujo de 5 segundos</p>
-<p class="sub">Deuda de multa · acuerdos de asamblea · convenio — quién escribe eventos, quién lee el saldo</p>
+<p class="sub">Cuenta completa — quién escribe eventos, quién lee el saldo y cómo se proyecta el consumo</p>
 
 <div class="flow">
 
@@ -167,18 +167,20 @@
     <div class="lee">
       <div class="h">Lee</div>
       <ul>
-        <li>eventos de <code>shared/seguimiento_pueblo.xlsx</code></li>
+        <li>eventos efectivos de <code>shared/seguimiento_pueblo.xlsx</code></li>
+        <li>anulaciones lógicas de <code>anulaciones_ledger.json</code></li>
       </ul>
     </div>
     <div class="center">
-      <div class="stepname"><span class="num">3</span>"¿cuánto pagué / cuánto debo?"</div>
-      <div class="stepdesc">Cualquiera (persona autorizada, agente, futura UI) pide <code>repo.estado_cuenta(mz, lt, concepto)</code> — pivot a la vista ancha, siempre regenerable</div>
+      <div class="stepname"><span class="num">3</span>generar_vista() + exportar_vista_pdf()</div>
+      <div class="stepdesc">Un proyector puro reparte AGUA y MANTENIMIENTO por FIFO en MES_ANTERIOR → MES_ACTUAL → MANTENIMIENTO. Con esos bloques y los demás conceptos arma RESUMEN_DEUDAS en memoria; las hojas detalladas conservan su pivot.</div>
       <div class="badge">bajo demanda</div>
     </div>
     <div class="genera">
       <div class="h">Genera</div>
       <ul>
-        <li>vista ancha DEUDA·PAGO·SALDO por mes <span class="origen">(no se guarda, se calcula al pedirla)</span></li>
+        <li><code>vista_seguimiento_pueblo.xlsx</code><span class="origen">regenerable · nunca fuente</span></li>
+        <li><code>vista_seguimiento_pueblo.pdf</code><span class="origen">mismas hojas e importes</span></li>
       </ul>
     </div>
   </div>

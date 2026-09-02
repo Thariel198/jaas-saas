@@ -4,10 +4,11 @@ from pathlib import Path
 BASE_DIR    = Path(__file__).parent
 INPUTS_DIR  = BASE_DIR / "inputs"
 OUTPUTS_DIR = BASE_DIR / "outputs"
+LECTURAS_DIR = BASE_DIR.parent / "1_lecturas" / "outputs"
 
 # Inputs con fecha (se resuelven en runtime con el YYYY-MM detectado)
 def lecturas_path(mes: str) -> Path:
-    return INPUTS_DIR / "lecturas" / f"lecturas_planilla_{mes}.xlsx"
+    return LECTURAS_DIR / f"lecturas_planilla_{mes}.xlsx"
 
 def deuda_path(mes: str) -> Path:
     return INPUTS_DIR / "deuda_anterior" / f"arrastre_deuda_{mes}.xlsx"
@@ -22,18 +23,24 @@ MULTAS_PATH           = INPUTS_DIR / "multas"           / "multas.xlsx"
 ACUERDOS_PATH         = INPUTS_DIR / "acuerdos_asamblea" / "acuerdos_asamblea.xlsx"
 
 # ── Fuente única de arrastres (Opción A · writer único) ────────────────────
-# 2_planilla lee el consolidado del MES ANTERIOR que genera 5_cobranza, en vivo
-# desde sus outputs/ (no se copia a inputs/). Gate: el ciclo anterior debe
+# 2_planilla lee la hoja arrastre_consolidado de la planilla cobrada del MES
+# ANTERIOR que genera 5_cobranza, en vivo desde sus outputs/ (no se copia a
+# inputs/). Gate: el ciclo anterior debe
 # estar validado:true en estado_ciclo.json (lo sella 5b_validacion).
 # Desde seguimiento_pueblo (2026-07): el consolidado solo aporta agua+corte.
 # MULTA/ACUERDOS_ASAMBLEA/CONVENIO se leen de shared/seguimiento_repo.get_saldos_bulk()
 # — ver shared/README.md "Patrón Event-Sourced".
 COBRANZA_OUTPUTS_DIR  = BASE_DIR.parent / "5_cobranza" / "outputs"
+CIERRE_ARCHIVO_DIR    = BASE_DIR.parent / "7_cierre" / "archivo"
 
 def consolidado_path(mes: str) -> Path:
-    return COBRANZA_OUTPUTS_DIR / f"arrastre_consolidado_{mes}.xlsx"
+    return COBRANZA_OUTPUTS_DIR / f"planilla_cobrado_{mes}.xlsx"
+
+def consolidado_archivado_path(mes: str) -> Path:
+    return CIERRE_ARCHIVO_DIR / mes / f"planilla_cobrado_{mes}.xlsx"
 
 ESTADO_CICLO_PATH     = BASE_DIR.parent / "shared" / "reporte_acumulado_procesado" / "estado_ciclo.json"
+CONSOLIDADO_SHEET     = "arrastre_consolidado"
 COLS_CONSOLIDADO      = ["MZ", "LT", "DEUDA_AGUA", "CORTE_RECONEXION"]
 
 def output_path(mes: str) -> Path:

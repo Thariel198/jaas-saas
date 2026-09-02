@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Cuaderno visual SDD: Desglosar consumo en vista seguimiento">
+  <title>Desglosar consumo en vista seguimiento · Cuaderno SDD</title>
+  <style>
+    :root { --paper:#f4f0e5; --card:#fffdf7; --ink:#142d35; --muted:#5d7074;
+      --line:#cfd3c8; --navy:#123e4a; --teal:#087f73; --teal-soft:#dcefeb;
+      --orange:#d66a2c; --orange-soft:#fae7d7; --green:#2c7757;
+      --green-soft:#e0f0e7; --display:Georgia,"Times New Roman",serif;
+      --body:"Segoe UI",Arial,sans-serif; --mono:"Cascadia Mono",Consolas,monospace; }
+    * { box-sizing:border-box; } html { scroll-behavior:smooth; }
+    body { margin:0; color:var(--ink); background:linear-gradient(rgba(18,62,74,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(18,62,74,.035) 1px,transparent 1px),var(--paper); background-size:28px 28px; font:16px/1.65 var(--body); }
+    a { color:var(--teal); } code,pre { font-family:var(--mono); }
+    .topbar { position:sticky; top:0; z-index:20; background:rgba(18,62,74,.97); border-bottom:1px solid rgba(255,255,255,.15); }
+    .topbar-inner { width:min(1120px,calc(100% - 32px)); min-height:55px; margin:auto; display:flex; align-items:center; justify-content:space-between; gap:16px; }
+    .brand { color:white; text-decoration:none; font:700 13px var(--mono); letter-spacing:.08em; }
+    .topbar nav { display:flex; gap:14px; } .topbar nav a { color:#d8eceb; text-decoration:none; font:12px var(--mono); }
+    .hero,.wrap { width:min(1040px,calc(100% - 40px)); margin:auto; } .hero { padding:68px 0 38px; }
+    .eyebrow { color:var(--orange); font:700 12px var(--mono); letter-spacing:.13em; text-transform:uppercase; }
+    h1,h2,h3,h4 { font-family:var(--display); font-weight:400; line-height:1.15; }
+    h1 { max-width:20ch; margin:10px 0 16px; font-size:clamp(39px,6vw,68px); letter-spacing:-.04em; }
+    h2 { margin:0; font-size:clamp(27px,4vw,40px); } h3 { margin:8px 0; font-size:22px; }
+    .lede { max-width:72ch; color:var(--muted); font-size:19px; }
+    .meta { display:flex; flex-wrap:wrap; gap:8px; margin-top:22px; }
+    .meta span { padding:6px 10px; border:1px solid var(--line); border-radius:3px; background:rgba(255,255,255,.5); color:var(--muted); font:12px var(--mono); }
+    .progress { margin:25px 0 8px; } .progress-label { display:flex; justify-content:space-between; color:var(--muted); font:12px var(--mono); }
+    .progress-track { height:10px; margin-top:7px; border-radius:99px; overflow:hidden; background:#d9ddd5; }
+    .progress-bar { height:100%; width:100%; background:linear-gradient(90deg,var(--teal),var(--green)); }
+    .next { margin:28px 0 38px; padding:17px 20px; border-left:4px solid var(--orange); border-radius:0 7px 7px 0; background:var(--orange-soft); }
+    .next strong { display:block; color:#704018; font:12px var(--mono); text-transform:uppercase; }
+    .section-label { margin:0 0 13px; color:var(--orange); font:700 12px var(--mono); letter-spacing:.1em; text-transform:uppercase; }
+    .chapter-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin-bottom:38px; }
+    .chapter-card { min-height:145px; padding:18px; border:1px solid var(--line); border-top:4px solid var(--line); border-radius:7px; color:inherit; background:var(--card); text-decoration:none; }
+    .chapter-card.activo { border-top-color:var(--orange); background:#fff8ef; } .chapter-card.completo { border-top-color:var(--green); }
+    .chapter-number,.chapter-status { display:block; font:11px var(--mono); } .chapter-number { color:var(--teal); } .chapter-status { margin-top:17px; color:var(--muted); }
+    .chapter-card.activo .chapter-status { color:var(--orange); } .chapter-card.completo .chapter-status { color:var(--green); }
+    .plate { margin-bottom:20px; padding:31px clamp(18px,4vw,40px); border:1px solid var(--line); border-radius:8px; background:var(--card); }
+    .chapter-head { display:flex; align-items:end; justify-content:space-between; gap:18px; padding-bottom:19px; border-bottom:1px solid var(--line); }
+    .chapter-head span { color:var(--orange); font:700 11px var(--mono); letter-spacing:.08em; } .chapter-head a { font:12px var(--mono); }
+    .markdown-body { padding-top:13px; } .markdown-body h1 { max-width:none; margin:20px 0 16px; font-size:34px; letter-spacing:-.02em; }
+    .markdown-body h2 { margin:31px 0 12px; font-size:28px; } .markdown-body h3 { margin-top:25px; }
+    .markdown-body p,.markdown-body li { max-width:78ch; } .markdown-body p { color:#354d53; }
+    .markdown-body code:not(pre code) { padding:2px 5px; border-radius:4px; background:var(--teal-soft); font-size:.88em; }
+    pre { margin:18px 0; padding:19px; overflow:auto; border-radius:7px; color:#e4f2f0; background:#112f38; font-size:13px; line-height:1.65; }
+    blockquote { margin:18px 0; padding:14px 18px; border-left:4px solid var(--teal); background:var(--teal-soft); }
+    .table-wrap { overflow-x:auto; } table { width:100%; margin:18px 0; border-collapse:collapse; }
+    th,td { padding:11px 13px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; } th { color:var(--teal); font:12px var(--mono); }
+    .task { list-style:none; margin-left:-22px; } .task input { width:17px; height:17px; vertical-align:-3px; accent-color:var(--teal); }
+    .history { margin:0; padding:0; list-style:none; } .history li { display:grid; grid-template-columns:180px 1fr; gap:4px 15px; padding:11px 0; border-bottom:1px dashed var(--line); }
+    .history strong { color:var(--teal); font:12px var(--mono); } .history span,.history small { color:var(--muted); font:12px var(--mono); } .history small { grid-column:2; }
+    footer { margin:44px 0 80px; padding-top:20px; border-top:1px solid var(--line); color:var(--muted); font:12px/1.7 var(--mono); }
+    @media(max-width:760px) { .hero,.wrap { width:min(100% - 24px,1040px); } .hero { padding:42px 0 26px; } .topbar nav a:not(:last-child) { display:none; } .plate { padding:24px 17px; } .chapter-head { align-items:start; } .history li { grid-template-columns:1fr; } .history small { grid-column:1; } }
+    @media print { .topbar,.chapter-grid { display:none; } body { background:white; font-size:11pt; } .hero,.wrap { width:100%; } .hero { padding:20px 0; } .plate { break-inside:avoid; } }
+  </style>
+</head>
+<body>
+  <div class="topbar"><div class="topbar-inner"><a class="brand" href="#top">SDD / CUADERNO</a><nav><a href="#chapters">Capítulos</a><a href="#history">Historial</a><a href="state.json">Estado JSON</a></nav></div></div>
+  <header class="hero" id="top">
+    <div class="eyebrow">jass_system · contrato vivo</div>
+    <h1>Desglosar consumo en vista seguimiento</h1>
+    <p class="lede">Del pedido original a la evidencia verificable. El Markdown conserva el contrato; este cuaderno lo presenta como una ruta de lectura.</p>
+    <div class="meta"><span>ETAPA: ARCHIVED</span><span>OPCIÓN: A</span><span>CAMBIO: desglosar-vista-consumo</span></div>
+    <div class="progress"><div class="progress-label"><span>Progreso del workflow</span><span>100%</span></div><div class="progress-track"><div class="progress-bar"></div></div></div>
+  </header>
+  <main class="wrap">
+    <div class="next"><strong>Siguiente gate</strong>Cambio cerrado. Para trabajo nuevo, crear otro slug con new.</div>
+    <p class="section-label" id="chapters">Ruta del cambio</p>
+    <div class="chapter-grid"><a class="chapter-card completo" href="#chapter-intake"><span class="chapter-number">CAPÍTULO 01</span><h3>Entrada</h3><span class="chapter-status">COMPLETO</span></a><a class="chapter-card completo" href="#chapter-exploration"><span class="chapter-number">CAPÍTULO 02</span><h3>Exploración</h3><span class="chapter-status">COMPLETO</span></a><a class="chapter-card completo" href="#chapter-problem"><span class="chapter-number">CAPÍTULO 03</span><h3>Problema</h3><span class="chapter-status">COMPLETO</span></a><a class="chapter-card completo" href="#chapter-options"><span class="chapter-number">CAPÍTULO 04</span><h3>Opciones</h3><span class="chapter-status">COMPLETO</span></a><a class="chapter-card completo" href="#chapter-decision"><span class="chapter-number">CAPÍTULO 05</span><h3>Decisión</h3><span class="chapter-status">COMPLETO</span></a><a class="chapter-card completo" href="#chapter-spec"><span class="chapter-number">CAPÍTULO 06</span><h3>Contrato</h3><span class="chapter-status">COMPLETO</span></a><a class="chapter-card completo" href="#chapter-design"><span class="chapter-number">CAPÍTULO 07</span><h3>Diseño</h3><span class="chapter-status">COMPLETO</span></a><a class="chapter-card completo" href="#chapter-tasks"><span class="chapter-number">CAPÍTULO 08</span><h3>Tareas</h3><span class="chapter-status">COMPLETO</span></a><a class="chapter-card completo" href="#chapter-verification"><span class="chapter-number">CAPÍTULO 09</span><h3>Verificación</h3><span class="chapter-status">COMPLETO</span></a><a class="chapter-card activo" href="#chapter-close"><span class="chapter-number">CAPÍTULO 10</span><h3>Cierre</h3><span class="chapter-status">ACTIVO</span></a></div>
+    <article class="plate chapter" id="chapter-intake"><div class="chapter-head"><div><span>CAPÍTULO 01</span><h2>Entrada</h2></div><a href="00_intake.md">Abrir Markdown</a></div><div class="markdown-body"><h1 id="intake-desglosar-consumo-en-vista-seguimiento">Intake: Desglosar consumo en vista seguimiento</h1>
+<h2 id="resumen-ejecutivo-lectura-de-1-minuto">Resumen ejecutivo (lectura de 1 minuto)</h2>
+<pre><code class="language-text">vista actual: [AGUA agregado] [MANTENIMIENTO]
+                         |
+                         v
+vista esperada: [MES_ANTERIOR] [MES_ACTUAL] [MANTENIMIENTO]</code></pre>
+<ul>
+<li>El cambio afecta <code>shared/vista_seguimiento_pueblo.xlsx</code>, no el ledger.</li>
+<li>La hoja <code>AGUA</code> desaparece de la vista.</li>
+<li><code>MES_ANTERIOR</code> incluye agua y mantenimiento anteriores.</li>
+<li>Las hojas quedan ordenadas según la cascada visible.</li>
+<li>I-9 debe mostrar anterior S/8, actual S/5 y mantenimiento S/3.</li>
+</ul>
+<h2 id="detalle-completo">Detalle completo</h2>
+<h2 id="pedido-original">Pedido original</h2>
+<p>Wilde solicita cambiar <code>shared/vista_seguimiento_pueblo.xlsx</code> porque la hoja <code>AGUA</code> mezcla deuda del mes anterior y del mes actual. La vista no permite observar cuanto se debia antes, cuanto cargo el ciclo actual ni que bloque cubrieron primero los pagos.</p>
+<p>Resultado solicitado:</p>
+<pre><code class="language-text">MES_ANTERIOR -&gt; MES_ACTUAL -&gt; MANTENIMIENTO -&gt; CORTE_RECONEXION
+             -&gt; CONVENIO -&gt; ACUERDOS -&gt; MULTA -&gt; OTROS</code></pre>
+<ul>
+<li><code>AGUA</code> desaparece como hoja visible.</li>
+<li>Se agregan <code>MES_ANTERIOR</code> y <code>MES_ACTUAL</code> al lado de <code>MANTENIMIENTO</code>.</li>
+<li>Mantenimiento anterior no tiene hoja propia: se suma dentro de <code>MES_ANTERIOR</code>.</li>
+<li>El ledger conserva <code>CONCEPTO=AGUA</code> y <code>CONCEPTO=MANTENIMIENTO</code>; el cambio es una vista derivada y no escribe ajustes ni reclasifica eventos.</li>
+</ul>
+<h2 id="evidencia-disponible">Evidencia disponible</h2>
+<h3 id="hechos-verificados">Hechos verificados</h3>
+<ul>
+<li><code>shared/seguimiento_repo.py::generar_vista()</code> crea una hoja por cada valor de <code>CONCEPTOS_ORDEN</code>; hoy genera <code>AGUA</code> y <code>MANTENIMIENTO</code> por separado.</li>
+<li>Cada hoja mensual expone <code>DEUDA</code>, <code>PAGO</code>, <code>DECLARADO</code>, <code>AJUSTE</code> y <code>SALDO</code>.</li>
+<li><code>5_cobranza._componentes_cuenta()</code> ya separa internamente <code>AGUA_ANT</code>, <code>MANT_ANT</code>, <code>AGUA_ACT</code> y <code>MANT_ACT</code>.</li>
+<li>La cascada vigente aplica primero componentes anteriores y luego actuales.</li>
+<li><code>_aplicar_componentes()</code> colapsa <code>AGUA_ANT</code> y <code>AGUA_ACT</code> al escribir <code>CONCEPTO=AGUA</code>; <code>CLASE</code> describe el hecho (<code>GENESIS</code>, <code>COBRANZA</code>, <code>ABONO_REZAGADO</code>), no la antiguedad.</li>
+<li>Existen cero eventos <code>AJUSTE</code> de <code>AGUA</code> o <code>MANTENIMIENTO</code> en el ledger actual.</li>
+</ul>
+<h3 id="caso-i-9">Caso I-9</h3>
+<pre><code class="language-text">arrastre julio                         S/8
+agosto CARGO AGUA source=saldo_inicial S/8
+agosto CARGO AGUA source=2_planilla    S/5
+agosto CARGO MANTENIMIENTO             S/3
+agosto PAGO AGUA                       S/13
+agosto PAGO MANTENIMIENTO               S/3
+saldo final                              S/0</code></pre>
+<p>La vista actual muestra <code>AGUA=13</code>; la vista solicitada debe explicar <code>MES_ANTERIOR=8</code>, <code>MES_ACTUAL=5</code> y <code>MANTENIMIENTO=3</code>, conservando total S/16.</p>
+<h2 id="preguntas-iniciales">Preguntas iniciales</h2>
+<ul>
+<li>Definir en exploracion la reconstruccion FIFO general para meses posteriores a agosto.</li>
+<li>Definir el comportamiento fail-safe si aparece un <code>AJUSTE</code> de agua/mantenimiento sin identificador del cargo afectado; no se puede inventar si corresponde a deuda anterior o actual.</li>
+<li>Confirmar consumidores que dependen de la hoja fisica <code>AGUA</code> antes de retirarla.</li>
+<li><code>reporte_historico.py</code> queda fuera de este cambio; pertenece a otro problema/spec.</li>
+</ul></div></article><article class="plate chapter" id="chapter-exploration"><div class="chapter-head"><div><span>CAPÍTULO 02</span><h2>Exploración</h2></div><a href="01_exploracion.md">Abrir Markdown</a></div><div class="markdown-body"><h1 id="exploraci-n-desglosar-consumo-en-vista-seguimiento">Exploración: Desglosar consumo en vista seguimiento</h1>
+<h2 id="resumen-ejecutivo-lectura-de-1-minuto">Resumen ejecutivo (lectura de 1 minuto)</h2>
+<pre><code class="language-text">eventos AGUA/MANTENIMIENTO
+          |
+          +-- cargo anterior: source=saldo_inicial
+          +-- cargo actual:   source=2_planilla
+          +-- pagos:          FIFO dentro de cada concepto
+          |
+          v
+[MES_ANTERIOR] [MES_ACTUAL] [MANTENIMIENTO]</code></pre>
+<ul>
+<li>El ledger actual tiene 1,843 eventos de agua/mantenimiento para 509 predios, todos de agosto de 2026.</li>
+<li>Los cargos permiten distinguir apertura anterior y cargo actual.</li>
+<li>Los pagos estan agregados por concepto, pero el split anterior/actual se puede derivar sin cambiar saldos porque ambos ordenes operativos pagan primero lo antiguo.</li>
+<li>No existen ajustes de agua/mantenimiento que introduzcan ambiguedad hoy.</li>
+<li>Ningun consumidor operativo encontrado lee directamente la hoja fisica <code>AGUA</code>.</li>
+</ul>
+<h2 id="detalle-completo">Detalle completo</h2>
+<h2 id="sistema-actual">Sistema actual</h2>
+<h3 id="flujo-ejecutable">Flujo ejecutable</h3>
+<pre><code class="language-text">2_planilla
+  MES_ANTERIOR + MES_ACTUAL + MANTENIMIENTO
+                         |
+                         v
+5_cobranza._componentes_cuenta()
+  AGUA_ANT + MANT_ANT + AGUA_ACT + MANT_ACT
+                         |
+                         v
+5_cobranza._aplicar_componentes()
+  aplica FIFO, luego colapsa por concepto
+                         |
+                         v
+shared/seguimiento_pueblo.xlsx
+  CONCEPTO=AGUA o MANTENIMIENTO
+                         |
+                         v
+seguimiento_repo.generar_vista()
+  una hoja por CONCEPTOS_ORDEN
+                         |
+                         v
+vista_seguimiento_pueblo.xlsx
+  AGUA + MANTENIMIENTO agregados</code></pre>
+<h3 id="writer-y-forma-persistida">Writer y forma persistida</h3>
+<ul>
+<li><code>shared/seguimiento_repo.py</code> es el writer unico del ledger.</li>
+<li>El registro transitorio persiste <code>MZ</code>, <code>LT</code>, <code>CONCEPTO</code>, <code>MES</code>, <code>TIPO_EVENTO</code>, <code>CARGO</code>, <code>PAGO</code>, <code>AJUSTE</code>, <code>SALDO</code>, <code>SOURCE</code>, <code>AUDIT_REF</code>, <code>TIMESTAMP</code>, <code>CLASE</code> y <code>MOTIVO</code>.</li>
+<li>No persiste <code>CARGO_ID</code>, <code>MES_CARGO</code> ni una aplicacion pago-cargo.</li>
+<li><code>CLASE</code> no representa antiguedad; representa el hecho contable, por ejemplo <code>GENESIS</code>, <code>COBRANZA</code> o <code>ABONO_REZAGADO</code>.</li>
+</ul>
+<h3 id="cascada-real">Cascada real</h3>
+<pre><code class="language-text">pago del ciclo:
+AGUA_ANT -&gt; MANT_ANT -&gt; AGUA_ACT -&gt; MANT_ACT -&gt; CORTE -&gt; CONVENIO -&gt; ACUERDOS -&gt; MULTA
+
+abono de ciclo cerrado:
+AGUA_ANT -&gt; MANT_ANT -&gt; CORTE -&gt; CONVENIO -&gt; ACUERDOS -&gt; MULTA -&gt; AGUA_ACT -&gt; MANT_ACT</code></pre>
+<p>Los dos caminos conservan FIFO dentro de <code>AGUA</code> y dentro de <code>MANTENIMIENTO</code>: una aplicacion agregada de <code>AGUA</code> siempre cubre primero <code>AGUA_ANT</code> y luego <code>AGUA_ACT</code>; una aplicacion agregada de mantenimiento cubre primero <code>MANT_ANT</code> y luego <code>MANT_ACT</code>.</p>
+<h3 id="proyeccion-temporal-disponible">Proyeccion temporal disponible</h3>
+<p>Para agosto, un <code>CARGO AGUA</code> con <code>SOURCE=saldo_inicial</code> y <code>AUDIT_REF=apertura|...</code> es deuda anterior. Un <code>CARGO AGUA</code> con <code>SOURCE=2_planilla</code> es cargo actual. Desde el mes siguiente, todo saldo final no cubierto del mes previo pasa al bloque anterior y los cargos del nuevo mes entran al bloque actual. <code>MANT_ANT</code> se mantiene internamente para respetar FIFO, pero se suma visualmente dentro de <code>MES_ANTERIOR</code>.</p>
+<h3 id="consumidores-de-la-vista">Consumidores de la vista</h3>
+<ul>
+<li><code>7_cierre/consolidar_cierre.py</code> regenera la vista; no lee hojas individuales.</li>
+<li><code>exportar_vista_pdf()</code> recorre las hojas de forma generica y admite nombres nuevos.</li>
+<li><code>3_boletas/recibos_medidor_pagado.py</code> lee solo <code>CONVENIO_HISTORIAL</code>.</li>
+<li><code>shared/validar_vista_boletas.py</code> consulta el ledger por API; no abre <code>AGUA</code>.</li>
+<li><code>shared/tests/test_seguimiento_repo.py</code> si fija el conjunto de hojas y debe actualizarse.</li>
+<li>No se encontro codigo operativo que lea directamente <code>vista_seguimiento_pueblo.xlsx</code> hoja <code>AGUA</code>.</li>
+</ul>
+<h2 id="hallazgos">Hallazgos</h2>
+<div class="table-wrap"><table><thead><tr>
+<th>ID</th>
+<th>Hallazgo verificado</th>
+<th>Consecuencia</th>
+</tr></thead><tbody>
+<tr>
+<td>H-01</td>
+<td><code>CONCEPTOS_ORDEN</code> genera <code>AGUA</code> y <code>MANTENIMIENTO</code>.</td>
+<td>La forma actual copia la taxonomia, no la necesidad visual.</td>
+</tr>
+<tr>
+<td>H-02</td>
+<td><code>_componentes_cuenta()</code> ya conserva antiguedad durante el calculo.</td>
+<td>No se cambia la cascada de <code>5_cobranza</code>.</td>
+</tr>
+<tr>
+<td>H-03</td>
+<td><code>_aplicar_componentes()</code> agrega anterior y actual al escribir el concepto.</td>
+<td>La vista debe re-derivar el split; no puede leerlo de <code>CLASE</code>.</td>
+</tr>
+<tr>
+<td>H-04</td>
+<td>Ambos ordenes pagan anterior antes que actual dentro de cada concepto.</td>
+<td>El split de pagos por FIFO es determinista con los eventos existentes.</td>
+</tr>
+<tr>
+<td>H-05</td>
+<td>Agosto contiene 509 cargos AGUA actuales por S/6,187 y 105 aperturas por S/3,380.</td>
+<td>La fuente distingue los dos tipos de deuda.</td>
+</tr>
+<tr>
+<td>H-06</td>
+<td>Hay 374 pagos AGUA por S/5,107 y 346 pagos MANTENIMIENTO por S/1,036.</td>
+<td>La proyeccion debe separar pagos efectivos y declarados sin alterar el total.</td>
+</tr>
+<tr>
+<td>H-07</td>
+<td>Hay 0 ajustes AGUA/MANTENIMIENTO.</td>
+<td>El caso vigente no exige inventar antiguedad para ajustes.</td>
+</tr>
+<tr>
+<td>H-08</td>
+<td>Solo existe el mes 2026-08 en la cuenta completa.</td>
+<td>La primera version se valida en agosto y debe probar sinteticamente el rollover a septiembre.</td>
+</tr>
+<tr>
+<td>H-09</td>
+<td>La vista es regenerable y nunca fuente.</td>
+<td>Se pueden reemplazar hojas sin migrar datos persistidos.</td>
+</tr>
+<tr>
+<td>H-10</td>
+<td>PDF y consumidores no dependen de la hoja AGUA, salvo una prueba de estructura.</td>
+<td>Impacto externo bajo y verificable.</td>
+</tr>
+</tbody></table></div>
+<h3 id="caso-i-9-verificado">Caso I-9 verificado</h3>
+<pre><code class="language-text">entrada anterior:  8   -&gt; MES_ANTERIOR deuda 8
+cargo actual:      5   -&gt; MES_ACTUAL deuda 5
+mantenimiento:     3   -&gt; MANTENIMIENTO deuda 3
+
+pago AGUA:        13   -&gt; anterior 8 + actual 5
+pago MANT:         3   -&gt; mantenimiento actual 3
+
+saldo visible:     0 + 0 + 0</code></pre>
+<h2 id="restricciones">Restricciones</h2>
+<ul>
+<li>D-005: la cuenta completa empieza en agosto sin backfill.</li>
+<li>El ledger es append-only; generar la vista no escribe eventos.</li>
+<li><code>AGUA</code> y <code>MANTENIMIENTO</code> siguen siendo conceptos validos internos.</li>
+<li><code>MES_ANTERIOR</code> no se agrega como concepto: es antiguedad visible.</li>
+<li>La hoja <code>AGUA</code> desaparece solo del Excel/PDF de vista.</li>
+<li>Orden visible confirmado: <code>MES_ANTERIOR</code>, <code>MES_ACTUAL</code>, <code>MANTENIMIENTO</code>, <code>CORTE_RECONEXION</code>, <code>CONVENIO</code>, <code>ACUERDOS</code>, <code>MULTA</code>, <code>OTROS</code>.</li>
+<li>Mantenimiento anterior se suma a <code>MES_ANTERIOR</code>.</li>
+<li>Deben preservarse <code>PAGO</code> y <code>DECLARADO</code> como columnas distintas.</li>
+<li>Pruebas y regeneraciones usan temporales; no pisan el ledger real.</li>
+<li>El diseño destino con <code>CARGO_ID/MES_CARGO</code> no se implementa en este cambio.</li>
+</ul>
+<h2 id="incertidumbres">Incertidumbres</h2>
+<ul>
+<li>Si aparece en el futuro un <code>AJUSTE</code> AGUA/MANTENIMIENTO sin cargo objetivo, no existe evidencia para asignarlo a anterior o actual. Las opciones deben comparar bloqueo explicito contra una categoria visible no clasificada; queda prohibido elegir un mes por heuristica silenciosa.</li>
+<li>Debe decidirse si la proyeccion se construye como filas mensuales preagregadas para reutilizar el writer visual o como eventos sinteticos. La salida debe ser identica.</li>
+<li>El orden entre conceptos para abonos cerrados difiere del pago del ciclo, pero no afecta el split anterior/actual dentro de <code>AGUA</code> y <code>MANTENIMIENTO</code>.</li>
+</ul></div></article><article class="plate chapter" id="chapter-problem"><div class="chapter-head"><div><span>CAPÍTULO 03</span><h2>Problema</h2></div><a href="02_problema.md">Abrir Markdown</a></div><div class="markdown-body"><h1 id="problema-desglosar-consumo-en-vista-seguimiento">Problema: Desglosar consumo en vista seguimiento</h1>
+<h2 id="resumen-ejecutivo-lectura-de-1-minuto">Resumen ejecutivo (lectura de 1 minuto)</h2>
+<pre><code class="language-text">saldo correcto en ledger -&gt; hoja AGUA agregada -&gt; operador no ve antiguedad</code></pre>
+<ul>
+<li>La vista no permite distinguir deuda anterior, consumo actual y mantenimiento actual.</li>
+<li>Tampoco permite comprobar en que bloque termino el pago agregado de <code>AGUA</code>.</li>
+<li>La salida necesaria son tres hojas ordenadas por cascada, sin modificar el ledger.</li>
+</ul>
+<h2 id="detalle-completo">Detalle completo</h2>
+<h2 id="brecha">Brecha</h2>
+<p>El ledger conserva correctamente los totales de <code>AGUA</code> y <code>MANTENIMIENTO</code>, pero <code>vista_seguimiento_pueblo.xlsx</code> replica esos conceptos como hojas agregadas. Para un operador, <code>AGUA=13</code> no explica si corresponde a deuda anterior, consumo actual o ambos, ni permite comprobar que un pago cubrio primero la parte antigua.</p>
+<p>La vista necesaria debe mostrar por separado <code>MES_ANTERIOR</code>, <code>MES_ACTUAL</code> y <code>MANTENIMIENTO</code>, en ese orden, manteniendo exactamente los totales y saldos del ledger. El mantenimiento impago de ciclos previos pertenece visualmente a <code>MES_ANTERIOR</code>.</p>
+<h2 id="objetivos">Objetivos</h2>
+<ol>
+<li>Reemplazar la hoja visible <code>AGUA</code> por <code>MES_ANTERIOR</code> y <code>MES_ACTUAL</code>.</li>
+<li>Mantener <code>MANTENIMIENTO</code> solo para el cargo y saldo del ciclo actual.</li>
+<li>Ordenar hojas conforme a la cascada visible confirmada.</li>
+<li>Derivar pagos por FIFO sin cambiar eventos, conceptos ni saldos persistidos.</li>
+<li>Conservar <code>DEUDA</code>, <code>PAGO</code>, <code>DECLARADO</code>, <code>AJUSTE</code> y <code>SALDO</code> en la vista.</li>
+<li>Mantener el Excel y PDF regenerables e idempotentes.</li>
+</ol>
+<h2 id="no-objetivos">No-objetivos</h2>
+<ul>
+<li>No cambiar <code>5_cobranza</code> ni su cascada.</li>
+<li>No agregar conceptos al ledger.</li>
+<li>No escribir ajustes ni migrar <code>seguimiento_pueblo.xlsx</code>.</li>
+<li>No modificar <code>reporte_historico.py</code>.</li>
+<li>No implementar <code>CARGO_ID</code>, <code>MES_CARGO</code> o aplicaciones individuales del ledger destino.</li>
+<li>No reconstruir meses anteriores a agosto de 2026.</li>
+</ul>
+<h2 id="m-tricas-de-xito">Métricas de éxito</h2>
+<div class="table-wrap"><table><thead><tr>
+<th>Metrica</th>
+<th>Evidencia</th>
+<th>Umbral</th>
+</tr></thead><tbody>
+<tr>
+<td>I-9 se entiende</td>
+<td>Vista temporal</td>
+<td>Anterior 8/8/0, actual 5/5/0, mantenimiento 3/3/0 en deuda/pago/saldo</td>
+</tr>
+<tr>
+<td>Totales invariantes</td>
+<td>Comparacion AGUA+MANT antes/despues</td>
+<td>Diferencia 0.00 por predio y mes</td>
+</tr>
+<tr>
+<td>Ledger intacto</td>
+<td>Hash y conteo</td>
+<td>0 eventos modificados</td>
+</tr>
+<tr>
+<td>Orden de hojas</td>
+<td>Workbook generado</td>
+<td>MES_ANTERIOR, MES_ACTUAL, MANTENIMIENTO, CORTE_RECONEXION, CONVENIO, ACUERDOS, MULTA, OTROS</td>
+</tr>
+<tr>
+<td>AGUA retirada</td>
+<td>Workbook generado</td>
+<td>No existe hoja AGUA</td>
+</tr>
+<tr>
+<td>Rollover correcto</td>
+<td>Prueba sintetica agosto-septiembre</td>
+<td>Saldo actual impago pasa a MES_ANTERIOR</td>
+</tr>
+<tr>
+<td>Consumidores</td>
+<td>PDF, recibos y validadores</td>
+<td>Caso afectado y no afectado pasan</td>
+</tr>
+</tbody></table></div>
+<h2 id="afectados">Afectados</h2>
+<ul>
+<li>Secretaria, tesorero y directiva que consultan deuda.</li>
+<li><code>shared/seguimiento_repo.py::generar_vista()</code> y <code>exportar_vista_pdf()</code>.</li>
+<li><code>shared/tests/test_seguimiento_repo.py</code> y pruebas nuevas de proyeccion.</li>
+<li><code>7_cierre</code>, que regenera la vista sin cambiar su contrato contable.</li>
+<li><code>CONVENIO_HISTORIAL</code>, recibos y validadores no cambian, pero se verifican por regresion.</li>
+</ul></div></article><article class="plate chapter" id="chapter-options"><div class="chapter-head"><div><span>CAPÍTULO 04</span><h2>Opciones</h2></div><a href="03_opciones.md">Abrir Markdown</a></div><div class="markdown-body"><h1 id="opciones-desglosar-consumo-en-vista-seguimiento">Opciones: Desglosar consumo en vista seguimiento</h1>
+<h2 id="resumen-ejecutivo-lectura-de-1-minuto">Resumen ejecutivo (lectura de 1 minuto)</h2>
+<pre><code class="language-text">OPCION-A: ledger intacto -&gt; proyector FIFO -&gt; 3 hojas       RECOMENDADA
+OPCION-B: migrar ledger -&gt; cargos/aplicaciones identificados -&gt; 3 hojas</code></pre>
+<p>La opcion A resuelve la vista actual con bajo riesgo y es completamente reversible. La B da identidad perfecta por cargo, pero convierte un cambio visual en la migracion completa del ledger destino.</p>
+<h2 id="detalle-completo">Detalle completo</h2>
+<h2 id="opcion-a">OPCION-A</h2>
+<h3 id="proyeccion-fifo-regenerable-desde-eventos-existentes">Proyeccion FIFO regenerable desde eventos existentes</h3>
+<p>Al generar la vista, un proyector de solo lectura conserva saldos internos <code>AGUA_ANT/MANT_ANT/AGUA_ACT/MANT_ACT</code>, procesa cargos y pagos cronologicamente y produce filas mensuales preagregadas para <code>MES_ANTERIOR</code>, <code>MES_ACTUAL</code> y <code>MANTENIMIENTO</code>. <code>MANT_ANT</code> se suma a la primera hoja. El ledger y su taxonomia no cambian.</p>
+<ul>
+<li>Valor y cobertura: resuelve I-9, rollover futuro y las 509 cuentas actuales.</li>
+<li>Complejidad y costo: medio-bajo; un proyector puro y adaptación del writer visual.</li>
+<li>Riesgos e integridad: bajo; totales se validan contra AGUA+MANTENIMIENTO. Un ajuste sin cargo objetivo bloquea atomicamente la nueva vista en vez de inventar antiguedad.</li>
+<li>Migración y compatibilidad: ninguna migracion; cambia solo el conjunto de hojas.</li>
+<li>Reversibilidad: alta; retirar el proyector restaura la hoja AGUA.</li>
+<li>Tiempo hasta evidencia: corto; I-9 y un caso sintetico agosto-septiembre.</li>
+</ul>
+<h2 id="opcion-b">OPCION-B</h2>
+<h3 id="migrar-el-ledger-a-cargos-y-aplicaciones-identificados">Migrar el ledger a cargos y aplicaciones identificados</h3>
+<p>Agregar <code>CARGO_ID</code>, <code>MES_CARGO</code> y aplicaciones pago-cargo. Cada pago apuntaria al cargo exacto y la vista solo agruparia aplicaciones por antiguedad. Requiere migrar todos los eventos transitorios y cambiar writers/lectores antes de cambiar la vista.</p>
+<ul>
+<li>Valor y cobertura: identidad exacta, incluidos ajustes futuros y multiples meses.</li>
+<li>Complejidad y costo: muy alto; implementa una parte central del ledger destino.</li>
+<li>Riesgos e integridad: alto; exige backfill, conciliacion y cutover de datos reales.</li>
+<li>Migración y compatibilidad: cambia <code>seguimiento_repo</code>, <code>2_planilla</code>, <code>5_cobranza</code>, <code>7_cierre</code>, reportes y pruebas.</li>
+<li>Reversibilidad: baja despues del cutover.</li>
+<li>Tiempo hasta evidencia: largo; no entrega rapido la mejora visual solicitada.</li>
+</ul>
+<h2 id="comparaci-n">Comparación</h2>
+<div class="table-wrap"><table><thead><tr>
+<th>Criterio</th>
+<th>OPCION-A</th>
+<th>OPCION-B</th>
+</tr></thead><tbody>
+<tr>
+<td>Ledger real</td>
+<td>Intacto</td>
+<td>Migrado</td>
+</tr>
+<tr>
+<td>Exactitud con datos actuales</td>
+<td>Completa, salvo ajuste sin identidad</td>
+<td>Completa</td>
+</tr>
+<tr>
+<td>Ajustes AGUA/MANT hoy</td>
+<td>0; no bloquean</td>
+<td>Soportados por cargo</td>
+</tr>
+<tr>
+<td>Superficie afectada</td>
+<td>Vista, PDF y pruebas</td>
+<td>Pipeline completo</td>
+</tr>
+<tr>
+<td>Riesgo</td>
+<td>Bajo</td>
+<td>Alto</td>
+</tr>
+<tr>
+<td>Reversible</td>
+<td>Si</td>
+<td>Dificil</td>
+</tr>
+<tr>
+<td>Evidencia inicial</td>
+<td>I-9 en una iteracion</td>
+<td>Tras migracion</td>
+</tr>
+<tr>
+<td>Alineacion con pedido</td>
+<td>Directa</td>
+<td>Excede alcance</td>
+</tr>
+</tbody></table></div>
+<p><strong>Recomendacion: OPCION-A.</strong> Mantiene el ledger como fuente, evita una segunda verdad y resuelve la necesidad visible sin adelantar parcialmente la migracion de arquitectura.</p></div></article><article class="plate chapter" id="chapter-decision"><div class="chapter-head"><div><span>CAPÍTULO 05</span><h2>Decisión</h2></div><a href="04_decision.md">Abrir Markdown</a></div><div class="markdown-body"><h1 id="decisi-n-desglosar-consumo-en-vista-seguimiento">Decisión: Desglosar consumo en vista seguimiento</h1>
+<h2 id="opci-n-elegida">Opción elegida</h2>
+<p>OPCION-A</p>
+<h2 id="motivo">Motivo</h2>
+<p>Resuelve la vista por FIFO sin modificar ni migrar el ledger</p>
+<h2 id="aprobaci-n">Aprobación</h2>
+<ul>
+<li>Aprobado por: wilde</li>
+<li>Fecha: 2026-08-25T14:11:27-05:00</li>
+</ul></div></article><article class="plate chapter" id="chapter-spec"><div class="chapter-head"><div><span>CAPÍTULO 06</span><h2>Contrato</h2></div><a href="05_spec.md">Abrir Markdown</a></div><div class="markdown-body"><h1 id="especificaci-n-desglosar-consumo-en-vista-seguimiento">Especificación: Desglosar consumo en vista seguimiento</h1>
+<h2 id="alcance">Alcance</h2>
+<pre><code class="language-text">eventos efectivos AGUA/MANTENIMIENTO
+                  |
+                  v
+       proyección temporal FIFO
+                  |
+                  v
+MES_ANTERIOR + MES_ACTUAL + MANTENIMIENTO -&gt; Excel/PDF</code></pre>
+<p>El cambio transforma, en modo de solo lectura, los eventos efectivos de <code>seguimiento_pueblo.xlsx</code> en una vista temporal de deuda, pagos y saldo. La entrada es el ledger luego de aplicar sus anulaciones lógicas; las salidas son <code>vista_seguimiento_pueblo.xlsx</code> y su PDF derivado. La vista está destinada a secretaría, tesorería y directiva, y continúa siendo regenerable: nunca es fuente contable.</p>
+<p>La proyección separa los eventos de <code>AGUA</code> y <code>MANTENIMIENTO</code> en tres bloques visibles por predio y ciclo:</p>
+<ul>
+<li><code>MES_ANTERIOR</code>: agua y mantenimiento pendientes de ciclos anteriores.</li>
+<li><code>MES_ACTUAL</code>: cargo de agua correspondiente al ciclo consultado.</li>
+<li><code>MANTENIMIENTO</code>: cargo de mantenimiento correspondiente al ciclo consultado.</li>
+</ul>
+<p>Los demás conceptos conservan su contenido y semántica. El ledger, su taxonomía y la cascada de cobranza no cambian.</p>
+<h2 id="requisitos">Requisitos</h2>
+<ul>
+<li><code>REQ-001</code>: La proyección debe clasificar cada cargo efectivo de <code>AGUA</code> o <code>MANTENIMIENTO</code> como anterior o actual usando evidencia temporal y causal del ledger, sin modificar el evento original.</li>
+<li><code>REQ-002</code>: Para cada concepto, predio y ciclo, la proyección debe imputar <code>PAGO</code> y <code>DECLARADO</code> primero al saldo anterior y después al cargo actual, sin exceder la deuda disponible de cada bloque.</li>
+<li><code>REQ-003</code>: La salida debe mostrar <code>MANTENIMIENTO</code> anterior dentro de <code>MES_ANTERIOR</code>; la hoja <code>MANTENIMIENTO</code> debe contener únicamente el cargo, pago, declarado, ajuste y saldo del ciclo actual.</li>
+<li><code>REQ-004</code>: Un saldo actual impago al finalizar un ciclo debe aparecer como anterior en el ciclo siguiente. La proyección no debe reconstruir periodos anteriores a agosto de 2026.</li>
+<li><code>REQ-005</code>: Las hojas temporales deben conservar las columnas visibles <code>DEUDA</code>, <code>PAGO</code>, <code>DECLARADO</code>, <code>AJUSTE</code> y <code>SALDO</code>, además de las claves y columnas identificativas que ya expone la vista vigente.</li>
+<li><code>REQ-006</code>: El workbook debe presentar, en este orden, <code>MES_ANTERIOR</code>, <code>MES_ACTUAL</code>, <code>MANTENIMIENTO</code>, <code>CORTE_RECONEXION</code>, <code>CONVENIO</code>, <code>ACUERDOS</code>, <code>MULTA</code>, <code>OTROS</code> y las hojas auxiliares vigentes que no representan conceptos. No debe contener la hoja <code>AGUA</code>.</li>
+<li><code>REQ-007</code>: Los conceptos distintos de <code>AGUA</code> y <code>MANTENIMIENTO</code>, incluida <code>CONVENIO_HISTORIAL</code>, deben conservar sus filas, importes y comportamiento previo.</li>
+<li><code>REQ-008</code>: El Excel y el PDF deben representar los mismos bloques, orden e importes; el exportador no debe depender de la existencia de la hoja <code>AGUA</code>.</li>
+<li><code>REQ-009</code>: Si un <code>AJUSTE</code> de agua o mantenimiento no contiene evidencia suficiente para identificar el bloque afectado, la generación debe fallar explícita y atómicamente. No debe asignarlo por una heurística silenciosa ni reemplazar parcialmente la salida existente.</li>
+<li><code>REQ-010</code>: Repetir la generación sobre la misma entrada efectiva debe producir el mismo contenido funcional y no debe agregar, modificar ni eliminar eventos del ledger.</li>
+<li><code>REQ-011</code>: La regla de proyección debe ser independiente del formato Excel y de valores particulares de una JASS, para permitir que otro adaptador entregue la misma vista.</li>
+</ul>
+<h2 id="invariantes">Invariantes</h2>
+<ul>
+<li><code>INV-001</code>: Por predio y ciclo, la suma de <code>DEUDA</code>, <code>PAGO</code>, <code>DECLARADO</code>, <code>AJUSTE</code> y <code>SALDO</code> de los tres bloques proyectados debe ser igual a la suma de esos campos para <code>AGUA</code> y <code>MANTENIMIENTO</code> en la vista agregada equivalente.</li>
+<li><code>INV-002</code>: Para cada fila proyectada se mantiene la identidad contable <code>SALDO = DEUDA - PAGO - DECLARADO + AJUSTE</code>, de acuerdo con la semántica vigente de la vista.</li>
+<li><code>INV-003</code>: Ningún bloque puede recibir más pago o declarado que la deuda disponible que le corresponde, ni producir saldo negativo por efecto de la proyección.</li>
+<li><code>INV-004</code>: La proyección no escribe en <code>seguimiento_pueblo.xlsx</code>, <code>anulaciones_ledger.json</code> ni ningún input contable.</li>
+<li><code>INV-005</code>: Las anulaciones lógicas vigentes se respetan antes de clasificar o sumar eventos; un evento anulado no reaparece en la vista.</li>
+<li><code>INV-006</code>: <code>AGUA</code> y <code>MANTENIMIENTO</code> continúan siendo los conceptos persistidos. Los nombres temporales son categorías de presentación, no conceptos nuevos del ledger.</li>
+<li><code>INV-007</code>: La generación es completa o nula: una ambigüedad o una ruptura de totales no deja un Excel o PDF parcialmente actualizado.</li>
+<li><code>INV-008</code>: El orden FIFO se conserva dentro de <code>AGUA</code> y dentro de <code>MANTENIMIENTO</code>; la vista no reinterpreta el orden entre conceptos decidido por cobranza.</li>
+</ul>
+<h2 id="criterios-de-aceptaci-n">Criterios de aceptación</h2>
+<ul>
+<li><code>AC-001</code> (<code>REQ-001</code>, <code>REQ-002</code>, <code>REQ-003</code>, <code>REQ-005</code>): Con los eventos reales de I-9, la vista muestra <code>MES_ANTERIOR</code> con deuda S/8, pago S/8 y saldo S/0; <code>MES_ACTUAL</code> con deuda S/5, pago S/5 y saldo S/0; y <code>MANTENIMIENTO</code> con deuda S/3, pago S/3 y saldo S/0.</li>
+<li><code>AC-002</code> (<code>REQ-002</code>, <code>REQ-003</code>): Dado un pago parcial menor que la deuda anterior, todo el pago queda en <code>MES_ANTERIOR</code> y <code>MES_ACTUAL</code> conserva íntegro su saldo.</li>
+<li><code>AC-003</code> (<code>REQ-002</code>, <code>REQ-003</code>): Dado un pago que supera la deuda anterior, la vista salda primero <code>MES_ANTERIOR</code> y asigna únicamente el remanente al bloque actual del mismo concepto.</li>
+<li><code>AC-004</code> (<code>REQ-004</code>): En un caso sintético agosto-septiembre, el saldo impago de agua y mantenimiento actuales de agosto aparece sumado en <code>MES_ANTERIOR</code> de septiembre; los cargos nuevos aparecen en <code>MES_ACTUAL</code> y <code>MANTENIMIENTO</code>.</li>
+<li><code>AC-005</code> (<code>REQ-006</code>): El workbook generado no contiene <code>AGUA</code> y presenta las ocho hojas de conceptos en el orden requerido, sin alterar la posición relativa de las hojas auxiliares vigentes.</li>
+<li><code>AC-006</code> (<code>REQ-001</code>, <code>REQ-009</code>, <code>INV-007</code>): Ante un ajuste efectivo sin evidencia del bloque afectado, la generación informa el predio, ciclo y referencia ambigua, termina con error y conserva intactas las salidas preexistentes.</li>
+<li><code>AC-007</code> (<code>REQ-007</code>): Una cuenta no afectada de <code>CONVENIO</code> y la hoja <code>CONVENIO_HISTORIAL</code> conservan exactamente sus importes y filas tras regenerar la vista.</li>
+<li><code>AC-008</code> (<code>REQ-008</code>): El PDF generado contiene los mismos bloques e importes del Excel y se exporta correctamente sin una hoja <code>AGUA</code>.</li>
+<li><code>AC-009</code> (<code>REQ-010</code>, <code>INV-001</code>, <code>INV-004</code>): Dos generaciones consecutivas sobre una copia temporal del mismo ledger producen iguales valores por hoja; el hash y el conteo de eventos de la entrada permanecen iguales.</li>
+<li><code>AC-010</code> (<code>REQ-010</code>, <code>INV-001</code>): Para los 509 predios actuales con eventos de agua o mantenimiento, la comparación por predio y ciclo entre la vista agregada y los tres bloques proyectados arroja diferencia S/0.00 en todos los campos monetarios.</li>
+<li><code>AC-011</code> (<code>REQ-005</code>, <code>REQ-011</code>): Una prueba de la regla de proyección con estructuras en memoria, sin leer ni escribir Excel, obtiene los mismos bloques y totales esperados que el adaptador de vista para el mismo caso.</li>
+</ul>
+<h2 id="fuera-de-alcance">Fuera de alcance</h2>
+<ul>
+<li>Cambiar la cascada o cualquier cálculo de <code>5_cobranza</code>.</li>
+<li>Agregar <code>MES_ANTERIOR</code> o <code>MES_ACTUAL</code> a la taxonomía persistida.</li>
+<li>Escribir, migrar, reclasificar o reconstruir eventos del ledger.</li>
+<li>Implementar <code>CARGO_ID</code>, <code>MES_CARGO</code> o aplicaciones individuales pago-cargo.</li>
+<li>Inferir la antigüedad de un ajuste ambiguo.</li>
+<li>Reconstruir deuda anterior al inicio aprobado de agosto de 2026.</li>
+<li>Cambiar <code>reporte_historico.py</code>, boletas, planillas o reportes de cobranza.</li>
+<li>Cambiar importes, filas o reglas de conceptos distintos de <code>AGUA</code> y <code>MANTENIMIENTO</code>.</li>
+</ul></div></article><article class="plate chapter" id="chapter-design"><div class="chapter-head"><div><span>CAPÍTULO 07</span><h2>Diseño</h2></div><a href="06_diseno.md">Abrir Markdown</a></div><div class="markdown-body"><h1 id="dise-o-desglosar-consumo-en-vista-seguimiento">Diseño: Desglosar consumo en vista seguimiento</h1>
+<h2 id="arquitectura">Arquitectura</h2>
+<pre><code class="language-text">seguimiento_pueblo.xlsx + anulaciones_ledger.json
+                       |
+                       v
+          _leer_eventos() efectivos
+                       |
+          +------------+-------------+
+          |                          |
+          v                          v
+ AGUA/MANTENIMIENTO           demás conceptos
+          |                          |
+          v                          |
+ proyector FIFO puro                 |
+          |                          |
+          v                          v
+3 resúmenes mensuales ------&gt; writer de vista
+ MES_ANTERIOR                         |
+ MES_ACTUAL                           v
+ MANTENIMIENTO          vista_seguimiento_pueblo.xlsx
+                                      |
+                                      v
+                         exportar_vista_pdf() genérico</code></pre>
+<p>La solución se incorpora a <code>shared/seguimiento_repo.py</code> como una proyección pura en memoria llamada únicamente por <code>generar_vista()</code>. No se crea un concepto, archivo persistente ni writer adicional. <code>_leer_eventos()</code> continúa resolviendo las anulaciones antes de que el proyector reciba datos.</p>
+<p>El proyector entrega filas mensuales preagregadas. No fabrica eventos con apariencia de ledger: separa explícitamente la representación derivada de la persistencia append-only. Los conceptos no afectados siguen el camino actual y el exportador PDF continúa leyendo las hojas de forma genérica.</p>
+<h3 id="algoritmo-temporal">Algoritmo temporal</h3>
+<p>Por cada predio se mantienen cuatro saldos internos: <code>AGUA_ANT</code>, <code>MANT_ANT</code>, <code>AGUA_ACT</code> y <code>MANT_ACT</code>.</p>
+<ol>
+<li>Se seleccionan eventos efectivos de <code>AGUA</code> y <code>MANTENIMIENTO</code> y se ordenan por predio, <code>MES</code>, <code>TIMESTAMP</code> y posición original para desempatar de forma estable.</li>
+<li>En el primer ciclo, un cargo con <code>SOURCE=saldo_inicial</code> abre el bloque anterior. Los demás cargos del ciclo abren el bloque actual de su concepto.</li>
+<li>Al comenzar cada ciclo posterior, el saldo que quedó en <code>AGUA_ACT</code> pasa a <code>AGUA_ANT</code> y el que quedó en <code>MANT_ACT</code> pasa a <code>MANT_ANT</code>; los bloques actuales vuelven a cero antes de recibir cargos nuevos.</li>
+<li>Cada evento <code>PAGO</code> se aplica dentro de su concepto: anterior primero, actual después. La misma distribución conserva por separado <code>PAGO</code> si su <code>CLASE</code> pertenece a <code>CLASES_SUMAN_CAJA</code>, o <code>DECLARADO</code> en caso contrario.</li>
+<li>La salida mensual suma <code>AGUA_ANT + MANT_ANT</code> en <code>MES_ANTERIOR</code>, deja <code>AGUA_ACT</code> en <code>MES_ACTUAL</code> y <code>MANT_ACT</code> en <code>MANTENIMIENTO</code>.</li>
+<li>Se materializan todos los ciclos globales desde la primera aparición del predio hasta el último ciclo disponible, aunque en uno no tenga movimiento, para que el rollover no desaparezca de la vista.</li>
+<li>Antes de crear el workbook se validan conservación de totales, identidad de saldo y ausencia de saldos negativos. Cualquier fallo aborta antes de <code>_save_atomic()</code>.</li>
+</ol>
+<p>El esquema vigente no identifica el cargo objetivo de un <code>AJUSTE</code>. Por eso, en esta versión, cualquier ajuste efectivo de <code>AGUA</code> o <code>MANTENIMIENTO</code> produce <code>ProyeccionTemporalAmbiguaError</code> con predio, mes y <code>AUDIT_REF</code>. Es preferible bloquear la vista a inventar antigüedad. Las columnas <code>AJUSTE</code> permanecen en las tres hojas y quedan en cero mientras no exista un contrato explícito de cargo objetivo.</p>
+<h2 id="componentes">Componentes</h2>
+<div class="table-wrap"><table><thead><tr>
+<th>Archivo</th>
+<th>Cambio</th>
+<th>Responsabilidad</th>
+</tr></thead><tbody>
+<tr>
+<td><code>shared/seguimiento_repo.py</code></td>
+<td>Modificar</td>
+<td>Proyectar AGUA/MANTENIMIENTO, validar invariantes, ordenar hojas y renderizar los tres resúmenes.</td>
+</tr>
+<tr>
+<td><code>shared/tests/test_seguimiento_repo.py</code></td>
+<td>Modificar</td>
+<td>Actualizar contrato de hojas y cubrir FIFO, parciales, exceso, rollover, ajuste ambiguo, atomicidad e idempotencia.</td>
+</tr>
+<tr>
+<td><code>shared/tests/test_vista_provisional.py</code></td>
+<td>Modificar</td>
+<td>Verificar que la vista provisional usa las hojas nuevas sin mutar el ledger real.</td>
+</tr>
+<tr>
+<td><code>shared/README.md</code></td>
+<td>Modificar antes del código</td>
+<td>Documentar la API visual, las hojas derivadas y el bloqueo ante ajustes ambiguos.</td>
+</tr>
+<tr>
+<td><code>shared/docs/formato_vista_seguimiento_pueblo.html</code></td>
+<td>Modificar antes del código</td>
+<td>Reemplazar el contrato visual agregado por el desglose aprobado y corregir el inventario de hojas.</td>
+</tr>
+<tr>
+<td><code>shared/docs/diagrama_flujo_seguimiento_pueblo.html</code></td>
+<td>Modificar antes del código</td>
+<td>Mostrar la proyección entre lectura efectiva y adapters Excel/PDF.</td>
+</tr>
+<tr>
+<td><code>7_cierre/consolidar_cierre.py</code></td>
+<td>Sin cambio</td>
+<td>Continúa llamando <code>generar_vista()</code> y luego <code>exportar_vista_pdf()</code> después del commit.</td>
+</tr>
+<tr>
+<td><code>3_boletas/recibos_medidor_pagado.py</code></td>
+<td>Sin cambio</td>
+<td>Continúa leyendo únicamente <code>CONVENIO_HISTORIAL</code>.</td>
+</tr>
+</tbody></table></div>
+<h3 id="contrato-interno">Contrato interno</h3>
+<p>La función pura recibe un <code>DataFrame</code> de eventos efectivos y devuelve un diccionario con las claves <code>MES_ANTERIOR</code>, <code>MES_ACTUAL</code> y <code>MANTENIMIENTO</code>. Cada valor contiene:</p>
+<pre><code class="language-text">MZ | LT | MES | DEUDA | PAGO | DECLARADO | AJUSTE | SALDO</code></pre>
+<p>No recibe rutas, workbooks ni configuración de una JASS. Los importes siguen la unidad del ledger actual durante esta transición; no se introduce una conversión parcial a céntimos dentro de un adapter que todavía opera con Excel.</p>
+<p><code>generar_vista()</code> crea primero las ocho hojas de conceptos en el orden aprobado, luego <code>Ajustes</code> y, si existe su fuente, <code>CONVENIO_HISTORIAL</code>. La vista provisional conserva <code>PROVISIONAL</code> en la posición cero y reutiliza exactamente el mismo generador.</p>
+<h2 id="datos-y-migraci-n">Datos y migración</h2>
+<ul>
+<li>No hay migración ni cambio de esquema en <code>seguimiento_pueblo.xlsx</code>.</li>
+<li><code>CONCEPTO</code> conserva <code>AGUA</code> y <code>MANTENIMIENTO</code>; los tres nombres nuevos existen solo en adapters de lectura.</li>
+<li>La hoja <code>AGUA</code> deja de ser parte del contrato de la vista. No se encontró un consumidor operativo de esa hoja; la prueba estructural y la vista provisional sí deben cambiar.</li>
+<li><code>Ajustes</code>, <code>CONVENIO_HISTORIAL</code> y todos los conceptos no afectados conservan su forma.</li>
+<li>El Excel se sigue reemplazando mediante <code>_save_atomic()</code>. La validación temporal ocurre antes de construir o reemplazar la salida.</li>
+<li>El despliegue consiste en actualizar documentación, código y pruebas, y luego regenerar Excel/PDF desde una copia temporal para revisión. No se ejecuta <code>7_cierre</code> ni se escribe el ledger real como parte de la implementación.</li>
+<li>Rollback: retirar la llamada al proyector, restaurar el orden visible anterior y regenerar las vistas. No hay datos que deshacer.</li>
+<li>La ruta futura a PostgreSQL conserva la frontera: la consulta de eventos reemplaza a <code>_leer_eventos()</code>, mientras el proyector tenant-agnóstico mantiene su contrato.</li>
+</ul>
+<h2 id="riesgos">Riesgos</h2>
+<div class="table-wrap"><table><thead><tr>
+<th>Riesgo</th>
+<th>Impacto</th>
+<th>Mitigación y evidencia</th>
+</tr></thead><tbody>
+<tr>
+<td>Un ajuste no indica antigüedad.</td>
+<td>Saldo asignado al bloque incorrecto.</td>
+<td>Fallo explícito antes de escribir; prueba conserva salida previa.</td>
+</tr>
+<tr>
+<td>Orden inestable de eventos con igual timestamp.</td>
+<td>Reparto distinto entre PAGO y DECLARADO.</td>
+<td>Posición original como desempate estable y prueba de repetición.</td>
+</tr>
+<tr>
+<td>Pago supera la deuda conocida del concepto.</td>
+<td>Saldo negativo o pérdida de dinero visible.</td>
+<td>Rechazo con predio, mes y referencia; no recortar silenciosamente.</td>
+</tr>
+<tr>
+<td>El rollover omite un ciclo sin movimientos.</td>
+<td>Deuda pendiente desaparece visualmente.</td>
+<td>Materializar calendario global y prueba agosto-septiembre.</td>
+</tr>
+<tr>
+<td>Totales proyectados divergen del agregado.</td>
+<td>Vista deja de representar el ledger.</td>
+<td>Reconciliación por predio/ciclo/campo antes del writer.</td>
+</tr>
+<tr>
+<td>Consumidor manual espera la hoja <code>AGUA</code>.</td>
+<td>Cambio operativo no detectado por búsqueda de código.</td>
+<td>Contrato HTML y README explícitos; revisión humana del cuaderno y workbook temporal.</td>
+</tr>
+<tr>
+<td>Vista provisional conserva expectativas antiguas.</td>
+<td>Simulación y cierre muestran estructuras distintas.</td>
+<td>Un solo <code>generar_vista()</code> y regresión específica provisional.</td>
+</tr>
+<tr>
+<td>PDF no refleja el Excel.</td>
+<td>Dos lecturas operativas incompatibles.</td>
+<td>Comparar hojas/importes Excel-PDF tras exportación temporal.</td>
+</tr>
+</tbody></table></div>
+<p>No se toma ninguna decisión irreversible. La única decisión futura pendiente es el contrato de identidad para ajustes de agua/mantenimiento; queda fuera de este cambio y no se simula con <code>SOURCE</code>, texto de <code>MOTIVO</code> ni patrones ad hoc.</p>
+<h2 id="estrategia-de-pruebas">Estrategia de pruebas</h2>
+<pre><code class="language-text">proyector puro -&gt; workbook temporal -&gt; PDF temporal -&gt; consumidores no afectados</code></pre>
+<ul>
+<li>Unitarias (<code>AC-001</code> a <code>AC-004</code>, <code>AC-006</code>, <code>AC-011</code>): I-9, pago parcial, pago que cruza de anterior a actual, rollover agosto-septiembre, orden estable y ajuste ambiguo.</li>
+<li>Integración Excel (<code>AC-005</code>, <code>AC-009</code>, <code>AC-010</code>): generar en temporales, comprobar hojas, columnas, orden, invariantes por los 509 predios y dos corridas funcionalmente iguales.</li>
+<li>Integración provisional (<code>REQ-010</code>): confirmar por bytes que el ledger temporal de entrada no cambia y que <code>PROVISIONAL</code> precede a las hojas nuevas.</li>
+<li>Integración PDF (<code>AC-008</code>): exportar desde el workbook temporal y verificar que existen las hojas/secciones nuevas y sus importes de control.</li>
+<li>Regresión no afectada (<code>AC-007</code>): comparar <code>CONVENIO</code>, <code>CONVENIO_HISTORIAL</code>, <code>Ajustes</code> y un recibo de medidor pagado antes/después.</li>
+<li>Seguridad operativa: ejecutar pruebas con <code>test_safety.run</code>, comparar <code>git status --short</code> antes y después, y no usar <code>shared/seguimiento_pueblo.xlsx</code> como fixture escribible.</li>
+<li>Validación del consumidor: probar <code>7_cierre</code> con repositorios y rutas redirigidos a temporales; no ejecutar el commit real del ciclo.</li>
+</ul></div></article><article class="plate chapter" id="chapter-tasks"><div class="chapter-head"><div><span>CAPÍTULO 08</span><h2>Tareas</h2></div><a href="07_tareas.md">Abrir Markdown</a></div><div class="markdown-body"><h1 id="tareas-desglosar-consumo-en-vista-seguimiento">Tareas: Desglosar consumo en vista seguimiento</h1>
+<h2 id="definition-of-done">Definition of Done</h2>
+<pre><code class="language-text">documentación aprobada -&gt; proyector puro -&gt; adapters -&gt; pruebas -&gt; evidencia</code></pre>
+<p>El cambio satisface <code>REQ-001</code> a <code>REQ-011</code> y <code>AC-001</code> a <code>AC-011</code>; conserva el ledger real byte a byte; genera Excel y PDF temporales con las hojas aprobadas; valida un caso afectado y uno no afectado; y deja README, contrato HTML, diagrama, código y cuaderno SDD sin divergencias. Ninguna tarea se marca completa sin ejecutar su validación indicada.</p>
+<h2 id="tareas">Tareas</h2>
+<ul>
+<li class="task"><input type="checkbox" disabled checked> <code>TASK-001</code> Actualizar primero el contrato documental de la vista. Dependencias: diseño aprobado. Archivos: <code>shared/README.md</code>, <code>shared/docs/formato_vista_seguimiento_pueblo.html</code> y <code>shared/docs/diagrama_flujo_seguimiento_pueblo.html</code>. Cambio: documentar las hojas <code>MES_ANTERIOR</code>, <code>MES_ACTUAL</code>, <code>MANTENIMIENTO</code>, su orden, FIFO, rollover, error ante ajustes ambiguos y condición regenerable. Validación: revisar que inventario, columnas, diagramas y consumidores coincidan con <code>05_spec.md</code> y <code>06_diseno.md</code>. Cubre: <code>REQ-003</code>, <code>REQ-005</code> a <code>REQ-009</code>, <code>REQ-011</code>, <code>AC-005</code>, <code>AC-008</code>.</li>
+</ul>
+<ul>
+<li class="task"><input type="checkbox" disabled checked> <code>TASK-002</code> Implementar y probar aisladamente el proyector temporal puro. Dependencia: <code>TASK-001</code>. Archivo: <code>shared/seguimiento_repo.py</code>. Cambio: agregar el estado <code>AGUA_ANT/MANT_ANT/AGUA_ACT/MANT_ACT</code>, clasificación de apertura, rollover, reparto FIFO de pago/declarado, calendario global y <code>ProyeccionTemporalAmbiguaError</code>; validar totales y saldos antes de cualquier I/O. Validación: casos en memoria para I-9, pago parcial, pago cruzado, rollover, orden estable, pago excedente y ajuste ambiguo. Cubre: <code>REQ-001</code> a <code>REQ-004</code>, <code>REQ-009</code> a <code>REQ-011</code>, <code>AC-001</code> a <code>AC-004</code>, <code>AC-006</code>, <code>AC-011</code>.</li>
+</ul>
+<ul>
+<li class="task"><input type="checkbox" disabled checked> <code>TASK-003</code> Integrar la proyección en las vistas oficial y provisional. Dependencia: <code>TASK-002</code>. Archivos: <code>shared/seguimiento_repo.py</code> y <code>shared/tests/test_vista_provisional.py</code>. Cambio: renderizar filas mensuales preagregadas, retirar la hoja visible <code>AGUA</code>, ordenar las ocho hojas de conceptos y conservar <code>Ajustes</code>, <code>CONVENIO_HISTORIAL</code> y <code>PROVISIONAL</code>. El PDF seguirá consumiendo hojas genéricamente. Validación: generar Excel/PDF en temporales y comparar estructura e importes; comprobar por bytes que la vista provisional no muta su ledger de entrada. Cubre: <code>REQ-005</code> a <code>REQ-010</code>, <code>AC-005</code>, <code>AC-008</code>, <code>AC-009</code>.</li>
+</ul>
+<ul>
+<li class="task"><input type="checkbox" disabled checked> <code>TASK-004</code> Completar pruebas del caso afectado y propiedades globales. Dependencias: <code>TASK-002</code>, <code>TASK-003</code>. Archivo: <code>shared/tests/test_seguimiento_repo.py</code> y, solo si mejora el aislamiento sin duplicar fixtures, una prueba nueva bajo <code>shared/tests/</code>. Validación: ejecutar mediante <code>py -m test_safety.run</code>; verificar invariantes por predio/ciclo/campo en temporales, dos generaciones equivalentes y preservación de la salida previa ante error. Cubre: <code>INV-001</code> a <code>INV-008</code>, <code>AC-001</code> a <code>AC-006</code>, <code>AC-009</code> a <code>AC-011</code>.</li>
+</ul>
+<ul>
+<li class="task"><input type="checkbox" disabled checked> <code>TASK-005</code> Ejecutar regresiones de consumidores no afectados. Dependencia: <code>TASK-004</code>. Archivos de prueba: <code>shared/tests/test_vista_provisional.py</code>, <code>7_cierre/test.py</code> y la prueba aplicable de <code>3_boletas</code> para <code>CONVENIO_HISTORIAL</code>. Validación: runners seguros con todas las rutas de escritura en temporales; comparar <code>CONVENIO</code>, <code>CONVENIO_HISTORIAL</code> y <code>Ajustes</code>; confirmar que <code>7_cierre</code> conserva las llamadas a Excel/PDF sin comprometer el ciclo real. Cubre: <code>REQ-007</code> a <code>REQ-010</code>, <code>AC-007</code> a <code>AC-009</code>.</li>
+</ul>
+<ul>
+<li class="task"><input type="checkbox" disabled checked> <code>TASK-006</code> Registrar evidencia y reconciliar artefactos. Dependencia: <code>TASK-005</code>. Archivos: este registro de implementación y cuaderno SDD; <code>08_verificacion.md</code> se completa en el gate de verificación posterior a la aprobación humana de implementación. Validación: registrar comandos, resultados, caso afectado/no afectado, hashes o conteos de integridad, limitaciones y veredicto; ejecutar <code>git diff --check</code>, comparar <code>git status --short</code> antes/después y regenerar <code>index.html</code>. Cubre todos los requisitos y criterios; no autoriza <code>converge</code> sin aprobación humana posterior.</li>
+</ul>
+<h2 id="evidencia-de-implementaci-n">Evidencia de implementación</h2>
+<pre><code class="language-text">proyector puro -&gt; Excel/PDF temporal -&gt; consumidores -&gt; ledger intacto</code></pre>
+<div class="table-wrap"><table><thead><tr>
+<th>Evidencia</th>
+<th>Resultado</th>
+</tr></thead><tbody>
+<tr>
+<td><code>py -m test_safety.run pytest shared/tests/test_proyeccion_consumo.py -q</code></td>
+<td>8 passed</td>
+</tr>
+<tr>
+<td><code>py -m test_safety.run pytest shared/tests/test_vista_provisional.py -q</code></td>
+<td>1 passed</td>
+</tr>
+<tr>
+<td><code>py -m test_safety.run script shared/tests/test_seguimiento_repo.py</code></td>
+<td>Todos los checks pasaron</td>
+</tr>
+<tr>
+<td><code>py -m test_safety.run pytest 3_boletas/tests/test_recibos_medidor_pagado.py -q</code></td>
+<td>1 passed; aviso externo de deprecación de PyPDF2</td>
+</tr>
+<tr>
+<td><code>py -m test_safety.run script 7_cierre/test.py</code></td>
+<td>PASÓ; todas las rutas del fixture fueron temporales</td>
+</tr>
+<tr>
+<td>Proyección efectiva de AGUA/MANTENIMIENTO</td>
+<td>1,843 eventos, 509 predios, 509 filas por hoja</td>
+</tr>
+<tr>
+<td>I-9 en Excel temporal real</td>
+<td>anterior 8/8/0; actual 5/5/0; mantenimiento 3/3/0</td>
+</tr>
+<tr>
+<td>Excel + PDF reales dirigidos a <code>%TEMP%</code></td>
+<td>10 hojas correctas; PDF generado</td>
+</tr>
+<tr>
+<td>Integridad de <code>shared/seguimiento_pueblo.xlsx</code></td>
+<td>hash antes/después idéntico: <code>8e551b49d7e7...</code></td>
+</tr>
+<tr>
+<td><code>git diff --check</code> en archivos trackeados afectados</td>
+<td>sin errores; solo avisos de conversión LF/CRLF</td>
+</tr>
+</tbody></table></div>
+<p>La primera validación temporal detectó que <code>exportar_vista_pdf()</code> dejaba abierto su <code>pd.ExcelFile</code>; se agregó cierre explícito y una regresión que borra el Excel después de exportar. La repetición completa terminó sin error y limpió el directorio temporal.</p></div></article><article class="plate chapter" id="chapter-verification"><div class="chapter-head"><div><span>CAPÍTULO 09</span><h2>Verificación</h2></div><a href="08_verificacion.md">Abrir Markdown</a></div><div class="markdown-body"><h1 id="verificaci-n-desglosar-consumo-en-vista-seguimiento">Verificación: Desglosar consumo en vista seguimiento</h1>
+<h2 id="matriz-de-trazabilidad">Matriz de trazabilidad</h2>
+<pre><code class="language-text">requisito -&gt; implementación -&gt; prueba ejecutada -&gt; evidencia observable</code></pre>
+<div class="table-wrap"><table><thead><tr>
+<th>ID</th>
+<th>Implementación</th>
+<th>Evidencia ejecutada</th>
+<th>Resultado</th>
+</tr></thead><tbody>
+<tr>
+<td><code>REQ-001</code></td>
+<td><code>seguimiento_repo._proyectar_consumo_temporal()</code> clasifica apertura y cargo actual.</td>
+<td><code>test_i9_separa_anterior_actual_y_mantenimiento</code></td>
+<td>PASS</td>
+</tr>
+<tr>
+<td><code>REQ-002</code></td>
+<td>Reparto <code>ANT -&gt; ACT</code> por concepto y <code>CLASES_SUMAN_CAJA</code>.</td>
+<td><code>test_pago_aplica_fifo_dentro_de_agua</code>, <code>test_pago_y_declarado_se_conservan_separados_con_orden_estable</code></td>
+<td>PASS</td>
+</tr>
+<tr>
+<td><code>REQ-003</code></td>
+<td>Tres DataFrames proyectados y writer resumido.</td>
+<td>I-9 sintético y real temporal</td>
+<td>PASS</td>
+</tr>
+<tr>
+<td><code>REQ-004</code></td>
+<td>Rollover antes de procesar el ciclo siguiente.</td>
+<td><code>test_rollover_pasa_saldo_actual_al_mes_anterior</code></td>
+<td>PASS</td>
+</tr>
+<tr>
+<td><code>REQ-005</code></td>
+<td><code>_COLUMNAS_PROYECCION</code> y <code>_escribir_hoja_vista(..., resumida=True)</code>.</td>
+<td>Test de Excel/PDF y test standalone del repo</td>
+<td>PASS</td>
+</tr>
+<tr>
+<td><code>REQ-006</code></td>
+<td><code>CONCEPTOS_VISTA_ORDEN</code>; <code>AGUA</code> no se crea.</td>
+<td>Test standalone y workbook real temporal</td>
+<td>PASS</td>
+</tr>
+<tr>
+<td><code>REQ-007</code></td>
+<td>Los demás conceptos conservan el writer existente.</td>
+<td><code>CONVENIO</code>, <code>Ajustes</code>, <code>CONVENIO_HISTORIAL</code> y recibos</td>
+<td>PASS</td>
+</tr>
+<tr>
+<td><code>REQ-008</code></td>
+<td>PDF recorre genéricamente las hojas nuevas.</td>
+<td><code>test_excel_y_pdf_exponen_las_mismas_hojas_temporales</code></td>
+<td>PASS</td>
+</tr>
+<tr>
+<td><code>REQ-009</code></td>
+<td><code>ProyeccionTemporalAmbiguaError</code> antes de crear el workbook.</td>
+<td><code>test_ajuste_ambiguo_no_reemplaza_vista</code></td>
+<td>PASS</td>
+</tr>
+<tr>
+<td><code>REQ-010</code></td>
+<td>Proyección pura, orden estable y <code>_save_atomic</code>.</td>
+<td>Dos proyecciones iguales + hash real antes/después</td>
+<td>PASS</td>
+</tr>
+<tr>
+<td><code>REQ-011</code></td>
+<td>Proyector recibe/devuelve DataFrames, sin rutas ni workbook.</td>
+<td>Ocho pruebas unitarias en memoria</td>
+<td>PASS</td>
+</tr>
+<tr>
+<td><code>AC-001</code></td>
+<td>Caso I-9.</td>
+<td>Real: anterior <code>8/8/0</code>, actual <code>5/5/0</code>, mantenimiento <code>3/3/0</code>.</td>
+<td>PASS</td>
+</tr>
+<tr>
+<td><code>AC-002</code></td>
+<td>Pago parcial anterior.</td>
+<td>Parámetro <code>pago=6</code>: anterior saldo 2, actual saldo 5.</td>
+<td>PASS</td>
+</tr>
+<tr>
+<td><code>AC-003</code></td>
+<td>Pago cruza bloques.</td>
+<td>Parámetro <code>pago=10</code>: anterior pago 8, actual pago 2.</td>
+<td>PASS</td>
+</tr>
+<tr>
+<td><code>AC-004</code></td>
+<td>Rollover agosto-septiembre.</td>
+<td>Septiembre: anterior deuda/saldo 6, actual deuda/saldo 5.</td>
+<td>PASS</td>
+</tr>
+<tr>
+<td><code>AC-005</code></td>
+<td>Orden de ocho hojas visibles.</td>
+<td>Workbook temporal con diez hojas totales y sin <code>AGUA</code>.</td>
+<td>PASS</td>
+</tr>
+<tr>
+<td><code>AC-006</code></td>
+<td>Falla atómica por ajuste ambiguo.</td>
+<td>Salida previa conserva exactamente sus bytes.</td>
+<td>PASS</td>
+</tr>
+<tr>
+<td><code>AC-007</code></td>
+<td>Consumidor no afectado.</td>
+<td><code>test_recibos_medidor_pagado</code> y test standalone del repo.</td>
+<td>PASS</td>
+</tr>
+<tr>
+<td><code>AC-008</code></td>
+<td>Exportación PDF.</td>
+<td>PDF temporal contiene las tres secciones e importe de control.</td>
+<td>PASS</td>
+</tr>
+<tr>
+<td><code>AC-009</code></td>
+<td>Idempotencia e integridad.</td>
+<td>Frames iguales; ledger real hash <code>8e551b49d7e7...</code> intacto.</td>
+<td>PASS</td>
+</tr>
+<tr>
+<td><code>AC-010</code></td>
+<td>Validación global previa al writer.</td>
+<td>1,843 eventos, 509 predios, 509 filas por hoja, sin divergencias.</td>
+<td>PASS</td>
+</tr>
+<tr>
+<td><code>AC-011</code></td>
+<td>Regla pura en memoria.</td>
+<td><code>test_proyeccion_consumo.py</code>, sin I/O salvo tests explícitos de adapters.</td>
+<td>PASS</td>
+</tr>
+</tbody></table></div>
+<h2 id="evidencia">Evidencia</h2>
+<p>Entorno: Windows, Python 3.13, ejecución desde la raíz del repositorio el 25/08/2026.</p>
+<div class="table-wrap"><table><thead><tr>
+<th>Comando</th>
+<th>Resultado</th>
+</tr></thead><tbody>
+<tr>
+<td><code>py -m test_safety.run pytest shared/tests/test_proyeccion_consumo.py -q</code></td>
+<td><code>8 passed</code></td>
+</tr>
+<tr>
+<td><code>py -m test_safety.run pytest shared/tests/test_vista_provisional.py -q</code></td>
+<td><code>1 passed</code></td>
+</tr>
+<tr>
+<td><code>py -m test_safety.run script shared/tests/test_seguimiento_repo.py</code></td>
+<td><code>TODOS LOS CHECKS PASARON</code></td>
+</tr>
+<tr>
+<td><code>py -m test_safety.run pytest 3_boletas/tests/test_recibos_medidor_pagado.py -q</code></td>
+<td><code>1 passed</code>, una advertencia de deprecación externa de PyPDF2</td>
+</tr>
+<tr>
+<td><code>py -m test_safety.run script 7_cierre/test.py</code></td>
+<td><code>PASÓ</code>, commit simulado únicamente en fixture temporal</td>
+</tr>
+<tr>
+<td>Proyección real de solo lectura mediante <code>py -X utf8 -c ...</code></td>
+<td>1,843 eventos, 509 predios; I-9 correcto</td>
+</tr>
+<tr>
+<td>Generación real con Excel/PDF dirigidos a <code>TemporaryDirectory</code></td>
+<td>diez hojas, PDF creado, ledger intacto</td>
+</tr>
+<tr>
+<td><code>git diff --check -- shared/...</code></td>
+<td>sin errores; avisos de conversión LF/CRLF del worktree</td>
+</tr>
+</tbody></table></div>
+<p>La primera corrida temporal detectó que <code>exportar_vista_pdf()</code> no cerraba <code>pd.ExcelFile</code>, por lo que Windows impedía limpiar el Excel temporal. Se añadió <code>xl.close()</code> y una regresión que elimina el <code>.xlsx</code> después de exportar; la repetición terminó sin error.</p>
+<p>Limitaciones verificadas:</p>
+<ul>
+<li>No se reemplazaron <code>shared/vista_seguimiento_pueblo.xlsx</code> ni su PDF operativo.</li>
+<li>El ledger efectivo actual no contiene ajustes de <code>AGUA</code>/<code>MANTENIMIENTO</code>; si aparece uno sin cargo objetivo, la vista se bloqueará según el spec.</li>
+<li>La advertencia de PyPDF2 pertenece a una dependencia de <code>3_boletas</code> y no afecta este cambio.</li>
+</ul>
+<h2 id="regresiones">Regresiones</h2>
+<ul>
+<li>Caso afectado: I-9 real y sintético muestran el desglose requerido y conservan S/16.</li>
+<li>Bordes afectados: pago parcial, pago que cruza bloques, PAGO/DECLARADO con igual timestamp, rollover, pago excedente y ajuste ambiguo.</li>
+<li>Caso no afectado: <code>CONVENIO</code>, <code>Ajustes</code> y <code>CONVENIO_HISTORIAL</code> mantienen estructura e importes en el test del repo.</li>
+<li>Consumidor <code>3_boletas</code>: <code>_cargar_pagados()</code> sigue leyendo <code>CONVENIO_HISTORIAL</code> sin depender de <code>AGUA</code>.</li>
+<li>Consumidor <code>7_cierre</code>: el test de integración conserva las llamadas a vista/PDF y pasa con rutas redirigidas; no se ejecutó el cierre real.</li>
+<li>Vista provisional: usa el mismo generador, antepone <code>PROVISIONAL</code> y no muta el ledger.</li>
+</ul>
+<h2 id="veredicto">Veredicto</h2>
+<p><code>PASS</code></p>
+<p>Problema, opción A, spec, diseño, tareas, implementación y evidencia coinciden. No se detectan desvíos funcionales ni escrituras sobre datos reales. Queda pendiente únicamente la aprobación humana del gate de verificación antes de converger el cambio.</p></div></article><article class="plate chapter" id="chapter-close"><div class="chapter-head"><div><span>CAPÍTULO 10</span><h2>Cierre</h2></div><a href="09_cierre.md">Abrir Markdown</a></div><div class="markdown-body"><h1 id="cierre-desglosar-consumo-en-vista-seguimiento">Cierre: Desglosar consumo en vista seguimiento</h1>
+<h2 id="estado-final">Estado final</h2>
+<p>CONVERGED</p>
+<h2 id="aprobaci-n">Aprobación</h2>
+<ul>
+<li>Aprobado por: wilde</li>
+<li>Fecha: 2026-08-25T16:13:23-05:00</li>
+</ul>
+<h2 id="evidencia">Evidencia</h2>
+<p>Ver <code>08_verificacion.md</code> y el historial de <code>state.json</code>.</p></div></article>
+    <section class="plate" id="history"><div class="chapter-head"><div><span>TRAZABILIDAD</span><h2>Historial SDD</h2></div><a href="state.json">Abrir estado</a></div><ul class="history"><li><strong>ARCHIVE</strong><span>wilde · 2026-08-25T16:14:03-05:00</span><small></small></li><li><strong>CONVERGE</strong><span>wilde · 2026-08-25T16:13:23-05:00</span><small></small></li><li><strong>APPROVE_VERIFICATION</strong><span>wilde · 2026-08-25T16:12:27-05:00</span><small></small></li><li><strong>APPROVE_IMPLEMENTATION</strong><span>wilde · 2026-08-25T16:09:43-05:00</span><small></small></li><li><strong>APPROVE_TASKS</strong><span>wilde · 2026-08-25T15:49:39-05:00</span><small></small></li><li><strong>APPROVE_DESIGN</strong><span>wilde · 2026-08-25T15:47:10-05:00</span><small></small></li><li><strong>APPROVE_SPEC</strong><span>wilde · 2026-08-25T15:39:03-05:00</span><small></small></li><li><strong>CHOOSE_OPTION</strong><span>wilde · 2026-08-25T14:11:27-05:00</span><small>OPCION-A: Resuelve la vista por FIFO sin modificar ni migrar el ledger</small></li><li><strong>APPROVE_PROBLEM</strong><span>wilde · 2026-08-25T14:07:34-05:00</span><small></small></li><li><strong>APPROVE_EXPLORATION</strong><span>wilde · 2026-08-25T14:05:40-05:00</span><small></small></li><li><strong>APPROVE_INTAKE</strong><span>wilde · 2026-08-25T12:34:20-05:00</span><small></small></li><li><strong>NEW</strong><span>wilde · 2026-08-25T12:31:37-05:00</span><small>Cambio creado</small></li></ul></section>
+    <footer>Generado por Constructor SDD 0.2.0 · 2026-08-25T16:14:10-05:00<br>Vista regenerable: las fuentes de verdad son los archivos Markdown y state.json de esta carpeta.</footer>
+  </main>
+</body>
+</html>

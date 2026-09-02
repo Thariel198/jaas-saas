@@ -1,6 +1,10 @@
 # 2_planilla
 
-Genera la planilla mensual de cobro consolidando lecturas del operario con deudas arrastradas.
+Genera la planilla mensual de cobro consolidando las lecturas cerradas del operario con los saldos comprometidos en `shared/seguimiento_pueblo.xlsx`.
+
+**Transición D-005:** agosto de 2026 abre AGUA/CORTE con el consolidado cerrado de julio. Desde
+septiembre, `MES_ANTERIOR` y `CORTE_RECONEXION` salen del `estado_cuenta` comprometido por `7_cierre`;
+si el mes anterior no está comprometido, la generación aborta en vez de asumir deuda cero.
 
 ## Cuándo correr
 
@@ -14,10 +18,11 @@ Después de que `1_lecturas` cierre el ciclo (sin bloqueantes pendientes).
 
 ## Inputs — esquema exacto de cada archivo
 
-### 1. `inputs/lecturas/lecturas_planilla_YYYY-MM.xlsx`
+### 1. `../1_lecturas/outputs/lecturas_planilla_YYYY-MM.xlsx`
 
-Viene de `1_lecturas/outputs/`. El módulo detecta el mes leyendo la columna `MES_ANO`
-de la primera fila de datos.
+Es la fuente directa de lecturas: `2_planilla` no conserva ni consulta una copia en
+`inputs/`. El módulo detecta el mes leyendo la columna `MES_ANO` de la primera fila de
+datos.
 
 Columnas requeridas:
 
@@ -31,82 +36,23 @@ Columnas requeridas:
 | `MARC_ACT` | número | Marcación actual |
 | `M3` | número | Consumo declarado por el operario |
 
-### 2. `inputs/deuda_anterior/arrastre_deuda_YYYY-MM.xlsx`
+### 2. `shared/seguimiento_pueblo.xlsx` — saldo comprometido del ciclo anterior
 
-Generado por `5b_validacion` (hoy se crea manualmente).
-El nombre del archivo debe coincidir con el YYYY-MM de las lecturas.
+`YYYY-MM` es el ciclo anterior al de las lecturas. Desde septiembre de 2026, y solo
+cuando `7_cierre` lo haya comprometido en `estado_ciclo.json`, se leen los saldos al
+cierre de ese mes mediante `seguimiento_repo`:
 
-Columnas requeridas:
+| Columna planilla | Concepto de saldo |
+|---|---|
+| `MES_ANTERIOR` | `AGUA` + `MANTENIMIENTO` |
+| `CORTE_RECONEXION` | `CORTE_RECONEXION` |
+| `CONVENIO` | `CONVENIO` |
+| `MULTA` | `MULTA` |
+| `ACUERDOS_ASAMBLEA` | `ACUERDOS` |
 
-| Columna | Tipo | Descripción |
-|---------|------|-------------|
-| `MZ` | texto | Manzana |
-| `LT` | texto | Lote |
-| `monto` | número | Monto de deuda que arrastra del mes anterior |
-
-Si el archivo **no existe** → `MES_ANTERIOR = 0` para todos los usuarios. El log registra advertencia.
-Si un usuario **no aparece** en el archivo → `MES_ANTERIOR = 0` para ese usuario.
-
-### 3. `inputs/corte/arrastre_corte_YYYY-MM.xlsx`
-
-Generado por `6_corte` (hoy se crea manualmente).
-El nombre del archivo debe coincidir con el YYYY-MM de las lecturas.
-
-Columnas requeridas:
-
-| Columna | Tipo | Descripción |
-|---------|------|-------------|
-| `MZ` | texto | Manzana |
-| `LT` | texto | Lote |
-| `monto` | número | Cargo por corte y reconexión |
-
-Si el archivo **no existe** → `CORTE_RECONEXION = 0` para todos. El log registra advertencia.
-Si un usuario **no aparece** → `CORTE_RECONEXION = 0` para ese usuario.
-
-### 4. `inputs/convenios/convenios.xlsx`
-
-Mantenido manualmente por el tesorero. Un solo archivo que se actualiza cada mes.
-
-Columnas requeridas:
-
-| Columna | Tipo | Descripción |
-|---------|------|-------------|
-| `MZ` | texto | Manzana |
-| `LT` | texto | Lote |
-| `cuota_mes` | número | Cuota que le corresponde pagar este mes |
-
-Si el archivo **no existe** → `CONVENIO = 0` para todos. El log registra advertencia.
-Si un usuario **no aparece** → `CONVENIO = 0` para ese usuario.
-
-### 5. `inputs/multas/multas.xlsx`
-
-Mantenido manualmente por el tesorero. Un solo archivo que se actualiza cada mes.
-
-Columnas requeridas:
-
-| Columna | Tipo | Descripción |
-|---------|------|-------------|
-| `MZ` | texto | Manzana |
-| `LT` | texto | Lote |
-| `monto_mes` | número | Monto de multa que le corresponde pagar este mes |
-
-Si el archivo **no existe** → `MULTA = 0` para todos. El log registra advertencia.
-Si un usuario **no aparece** → `MULTA = 0` para ese usuario.
-
-### 6. `inputs/acuerdos_asamblea/acuerdos_asamblea.xlsx`
-
-Mantenido manualmente por el tesorero. Recoge los aportes acordados en asamblea para obras de infraestructura (techado de local, tanque de agua, etc.). Un solo archivo que se actualiza cada mes conforme a los acuerdos vigentes.
-
-Columnas requeridas:
-
-| Columna | Tipo | Descripción |
-|---------|------|-------------|
-| `MZ` | texto | Manzana |
-| `LT` | texto | Lote |
-| `monto_mes` | número | Aporte que le corresponde pagar este mes según el acuerdo |
-
-Si el archivo **no existe** → `ACUERDOS_ASAMBLEA = 0` para todos. El log registra advertencia.
-Si un usuario **no aparece** → `ACUERDOS_ASAMBLEA = 0` para ese usuario.
+El libro es un ledger append-only: sus cambios se registran como eventos mediante
+`seguimiento_repo`, nunca editando un saldo manualmente. Para agosto de 2026 se conserva
+la apertura excepcional desde `arrastre_consolidado` conforme a D-005.
 
 ---
 
@@ -116,7 +62,7 @@ La clave de unión entre todos los archivos es **(MZ, LT)** normalizada:
 - `MZ` → uppercase, sin espacios
 - `LT` → si es número entero flotante (ej: `1.0`) convertir a `"1"` · si tiene letras conservar uppercase (ej: `"11A"`)
 
-El archivo base es `lecturas_planilla` — todos los usuarios que aparecen ahí
+El archivo base es `lecturas_planilla` de `1_lecturas/outputs` — todos los usuarios que aparecen ahí
 aparecen en la planilla de salida. Los arrastres se unen sobre esa base.
 Un usuario en el arrastre que no esté en lecturas se **ignora** (log de advertencia).
 
@@ -130,13 +76,13 @@ MES_ACTUAL           = max(M3, 5)          ← tarifa S/1/m³, mínimo S/5
 MANTENIMIENTO        = 3                    ← fijo para todos, sin excepción
 
 ── Arrastres ────────────────────────────────────────────────────────
-MES_ANTERIOR         = monto de arrastre_deuda        (0 si no hay)
-CORTE_RECONEXION     = monto de arrastre_corte         (0 si no hay)
+MES_ANTERIOR         = saldo AGUA + MANTENIMIENTO al cierre del ciclo anterior
+CORTE_RECONEXION     = saldo CORTE_RECONEXION al mismo cierre
 
-── Seguimiento (archivos de tesorero) ───────────────────────────────
-CONVENIO             = cuota_mes de convenios.xlsx     (0 si no hay)
-MULTA                = monto_mes de multas.xlsx         (0 si no hay)
-ACUERDOS_ASAMBLEA    = monto_mes de acuerdos_asamblea.xlsx (0 si no hay)
+── Seguimiento (ledger comprometido) ─────────────────────────────────
+CONVENIO             = saldo CONVENIO al cierre del ciclo anterior
+MULTA                = saldo MULTA al cierre del ciclo anterior
+ACUERDOS_ASAMBLEA    = saldo ACUERDOS al cierre del ciclo anterior
 
 ── Descuentos (los llena 5_cobranza — valores negativos) ────────────
 BLANCO               = 0 al generar · 5_cobranza aplica valor negativo
@@ -178,11 +124,11 @@ Una sola hoja llamada `Planilla`. Columnas en este orden exacto:
 | 7 | `M3` | lecturas | Consumo declarado |
 | 8 | `MES_ACTUAL` | calculado | max(M3, 5) |
 | 9 | `MANTENIMIENTO` | fijo | 3 |
-| 10 | `MES_ANTERIOR` | arrastre_deuda | 0 si no hay |
-| 11 | `CORTE_RECONEXION` | arrastre_corte | 0 si no hay |
-| 12 | `CONVENIO` | convenios | 0 si no hay |
-| 13 | `MULTA` | multas | 0 si no hay |
-| 14 | `ACUERDOS_ASAMBLEA` | acuerdos_asamblea | 0 si no hay — aporte acordado en asamblea |
+| 10 | `MES_ANTERIOR` | saldo `AGUA` + `MANTENIMIENTO` del ledger | 0 si no hay |
+| 11 | `CORTE_RECONEXION` | saldo `CORTE_RECONEXION` del ledger | 0 si no hay |
+| 12 | `CONVENIO` | saldo `CONVENIO` del ledger | 0 si no hay |
+| 13 | `MULTA` | saldo `MULTA` del ledger | 0 si no hay |
+| 14 | `ACUERDOS_ASAMBLEA` | saldo `ACUERDOS` del ledger | 0 si no hay |
 | 15 | `BLANCO` | **0 al generar** | 5_cobranza escribe valor negativo cuando aplica descuento por blanco |
 | 16 | `DEVOLUCION` | **0 al generar** | 5_cobranza escribe valor negativo cuando devuelve exceso |
 | 17 | `TOTAL_A_PAGAR` | fórmula Excel | suma cols 8–16 (BLANCO y DEVOLUCION negativos reducen el total) |
@@ -193,10 +139,10 @@ Una sola hoja llamada `Planilla`. Columnas en este orden exacto:
 
 ---
 
-## Alimentación del ledger `libro_mayor/estado_cuenta` (Fase 2)
+## Alimentación del ledger `libro_mayor/estado_cuenta`
 
-> **Estado:** diseñado, se implementa en Fase 2. En Fase 1 estos cargos salen vacíos;
-> el schema del contrato ya los contempla.
+> **Estado transitorio desde 2026-08:** la planilla alimenta el snapshot de `5_cobranza`;
+> `7_cierre` escribe los cargos oficialmente junto con las aplicaciones del mes.
 
 `2_planilla` es una **fuente de CARGOS** del ledger de cuenta corriente. Al generar la
 planilla del mes emite a `libro_mayor/estado_cuenta` un cargo por cada obligación de

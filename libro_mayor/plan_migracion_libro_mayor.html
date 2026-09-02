@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Plan de migración al libro mayor</title>
+  <style>
+    :root {
+      --ink: #17312b;
+      --muted: #64756f;
+      --paper: #f3f0e7;
+      --card: #fffdf7;
+      --line: #c8c8b8;
+      --green: #176b55;
+      --green-soft: #dcece5;
+      --blue: #255f85;
+      --blue-soft: #dce9f1;
+      --amber: #9a6415;
+      --amber-soft: #f3e8ca;
+      --red: #9c3e35;
+      --red-soft: #f2dfdc;
+      --violet: #624b80;
+      --violet-soft: #e9e2f1;
+      --shadow: 0 14px 34px rgba(29, 48, 42, .08);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(rgba(23,49,43,.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(23,49,43,.035) 1px, transparent 1px),
+        var(--paper);
+      background-size: 28px 28px;
+      font-family: Georgia, "Times New Roman", serif;
+      line-height: 1.5;
+    }
+
+    a { color: var(--blue); }
+    code, .mono {
+      font-family: "Cascadia Mono", Consolas, monospace;
+      font-size: .92em;
+    }
+
+    .shell { width: min(1180px, calc(100% - 32px)); margin: 0 auto; }
+    header {
+      padding: 58px 0 38px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(135deg, rgba(23,107,85,.12), rgba(255,253,247,.72));
+    }
+    .eyebrow {
+      margin: 0 0 10px;
+      color: var(--green);
+      font: 700 12px/1.2 "Cascadia Mono", Consolas, monospace;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+    h1 { margin: 0; max-width: 850px; font-size: clamp(38px, 7vw, 76px); line-height: .98; }
+    .lead { max-width: 760px; margin: 24px 0 0; color: #40534d; font-size: 19px; }
+    .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
+    .badge {
+      padding: 5px 10px;
+      border: 1px solid currentColor;
+      border-radius: 999px;
+      font: 700 11px/1.2 "Cascadia Mono", Consolas, monospace;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+    }
+    .done { color: var(--green); background: var(--green-soft); }
+    .active { color: var(--blue); background: var(--blue-soft); }
+    .pending { color: var(--amber); background: var(--amber-soft); }
+    .blocked { color: var(--red); background: var(--red-soft); }
+
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 4;
+      background: rgba(243,240,231,.94);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(10px);
+    }
+    nav .shell { display: flex; gap: 18px; overflow-x: auto; padding: 12px 0; }
+    nav a {
+      color: var(--ink);
+      white-space: nowrap;
+      text-decoration: none;
+      font: 700 12px/1 "Cascadia Mono", Consolas, monospace;
+    }
+
+    main { padding: 36px 0 80px; }
+    section { scroll-margin-top: 58px; margin-top: 54px; }
+    section:first-child { margin-top: 0; }
+    h2 { margin: 0 0 18px; font-size: clamp(28px, 4vw, 42px); line-height: 1.05; }
+    h3 { margin: 0 0 8px; font-size: 21px; }
+    .section-note { max-width: 780px; margin: -8px 0 22px; color: var(--muted); }
+
+    .flow {
+      overflow-x: auto;
+      margin: 20px 0;
+      padding: 22px;
+      color: #eaf5f0;
+      background: #17312b;
+      border-radius: 5px;
+      box-shadow: var(--shadow);
+      font: 14px/1.55 "Cascadia Mono", Consolas, monospace;
+      white-space: pre;
+    }
+
+    .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; }
+    .card {
+      grid-column: span 6;
+      padding: 22px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-top: 4px solid var(--green);
+      box-shadow: var(--shadow);
+    }
+    .card.full { grid-column: 1 / -1; }
+    .card.blue { border-top-color: var(--blue); }
+    .card.amber { border-top-color: var(--amber); }
+    .card.red { border-top-color: var(--red); }
+    .card.violet { border-top-color: var(--violet); }
+    .card p { margin: 6px 0 0; color: #4d5e58; }
+
+    table { width: 100%; border-collapse: collapse; background: var(--card); box-shadow: var(--shadow); }
+    th, td { padding: 11px 12px; border: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { color: #f4f7f5; background: var(--ink); font: 700 12px/1.3 "Cascadia Mono", Consolas, monospace; }
+    tbody tr:nth-child(even) { background: #f7f5ed; }
+
+    .phase {
+      display: grid;
+      grid-template-columns: 86px minmax(0, 1fr);
+      gap: 18px;
+      margin: 16px 0;
+      padding: 22px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+    }
+    .phase-no {
+      color: var(--green);
+      font: 800 40px/1 "Cascadia Mono", Consolas, monospace;
+    }
+    .phase-head { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+    .phase-head h3 { margin: 0; }
+    .checklist { display: grid; gap: 8px; margin: 16px 0 0; padding: 0; list-style: none; }
+    .checklist li { position: relative; padding-left: 29px; }
+    .checklist li::before {
+      position: absolute;
+      left: 0;
+      top: 2px;
+      width: 17px;
+      height: 17px;
+      border: 1px solid #81918b;
+      content: "";
+      background: #fff;
+    }
+    .checklist li.checked::before { content: "✓"; color: white; background: var(--green); border-color: var(--green); text-align: center; line-height: 17px; }
+    .checklist li.stop::before { content: "!"; color: white; background: var(--red); border-color: var(--red); text-align: center; font-weight: bold; line-height: 17px; }
+
+    .gate {
+      display: grid;
+      grid-template-columns: 44px 1fr;
+      gap: 13px;
+      padding: 16px;
+      border-left: 5px solid var(--red);
+      background: var(--red-soft);
+    }
+    .gate + .gate { margin-top: 10px; }
+    .gate strong { font: 800 18px/1 "Cascadia Mono", Consolas, monospace; }
+    .gate p { margin: 0; }
+
+    .case {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1px;
+      background: var(--line);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+    }
+    .case > div { min-height: 150px; padding: 18px; background: var(--card); }
+    .case b { display: block; margin-bottom: 8px; color: var(--green); font: 800 12px/1.2 "Cascadia Mono", Consolas, monospace; text-transform: uppercase; }
+    .amount { font-size: 27px; line-height: 1; }
+
+    .refs { display: grid; gap: 8px; padding: 0; list-style: none; }
+    .refs a { display: block; padding: 12px 14px; color: var(--ink); background: var(--card); border: 1px solid var(--line); text-decoration: none; }
+    .refs a:hover { border-color: var(--blue); color: var(--blue); }
+
+    footer { padding: 26px 0 40px; color: var(--muted); border-top: 1px solid var(--line); }
+    @media (max-width: 760px) {
+      .card { grid-column: 1 / -1; }
+      .phase { grid-template-columns: 1fr; }
+      .case { grid-template-columns: 1fr; }
+      table { font-size: 13px; }
+      .table-wrap { overflow-x: auto; }
+    }
+    @media print {
+      nav { display: none; }
+      body { background: white; }
+      .card, .phase, table, .case { box-shadow: none; break-inside: avoid; }
+      header { padding-top: 20px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="shell">
+      <p class="eyebrow">jass_system / libro_mayor</p>
+      <h1>Plan de migración al libro mayor</h1>
+      <p class="lead">Construir caja y estado de cuenta como un único bounded context, mantener septiembre operativo y retirar <code>seguimiento_pueblo.xlsx</code> solo después de una comparación completa.</p>
+      <div class="meta">
+        <span class="badge active">Plan operativo</span>
+        <span class="badge pending">Implementación pendiente</span>
+        <span class="badge done">Diseño de dominio cerrado</span>
+        <span class="badge blocked">Agosto aún abierto</span>
+      </div>
+    </div>
+  </header>
+
+  <nav aria-label="Secciones">
+    <div class="shell">
+      <a href="#objetivo">Objetivo</a>
+      <a href="#estado">Estado actual</a>
+      <a href="#destino">Diseño destino</a>
+      <a href="#fases">Checklist</a>
+      <a href="#gates">Gates</a>
+      <a href="#q5">Prueba Q-5</a>
+      <a href="#rollback">Rollback</a>
+      <a href="#referencias">Referencias</a>
+    </div>
+  </nav>
+
+  <main class="shell">
+    <section id="objetivo">
+      <h2>Objetivo y límite</h2>
+      <div class="grid">
+        <article class="card full">
+          <h3>Un libro mayor, dos agregados</h3>
+          <p><strong>Caja</strong> conserva los hechos de dinero. <strong>Estado de cuenta</strong> conserva cargos y aplicaciones. El motor es el único punto que cruza ambos lados para explicar a qué deuda fue cada abono.</p>
+        </article>
+        <article class="card blue">
+          <h3>Resultado visible</h3>
+          <p><code>vista_seguimiento_caja.xlsx</code> mostrará entradas, salidas, baldes y neto. <code>vista_seguimiento_pueblo.xlsx</code> seguirá mostrando deuda, pago y saldo por concepto.</p>
+        </article>
+        <article class="card amber">
+          <h3>Límite operativo</h3>
+          <p>El ledger nuevo se construye en paralelo. No reemplaza lectores de septiembre ni compromete datos oficiales antes de cerrar y validar agosto.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="estado">
+      <h2>Estado actual</h2>
+      <p class="section-note">La transición de agosto ya acercó la taxonomía, pero todavía no implementa el modelo de caja, cargos y aplicaciones enlazadas.</p>
+      <div class="flow">HOY
+
+4_pagos ───────────────► 5_cobranza ─────────────► snapshot mensual
+                              │
+                              ▼
+                  seguimiento_pueblo.xlsx
+                  CARGO · PAGO · AJUSTE · SALDO
+                              │
+                              ▼
+                  vista_seguimiento_pueblo.xlsx
+
+FALTA: ABONO_ID ──► APLICACION ──► CARGO_ID</div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Componente</th><th>Estado</th><th>Qué sirve</th><th>Qué falta</th></tr></thead>
+          <tbody>
+            <tr><td><code>seguimiento_pueblo.xlsx</code></td><td><span class="badge active">Transitorio</span></td><td>Siete conceptos, eventos append-only y vistas.</td><td>No tiene <code>JASS_ID</code>, <code>ABONO_ID</code>, <code>CARGO_ID</code>, aplicaciones ni céntimos.</td></tr>
+            <tr><td><code>5_cobranza</code></td><td><span class="badge active">Operativo</span></td><td>Produce cargos y objetivos completos del mes.</td><td>Su pago es agregado por concepto; no enlaza cada depósito con cada cargo.</td></tr>
+            <tr><td><code>7_cierre</code></td><td><span class="badge done">Implementado</span></td><td>Valida hash, compromete snapshot y congela el ciclo.</td><td>Orquestar el asiento del nuevo libro mayor después del cutover.</td></tr>
+            <tr><td><code>libro_mayor/dominio</code></td><td><span class="badge pending">Solo spec</span></td><td>Taxonomía, entidades, cascada, saldo, identidad y corte están decididos.</td><td>Implementación pura y pruebas.</td></tr>
+            <tr><td><code>libro_mayor/caja</code></td><td><span class="badge pending">Solo spec</span></td><td>Fuentes de efectivo, Yape, tanque y egresos disponibles.</td><td>Repo, importadores, store, arqueo y vista.</td></tr>
+            <tr><td><code>libro_mayor/estado_cuenta</code></td><td><span class="badge pending">Solo spec</span></td><td>Contrato visual y reglas cerradas.</td><td>Repo, motor, aplicaciones, tools y vista definitiva.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="destino">
+      <h2>Diseño destino</h2>
+      <div class="flow">FUENTES DE DINERO                          FUENTES DE DEUDA
+4_pagos / banco                            2_planilla · obligaciones · 6_corte
+        │                                                │
+        ▼                                                ▼
+┌──────────────────────┐                     ┌──────────────────────┐
+│ MOVIMIENTOS_CAJA     │                     │ CARGOS               │
+│ ABONO_ID · balde     │                     │ CARGO_ID · concepto  │
+│ canal · referencia   │                     │ sub · mes · monto    │
+└──────────┬───────────┘                     └──────────┬───────────┘
+           └────────────────────┬───────────────────────┘
+                                ▼
+                     ┌──────────────────────┐
+                     │ MOTOR DE APLICACION  │
+                     │ prioridad + FIFO     │
+                     └──────────┬───────────┘
+                                ▼
+                     ┌──────────────────────┐
+                     │ APLICACIONES         │
+                     │ ABONO_ID → CARGO_ID  │
+                     └──────────┬───────────┘
+                 ┌──────────────┴──────────────┐
+                 ▼                             ▼
+       vista seguimiento caja       vista seguimiento pueblo</div>
+
+      <div class="grid">
+        <article class="card violet">
+          <h3>Persistencia temporal</h3>
+          <p>El patrón puerto/adapter es obligatorio. Solo <code>stores/</code> conoce Excel; dominio y repos trabajan con entidades. La forma física concreta se fija al implementar las firmas reales de los repos.</p>
+        </article>
+        <article class="card blue">
+          <h3>Compatibilidad</h3>
+          <p>Durante la transición, la nueva vista puede conservar el nombre <code>vista_seguimiento_pueblo.xlsx</code>. Cambia la fuente interna, no el contrato que ve el operario.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="fases">
+      <h2>Checklist de implementación</h2>
+      <p class="section-note">Ordenado desde lo más aislado y testeable hasta el cableado operativo.</p>
+
+      <article class="phase">
+        <div class="phase-no">00</div>
+        <div>
+          <div class="phase-head"><h3>Preservar el sistema actual</h3><span class="badge active">En curso</span></div>
+          <ul class="checklist">
+            <li class="checked">Mantener <code>shared/seguimiento_pueblo.xlsx</code> como ledger oficial transitorio.</li>
+            <li class="checked">Mantener <code>7_cierre</code> como único commit oficial de agosto.</li>
+            <li>Resolver o documentar de forma válida la diferencia de caja de S/700.</li>
+            <li>Regenerar y revisar la lista de corte posterior al último <code>5_cobranza --force</code>.</li>
+            <li>Cerrar agosto antes de iniciar el cutover oficial.</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="phase">
+        <div class="phase-no">01</div>
+        <div>
+          <div class="phase-head"><h3>Implementar dominio puro</h3><span class="badge pending">Pendiente</span></div>
+          <ul class="checklist">
+            <li>Crear <code>taxonomia.py</code> con conceptos, sub-conceptos y prioridad P1-P6.</li>
+            <li>Crear entidades frozen: MovimientoCaja, Cargo, Aplicación, Ajuste e Identificación.</li>
+            <li>Crear <code>identidad.py</code> con IDs deterministas y <code>JASS_ID</code>.</li>
+            <li>Crear <code>cascada.py</code>, <code>saldo.py</code> y <code>politica_corte.py</code>.</li>
+            <li>Representar todo dinero como céntimos enteros; eliminar tolerancia de floats.</li>
+            <li>Probar prioridad, FIFO, saldo a favor, devolución e idempotencia.</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="phase">
+        <div class="phase-no">02</div>
+        <div>
+          <div class="phase-head"><h3>Crear repos y adapter XLSX</h3><span class="badge pending">Pendiente</span></div>
+          <ul class="checklist">
+            <li>Implementar <code>caja/caja_repo.py</code>, writer único de movimientos.</li>
+            <li>Implementar <code>estado_cuenta/cuenta_repo.py</code>, writer único de cargos, aplicaciones y ajustes.</li>
+            <li>Definir el adapter bajo <code>stores/</code> desde las firmas reales de ambos repos.</li>
+            <li>Guardar atómicamente y crear backup antes de cada batch.</li>
+            <li>Bloquear duplicados por ID determinista y reportar casi-duplicados de efectivo.</li>
+            <li>Probar que dominio y repos no importan <code>openpyxl</code>.</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="phase">
+        <div class="phase-no">03</div>
+        <div>
+          <div class="phase-head"><h3>Caja de agosto en sombra</h3><span class="badge pending">Disponible ahora</span></div>
+          <ul class="checklist">
+            <li>Importar cada depósito Yape una sola vez usando origen + timestamp.</li>
+            <li>Importar efectivo por procedencia estable: archivo + fila.</li>
+            <li>Clasificar baldes agua, tanque, deuda_directiva, devolución, retorno, honorario y gasto.</li>
+            <li>Tratar segregación comunitaria como reparto, nunca como balde adicional.</li>
+            <li>Generar <code>vista_seguimiento_caja.xlsx</code>: resumen mensual, movimientos y pendientes.</li>
+            <li>Implementar <code>arqueo_caja</code> y comparar contra TE PAGÓ/PAGASTE.</li>
+            <li class="stop">No declarar oficial mientras el arqueo no explique la diferencia S/700.</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="phase">
+        <div class="phase-no">04</div>
+        <div>
+          <div class="phase-head"><h3>Estado de cuenta y motor en sombra</h3><span class="badge pending">Pendiente</span></div>
+          <ul class="checklist">
+            <li>Emitir cargos AGUA y MANTENIMIENTO desde la planilla de agosto.</li>
+            <li>Emitir CORTE_RECONEXIÓN desde el audit comprometido de <code>6_corte</code>.</li>
+            <li>Representar la apertura de julio según D-005, sin reconstruir meses anteriores.</li>
+            <li>Implementar <code>motor_aplicacion.py</code>: ordena abonos por fecha y llama a la cascada.</li>
+            <li>Persistir aplicaciones idempotentes <code>ABONO_ID → CARGO_ID</code>.</li>
+            <li>Derivar siempre el saldo desde cargos, aplicaciones y ajustes.</li>
+            <li>Generar la nueva vista de seguimiento del pueblo sin tocar todavía la vista oficial.</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="phase">
+        <div class="phase-no">05</div>
+        <div>
+          <div class="phase-head"><h3>Comparación paralela</h3><span class="badge pending">Gate de cutover</span></div>
+          <ul class="checklist">
+            <li>Comparar saldo por cada MZ, LT y concepto entre ambos ledgers.</li>
+            <li>Comparar total de caja por canal, dirección y balde.</li>
+            <li>Ejecutar conservación por abono y conservación global.</li>
+            <li>Validar Q-5 y al menos un caso no afectado de cada bloque.</li>
+            <li>Clasificar cada diferencia como dato, regla, importador o transición.</li>
+            <li class="stop">No cambiar consumidores mientras exista una diferencia sin explicación.</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="phase">
+        <div class="phase-no">06</div>
+        <div>
+          <div class="phase-head"><h3>Cutover seguro</h3><span class="badge pending">Futuro</span></div>
+          <ul class="checklist">
+            <li>Congelar una copia final de <code>seguimiento_pueblo.xlsx</code>.</li>
+            <li>Cambiar <code>2_planilla</code> para leer mediante el puerto <code>cuenta_repo</code>.</li>
+            <li>Generar <code>vista_seguimiento_pueblo.xlsx</code> desde el nuevo ledger.</li>
+            <li>Conectar <code>7_cierre</code> al batch atómico de caja + cargos + aplicaciones.</li>
+            <li>Mantener el store viejo en solo lectura durante un ciclo completo.</li>
+            <li>Retirar la escritura vieja solo después de verificar septiembre.</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="phase">
+        <div class="phase-no">07</div>
+        <div>
+          <div class="phase-head"><h3>Capacidades posteriores</h3><span class="badge pending">No bloquean core</span></div>
+          <ul class="checklist">
+            <li>Implementar <code>obligaciones</code> como emisor permanente de cargos no-agua.</li>
+            <li>Reemplazar 5b por <code>arqueo_caja</code> y <code>conciliar_caja</code>.</li>
+            <li>Conectar reclamos a identificar/reasignar abono y registrar ajuste.</li>
+            <li>Implementar extracto por predio y explicación de un abono.</li>
+            <li>Migrar el adapter XLSX a PostgreSQL sin cambiar dominio ni repos.</li>
+          </ul>
+        </div>
+      </article>
+    </section>
+
+    <section id="gates">
+      <h2>Gates que protegen septiembre</h2>
+      <div class="gate"><strong>G1</strong><p><b>Agosto cerrado.</b> El nuevo asiento oficial solo puede usar fuentes congeladas por <code>7_cierre</code>.</p></div>
+      <div class="gate"><strong>G2</strong><p><b>Caja conservada.</b> Cada depósito existe una vez y el total por dirección cuadra con banco.</p></div>
+      <div class="gate"><strong>G3</strong><p><b>Aplicaciones conservadas.</b> Por abono: monto = aplicado + saldo a favor.</p></div>
+      <div class="gate"><strong>G4</strong><p><b>Saldos comparados.</b> Toda diferencia con el ledger transitorio está explicada y aprobada.</p></div>
+      <div class="gate"><strong>G5</strong><p><b>Rollback probado.</b> Volver al lector viejo no requiere modificar ni reconstruir datos.</p></div>
+    </section>
+
+    <section id="q5">
+      <h2>Caso obligatorio: Q-5</h2>
+      <p class="section-note">La migración no pasa el gate si el nuevo motor no puede explicar este reparto desde un abono real.</p>
+      <div class="case">
+        <div><b>Cargos</b><span class="amount">S/130</span><p>Deuda anterior S/114 + AGUA agosto S/13 + MANTENIMIENTO S/3.</p></div>
+        <div><b>Abono</b><span class="amount">S/114</span><p>Un movimiento de caja con <code>ABONO_ID</code> y ciclo de origen julio.</p></div>
+        <div><b>Aplicaciones</b><span class="amount">S/114</span><p>AGUA anterior 20 · CONVENIO 25 · ACUERDOS 50 · MULTA 19.</p></div>
+        <div><b>Saldo final</b><span class="amount">S/16</span><p>AGUA 13 + MANTENIMIENTO 3; convenio, acuerdos y multa en cero.</p></div>
+      </div>
+    </section>
+
+    <section id="rollback">
+      <h2>Rollback y convivencia</h2>
+      <div class="flow">ANTES DEL CUTOVER
+seguimiento_pueblo.xlsx ──► lector oficial
+libro_mayor/stores/*     ──► sombra + comparación
+
+DESPUES DEL CUTOVER
+libro_mayor/stores/*     ──► lector oficial
+seguimiento_pueblo.xlsx  ──► respaldo congelado, solo lectura
+
+SI FALLA SEPTIEMBRE
+config del lector ──► vuelve al store viejo
+datos nuevos       ──► no se borran; se auditan y corrigen con eventos</div>
+      <div class="grid">
+        <article class="card red"><h3>Nunca hacer</h3><p>No mover, renombrar, sobrescribir ni limpiar el ledger transitorio durante la construcción del nuevo contexto.</p></article>
+        <article class="card"><h3>Corrección</h3><p>Todo ledger es append-only: una corrección crea un evento inverso o de ajuste; nunca elimina filas históricas.</p></article>
+      </div>
+    </section>
+
+    <section id="referencias">
+      <h2>Referencias de diseño</h2>
+      <ul class="refs">
+        <li><a href="README.md"><code>libro_mayor/README.md</code> — frontera del bounded context</a></li>
+        <li><a href="caja/README.md"><code>caja/README.md</code> — contrato de movimientos de dinero</a></li>
+        <li><a href="estado_cuenta/README.md"><code>estado_cuenta/README.md</code> — cargos, aplicaciones y motor</a></li>
+        <li><a href="dominio/README.md"><code>dominio/README.md</code> — seis firmas puras</a></li>
+        <li><a href="estado_cuenta/docs/diagrama_flujo_estado_cuenta.html">Diagrama de flujo de estado de cuenta</a></li>
+        <li><a href="../docs/cuaderno/libro_mayor.html">Cuaderno visual del libro mayor</a></li>
+        <li><a href="../docs/lente_escala.md">Lente de escala: multi-tenant, PostgreSQL y Docker</a></li>
+        <li><a href="../docs/decisiones/estado_decisiones.md">Decisiones cerradas, incluida D-005</a></li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    <div class="shell mono">Documento operativo · creado 2026-08-21 · fuente de verdad arquitectónica: READMEs de libro_mayor</div>
+  </footer>
+</body>
+</html>

@@ -61,7 +61,7 @@ def _detectar_mes_ciclo() -> str:
     return Path(matches[-1]).stem.replace("planilla_", "")
 
 MES_CIERRE = _mes_anterior(_detectar_mes_ciclo())
-ARRASTRE_PATH = BASE_DIR.parent / "5_cobranza" / "outputs" / f"arrastre_consolidado_{MES_CIERRE}.xlsx"
+ARRASTRE_PATH = BASE_DIR.parent / "5_cobranza" / "outputs" / f"planilla_cobrado_{MES_CIERRE}.xlsx"
 NOMBRE_JAAS = "JUNTA ADMINISTRATIVA DE SERVICIOS DE SANEAMIENTO"
 SECTOR = "P.J. TUPAC AMARU"
 TELEFONO = "948 227 636"
@@ -110,7 +110,7 @@ def _cargar_universo():
         return 0.0 if pd.isna(v) else float(v)
 
     if ARRASTRE_PATH.exists():
-        arr = pd.read_excel(ARRASTRE_PATH, header=1)
+        arr = pd.read_excel(ARRASTRE_PATH, sheet_name="arrastre_consolidado", header=1)
         for _, r in arr.iterrows():
             k = (repo._norm(r["MZ"]), repo._norm(r["LT"]))
             if k in deudores:

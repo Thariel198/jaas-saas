@@ -27,6 +27,7 @@ import pandas as pd
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
+from work_guard_runtime import require_authoritative_writes
 
 log = logging.getLogger(__name__)
 
@@ -222,6 +223,8 @@ def apply_correction(mz, lt, campo, valor, *, source: str, audit_ref: str, motiv
 
     if target_row is None:
         raise ValueError(f"apply_correction: predio (MZ={mz!r}, LT={lt!r}) no existe en DATA_boletas")
+
+    require_authoritative_writes(DATA_BOLETAS_PATH, AUDIT_PATH)
 
     # Backup ANTES del write
     backup_path = _backup_data_boletas()

@@ -21,6 +21,7 @@ Uso:
     python generar_lista.py
 """
 import logging
+import importlib.util
 import sys
 from pathlib import Path
 
@@ -337,9 +338,28 @@ def _cargar_pagos_map(log: logging.Logger) -> dict:
     return mapa
 
 
+def _cargar_abonos_map(mes_ano: str, log: logging.Logger) -> dict[tuple[str, str], float]:
+    """Reutiliza el loader manifestado de 5_cobranza y suma por predio."""
+    main_path = config.ROOT.parent / "5_cobranza" / "main.py"
+    spec = importlib.util.spec_from_file_location("cobranza_main_corte", main_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"No se pudo cargar: {main_path}")
+    cobranza = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cobranza)
+    por_ciclo = cobranza._cargar_abonos_rezagados(mes_ano)
+    mapa = {
+        predio: round(cerrado + vigente, 2)
+        for predio, (cerrado, vigente) in por_ciclo.items()
+        if cerrado + vigente > config.TOL
+    }
+    log.info(f"abonos_rezagados manifestados · {len(mapa)} usuarios")
+    return mapa
+
+
 # ── FILTRO ───────────────────────────────────────────────────────────────────
 def _filtrar_corte(df: pd.DataFrame, mapa_reclamos: dict,
                    cortados_activos: set, pagos_map: dict,
+                   abonos_map: dict[tuple[str, str], float],
                    log: logging.Logger) -> list[dict]:
     corte: list[dict] = []
     n_saldos_no_cero = 0
@@ -357,6 +377,7 @@ def _filtrar_corte(df: pd.DataFrame, mapa_reclamos: dict,
         saldo      = round(_float(f.get("SALDO")), 2)
         mes_ant    = round(_float(f.get("MES_ANTERIOR")), 2)
         monto_yape = round(_float(f.get("MONTO_YAPE")), 2)
+        abono       = abonos_map.get((mz, lt), 0.0)
 
         if saldo > config.TOL:
             n_saldos_no_cero += 1
@@ -374,13 +395,16 @@ def _filtrar_corte(df: pd.DataFrame, mapa_reclamos: dict,
             ejecutar       = "NO"
             motivo         = "Reclamo en revision"
             n_bloqueados_reclamo += 1
-        elif mesa or monto_yape > config.TOL:
-            # Pagó algo este mes (efectivo/mesa O yape) → se salva del corte,
+        elif mesa or monto_yape > config.TOL or abono > config.TOL:
+            # Pagó algo este mes (efectivo/mesa, yape o abono) → se salva del corte,
             # la deuda se acumula. La regla vale para cualquier canal: es injusto
             # cortar a quien pagó parcial por yape y no a quien pagó parcial en mesa.
             estado_reclamo = "SIN_RECLAMO"
             ejecutar       = "NO"
-            motivo         = "Pago parcial en mesa" if mesa else "Pago parcial por yape"
+            if abono > config.TOL:
+                motivo = "Abono rezagado"
+            else:
+                motivo = "Pago parcial en mesa" if mesa else "Pago parcial por yape"
             n_bloqueados_pago += 1
         else:
             estado_reclamo = "SIN_RECLAMO"
@@ -505,18 +529,21 @@ def main() -> None:
     print(f"\n[3/5] Cargando reclamos del ciclo {mes_ano}...")
     mapa_reclamos = _cargar_reclamos_map(mes_ano, log)
 
-    print("\n[4/5] Cargando pagos efectivo (MESA + COBRADOR)...")
+    print("\n[4/5] Cargando pagos efectivo y abonos rezagados...")
     pagos_map = _cargar_pagos_map(log)
+    abonos_map = _cargar_abonos_map(mes_ano, log)
 
     print("\n[5/5] Filtrando elegibles y exportando lista_corte.xlsx...")
-    corte = _filtrar_corte(df, mapa_reclamos, excluidos_previos, pagos_map, log)
+    corte = _filtrar_corte(
+        df, mapa_reclamos, excluidos_previos, pagos_map, abonos_map, log
+    )
     _exportar(corte)
     log.info(f"{config.LISTA_CORTE_PATH.name} -> {len(corte)} usuarios")
 
     n_si           = sum(1 for r in corte if r["ejecutar_corte"] == "SI")
     n_no_reclamo   = sum(1 for r in corte if r["motivo"] == "Reclamo en revision")
-    n_no_pago      = sum(1 for r in corte if r["motivo"] == "Pago parcial en mesa")
-    n_no           = n_no_reclamo + n_no_pago
+    n_no            = sum(1 for r in corte if r["ejecutar_corte"] == "NO")
+    n_no_pago       = n_no - n_no_reclamo
 
     print("\n" + "=" * 60)
     print(f"  generar_lista.py completado")

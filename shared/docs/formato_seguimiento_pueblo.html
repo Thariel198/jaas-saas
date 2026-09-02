@@ -59,7 +59,7 @@
   <span>Owner:</span> shared/seguimiento_repo.py &nbsp;|&nbsp;
   <span>Ruta:</span> shared/seguimiento_pueblo.xlsx &nbsp;|&nbsp;
   <span>Lifecycle:</span> permanente — registro de eventos, nunca se sobreescribe ni se borra una fila &nbsp;|&nbsp;
-  <span>Hojas:</span> 1 (Eventos) &nbsp;|&nbsp;
+  <span>Hojas:</span> 2: Eventos + LEYENDA &nbsp;|&nbsp;
   <span>Lectores:</span> 2_planilla (<code>get_saldo</code>) · consulta humana (<code>estado_cuenta</code>)
 </div>
 
@@ -77,6 +77,16 @@
   <b>Quién puede escribir:</b> únicamente <code>shared/seguimiento_repo.py</code>, vía
   <code>registrar_cargo()</code> / <code>registrar_pago()</code> / <code>registrar_ajuste()</code>.
   Ningún módulo abre este archivo con <code>load_workbook</code> para escribir directo.
+</div>
+
+<h2>Hoja: LEYENDA</h2>
+
+<div class="logica-box">
+  Referencia permanente para leer las etiquetas del registro: explica <code>CARGO</code>, <code>PAGO</code>,
+  <code>AJUSTE</code>, <code>CLASE</code>, anulación lógica y cada <code>SOURCE</code> operativo.
+  <code>saldo_inicial</code> es deuda heredada al cierre de julio y <code>2_planilla</code> el cargo nuevo
+  del ciclo. <code>SOURCE</code> indica quién registró un evento; la causa concreta siempre se revisa en
+  <code>AUDIT_REF</code>. La hoja se regenera por el writer junto al ledger, sin cambiar Eventos.
 </div>
 
 <h2>Hoja: Eventos</h2>

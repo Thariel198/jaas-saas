@@ -6,12 +6,11 @@ Recibe la planilla del mes (desde `2_planilla/outputs/`) y los pagos identificad
 de Yape y efectivo, los cruza contra las deudas, aplica blancos automáticos desde
 `shared/`, calcula el saldo de cada usuario y genera:
 
-- **planilla_cobrado.xlsx** — estado de pago de todos los usuarios (todos los conceptos)
+- **planilla_cobrado_YYYY-MM.xlsx** — hojas `planilla_cobrado`, `arrastre_consolidado` y `arrastre_devolucion`
 - **lista_corte.xlsx** — usuarios con ARRASTRE ≥ 8 y saldo pendiente (penalidad S/20)
 - **trazabilidad_cobranza.xlsx** — un registro por pago cargado en este ciclo
 - **resumen_recaudacion.xlsx** — totales del mes
 - **arrastre_deuda_YYYY-MM.xlsx** — deuda pendiente para alimentar 2_planilla el ciclo siguiente
-- **arrastre_devolucion_YYYY-MM.xlsx** — excesos (SALDO < 0) pendientes de reclamo, para 7_cierre
 - **run.log** — log de ejecución con conteos y errores
 
 ## Cuándo se corre
@@ -29,12 +28,14 @@ Después de que `4_pagos` está completo:
 │   ├── pagos_yape/           ← pagos_yape_tepago.xlsx (copia de 4_pagos)
 │   └── pagos_efectivo/       ← pagos_efectivo.xlsx (copia de 4_pagos)
 ├── outputs/
-│   ├── planilla_cobrado.xlsx
+│   ├── planilla_cobrado_YYYY-MM.xlsx
+│   │   ├── hoja planilla_cobrado
+│   │   ├── hoja arrastre_consolidado
+│   │   └── hoja arrastre_devolucion
 │   ├── lista_corte.xlsx
 │   ├── trazabilidad_cobranza.xlsx
 │   ├── resumen_recaudacion.xlsx
 │   ├── arrastre_deuda_YYYY-MM.xlsx
-│   ├── arrastre_devolucion_YYYY-MM.xlsx
 │   ├── run.log
 │   ├── run_validacion.log              ← lo genera validacion_planilla_cobrado.py
 │   └── validacion_errores.xlsx         ← solo si hay errores (lo genera validacion)
@@ -59,7 +60,7 @@ Después de que `4_pagos` está completo:
 
 Copia de `2_planilla/outputs/planilla_YYYY-MM.xlsx` — generada por el módulo de
 planilla con lecturas, consumos y conceptos de deuda ya calculados. No se modifica:
-`main.py` la lee y genera `planilla_cobrado.xlsx` como copia enriquecida con pagos.
+`main.py` la lee y genera `planilla_cobrado_YYYY-MM.xlsx` como copia enriquecida con pagos.
 
 **Columnas que trae la planilla (las genera 2_planilla · 21 columnas):**
 
@@ -84,10 +85,11 @@ planilla con lecturas, consumos y conceptos de deuda ya calculados. No se modifi
 | TOTAL_A_PAGAR | fórmula | Suma de todos los conceptos (fórmula Excel) |
 | MONTO_YAPE | vacío | Lo llena 5_cobranza desde pagos_yape_tepago |
 | MONTO_EFECTIVO | vacío | Lo llena 5_cobranza desde pagos_efectivo |
+| ABONO_REZAGADO | agregado | Lo llena 5_cobranza desde `shared/abonos_rezagados.xlsx` |
 | ESTADO | vacío | Lo llena 5_cobranza (CANCELADO / EXCESO / PARCIAL / PENDIENTE) |
 | FECHA_PAGO | vacío | Lo llena 5_cobranza — fecha del pago más reciente |
 
-> `CICLO_COBRANZA` **no** viene en la planilla — 5_cobranza lo agrega como columna 22 al crear `planilla_cobrado.xlsx`.
+> `ABONO_REZAGADO` y `CICLO_COBRANZA` no vienen en la planilla; 5_cobranza los agrega al crear `planilla_cobrado_YYYY-MM.xlsx`.
 
 ### 2. pagos_yape_tepago.xlsx
 
@@ -149,19 +151,21 @@ Los usuarios en lista_corte tienen penalidad de **S/20** por reconexión.
 Al cargar pagos, `main.py` detecta si ya existen cargos previos en este mes
 (leyendo el valor máximo de `CICLO_COBRANZA` en trazabilidad_cobranza) e incrementa.
 El valor se escribe en:
-- `planilla_cobrado.xlsx` columna `CICLO_COBRANZA` — **agregada** por 5_cobranza (no existe en la planilla original)
+- `planilla_cobrado_YYYY-MM.xlsx` columna `CICLO_COBRANZA` — **agregada** por 5_cobranza (no existe en la planilla original)
 - `trazabilidad_cobranza.xlsx` columna `CICLO_COBRANZA` (en cada fila del log)
 - `pagos_yape_tepago.xlsx` y `pagos_efectivo.xlsx` columna `CICLO_COBRANZA` (retroescritura)
 
 ## Outputs
 
-### planilla_cobrado.xlsx
+### planilla_cobrado_YYYY-MM.xlsx
 
 21 columnas de la planilla original + `CICLO_COBRANZA` (col 22). Ver `docs/planilla_cobrado_diseno.html`.
 
 Las columnas de pago (`MONTO_YAPE`, `MONTO_EFECTIVO`, `ESTADO`, `FECHA_PAGO`) llegan vacías
-de 2_planilla y son completadas por este módulo. `BLANCO` y `DEVOLUCION` se escriben como
+de 2_planilla; este módulo las completa y agrega `ABONO_REZAGADO`. `BLANCO` y `DEVOLUCION` se escriben como
 negativos cuando aplican (reducen `TOTAL_A_PAGAR`).
+
+`SALDO = TOTAL_A_PAGAR - MONTO_YAPE - MONTO_EFECTIVO - ABONO_REZAGADO`.
 
 Incluye **todos los usuarios** (pagaron o no). Es la fuente de verdad para
 `5b_validacion`, `3_boletas` y `7_cierre`.
@@ -207,9 +211,10 @@ Solo usuarios con `SALDO > 0`. Ver `docs/arrastre_deuda_diseno.html`.
 Este archivo se copia manualmente a `2_planilla/inputs/deuda_anterior/` al iniciar
 el ciclo siguiente. Alimenta la columna `MES_ANTERIOR` de la planilla del mes nuevo.
 
-### arrastre_devolucion_YYYY-MM.xlsx
+### Hoja arrastre_devolucion
 
-Solo usuarios con `SALDO < 0` (EXCESO — pagaron de más). Ver `docs/arrastre_devolucion_diseno.html`.
+Está dentro de `planilla_cobrado_YYYY-MM.xlsx`. Incluye usuarios con `SALDO < 0`
+(EXCESO) y pagos no identificados. Ver `docs/arrastre_devolucion_diseno.html`.
 
 | Columna | Descripción |
 |---|---|
@@ -220,7 +225,7 @@ Solo usuarios con `SALDO < 0` (EXCESO — pagaron de más). Ver `docs/arrastre_d
 | `MES_ANO_ORIGEN` | Mes en que se originó el exceso (ej: 2026-06) |
 
 La JASS no devuelve automáticamente — espera a que el usuario reclame.
-`7_cierre` acumula estos excesos en `shared/` para el seguimiento inter-ciclo.
+`7_cierre` congela el workbook completo; `REVISION` y `ESTADO` se preservan al regenerar.
 
 ## Flujo mensual
 
@@ -231,7 +236,7 @@ La JASS no devuelve automáticamente — espera a que el usuario reclame.
 4. python main.py
 5. python validacion_planilla_cobrado.py
    → si hay errores: revisar outputs/validacion_errores.xlsx y corregir antes de continuar
-6. Revisar outputs/planilla_cobrado.xlsx
+6. Revisar `outputs/planilla_cobrado_YYYY-MM.xlsx`
 7. Filtrar manualmente ya-cortados de lista_corte.xlsx
 8. Pasar lista_corte.xlsx             → 6_corte
 9. Copiar arrastre_deuda_YYYY-MM.xlsx → 2_planilla/inputs/deuda_anterior/  (para el ciclo siguiente)

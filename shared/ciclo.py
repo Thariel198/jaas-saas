@@ -32,6 +32,8 @@ import re
 from datetime import datetime
 from pathlib import Path
 
+from work_guard_runtime import require_authoritative_writes
+
 CICLO_PATH = Path(__file__).parent / "ciclo_activo.json"
 _FORMATO = re.compile(r"^\d{4}-\d{2}$")
 
@@ -121,6 +123,7 @@ def escribir(mes_ano: str, origen: str = "", path: Path | None = None) -> str:
     cambia nada salvo la marca de tiempo."""
     mes_ano = validar(mes_ano)
     path = path or CICLO_PATH
+    require_authoritative_writes(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps({
         "mes_ano": mes_ano,

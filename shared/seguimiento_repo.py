@@ -9,7 +9,7 @@ API PÚBLICA:
     get_saldos_bulk(concepto, mes)            → dict {(mz,lt): saldo} (todos los predios, 1 sola lectura)
     pago_registrado(mz, lt, concepto, mes)    → float (Σ PAGO ya anotado — para reconciliación por delta)
     estado_cuenta(mz, lt, concepto)           → DataFrame (pivot ancho: DEUDA·PAGO·DECLARADO·AJUSTE·SALDO por mes, 1 predio)
-    generar_vista(ruta=None)                  → Path (vista_seguimiento_pueblo.xlsx, 3 hojas + Ajustes + historial, TODOS los predios)
+    generar_vista(ruta=None)                  → Path (vista_seguimiento_pueblo.xlsx, consumo temporal + conceptos, TODOS los predios)
     exportar_vista_pdf(...)                   → Path (vista_seguimiento_pueblo.pdf, imprimible para la mesa)
 
 INVARIANTES:
@@ -39,6 +39,7 @@ import pandas as pd
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
+from work_guard_runtime import require_authoritative_writes
 
 log = logging.getLogger(__name__)
 
@@ -56,6 +57,13 @@ CONCEPTOS_VALIDOS = {
 CONCEPTOS_ORDEN = (
     "AGUA", "MANTENIMIENTO", "CORTE_RECONEXION",
     "CONVENIO", "ACUERDOS", "MULTA", "OTROS",
+)
+CONCEPTOS_VISTA_ORDEN = (
+    "MES_ANTERIOR", "MES_ACTUAL", "MANTENIMIENTO", "CORTE_RECONEXION",
+    "CONVENIO", "ACUERDOS", "MULTA", "OTROS",
+)
+COLUMNAS_RESUMEN_DEUDAS = (
+    "MZ", "LT", "NOMBRE", *CONCEPTOS_VISTA_ORDEN, "TOTAL_DEUDA",
 )
 TIPOS_EVENTO      = ("CARGO", "PAGO", "AJUSTE")
 TOL_SALDO         = 0.005  # redondeo de céntimos: por debajo de esto el saldo es 0
@@ -144,6 +152,7 @@ def _save_atomic(wb, path: Path) -> None:
     indexador puede tener el archivo agarrado un instante justo después de
     escribirlo; es transitorio, no un fallo real (visto en producción:
     WinError 5 en la corrida real de la siembra, 2026-07-02)."""
+    require_authoritative_writes(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(f".{path.stem}.tmp{path.suffix}")
     wb.save(tmp)
@@ -266,6 +275,10 @@ def _leer_eventos(incluir_anulados: bool = False) -> pd.DataFrame:
         refs = _audit_refs_anulados()
         if refs:
             df = df[~df["AUDIT_REF"].astype(str).str.strip().isin(refs)].copy()
+            movimiento = df["CARGO"].fillna(0) - df["PAGO"].fillna(0) + df["AJUSTE"].fillna(0)
+            df["SALDO"] = movimiento.groupby(
+                [df["MZ"], df["LT"], df["CONCEPTO"]], sort=False
+            ).cumsum().round(2)
     return df
 
 
@@ -327,6 +340,7 @@ def _append_evento(mz, lt, concepto, mes, tipo_evento, cargo, pago, ajuste, sald
     for ci, (nombre, sec, _ancho, align) in enumerate(_COLS, start=1):
         _dat(ws.cell(row=next_row, column=ci), fila[nombre], sec[2], sec[3], align=align)
 
+    _asegurar_leyenda_ledger(wb)
     _save_atomic(wb, SEGUIMIENTO_PATH)
 
 # ── API pública: escritura ───────────────────────────────────────────────────
@@ -672,16 +686,18 @@ def estado_cuenta(mz, lt, concepto) -> pd.DataFrame:
     for mes in meses:
         del_mes = sub[sub["MES"].astype(str) == mes]
         deuda = float(del_mes["CARGO"].fillna(0).sum())
-        pago, declarado = _partir_pago(del_mes)
+        pago, abono_rezagado, declarado = _partir_pago(del_mes)
         ajuste = float(del_mes["AJUSTE"].fillna(0).sum())
         saldo = float(del_mes.iloc[-1]["SALDO"])
         filas.append({"MES": mes, "DEUDA": deuda, "PAGO": pago,
-                      "DECLARADO": declarado, "AJUSTE": ajuste, "SALDO": saldo})
-    return pd.DataFrame(filas, columns=["MES", "DEUDA", "PAGO", "DECLARADO", "AJUSTE", "SALDO"])
+                      "ABONO_REZAGADO": abono_rezagado, "DECLARADO": declarado,
+                      "AJUSTE": ajuste, "SALDO": saldo})
+    return pd.DataFrame(filas, columns=[
+        "MES", "DEUDA", "PAGO", "ABONO_REZAGADO", "DECLARADO", "AJUSTE", "SALDO"])
 
 
-def _partir_pago(del_mes: pd.DataFrame) -> tuple[float, float]:
-    """(plata que entró, plata solo declarada) de un bloque de eventos.
+def _partir_pago(del_mes: pd.DataFrame) -> tuple[float, float, float]:
+    """(pago normal, abono rezagado, plata solo declarada) de un bloque.
 
     En el ledger los dos son TIPO_EVENTO=PAGO — mueven el saldo igual. Lo que los
     distingue es la CLASE, y eso es un atributo de la fila, no una columna. Al
@@ -694,9 +710,12 @@ def _partir_pago(del_mes: pd.DataFrame) -> tuple[float, float]:
     CLASES_SUMAN_CAJA, el mismo que usa el resto del código."""
     pagos = del_mes[del_mes["TIPO_EVENTO"].astype(str).str.strip() == "PAGO"]
     if pagos.empty:
-        return 0.0, 0.0
-    es_caja = pagos["CLASE"].fillna("").astype(str).str.strip().str.upper().isin(CLASES_SUMAN_CAJA)
-    return (float(pagos[es_caja]["PAGO"].fillna(0).sum()),
+        return 0.0, 0.0, 0.0
+    clases = pagos["CLASE"].fillna("").astype(str).str.strip().str.upper()
+    es_abono = clases.eq("ABONO_REZAGADO")
+    es_caja = clases.isin(CLASES_SUMAN_CAJA)
+    return (float(pagos[es_caja & ~es_abono]["PAGO"].fillna(0).sum()),
+            float(pagos[es_abono]["PAGO"].fillna(0).sum()),
             float(pagos[~es_caja]["PAGO"].fillna(0).sum()))
 
 
@@ -719,6 +738,10 @@ def deudores(concepto, minimo: float = 0.0) -> pd.DataFrame:
 VISTA_PATH = _SHARED / "vista_seguimiento_pueblo.xlsx"
 VISTA_PROVISIONAL_PATH = _SHARED / "vista_seguimiento_provicional.xlsx"
 
+
+class ProyeccionTemporalAmbiguaError(ValueError):
+    pass
+
 _SEC_PREDIO_V = ("EBF5FB", "1A5276", "F4FAFF", "1A5276")
 # (header_bg, header_fg, deuda_fg, pago_fg, saldo_bg, saldo_fg, ajuste_fg, declarado_fg)
 # — cicla cada 3 meses
@@ -729,6 +752,7 @@ _PALETAS_MES = [
 ]
 # AJUSTE sin MOTIVO: el ledger no sabe por qué se movió ese saldo. Rojo a propósito.
 _AJUSTE_SIN_MOTIVO_FG = "B91C1C"
+_ABONO_REZAGADO_FG = "0369A1"
 _DATA_BOLETAS_PATH_VISTA = _SHARED.parent / "3_boletas" / "inputs" / "DATA_boletas.xlsx"
 _PADRON_PATH_VISTA = _SHARED.parent / "0_padron" / "02_matching" / "outputs" / "padron_reconciliado.xlsx"
 
@@ -753,7 +777,290 @@ def _lookup_nombres() -> dict:
     return out
 
 
-_COLS_POR_MES = 5  # DEUDA · PAGO · DECLARADO · AJUSTE · SALDO
+_COLS_POR_MES = 6  # DEUDA · PAGO · ABONO_REZAGADO · DECLARADO · AJUSTE · SALDO
+_COLUMNAS_PROYECCION = [
+    "MZ", "LT", "MES", "DEUDA", "PAGO", "ABONO_REZAGADO", "DECLARADO", "AJUSTE", "SALDO"]
+
+
+def _proyectar_consumo_temporal(df: pd.DataFrame) -> dict[str, pd.DataFrame]:
+    """Desglosa AGUA/MANTENIMIENTO por antigüedad sin mutar eventos."""
+    vacio = lambda: pd.DataFrame(columns=_COLUMNAS_PROYECCION)
+    resultado = {nombre: vacio() for nombre in ("MES_ANTERIOR", "MES_ACTUAL", "MANTENIMIENTO")}
+    if df.empty:
+        return resultado
+
+    conceptos = df["CONCEPTO"].fillna("").astype(str).str.strip().str.upper()
+    consumo = df[conceptos.isin({"AGUA", "MANTENIMIENTO"})].copy()
+    if consumo.empty:
+        return resultado
+
+    consumo["MZ"] = consumo["MZ"].map(_norm)
+    consumo["LT"] = consumo["LT"].map(_norm)
+    consumo["CONCEPTO"] = consumo["CONCEPTO"].fillna("").astype(str).str.strip().str.upper()
+    consumo["TIPO_EVENTO"] = consumo["TIPO_EVENTO"].fillna("").astype(str).str.strip().str.upper()
+    consumo["MES"] = consumo["MES"].fillna("").astype(str).str.strip()
+    consumo["_ORDEN"] = range(len(consumo))
+    consumo["_TIMESTAMP"] = pd.to_datetime(consumo["TIMESTAMP"], errors="coerce")
+    consumo = consumo.sort_values(["MZ", "LT", "MES", "_TIMESTAMP", "_ORDEN"], kind="stable")
+
+    ajustes = consumo[consumo["TIPO_EVENTO"] == "AJUSTE"]
+    reversiones = (
+        ajustes["SOURCE"].fillna("").astype(str).str.strip().isin({"5_cobranza", "abonos_rezagados"})
+        & ajustes["CLASE"].fillna("").astype(str).str.strip().str.upper().eq("CORRECCION_SISTEMA")
+        & ajustes["MOTIVO"].fillna("").astype(str).str.startswith("cierre: el objetivo final es menor")
+    )
+    exoneraciones = (
+        ajustes["SOURCE"].fillna("").astype(str).str.strip().str.lower().eq("ajustes_cargo")
+        & ajustes["CLASE"].fillna("").astype(str).str.strip().str.upper().eq("EXONERACION")
+        & pd.to_numeric(ajustes["AJUSTE"], errors="coerce").lt(0)
+    )
+    ambiguos = ajustes[~(reversiones | exoneraciones)]
+    if not ambiguos.empty:
+        ev = ambiguos.iloc[0]
+        raise ProyeccionTemporalAmbiguaError(
+            "AJUSTE de consumo sin cargo objetivo: "
+            f"{ev['MZ']}-{ev['LT']} mes={ev['MES']} audit_ref={str(ev.get('AUDIT_REF', '')).strip()}"
+        )
+
+    meses = sorted(m for m in consumo["MES"].unique() if m)
+    filas = {nombre: [] for nombre in resultado}
+
+    def _monto_evento(ev: pd.Series, columna: str) -> float:
+        valor = pd.to_numeric(ev.get(columna), errors="coerce")
+        return 0.0 if pd.isna(valor) else round(float(valor), 2)
+
+    for (mz, lt), predio in consumo.groupby(["MZ", "LT"], sort=False):
+        saldos = {"AGUA_ANT": 0.0, "MANT_ANT": 0.0, "AGUA_ACT": 0.0, "MANT_ACT": 0.0}
+        iniciado = False
+
+        for mes in meses:
+            eventos = predio[predio["MES"] == mes]
+            if not iniciado and eventos.empty:
+                continue
+
+            datos = {
+                nombre: {"MZ": mz, "LT": lt, "MES": mes, "DEUDA": 0.0,
+                         "PAGO": 0.0, "ABONO_REZAGADO": 0.0, "DECLARADO": 0.0,
+                         "AJUSTE": 0.0, "SALDO": 0.0}
+                for nombre in filas
+            }
+
+            if iniciado:
+                saldos["AGUA_ANT"] = round(saldos["AGUA_ANT"] + saldos["AGUA_ACT"], 2)
+                saldos["MANT_ANT"] = round(saldos["MANT_ANT"] + saldos["MANT_ACT"], 2)
+                saldos["AGUA_ACT"] = 0.0
+                saldos["MANT_ACT"] = 0.0
+                datos["MES_ANTERIOR"]["DEUDA"] = round(
+                    saldos["AGUA_ANT"] + saldos["MANT_ANT"], 2)
+            else:
+                iniciado = True
+
+            for _, ev in eventos.iterrows():
+                concepto = ev["CONCEPTO"]
+                tipo = ev["TIPO_EVENTO"]
+                ref = str(ev.get("AUDIT_REF", "")).strip()
+
+                if tipo == "CARGO":
+                    monto = _monto_evento(ev, "CARGO")
+                    if monto < -TOL_SALDO:
+                        raise ValueError(f"CARGO negativo en {mz}-{lt} mes={mes} audit_ref={ref}")
+                    anterior = str(ev.get("SOURCE", "")).strip().lower() == "saldo_inicial"
+                    sufijo = "ANT" if anterior else "ACT"
+                    llave = f"{'AGUA' if concepto == 'AGUA' else 'MANT'}_{sufijo}"
+                    bloque = "MES_ANTERIOR" if anterior else (
+                        "MES_ACTUAL" if concepto == "AGUA" else "MANTENIMIENTO")
+                    saldos[llave] = round(saldos[llave] + monto, 2)
+                    datos[bloque]["DEUDA"] = round(datos[bloque]["DEUDA"] + monto, 2)
+                    continue
+
+                if tipo == "AJUSTE":
+                    restante = _monto_evento(ev, "AJUSTE")
+                    prefijo = "AGUA" if concepto == "AGUA" else "MANT"
+                    es_exoneracion = (
+                        str(ev.get("SOURCE", "")).strip().lower() == "ajustes_cargo"
+                        and str(ev.get("CLASE", "")).strip().upper() == "EXONERACION"
+                        and restante < 0
+                    )
+                    if es_exoneracion:
+                        restante = -restante
+                        for sufijo in ("ANT", "ACT"):
+                            llave = f"{prefijo}_{sufijo}"
+                            aplicado = round(min(restante, saldos[llave]), 2)
+                            if aplicado <= TOL_SALDO:
+                                continue
+                            bloque = "MES_ANTERIOR" if sufijo == "ANT" else (
+                                "MES_ACTUAL" if concepto == "AGUA" else "MANTENIMIENTO")
+                            saldos[llave] = round(saldos[llave] - aplicado, 2)
+                            datos[bloque]["AJUSTE"] = round(datos[bloque]["AJUSTE"] - aplicado, 2)
+                            restante = round(restante - aplicado, 2)
+                        if restante > TOL_SALDO:
+                            raise ProyeccionTemporalAmbiguaError(
+                                f"EXONERACION excede deuda conocida en {mz}-{lt} mes={mes} "
+                                f"audit_ref={ref}: {restante:.2f}"
+                            )
+                        continue
+                    # Reducir un objetivo revierte primero el ultimo tramo que la
+                    # cascada FIFO habia alcanzado, sin inventar un cargo nuevo.
+                    for sufijo in ("ACT", "ANT"):
+                        bloque = "MES_ANTERIOR" if sufijo == "ANT" else (
+                            "MES_ACTUAL" if concepto == "AGUA" else "MANTENIMIENTO")
+                        pagado = sum(datos[bloque][campo] for campo in (
+                            "PAGO", "ABONO_REZAGADO", "DECLARADO"))
+                        reversible = round(pagado - datos[bloque]["AJUSTE"], 2)
+                        restaurado = round(min(restante, max(reversible, 0.0)), 2)
+                        if restaurado <= TOL_SALDO:
+                            continue
+                        saldos[f"{prefijo}_{sufijo}"] = round(
+                            saldos[f"{prefijo}_{sufijo}"] + restaurado, 2)
+                        datos[bloque]["AJUSTE"] = round(
+                            datos[bloque]["AJUSTE"] + restaurado, 2)
+                        restante = round(restante - restaurado, 2)
+                    if restante > TOL_SALDO:
+                        raise ProyeccionTemporalAmbiguaError(
+                            f"AJUSTE excede pago reversible en {mz}-{lt} mes={mes} "
+                            f"audit_ref={ref}: {restante:.2f}"
+                        )
+                    continue
+
+                if tipo != "PAGO":
+                    continue
+
+                restante = _monto_evento(ev, "PAGO")
+                if restante < -TOL_SALDO:
+                    raise ValueError(f"PAGO negativo en {mz}-{lt} mes={mes} audit_ref={ref}")
+                clase = str(ev.get("CLASE", "")).strip().upper()
+                columna = ("ABONO_REZAGADO" if clase == "ABONO_REZAGADO" else
+                           ("PAGO" if clase in CLASES_SUMAN_CAJA else "DECLARADO"))
+                prefijo = "AGUA" if concepto == "AGUA" else "MANT"
+
+                for sufijo in ("ANT", "ACT"):
+                    llave = f"{prefijo}_{sufijo}"
+                    aplicado = round(min(restante, saldos[llave]), 2)
+                    if aplicado <= TOL_SALDO:
+                        continue
+                    bloque = "MES_ANTERIOR" if sufijo == "ANT" else (
+                        "MES_ACTUAL" if concepto == "AGUA" else "MANTENIMIENTO")
+                    saldos[llave] = round(saldos[llave] - aplicado, 2)
+                    datos[bloque][columna] = round(datos[bloque][columna] + aplicado, 2)
+                    restante = round(restante - aplicado, 2)
+
+                if restante > TOL_SALDO:
+                    raise ValueError(
+                        f"PAGO excede deuda conocida en {mz}-{lt} mes={mes} audit_ref={ref}: {restante:.2f}"
+                    )
+
+            datos["MES_ANTERIOR"]["SALDO"] = round(saldos["AGUA_ANT"] + saldos["MANT_ANT"], 2)
+            datos["MES_ACTUAL"]["SALDO"] = round(saldos["AGUA_ACT"], 2)
+            datos["MANTENIMIENTO"]["SALDO"] = round(saldos["MANT_ACT"], 2)
+
+            previos = predio[predio["MES"] < mes]
+            saldo_inicial = float(
+                previos["CARGO"].fillna(0).sum()
+                - previos["PAGO"].fillna(0).sum()
+                + previos["AJUSTE"].fillna(0).sum())
+            deuda_esperada = round(saldo_inicial + eventos["CARGO"].fillna(0).sum(), 2)
+            pago_esperado, abono_esperado, declarado_esperado = _partir_pago(eventos)
+            totales = {
+                campo: round(sum(datos[b][campo] for b in datos), 2)
+                for campo in ("DEUDA", "PAGO", "ABONO_REZAGADO", "DECLARADO", "SALDO")
+            }
+            ajuste_esperado = round(eventos["AJUSTE"].fillna(0).sum(), 2)
+            totales["AJUSTE"] = round(sum(datos[b]["AJUSTE"] for b in datos), 2)
+            saldo_esperado = round(
+                deuda_esperada - pago_esperado - abono_esperado - declarado_esperado
+                + ajuste_esperado, 2)
+            esperados = {"DEUDA": deuda_esperada, "PAGO": round(pago_esperado, 2),
+                          "ABONO_REZAGADO": round(abono_esperado, 2),
+                          "DECLARADO": round(declarado_esperado, 2),
+                          "AJUSTE": ajuste_esperado, "SALDO": saldo_esperado}
+            diferencias = {campo: (totales[campo], esperado) for campo, esperado in esperados.items()
+                           if abs(totales[campo] - esperado) > TOL_SALDO}
+            if diferencias:
+                raise ValueError(f"Proyección no conserva totales en {mz}-{lt} mes={mes}: {diferencias}")
+
+            for nombre in filas:
+                filas[nombre].append(datos[nombre])
+
+    return {nombre: pd.DataFrame(datos, columns=_COLUMNAS_PROYECCION)
+            for nombre, datos in filas.items()}
+
+
+def _resumir_deudas_vista(df: pd.DataFrame, consumo: dict[str, pd.DataFrame],
+                          nombres: dict) -> pd.DataFrame:
+    """Saldo vigente por concepto y predio, sin depender del formato Excel."""
+    nombres_norm = {(_norm(mz), _norm(lt)): nombre for (mz, lt), nombre in nombres.items()}
+    fuentes = {}
+    for concepto in CONCEPTOS_VISTA_ORDEN:
+        if concepto in consumo:
+            fuentes[concepto] = consumo[concepto]
+        else:
+            mask = df["CONCEPTO"].astype(str).str.strip().str.upper() == concepto
+            fuentes[concepto] = df[mask]
+
+    predios = {(_norm(mz), _norm(lt)) for mz, lt in nombres_norm
+               if _clave_valida(_norm(mz), _norm(lt))}
+    saldos = {}
+    for concepto, fuente in fuentes.items():
+        if fuente.empty:
+            saldos[concepto] = {}
+            continue
+        actual = fuente.copy()
+        actual["MZ"] = actual["MZ"].map(_norm)
+        actual["LT"] = actual["LT"].map(_norm)
+        actual = actual[actual.apply(
+            lambda r: _clave_valida(r["MZ"], r["LT"]), axis=1)].copy()
+        predios.update(zip(actual["MZ"], actual["LT"]))
+        actual["MES"] = actual["MES"].astype(str)
+        actual["SALDO"] = pd.to_numeric(actual["SALDO"], errors="coerce").fillna(0)
+        if "TIMESTAMP" not in actual.columns:
+            actual["TIMESTAMP"] = ""
+        actual["_POS"] = range(len(actual))
+        actual = actual.sort_values(
+            ["MZ", "LT", "MES", "TIMESTAMP", "_POS"], kind="mergesort")
+        ultimos = actual.groupby(["MZ", "LT"], sort=False).tail(1)
+        saldos[concepto] = {
+            (r["MZ"], r["LT"]): round(float(r["SALDO"]), 2)
+            for _, r in ultimos.iterrows()
+        }
+
+    filas = []
+    for mz, lt in sorted(predios):
+        fila = {"MZ": mz, "LT": lt, "NOMBRE": nombres_norm.get((mz, lt), "")}
+        for concepto in CONCEPTOS_VISTA_ORDEN:
+            fila[concepto] = saldos[concepto].get((mz, lt), 0.0)
+        fila["TOTAL_DEUDA"] = round(
+            sum(fila[concepto] for concepto in CONCEPTOS_VISTA_ORDEN), 2)
+        filas.append(fila)
+    return pd.DataFrame(filas, columns=COLUMNAS_RESUMEN_DEUDAS)
+
+
+def _escribir_hoja_resumen_deudas(ws, resumen: pd.DataFrame) -> None:
+    _hdr(ws.cell(row=1, column=1), *_SEC_PREDIO_V[:2], "Predio")
+    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=3)
+    _hdr(ws.cell(row=1, column=4), *_PALETAS_MES[0][:2], "Saldos vigentes")
+    ws.merge_cells(start_row=1, start_column=4, end_row=1,
+                   end_column=len(COLUMNAS_RESUMEN_DEUDAS))
+
+    anchos = {"MZ": 6, "LT": 7, "NOMBRE": 26, "TOTAL_DEUDA": 15}
+    for col, nombre in enumerate(COLUMNAS_RESUMEN_DEUDAS, start=1):
+        colores = _SEC_PREDIO_V[:2] if col <= 3 else _PALETAS_MES[0][:2]
+        _hdr(ws.cell(row=2, column=col), *colores, nombre)
+        ws.column_dimensions[get_column_letter(col)].width = anchos.get(nombre, 18)
+
+    for row, (_, fila) in enumerate(resumen.iterrows(), start=3):
+        for col, nombre in enumerate(COLUMNAS_RESUMEN_DEUDAS, start=1):
+            valor = fila[nombre]
+            if col <= 3:
+                _dat(ws.cell(row=row, column=col), valor, *_SEC_PREDIO_V[2:],
+                     align="left" if nombre == "NOMBRE" else "center")
+            else:
+                total = nombre == "TOTAL_DEUDA"
+                _dat(ws.cell(row=row, column=col), valor,
+                     "FDE68A" if total else "FFFBEB",
+                     "78350F" if total else _PALETAS_MES[0][2], align="right")
+
+    ws.freeze_panes = "D3"
+    ws.auto_filter.ref = f"A2:{get_column_letter(len(COLUMNAS_RESUMEN_DEUDAS))}{max(ws.max_row, 2)}"
 
 
 def _escribir_hoja_ajustes(ws, df: pd.DataFrame, nombres: dict) -> None:
@@ -806,7 +1113,91 @@ def _escribir_hoja_ajustes(ws, df: pd.DataFrame, nombres: dict) -> None:
                 cell.number_format = "+#,##0.00;-#,##0.00;0.00"
 
 
-def _escribir_hoja_vista(ws, concepto: str, df_concepto: pd.DataFrame, nombres: dict) -> None:
+def _escribir_hoja_leyenda(ws) -> None:
+    """Referencia permanente para interpretar las etiquetas técnicas de la vista."""
+    ws.merge_cells("A1:E1")
+    _hdr(ws["A1"], "1F4E78", "FFFFFF", "LEYENDA - Cómo leer esta vista")
+    ws["A1"].font = Font(color=_argb("FFFFFF"), bold=True, size=14)
+    ws["A1"].alignment = Alignment(horizontal="left", vertical="center")
+    ws.row_dimensions[1].height = 28
+
+    ws.merge_cells("A2:E2")
+    ws["A2"] = (
+        "La fuente de verdad es seguimiento_pueblo.xlsx. Esta vista es regenerable: "
+        "SOURCE identifica quién registró el evento; AUDIT_REF identifica el evento concreto."
+    )
+    ws["A2"].fill = _fill("EAF3F8")
+    ws["A2"].font = Font(color=_argb("1F4E78"), italic=True, size=10)
+    ws["A2"].alignment = Alignment(wrap_text=True, vertical="center")
+    ws.row_dimensions[2].height = 32
+
+    conceptos = [
+        ("CARGO", "Nace o se abre una deuda. Suma al saldo."),
+        ("PAGO", "Una parte de un pago se aplicó al concepto. Resta al saldo."),
+        ("AJUSTE", "Corrección auditada de una deuda o aplicación anterior. Puede sumar o restar."),
+        ("CLASE", "Explica el tipo de movimiento: GENESIS, COBRANZA, ABONO_REZAGADO, "
+         "CORRECCION_SISTEMA o REASIGNACION."),
+        ("ANULACIÓN LÓGICA", "Una fila sigue físicamente en el ledger, pero anulaciones_ledger.json la excluye "
+         "de la vista. No se borra el historial."),
+    ]
+    _hdr(ws["A4"], "374151", "FFFFFF", "TÉRMINO")
+    ws.merge_cells("B4:E4")
+    _hdr(ws["B4"], "374151", "FFFFFF", "QUÉ SIGNIFICA")
+    for row, (termino, significado) in enumerate(conceptos, start=5):
+        _dat(ws.cell(row=row, column=1), termino, "F3F4F6", "374151")
+        ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=5)
+        _dat(ws.cell(row=row, column=2), significado, "FFFFFF", "374151")
+        ws.cell(row=row, column=2).alignment = Alignment(wrap_text=True, vertical="top")
+        ws.row_dimensions[row].height = 34
+
+    fuentes = [
+        ("saldo_inicial", "CARGO", "GENESIS", "Deuda heredada al cierre de julio. En la vista aparece como MES_ANTERIOR."),
+        ("2_planilla", "CARGO", "GENESIS", "Consumo nuevo de AGUA y MANTENIMIENTO calculado para el ciclo. Aparece como MES_ACTUAL/MANTENIMIENTO."),
+        ("6_corte", "CARGO", "GENESIS", "Penalidad de corte o reconexión emitida por el módulo de corte."),
+        ("sembrar_seguimiento_pueblo", "CARGO", "GENESIS", "Primera siembra del ledger: deuda inicial de MULTA, ACUERDOS y CONVENIO."),
+        ("genesis_tardia", "CARGO", "GENESIS", "Deuda histórica encontrada después de la primera siembra y agregada con evidencia."),
+        ("reidentificacion_cargo", "CARGO", "REASIGNACION", "Cargo trasladado al predio correcto por una corrección de identidad."),
+        ("5_cobranza", "PAGO", "COBRANZA", "Pago real conciliado por la cobranza mensual y aplicado al concepto correspondiente."),
+        ("abonos_rezagados", "PAGO", "ABONO_REZAGADO", "Pago real de un ciclo anterior aplicado después de identificarse su referencia."),
+        ("correccion_genesis_formula", "AJUSTE", "CORRECCION_SISTEMA", "Corrige el bug de la génesis que omitió pagos de abril y sobrecargó CONVENIO."),
+        ("reimputacion_ca1", "AJUSTE", "REASIGNACION", "Mueve una aplicación entre conceptos por la cascada correcta. No ingresa dinero nuevo."),
+        ("manual", "PAGO o AJUSTE", "Según evento", "Decisión o evidencia humana registrada de forma directa. SOURCE solo no prueba que hubo pago: revisar AUDIT_REF."),
+        ("correccion_manual", "AJUSTE", "SIN_CLASIFICAR", "Corrección técnica puntual de un evento anterior. No representa dinero nuevo; revisar AUDIT_REF y MOTIVO."),
+    ]
+    encabezado = 11
+    for column, title in enumerate(("SOURCE", "TIPO DE EVENTO", "CLASE", "CÓMO LEERLO"), start=1):
+        _hdr(ws.cell(row=encabezado, column=column), "1F4E78", "FFFFFF", title)
+    for row, valores in enumerate(fuentes, start=encabezado + 1):
+        for column, valor in enumerate(valores, start=1):
+            _dat(ws.cell(row=row, column=column), valor,
+                 "F4FAFF" if column == 1 else "FFFFFF", "374151")
+            ws.cell(row=row, column=column).alignment = Alignment(wrap_text=True, vertical="top")
+        ws.row_dimensions[row].height = 42
+
+    for column, width in enumerate((32, 20, 26, 105, 3), start=1):
+        ws.column_dimensions[get_column_letter(column)].width = width
+    ws.freeze_panes = "A12"
+    ws.auto_filter.ref = f"A{encabezado}:D{encabezado + len(fuentes)}"
+
+
+def _asegurar_leyenda_ledger(wb) -> None:
+    if "LEYENDA" in wb.sheetnames:
+        del wb["LEYENDA"]
+    _escribir_hoja_leyenda(wb.create_sheet("LEYENDA", 1))
+
+
+def actualizar_leyenda_ledger() -> Path:
+    """Regenera la referencia de fuentes sin modificar eventos append-only."""
+    if not SEGUIMIENTO_PATH.exists():
+        raise FileNotFoundError(f"No existe el ledger: {SEGUIMIENTO_PATH}")
+    wb = load_workbook(SEGUIMIENTO_PATH)
+    _asegurar_leyenda_ledger(wb)
+    _save_atomic(wb, SEGUIMIENTO_PATH)
+    return SEGUIMIENTO_PATH
+
+
+def _escribir_hoja_vista(ws, concepto: str, df_concepto: pd.DataFrame, nombres: dict,
+                          resumida: bool = False) -> None:
     predios = sorted({(r["MZ"], r["LT"]) for _, r in df_concepto.iterrows()
                       if _clave_valida(_norm(r["MZ"]), _norm(r["LT"]))})
     meses = sorted(df_concepto["MES"].astype(str).unique())
@@ -815,6 +1206,7 @@ def _escribir_hoja_vista(ws, concepto: str, df_concepto: pd.DataFrame, nombres: 
     cols = list(col_predio)
     for mes in meses:
         cols += [(f"{mes}|DEUDA", 11, "right"), (f"{mes}|PAGO", 11, "right"),
+                 (f"{mes}|ABONO_REZAGADO", 17, "right"),
                  (f"{mes}|DECLARADO", 12, "right"), (f"{mes}|AJUSTE", 11, "right"),
                  (f"{mes}|SALDO", 11, "right")]
 
@@ -855,32 +1247,52 @@ def _escribir_hoja_vista(ws, concepto: str, df_concepto: pd.DataFrame, nombres: 
         for i, mes in enumerate(meses):
             pal = _PALETAS_MES[i % 3]
             base = 4 + i * _COLS_POR_MES
-            c_deuda, c_pago, c_decl = base, base + 1, base + 2
-            c_ajuste, c_saldo = base + 3, base + 4
+            c_deuda, c_pago, c_abono = base, base + 1, base + 2
+            c_decl, c_ajuste, c_saldo = base + 3, base + 4, base + 5
             del_mes = sub_predio[sub_predio["MES"].astype(str) == mes]
 
             if del_mes.empty:
-                for c in (c_deuda, c_pago, c_decl, c_ajuste, c_saldo):
+                for c in (c_deuda, c_pago, c_abono, c_decl, c_ajuste, c_saldo):
                     cell = ws.cell(row=row, column=c, value="—")
                     cell.fill = _fill("F3F4F6")
                     cell.font = Font(color=_argb("9CA3AF"), italic=True, size=10)
                     cell.alignment = Alignment(horizontal="center", vertical="center")
                 continue
 
-            # DEUDA es solo lo que se le CARGÓ. El AJUSTE va aparte: fundirlo acá
-            # (como se hacía hasta el 06/08/2026) hacía que una corrección se
-            # leyera como deuda nueva — P-6 parecía tener un cargo de 58 en julio
-            # que en realidad era el ajuste que tapaba un desfase de mes.
-            deuda = float(del_mes["CARGO"].fillna(0).sum())
-            pago, declarado = _partir_pago(del_mes)
-            ajustes = del_mes[del_mes["TIPO_EVENTO"].astype(str).str.strip() == "AJUSTE"]
-            ajuste = float(ajustes["AJUSTE"].fillna(0).sum())
-            sin_motivo = (not ajustes.empty and
-                          ajustes["MOTIVO"].fillna("").astype(str).str.strip().eq("").all())
-            saldo = float(del_mes.sort_values("TIMESTAMP").iloc[-1]["SALDO"])
+            if resumida:
+                deuda = float(del_mes["DEUDA"].fillna(0).sum())
+                pago = float(del_mes["PAGO"].fillna(0).sum())
+                abono_rezagado = float(del_mes["ABONO_REZAGADO"].fillna(0).sum())
+                declarado = float(del_mes["DECLARADO"].fillna(0).sum())
+                ajuste = float(del_mes["AJUSTE"].fillna(0).sum())
+                ajustes = del_mes[del_mes["AJUSTE"].fillna(0).abs() > TOL_SALDO]
+                sin_motivo = False
+                saldo = float(del_mes.iloc[-1]["SALDO"])
+            else:
+                # DEUDA es solo lo que se le CARGÓ. El AJUSTE va aparte: fundirlo acá
+                # hacía que una corrección se leyera como deuda nueva.
+                deuda = float(del_mes["CARGO"].fillna(0).sum())
+                pago, abono_rezagado, declarado = _partir_pago(del_mes)
+                ajustes = del_mes[del_mes["TIPO_EVENTO"].astype(str).str.strip() == "AJUSTE"]
+                ajuste = float(ajustes["AJUSTE"].fillna(0).sum())
+                sin_motivo = (not ajustes.empty and
+                              ajustes["MOTIVO"].fillna("").astype(str).str.strip().eq("").all())
+                saldo = float(del_mes.sort_values("TIMESTAMP").iloc[-1]["SALDO"])
 
             _dat(ws.cell(row=row, column=c_deuda), deuda, "FFFBEB", pal[2], align="right")
             _dat(ws.cell(row=row, column=c_pago), pago, "FFFBEB", pal[3], align="right")
+            cell_r = ws.cell(row=row, column=c_abono)
+            if abono_rezagado <= TOL_SALDO:
+                cell_r.value = "·"
+                cell_r.fill = _fill("FFFBEB")
+                cell_r.font = Font(color=_argb("D1D5DB"), size=10)
+                cell_r.alignment = Alignment(horizontal="center", vertical="center")
+            else:
+                cell_r.value = abono_rezagado
+                cell_r.fill = _fill("FFFBEB")
+                cell_r.font = Font(color=_argb(_ABONO_REZAGADO_FG), bold=True, size=10)
+                cell_r.alignment = Alignment(horizontal="right", vertical="center")
+                cell_r.number_format = "#,##0.00"
             cell_d = ws.cell(row=row, column=c_decl)
             if declarado <= TOL_SALDO:
                 cell_d.value = "·"
@@ -1021,13 +1433,19 @@ def generar_vista(ruta: Path | None = None) -> Path:
     ruta = ruta or VISTA_PATH
     df = _leer_eventos()
     nombres = _lookup_nombres()
+    consumo = _proyectar_consumo_temporal(df)
 
     wb = Workbook()
     wb.remove(wb.active)
-    for concepto in CONCEPTOS_ORDEN:
+    resumen = _resumir_deudas_vista(df, consumo, nombres)
+    _escribir_hoja_resumen_deudas(wb.create_sheet("RESUMEN_DEUDAS"), resumen)
+    for concepto in CONCEPTOS_VISTA_ORDEN:
         ws = wb.create_sheet(concepto)
-        df_c = df[df["CONCEPTO"].astype(str).str.strip().str.upper() == concepto]
-        _escribir_hoja_vista(ws, concepto, df_c, nombres)
+        if concepto in consumo:
+            _escribir_hoja_vista(ws, concepto, consumo[concepto], nombres, resumida=True)
+        else:
+            df_c = df[df["CONCEPTO"].astype(str).str.strip().str.upper() == concepto]
+            _escribir_hoja_vista(ws, concepto, df_c, nombres)
 
     _escribir_hoja_ajustes(wb.create_sheet("Ajustes"), df, nombres)
 
@@ -1188,7 +1606,9 @@ def exportar_vista_pdf(ruta_xlsx: Path | None = None, ruta_pdf: Path | None = No
         page.insert_text((_PDF_PAGE_W - _PDF_M - 60, _PDF_PAGE_H - 12),
                          f"Pag. {i} de {len(doc)}", fontsize=7, fontname="helv", color=gris)
 
+    n_hojas = len(xl.sheet_names)
+    xl.close()
     doc.save(str(ruta_pdf))
     doc.close()
-    log.info(f"vista_seguimiento_pueblo PDF -> {ruta_pdf} ({len(xl.sheet_names)} hojas)")
+    log.info(f"vista_seguimiento_pueblo PDF -> {ruta_pdf} ({n_hojas} hojas)")
     return ruta_pdf

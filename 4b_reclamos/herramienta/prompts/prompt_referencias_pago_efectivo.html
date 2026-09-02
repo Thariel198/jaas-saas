@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Prompt — referencias_pago(): Efectivo/Yape oct-2025 a may-2026</title>
+<style>
+  body { font-family: Segoe UI, Arial, sans-serif; max-width: 900px; margin: 40px auto; padding: 0 20px; line-height: 1.55; color: #1a1a1a; background: #fff; }
+  h1 { font-size: 1.4em; border-bottom: 3px solid #2563eb; padding-bottom: 8px; }
+  h2 { font-size: 1.15em; color: #1d4ed8; margin-top: 2em; border-left: 4px solid #93c5fd; padding-left: 10px; }
+  code, pre { font-family: Consolas, "Courier New", monospace; }
+  pre { background: #0f172a; color: #e2e8f0; padding: 14px 16px; border-radius: 6px; overflow-x: auto; font-size: 0.88em; }
+  code { background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 0.9em; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 0.9em; }
+  th, td { border: 1px solid #cbd5e1; padding: 6px 10px; text-align: left; }
+  th { background: #eff6ff; }
+  .ok { color: #15803d; font-weight: 600; }
+  .bad { color: #b91c1c; font-weight: 600; }
+  .decision { background: #fefce8; border: 1px solid #fde047; border-radius: 6px; padding: 12px 16px; margin: 10px 0; }
+  ul { padding-left: 22px; }
+  .badge { display: inline-block; font-size: 0.75em; font-weight: 700; padding: 2px 8px; border-radius: 10px; margin-left: 6px; }
+  .badge.verif { background: #dcfce7; color: #166534; }
+</style>
+</head>
+<body>
+
+<h1>Prompt — referencias_pago(): leer columna real de Efectivo/Yape (oct-2025 → may-2026)</h1>
+
+<h2>Contexto</h2>
+<p><code>4b_reclamos/reporte_referencias_pago.py</code>, función <code>referencias_pago()</code>, rama histórica (líneas 137-169, un archivo por mes vía <code>_ARCHIVOS_HISTORICOS</code>).</p>
+<p>Hoy, para un pago en efectivo, el código hace:</p>
+<pre>out.append({"MES": mes, "MEDIO": "EFECTIVO", "FECHA_HORA": "--", "MONTO": monto_mes})</pre>
+<p><code>monto_mes</code> es el <code>TOTAL</code> que calculó <code>_fila_historica()</code> (suma de TODOS los conceptos de deuda del mes: Consumo+Mant+Mes_anterior+Corte+Convenio+Multa+Acuerdos) — no una lectura de la columna de efectivo del predio. El docstring del módulo promete leer "la hoja Efectivo dedicada" desde feb-2026; eso no existe en el código — <code>_cargar_hojas_historicas()</code> solo abre "Cobranza" y "Reporte".</p>
+
+<h2>Realidad verificada <span class="badge verif">no supuesta</span></h2>
+<p>Fuente: <code>obligaciones/inputs/planillas anteriores/</code>, hoja "Cobranza", los 8 archivos de <code>_ARCHIVOS_HISTORICOS</code> (2025-10 → 2026-05).</p>
+<ul>
+  <li><code>Estado == 'c'</code> → pagó ese mes. <code>NaN</code> → no pagó. Igual en los 8 archivos.</li>
+  <li><code>Medio == 'y'/'Y'</code> → yape. <code>Medio</code> vacío/<code>NaN</code> → efectivo. Igual en los 8.</li>
+  <li>Columnas <b>"Efectivo"</b> y <b>"Yape"</b>: existen literalmente en LOS 8 archivos (no solo desde feb-2026 como decía el docstring).</li>
+  <li>0 filas reales con Efectivo&gt;0 y Yape&gt;0 a la vez (solo la fila de TOTAL al pie del sheet, sin MZ/LT, ya excluida).</li>
+  <li><code>Total == Efectivo + Yape</code> para todas las filas pagadas con MZ/LT en los 8 archivos: <span class="ok">0 diferencias en 2673 filas revisadas</span>.</li>
+</ul>
+
+<p>Columnas <b>"Monto Efectivo"</b> / <b>"Yape rep"</b> solo existen desde feb-2026 (4 de 8 archivos) y <span class="bad">NO son un duplicado confiable</span>:</p>
+<table>
+<tr><th>Mes</th><th>Predio</th><th>Monto Efectivo / Yape rep</th><th>Pago real (Efectivo/Yape)</th></tr>
+<tr><td>2026-03</td><td>P-9</td><td>NaN</td><td>Yape S/435</td></tr>
+<tr><td>2026-04</td><td>K-8</td><td>8</td><td>S/117</td></tr>
+<tr><td>2026-04</td><td>K-9</td><td>8</td><td>S/22</td></tr>
+<tr><td>2026-04</td><td>O-12</td><td>8</td><td>S/116</td></tr>
+<tr><td>2026-04</td><td>W-6</td><td>8</td><td>S/16</td></tr>
+</table>
+<p>5 filas de 4 archivos donde "Monto Efectivo"/"Yape rep" no cuadra contra <code>Total</code> (que sí es confiable).</p>
+
+<p><code>_col(df, "Efectivo")</code> y <code>_col(df, "Yape")</code> resuelven por match EXACTO a las columnas literales "Efectivo"/"Yape", nunca a "Monto Efectivo"/"Yape rep" — confirmado ejecutando <code>_col()</code> contra el archivo de febrero (donde coexisten las 4 columnas). Sin colisión de nombres.</p>
+<p>No existe columna de fecha/hora para efectivo en ningún archivo histórico (a diferencia de yape, que cruza con la hoja "Reporte").</p>
+
+<h2>Decisiones ya cerradas <span style="font-weight:400; font-size:0.7em;">(no reabrir sin evidencia nueva)</span></h2>
+
+<div class="decision">
+<b>1.</b> Usar las columnas <b>"Efectivo"</b> y <b>"Yape"</b> — están en los 8 archivos y siempre cuadran contra <code>Total</code>. NO usar "Monto Efectivo"/"Yape rep": incompletas (feb-may) y ya demostrado que fallan en 5 filas reales.
+</div>
+<div class="decision">
+<b>2.</b> Si no existe un dato real (fecha/hora de efectivo), no se pone. Nada de placeholder <code>"--"</code> que aparente ser un dato — se omite el campo o queda vacío explícito.
+</div>
+<div class="decision">
+<b>3.</b> Sin ambigüedad de nombre de columna: <code>_col(df, "Efectivo")</code> / <code>_col(df, "Yape")</code> ya resuelven exacto, confirmado por ejecución real, no por lectura de código.
+</div>
+
+<h2>Cambio a implementar</h2>
+<p>En <code>referencias_pago()</code>, líneas 156-169, rama histórica: reemplazar el uso de <code>monto_mes</code> (el <code>TOTAL</code> agregado de conceptos) por el valor real de la columna <code>"Efectivo"</code> o <code>"Yape"</code> del predio en ese archivo/mes, usando <code>_col(df, "Efectivo")</code> / <code>_col(df, "Yape")</code> ya existentes en <code>reporte_historico.py</code> (importado como <code>rh</code>).</p>
+<p>Como <code>Total == Efectivo + Yape</code> siempre (0 diferencias verificadas), este cambio <b>no altera ningún monto ya mostrado</b> — es leer la columna que efectivamente corresponde al medio de pago en vez de reusar el total de deuda del mes, que hoy coincide por construcción (nunca hay pago mixto).</p>
+<p>No tocar la rama de yape (líneas 157-167) ni la lógica de fecha/hora de yape (<code>hojas.get("Reporte")</code>) — no está en discusión acá.</p>
+
+<h2>Verificación después del cambio</h2>
+<p>Repetir la comparación <code>Total vs Efectivo+Yape</code> sobre los 8 archivos y confirmar que el PDF de referencias para T-12, L-4 y F-9 (<code>4b_reclamos/reporte_referencias_pago.py::generar_pdf</code>) sigue mostrando los mismos montos en efectivo que mostraba antes del cambio — deben coincidir número por número, solo cambia la fuente de lectura.</p>
+
+<h2>Ejecutado <span class="badge verif">sesión 2026-08-19</span></h2>
+<div class="decision">
+<b>1.</b> Rama histórica de <code>referencias_pago()</code>: <code>monto_mes</code> (TOTAL de conceptos) reemplazado por <code>rh._val(sub.iloc[0], dfc, "Efectivo")</code> / <code>rh._val(sub.iloc[0], dfc, "Yape")</code> según el medio. <code>monto_mes</code> se conserva solo como gate de "hubo pago" (<code>continue</code> si &lt;= 0.005), no como el monto mostrado.
+</div>
+<div class="decision">
+<b>2.</b> El archivo venía de un <code>move</code> sin commitear (<code>4b_reclamos/reporte_referencias_pago.py</code> → <code>4b_reclamos/herramienta/</code>) con la migración a medio terminar — no relacionado al pedido original, pero bloqueaba poder correr y verificar el cambio de <b>1</b>:
+  <ul>
+    <li><code>sys.path</code> apuntaba a <code>4b_reclamos/shared</code> (no existe) en vez de <code>REPO_ROOT/shared</code>; faltaba agregar <code>BASE_DIR.parent</code> (4b_reclamos, para importar <code>reporte_convenio_multa</code>).</li>
+    <li><code>_ABONOS_REZAGADOS</code>/<code>_BLANCOS_EFECTIVO</code>/<code>trazabilidad_*.xlsx</code>/<code>planilla_cobrado.xlsx</code> usaban <code>BASE_DIR.parent</code> (4b_reclamos) en vez de <code>REPO_ROOT</code> (raíz del repo) — corregidos los 4.</li>
+    <li>Bloque duplicado de <code>comun.py</code> (<code>_ABONOS_REZAGADOS</code>, <code>_BLANCOS_EFECTIVO</code>, <code>_cache_overlays</code>, <code>_cargar_overlay()</code>, <code>_overlays_de_plata()</code>) — código muerto, <code>referencias_pago()</code> ya llamaba a la versión real vía <code>comun._overlays_de_plata()</code> — borrado.</li>
+    <li>4 llamadas sin prefijo a funciones que solo existen en <code>comun.py</code> (<code>_repo_de_ciclo</code> ×2, <code>_avisar_falta</code> ×2) — corregidas a <code>comun._repo_de_ciclo</code> / <code>comun._avisar_falta</code>.</li>
+  </ul>
+</div>
+<div class="decision">
+<b>3.</b> Bug aparte encontrado al verificar: <code>verificar_predio()</code> llamaba <code>referencias_pago(mz, lt)</code> sin pasar <code>tabla</code> — como la rama histórica de <code>referencias_pago()</code> solo arma filas cuando <code>tabla is not None</code>, el tramo oct-2025→may-2026 quedaba mudo (<code>refs=[]</code>) y <b>cada mes histórico se reportaba como "problema" en falso</b>, aunque el pago sí estuviera. Fix: <code>referencias_pago(mz, lt, tabla=tabla)</code>. Verificado: T-12/L-4/F-9 pasan de N "problemas" falsos a <code>[]</code>.
+</div>
+<p>Verificación real corrida: <code>generar_pdf()</code> para T-12/L-4/F-9 sin traceback (10 y 8 referencias con monto/fecha reales para L-4/F-9); <code>verificar_predio()</code> para los mismos 3 predios devuelve <code>[]</code>.</p>
+
+</body>
+</html>

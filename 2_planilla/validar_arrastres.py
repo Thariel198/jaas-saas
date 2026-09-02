@@ -1,9 +1,9 @@
 """
 validar_arrastres.py — reconciliación post-build de 2_planilla.
 
-Corre DESPUÉS de main.py. Vuelve a leer las 3 fuentes en vivo (arrastre_consolidado
-de 5_cobranza + seguimiento_repo) y compara, predio por predio, contra lo que quedó
-escrito en planilla_{mes}.xlsx. No corrige nada — solo reporta discrepancias.
+Corre DESPUÉS de main.py. Vuelve a leer las lecturas y los saldos de deuda usados
+por el build y compara, predio por predio, contra lo que quedó escrito en
+planilla_{mes}.xlsx. No corrige nada — solo reporta discrepancias.
 Contrato de formato: docs/formato_validacion_de_arrastres.html
 """
 import glob
@@ -16,7 +16,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 
 import config
-from main import _norm_mz, _norm_lt, _mes_anterior
+from main import CORTE_LEDGER, _load_saldos_cuenta, _norm_mz, _norm_lt, _mes_anterior
 
 sys.path.insert(0, str(config.BASE_DIR.parent / "shared"))
 import seguimiento_repo as repo  # noqa: E402
@@ -81,10 +81,12 @@ def _cargar_lecturas_origen(mes: str) -> pd.DataFrame | None:
 def _cargar_consolidado(mes_ant: str) -> pd.DataFrame | None:
     path = config.consolidado_path(mes_ant)
     if not path.exists():
+        path = config.consolidado_archivado_path(mes_ant)
+    if not path.exists():
         log.warning(f"arrastre_consolidado {mes_ant}: no encontrado — MES_ANTERIOR/CORTE_RECONEXION "
                     f"se saltan (mes de génesis o ciclo anterior sin cerrar)")
         return None
-    df = pd.read_excel(path, header=1, dtype=str)
+    df = pd.read_excel(path, sheet_name=config.CONSOLIDADO_SHEET, header=1, dtype=str)
     df["_mz"] = df["MZ"].map(_norm_mz)
     df["_lt"] = df["LT"].map(_norm_lt)
     for c in ("DEUDA_AGUA", "CORTE_RECONEXION"):
@@ -110,13 +112,17 @@ def comparar(mes: str) -> tuple[list[dict], list[dict]]:
     """Devuelve (resumen, discrepancias) — ver formato_validacion_de_arrastres.html."""
     mes_ant = _mes_anterior(mes)
     df_planilla = _cargar_planilla(mes)
-    df_cons = _cargar_consolidado(mes_ant)
+    df_cons = _cargar_consolidado(mes_ant) if mes <= CORTE_LEDGER else _load_saldos_cuenta(mes)
     df_lect = _cargar_lecturas_origen(mes)
 
     resumen = []
     discrepancias = []
 
     for dest_col, fuente_label, src_kind, src_key, tipo in CONCEPTOS:
+        if mes > CORTE_LEDGER and dest_col == "MES_ANTERIOR":
+            fuente_label = "seguimiento_repo.AGUA+MANTENIMIENTO"
+        elif mes > CORTE_LEDGER and dest_col == "CORTE_RECONEXION":
+            fuente_label = "seguimiento_repo.CORTE_RECONEXION"
         fuente = _fuente_dict(src_kind, src_key, df_cons, df_lect, mes_ant)
         if fuente is None:
             resumen.append({
@@ -170,20 +176,29 @@ def comparar(mes: str) -> tuple[list[dict], list[dict]]:
     if df_lect is not None:
         keys_lect = set(zip(df_lect["_mz"], df_lect["_lt"]))
         keys_pla = set(zip(df_planilla["_mz"], df_planilla["_lt"]))
+        extras_con_deuda = 0
         for k in sorted(keys_lect - keys_pla):
             discrepancias.append({"MZ": k[0], "LT": k[1], "CONCEPTO": "(MZ, LT)",
                                   "VALOR_FUENTE": "presente", "VALOR_PLANILLA": "ausente",
                                   "DIFERENCIA": "FALTA_EN_PLANILLA"})
         for k in sorted(keys_pla - keys_lect):
+            fila = df_planilla[(df_planilla["_mz"] == k[0]) & (df_planilla["_lt"] == k[1])].iloc[0]
+            deuda = sum(abs(float(fila[c])) for c in (
+                "MES_ANTERIOR", "CORTE_RECONEXION", "CONVENIO", "MULTA", "ACUERDOS_ASAMBLEA"
+            ))
+            if deuda > TOLERANCIA:
+                extras_con_deuda += 1
+                continue
             discrepancias.append({"MZ": k[0], "LT": k[1], "CONCEPTO": "(MZ, LT)",
                                   "VALOR_FUENTE": "ausente", "VALOR_PLANILLA": "presente",
                                   "DIFERENCIA": "SOBRA_EN_PLANILLA"})
-        n_cob = len(keys_lect ^ keys_pla)
+        n_cob = len(keys_lect - keys_pla) + len(keys_pla - keys_lect) - extras_con_deuda
         resumen.append({
             "CONCEPTO": "(MZ, LT)", "FUENTE": "lecturas_planilla (cobertura)",
             "TOTAL_PREDIOS": len(keys_lect | keys_pla),
-            "COINCIDEN": len(keys_lect & keys_pla),
-            "DISCREPANCIAS": n_cob, "NOTA": "",
+            "COINCIDEN": len(keys_lect & keys_pla) + extras_con_deuda,
+            "DISCREPANCIAS": n_cob,
+            "NOTA": f"{extras_con_deuda} sin lectura agregados por deuda viva",
         })
 
     return resumen, discrepancias

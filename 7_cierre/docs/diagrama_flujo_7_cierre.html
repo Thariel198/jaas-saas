@@ -181,12 +181,12 @@ h1 { font-size: 17px; color: #1A5276; margin-bottom: 4px; }
        ══════════════════════════════════════════ -->
   <div class="timeline-bar">
 
-    <!-- FASE 1 — 5b_validacion (prerequisito) -->
+    <!-- FASE 1 — proyección final + validación -->
     <div class="phase">
-      <div class="phase-label lbl-blue">① Prerequisito</div>
-      <div class="script-box sb-blue">5b_validacion</div>
+      <div class="phase-label lbl-blue">① Preparar</div>
+      <div class="script-box sb-blue">5_cobranza --force final<br>+ 5b_validacion</div>
       <div class="down-arrow">↓</div>
-      <div class="file-pill fp-audit">estado_ciclo.json<br><span style="font-weight:normal;font-size:9px;">arrastre.validado = true</span></div>
+      <div class="file-pill fp-audit">snapshot_ledger + hash<br><span style="font-weight:normal;font-size:9px;">validado contra la proyección final</span></div>
     </div>
 
     <!-- ARROW 1→2 -->
@@ -200,10 +200,11 @@ h1 { font-size: 17px; color: #1A5276; margin-bottom: 4px; }
       <div class="phase-label lbl-green">② 7_cierre</div>
       <div class="script-box sb-green">consolidar_cierre.py --mes 2026-06</div>
       <div class="down-arrow">↓</div>
-      <div class="step-pill sp-gate">PASO 1 · GATE<span class="step-note">¿validado==true? NO → aborta</span></div>
-      <div class="step-pill sp-cosec">PASO 2 · COSECHAR<span class="step-note">canónicos + fuentes de pago → archivo/2026-06/</span></div>
-      <div class="step-pill sp-freeze">PASO 3 · FREEZE<span class="step-note">estado_ciclo[mes].estado = CERRADO</span></div>
-      <div class="step-pill sp-limp">PASO 4 · LIMPIAR<span class="step-note">reset mesa_*/correcciones · borra basura</span></div>
+      <div class="step-pill sp-gate">PASO 1 · GATE HASH<span class="step-note">snapshot validado y sin cambios</span></div>
+      <div class="step-pill sp-cosec">PASO 2 · COSECHAR<span class="step-note">canónicos + snapshot → archivo/2026-06/</span></div>
+      <div class="step-pill sp-freeze">PASO 3 · COMMIT LEDGER<span class="step-note">append batch atómico · verifica saldos</span></div>
+      <div class="step-pill sp-freeze">PASO 4 · FREEZE<span class="step-note">ledger comprometido + estado CERRADO</span></div>
+      <div class="step-pill sp-limp">PASO 5 · LIMPIAR<span class="step-note">reset mesa_*/correcciones · borra basura</span></div>
     </div>
 
     <!-- ARROW 2→3 -->
@@ -250,15 +251,14 @@ h1 { font-size: 17px; color: #1A5276; margin-bottom: 4px; }
   <div class="baldes-title">Los 3 baldes — qué toca 7_cierre y qué no</div>
   <div class="baldes-row">
     <div class="balde b1">
-      <span class="balde-title">BALDE 1 · Permanente — NO SE TOCA</span>
-      Ledgers/acumuladores. Viven siempre, julio les hace <i>append</i>. Se consultan
-      vivos filtrando por período (no se fotografían).<br><br>
+      <span class="balde-title">BALDE 1 · Permanente — COMMIT ÚNICO</span>
+      Ledgers/acumuladores. Solo 7_cierre hace el <i>append</i> mensual desde el snapshot validado.<br><br>
       seguimiento_pueblo · blancos_acumulados · trazabilidad_cobranza · registro_operario_acumulado
     </div>
     <div class="balde b2">
       <span class="balde-title">BALDE 2 · Arrastre del mes — SE COSECHA</span>
       Canónicos derivados + fuentes de pago mutables del período. Julio lee el arrastre desde acá.<br><br>
-      arrastre_consolidado · planilla_cobrado · arrastre_devolucion · mesa_1..7 · correcciones_lote
+      planilla_cobrado.xlsx (3 hojas) · snapshot_ledger.json · mesa_1..7 · correcciones_lote
     </div>
     <div class="balde b3">
       <span class="balde-title">BALDE 3 · Temporal — SE LIMPIA</span>

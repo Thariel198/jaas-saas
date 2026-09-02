@@ -1,12 +1,13 @@
 """5_cobranza/main.py — Carga pagos en planilla · genera estado de cobro
 
 Lee planilla (de 2_planilla) + pagos_yape + pagos_efectivo (de 4_pagos).
-Genera 5 outputs:
-  · planilla_cobrado.xlsx          — copia enriquecida con pagos + SALDO + ESTADO
+Genera outputs provisionales y un snapshot determinista para el cierre:
+  · planilla_cobrado_YYYY-MM.xlsx  — copia enriquecida con pagos + SALDO + ESTADO
   · trazabilidad_cobranza.xlsx     — un registro por pago cargado (acumulada)
   · resumen_recaudacion.xlsx       — totales del mes
   · arrastre_deuda_YYYY-MM.xlsx    — SALDO>0  → 2_planilla del próximo mes
-  · arrastre_devolucion_YYYY-MM.xlsx — SALDO<0 → excesos pendientes de reclamo
+  · planilla_cobrado_YYYY-MM.xlsx — planilla + arrastres consolidado/devolucion
+  · snapshot_ledger_YYYY-MM.json — objetivo del ledger; no lo escribe
 
 SALDO sale como columna explícita en planilla_cobrado — la lista de corte la
 genera 6_corte/generar_lista.py leyendo SALDO + MES_ANTERIOR desde acá.
@@ -15,6 +16,7 @@ Idempotente: si los pagos no cambiaron respecto a la trazabilidad existente,
 sale sin modificar nada.
 """
 import json
+import hashlib
 import logging
 import re
 import shutil
@@ -111,6 +113,7 @@ DEUDA_CORRECCIONES_PATH = SHARED_DIR / "deuda_correcciones.xlsx"
 # usa la misma cascada que reidentificación (sin mes_actual/mantenimiento).
 # Precursor manual de caja.MovimientoCaja (libro_mayor). Writer único humano.
 ABONOS_REZAGADOS_PATH = SHARED_DIR / "abonos_rezagados.xlsx"
+ABONOS_MANIFEST_PATH = INPUTS_DIR / "abonos_rezagados_manifest_2026-08.json"
 
 # Overlay de blancos de efectivo — pagos en efectivo que entraron a la caja de
 # un ciclo anterior sin MZ/LT (bug B6: efectivo no ruteaba blancos, a
@@ -226,12 +229,13 @@ TD_AD_TRAZ   = "F0FFF8"
 GH_AC_QUIEN = ("E8F8F5", "0E6655")
 GH_AC_TOTAL = ("1E8449", "FFFFFF")
 # (header_bg, header_txt, cell_bg, cell_txt) por componente en orden de prioridad
+# El orden es POSICIONAL contra sin_cubrir de _descomponer_saldo — ver su docstring
 _AC_P = [
     ("DEUDA_AGUA",        "EAF2FF", "1A5276", "F4F9FF", "1A5276"),  # P1
     ("CORTE_RECONEXION",  "FEF3C7", "92400E", "FFFBEB", "92400E"),  # P2
-    ("MULTA",             "FEF2F2", "991B1B", "FFF5F5", "991B1B"),  # P3
+    ("CONVENIO",          "E0F2FE", "0C4A6E", "F0F9FF", "0369A1"),  # P3
     ("ACUERDOS_ASAMBLEA", "EDE9FE", "4C1D95", "F5F3FF", "4C1D95"),  # P4
-    ("CONVENIO",          "E0F2FE", "0C4A6E", "F0F9FF", "0369A1"),  # P5
+    ("MULTA",             "FEF2F2", "991B1B", "FFF5F5", "991B1B"),  # P5
 ]
 TD_AC_QUIEN = "F0FFF8"
 TD_AC_TOTAL = "D5F5E3"
@@ -420,7 +424,8 @@ def _fecha_hora_str(val) -> str:
         s = str(val).strip()
         if not s or s.upper() in ("NAN", "NAT", "NONE"):
             return ""
-        dt = pd.to_datetime(s, dayfirst=True, errors="coerce")
+        es_iso = bool(re.match(r"\d{4}-\d{1,2}-\d{1,2}", s))
+        dt = pd.to_datetime(s, dayfirst=not es_iso, errors="coerce")
         if pd.isna(dt):
             return _fecha_str(val)
     # sin componente horario → solo fecha
@@ -445,7 +450,8 @@ def _fecha_hora_seg_str(val) -> str:
         s = str(val).strip()
         if not s or s.upper() in ("NAN", "NAT", "NONE"):
             return ""
-        dt = pd.to_datetime(s, dayfirst=True, errors="coerce")
+        es_iso = bool(re.match(r"\d{4}-\d{1,2}-\d{1,2}", s))
+        dt = pd.to_datetime(s, dayfirst=not es_iso, errors="coerce")
         if pd.isna(dt):
             return _fecha_str(val)
     if dt.hour == 0 and dt.minute == 0 and dt.second == 0:
@@ -628,13 +634,40 @@ def _cargar_genesis_tardia(mes_ano: str) -> dict[tuple[str, str], list[tuple[str
     return por_predio
 
 
-# Orden de cascada para créditos de reidentificación sin CONCEPTO_DESTINO —
-# igual a P1-P5 de _descomponer_saldo pero SIN mes_actual/mantenimiento: la
-# deuda mal atribuida es de un ciclo YA CERRADO, no debe cancelar el consumo
-# vigente del mes en curso.
+# Un pago de ciclo cerrado cubre primero la deuda anterior y los conceptos que
+# quedaron pendientes; si sobra, continúa con el consumo del ciclo vigente.
 _CAMPOS_WATERFALL_REIDENTIFICACION = (
-    "mes_anterior", "corte_reconexion", "multa", "acuerdos_asamblea", "convenio",
+    "mes_anterior", "corte_reconexion", "convenio", "acuerdos_asamblea", "multa",
+    "mes_actual", "mantenimiento",
 )
+
+# Cascada COMPLETA (P1 entero + P2-P5) para el crédito cuyo MES_CICLO es el ciclo
+# en curso. Un abono rezagado NO es "plata de un ciclo anterior": es plata real que
+# no puede entrar por la mesa porque llegó fuera de la ventana del registro manual
+# — y eso pasa también días después del cobro, dentro del mismo ciclo. Con la tupla
+# de arriba esa plata no encontraba balde donde caer (mes_actual y mantenimiento no
+# están) y el sobrante se descartaba en silencio: 5 predios, S/99, el 14/08/2026.
+# Los 3 campos de agua viven todos en P1 de _descomponer_saldo, así que repartir
+# entre ellos no cambia ningún total ni cruza al ledger de pueblo.
+_CAMPOS_WATERFALL_CICLO_VIGENTE = (
+    "mes_anterior", "mes_actual", "mantenimiento",
+    "corte_reconexion", "convenio", "acuerdos_asamblea", "multa",
+)
+
+
+def _aplicar_waterfall(u: dict, monto: float, campos: tuple[str, ...]) -> float:
+    """Descuenta `monto` de los campos de deuda de `u` en orden. Devuelve lo que
+    sobró (0.0 si se aplicó todo). El sobrante es plata real sin deuda contra la
+    cual imputarse — quien llama decide qué hacer, pero nunca lo ignora en silencio."""
+    restante = monto
+    for c in campos:
+        if restante <= TOL:
+            break
+        aplicar = min(u[c], restante)
+        if aplicar > TOL:
+            u[c] = round(u[c] - aplicar, 2)
+            restante = round(restante - aplicar, 2)
+    return restante
 
 
 def _cargar_reidentificaciones(mes_ano: str) -> dict[tuple[str, str], list[tuple[float, str | None]]]:
@@ -688,19 +721,69 @@ def _cargar_correcciones_deuda(mes_ano: str) -> dict[tuple[str, str], list[tuple
     return por_predio
 
 
-def _cargar_abonos_rezagados(mes_ano: str) -> dict[tuple[str, str], float]:
-    """Abonos de un ciclo anterior que no llegaron a la caja JASS en su momento
-    (cobrador retuvo el yape) y se regularizan ahora. Filtra por MES_ANO_APLICA:
-    se aplica una sola vez. El monto salda deuda del ciclo viejo → en el mes en
-    curso aparece como MES_ANTERIOR; se reparte en cascada (ver
-    _CAMPOS_WATERFALL_REIDENTIFICACION), sin tocar el consumo vigente. Suma por
-    predio (un predio podría tener >1 abono rezagado).
+def _abono_manifest_key(row) -> tuple[str, str, float, str, str]:
+    return (
+        _norm_mz(row.get("MZ")),
+        _norm_lt(row.get("LT")),
+        round(_float(row.get("MONTO")), 2),
+        str(row.get("MES_CICLO", "")).strip()[:7],
+        str(row.get("MES_ANO_APLICA", "")).strip()[:7],
+    )
+
+
+def _validar_abonos_manifest(df: pd.DataFrame, mes_ano: str) -> pd.DataFrame:
+    """Fail closed if the active source differs from the approved manifest."""
+    if not ABONOS_MANIFEST_PATH.exists():
+        raise RuntimeError(f"Falta manifest de abonos: {ABONOS_MANIFEST_PATH}")
+    manifest = json.loads(ABONOS_MANIFEST_PATH.read_text(encoding="utf-8"))
+    expected = {
+        _abono_manifest_key(row): row.get("ESTADO", "CONFIRMADO")
+        for row in manifest
+        if str(row.get("MES_ANO_APLICA", "")).strip()[:7] == mes_ano
+    }
+    active = df[df["MES_ANO_APLICA"].astype(str).str.strip().str[:7] == mes_ano].copy()
+    keys = [_abono_manifest_key(row) for row in active.to_dict("records")]
+    counts = pd.Series(keys).value_counts() if keys else pd.Series(dtype="int64")
+    unexpected = [key for key in keys if key not in expected]
+    duplicated = [key for key, count in counts.items() if count > 1]
+    missing = [key for key, status in expected.items() if status == "CONFIRMADO" and key not in counts]
+    blocked = [key for key in keys if expected.get(key) == "BLOQUEADO"]
+    if unexpected or duplicated or missing or blocked:
+        raise RuntimeError(
+            "Manifest de abonos no coincide: "
+            f"inesperados={unexpected} duplicados={duplicated} "
+            f"faltantes={missing} bloqueados={blocked}"
+        )
+    confirmed = active[[key in expected and expected[key] == "CONFIRMADO" for key in keys]]
+    log.info(f"Manifest abonos OK · {len(confirmed)} fila(s) confirmada(s) para {mes_ano}")
+    return confirmed
+
+
+def _cargar_abonos_rezagados(mes_ano: str) -> dict[tuple[str, str], tuple[float, float]]:
+    """Pagos normales que llegaron fuera de la ventana de cobro.
+
+    En esta etapa solo entran filas BALDE=agua; los destinos especiales se
+    mantienen fuera hasta resolver su overlay propio. Filtra por
+    MES_ANO_APLICA: se aplica una sola vez.
+
+    Devuelve {(mz, lt): (monto_ciclo_cerrado, monto_ciclo_vigente)} — la fila declara
+    a qué ciclo pertenece en MES_CICLO y eso decide con qué cascada baja:
+
+        MES_CICLO <  mes_ano   deuda de un ciclo cerrado → _CAMPOS_WATERFALL_REIDENTIFICACION
+                               (sin mes_actual/mantenimiento: no cancela el consumo vigente)
+        MES_CICLO == mes_ano   pago del ciclo en curso    → _CAMPOS_WATERFALL_CICLO_VIGENTE
+                               (P1 completo, igual que un pago de mesa)
+
+    MES_CICLO vacío o ilegible cae en "cerrado" — el comportamiento previo.
+    El [:7] tolera que Excel guarde la celda como fecha ("2026-08-01 00:00:00").
+    Suma por predio y por ciclo (un predio puede tener >1 abono, de ciclos distintos).
     """
     if not ABONOS_REZAGADOS_PATH.exists():
         return {}
     df = pd.read_excel(ABONOS_REZAGADOS_PATH, header=1)
     df.columns = _norm_cols(df)
-    por_predio: dict[tuple[str, str], float] = {}
+    df = _validar_abonos_manifest(df, mes_ano)
+    por_predio: dict[tuple[str, str], tuple[float, float]] = {}
     for _, f in df.iterrows():
         if str(f.get("MES_ANO_APLICA", "")).strip() != mes_ano:
             continue
@@ -709,7 +792,12 @@ def _cargar_abonos_rezagados(mes_ano: str) -> dict[tuple[str, str], float]:
         monto = _float(f.get("MONTO"))
         if not mz or not lt or monto <= TOL:
             continue
-        por_predio[(mz, lt)] = round(por_predio.get((mz, lt), 0.0) + monto, 2)
+        vigente = str(f.get("MES_CICLO", "")).strip()[:7] == mes_ano
+        cerr, vig = por_predio.get((mz, lt), (0.0, 0.0))
+        if vigente:
+            por_predio[(mz, lt)] = (cerr, round(vig + monto, 2))
+        else:
+            por_predio[(mz, lt)] = (round(cerr + monto, 2), vig)
     return por_predio
 
 
@@ -830,6 +918,7 @@ def _cargar_planilla(plan_path: Path) -> tuple[list[dict], str]:
             "mantenimiento":     _float(f.get("MANTENIMIENTO")),
             "mes_anterior":      _float(f.get("MES_ANTERIOR")),
             "corte_reconexion":  _float(f.get("CORTE_RECONEXION")),
+            "corte_reconexion_base": _float(f.get("CORTE_RECONEXION")),
             "convenio":          _float(f.get("CONVENIO")),
             "multa":             _float(f.get("MULTA")),
             "acuerdos_asamblea": _float(f.get("ACUERDOS_ASAMBLEA")),
@@ -902,24 +991,6 @@ def _cargar_planilla(plan_path: Path) -> tuple[list[dict], str]:
                 u[campo] = round(u[campo] + monto, 2)
                 n += 1
         log.info(f"Overlay génesis tardía · {n} cargo(s) sembrado(s)")
-
-    rezagados = _cargar_abonos_rezagados(mes_ano)
-    if rezagados:
-        n = 0
-        for u in usuarios:
-            monto = rezagados.get((u["mz"], u["lt"]), 0.0)
-            if monto <= TOL:
-                continue
-            restante = monto
-            for c in _CAMPOS_WATERFALL_REIDENTIFICACION:
-                if restante <= TOL:
-                    break
-                aplicar = min(u[c], restante)
-                if aplicar > TOL:
-                    u[c] = round(u[c] - aplicar, 2)
-                    restante = round(restante - aplicar, 2)
-            n += 1
-        log.info(f"Overlay abonos rezagados · {n} crédito(s) aplicado(s)")
 
     blancos_efectivo = _cargar_blancos_efectivo(mes_ano)
     if blancos_efectivo:
@@ -1177,9 +1248,12 @@ def _devueltos_por_lote(dev_devuelto: dict) -> dict:
     return {k: "yape" for k, v in dev_devuelto.items() if v > TOL}
 
 
-def _retornos_planilla_previa() -> dict:
+def _retornos_planilla_previa(mes_ano: str) -> dict:
     """Lee el estado RETORNO de la planilla_cobrado anterior — para detectar cambios e idempotencia."""
-    path = OUTPUTS_DIR / "planilla_cobrado.xlsx"
+    path = ciclo_activo.resolver(
+        OUTPUTS_DIR, "planilla_cobrado", mes_ano,
+        legacy_sin_periodo=ciclo_activo.acepta_legacy(mes_ano),
+    )
     if not path.exists():
         return {}
     try:
@@ -1213,13 +1287,20 @@ def _identidad_pago(p: dict) -> tuple:
             p["monto"], p["fuente"],
             p["fecha"], p["ciclo_correccion"])
 
-def _cargar_trazabilidad_previa() -> tuple[set, int]:
+def _cargar_trazabilidad_previa(pagos_actuales: list[dict] | None = None) -> tuple[set, int]:
     """Retorna (set de identidades ya cargadas, max CICLO_COBRANZA usado)."""
     p = OUTPUTS_DIR / "trazabilidad_cobranza.xlsx"
     if not p.exists():
         return set(), 0
     df = pd.read_excel(p, header=1)
     df.columns = _norm_cols(df)
+    fechas_fuente: dict[tuple, set[str]] = {}
+    for pago in pagos_actuales or []:
+        base = (pago.get("mz_origen", pago["mz"]),
+                pago.get("lt_origen", pago["lt"]),
+                pago["monto"], pago["fuente"], pago["ciclo_correccion"])
+        fechas_fuente.setdefault(base, set()).add(pago["fecha"])
+
     ids, mx = set(), 0
     for _, f in df.iterrows():
         # Si el pago fue corregido, MZ_ORIGEN/LT_ORIGEN guardan la identidad real
@@ -1228,11 +1309,14 @@ def _cargar_trazabilidad_previa() -> tuple[set, int]:
         lt = _norm_lt(f.get("LT_ORIGEN")) or _norm_lt(f.get("LT"))
         if not mz or not lt:
             continue
-        ident = (mz, lt,
-                 round(_float(f.get("MONTO")), 2),
-                 str(f.get("FUENTE", "")).strip().lower(),
-                 _fecha_str(f.get("FECHA")) if "FECHA" in df.columns else "",
-                 int(_float(f.get("CICLO_CORRECCION_ORIGEN")) or 0))
+        monto = round(_float(f.get("MONTO")), 2)
+        fuente = str(f.get("FUENTE", "")).strip().lower()
+        ciclo_origen = int(_float(f.get("CICLO_CORRECCION_ORIGEN")) or 0)
+        fecha = _fecha_str(f.get("FECHA")) if "FECHA" in df.columns else ""
+        candidatas = fechas_fuente.get((mz, lt, monto, fuente, ciclo_origen), set())
+        if len(candidatas) == 1:
+            fecha = next(iter(candidatas))
+        ident = (mz, lt, monto, fuente, fecha, ciclo_origen)
         ids.add(ident)
         mx = max(mx, int(_float(f.get("CICLO_COBRANZA")) or 0))
     return ids, mx
@@ -1418,8 +1502,10 @@ def _calcular(usuarios: list[dict],
               dev_devuelto: dict,
               ciclo_nuevo: int,
               pagos_nuevos: set,
-              aportes_tanque: dict | None = None) -> tuple[list[dict], set]:
+              aportes_tanque: dict | None = None,
+              abonos_rezagados: dict | None = None) -> tuple[list[dict], set]:
     aportes_tanque = aportes_tanque or {}
+    abonos_rezagados = abonos_rezagados or {}
     yape_por_key: dict[str, list[dict]] = {}
     efec_por_key: dict[str, list[dict]] = {}
     for p in pagos_yape:
@@ -1462,14 +1548,21 @@ def _calcular(usuarios: list[dict],
         retorno_badge = _retorno_badge(yape_dev_lote, efec_dev_lote)
         devuelto_badge = "yape" if devuelto_lote > TOL else None
 
-        pagado = round(yape_neto + efec_sum, 2)
+        pagado_normal = round(yape_neto + efec_sum, 2)
+
+        abono_cerrado, abono_vigente = abonos_rezagados.get(
+            (u["mz"], u["lt"]), (0.0, 0.0)
+        )
+        abono_rezagado = round(abono_cerrado + abono_vigente, 2)
+        pagado = round(pagado_normal + abono_rezagado, 2)
 
         # Aporte al tanque mezclado en el mismo pago — se saca de total_pagado
         # ANTES de la cascada P1-P6 (ver _cargar_aportes_tanque_manuales),
         # para que no se cuente como pago de deuda además de aporte voluntario.
         aporte_tanque_aplicar = round(aportes_tanque.get(k, 0.0), 2)
         if aporte_tanque_aplicar > TOL:
-            pagado = round(max(pagado - aporte_tanque_aplicar, 0.0), 2)
+            pagado_normal = round(max(pagado_normal - aporte_tanque_aplicar, 0.0), 2)
+            pagado = round(pagado_normal + abono_rezagado, 2)
 
         blanco_aplicar = round(blancos.get(k, 0.0), 2)
         if blanco_aplicar > TOL:
@@ -1504,6 +1597,10 @@ def _calcular(usuarios: list[dict],
             "monto_yape":     yape_neto,
             "monto_efectivo": efec_sum,
             "total_pagado":   pagado,
+            "total_pagado_normal": pagado_normal,
+            "abono_rezagado": abono_rezagado,
+            "abono_rezagado_cerrado": abono_cerrado,
+            "abono_rezagado_vigente": abono_vigente,
             "saldo":          saldo,
             "estado":         _estado(saldo, pagado),
             "fecha_pago":     _fecha_max(fechas),
@@ -1527,7 +1624,7 @@ def _calcular(usuarios: list[dict],
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-#  OUTPUT 1 — planilla_cobrado.xlsx
+#  OUTPUT 1 — planilla_cobrado_YYYY-MM.xlsx
 # ─────────────────────────────────────────────────────────────────────────────
 # Layout (matching planilla_cobrado_diseno.html):
 #   1- 4  ¿Quién es?     MZ LT NOMBRE MES_ANO
@@ -1539,9 +1636,10 @@ def _calcular(usuarios: list[dict],
 #  17-18  Descuentos     BLANCO DEVOLUCION
 #  19     Total          TOTAL_A_PAGAR
 #  20     sep
-#  21-26  Pago→5_cob     MONTO_YAPE MONTO_EFECTIVO SALDO RETORNO ESTADO FECHA_PAGO
-#  27     sep
-#  28     ¿Cuándo?       CICLO_COBRANZA
+#  21-28  Pago→5_cob     MONTO_YAPE MONTO_EFECTIVO ABONO_REZAGADO SALDO
+#                         RETORNO DEVUELTO ESTADO FECHA_PAGO
+#  29     sep
+#  30     ¿Cuándo?       CICLO_COBRANZA
 #
 # SALDO se expone como columna del contrato — la consumen 6_corte y futuras
 # tools sin re-implementar la fórmula (total − pagado).
@@ -1553,8 +1651,8 @@ _PC_GRUPOS = [
     (10, 16, "Cobro — cargos",       *GH_COB),
     (17, 18, "Descuentos",           *GH_DESC),
     (19, 19, "Total",                *GH_TOTAL),
-    (21, 27, "Pago → 5_cobranza",    *GH_PAGO),
-    (29, 29, "¿Cuándo?",             *GH_TRAZ),
+    (21, 28, "Pago → 5_cobranza",    *GH_PAGO),
+    (30, 30, "¿Cuándo?",             *GH_TRAZ),
 ]
 _PC_COLS = [
     (1,  "MZ",                *GH_QUIEN,   6),
@@ -1576,17 +1674,18 @@ _PC_COLS = [
     (19, "TOTAL_A_PAGAR",     *GH_TOTAL,  13),
     (21, "MONTO_YAPE",        *GH_PAGO,   11),
     (22, "MONTO_EFECTIVO",    *GH_PAGO,   14),
-    (23, "SALDO",             *GH_PAGO,   12),
-    (24, "RETORNO",           *GH_PAGO,   10),
-    (25, "DEVUELTO",          *GH_PAGO,   10),
-    (26, "ESTADO",            *GH_PAGO,   11),
-    (27, "FECHA_PAGO",        *GH_PAGO,   11),
-    (29, "CICLO_COBRANZA",    *GH_TRAZ,   14),
+    (23, "ABONO_REZAGADO",    *GH_PAGO,   16),
+    (24, "SALDO",             *GH_PAGO,   12),
+    (25, "RETORNO",           *GH_PAGO,   10),
+    (26, "DEVUELTO",          *GH_PAGO,   10),
+    (27, "ESTADO",            *GH_PAGO,   11),
+    (28, "FECHA_PAGO",        *GH_PAGO,   11),
+    (30, "CICLO_COBRANZA",    *GH_TRAZ,   14),
 ]
-_PC_SEP_COLS = [5, 9, 20, 28]
+_PC_SEP_COLS = [5, 9, 20, 29]
 
 
-def _exportar_planilla_cobrado(resultado: list[dict]):
+def _exportar_planilla_cobrado(resultado: list[dict], mes_ano: str):
     wb = Workbook()
     ws = wb.active
     ws.title = "planilla_cobrado"
@@ -1666,62 +1765,62 @@ def _exportar_planilla_cobrado(resultado: list[dict]):
         else:
             _c(ws, ri, 21, None, TD_PAGO, "5B21B6", mono=True, align="right")
         _pag(22, r["monto_efectivo"])
+        _pag(23, r["abono_rezagado"])
 
         # SALDO — total − pagado. Puede ser positivo (debe), 0 (cancelado),
         # negativo (exceso). Lo expone como columna del contrato para que
         # 6_corte y otras tools lean directo sin re-computar.
         saldo_val = r["saldo"]
         if abs(saldo_val) > TOL:
-            _c(ws, ri, 23, saldo_val, TD_PAGO, "5B21B6",
+            _c(ws, ri, 24, saldo_val, TD_PAGO, "5B21B6",
                mono=True, align="right", bold=True, fmt=MONEY)
         else:
-            _c(ws, ri, 23, 0, TD_PAGO, "5B21B6",
+            _c(ws, ri, 24, 0, TD_PAGO, "5B21B6",
                mono=True, align="right", fmt=MONEY)
 
         # RETORNO badge (vacio si no hubo retorno)
         if r["retorno"]:
             ret_bg  = RETORNO_BG.get(r["retorno"], "FFFFFF")
             ret_txt = RETORNO_TXT.get(r["retorno"], "333333")
-            c_ret = ws.cell(row=ri, column=24, value=r["retorno"])
+            c_ret = ws.cell(row=ri, column=25, value=r["retorno"])
             c_ret.font      = Font(name="Arial", size=9, bold=True, color=ret_txt)
             c_ret.fill      = PatternFill("solid", start_color=ret_bg)
             c_ret.alignment = Alignment(horizontal="center", vertical="center")
             c_ret.border    = _borde()
         else:
-            _c(ws, ri, 24, None, TD_PAGO, "5B21B6", mono=True, align="center")
+            _c(ws, ri, 25, None, TD_PAGO, "5B21B6", mono=True, align="center")
 
         # DEVUELTO badge — PAGASTE devolucion aplicado a este lote
         if r.get("devuelto"):
             dev_bg  = RETORNO_BG.get(r["devuelto"], "FFFFFF")
             dev_txt = RETORNO_TXT.get(r["devuelto"], "333333")
-            c_dev = ws.cell(row=ri, column=25, value=r["devuelto"])
+            c_dev = ws.cell(row=ri, column=26, value=r["devuelto"])
             c_dev.font      = Font(name="Arial", size=9, bold=True, color=dev_txt)
             c_dev.fill      = PatternFill("solid", start_color=dev_bg)
             c_dev.alignment = Alignment(horizontal="center", vertical="center")
             c_dev.border    = _borde()
         else:
-            _c(ws, ri, 25, None, TD_PAGO, "5B21B6", mono=True, align="center")
+            _c(ws, ri, 26, None, TD_PAGO, "5B21B6", mono=True, align="center")
 
         # ESTADO badge
         est_bg  = ESTADO_BG.get(r["estado"], "FFFFFF")
         est_txt = ESTADO_TXT.get(r["estado"], "333333")
-        c_est = ws.cell(row=ri, column=26, value=r["estado"])
+        c_est = ws.cell(row=ri, column=27, value=r["estado"])
         c_est.font      = Font(name="Arial", size=9, bold=True, color=est_txt)
         c_est.fill      = PatternFill("solid", start_color=est_bg)
         c_est.alignment = Alignment(horizontal="center", vertical="center")
         c_est.border    = _borde()
 
-        _c(ws, ri, 27, r["fecha_pago"] or None, TD_PAGO, "7C3AED",
+        _c(ws, ri, 28, r["fecha_pago"] or None, TD_PAGO, "7C3AED",
            mono=True, align="center")
 
         # CICLO_COBRANZA
-        _c(ws, ri, 29, r["ciclo_cobranza"], TD_TRAZ, "7D6608",
+        _c(ws, ri, 30, r["ciclo_cobranza"], TD_TRAZ, "7D6608",
            mono=True, align="center", bold=True)
 
         ws.row_dimensions[ri].height = 17
 
-    wb.save(OUTPUTS_DIR / "planilla_cobrado.xlsx")
-    log.info(f"planilla_cobrado.xlsx → {len(resultado)} filas")
+    return wb, OUTPUTS_DIR / f"planilla_cobrado_{mes_ano}.xlsx"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1828,8 +1927,6 @@ def _exportar_trazabilidad_cobranza(
             "fecha_hora": p.get("fecha_hora", "") or p.get("fecha", ""),
         }
     for t in previas:
-        if t.get("referencia") and t.get("comentario"):
-            continue
         src = enriq.get((t["mz"], t["lt"], round(t["monto"], 2), t["fuente"]))
         if not src:
             continue
@@ -2085,7 +2182,7 @@ def _exportar_arrastre_deuda(resultado: list[dict], mes_ano: str):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-#  OUTPUT 5 — arrastre_devolucion_YYYY-MM.xlsx
+#  HOJA 2 — arrastre_devolucion dentro de planilla_cobrado_YYYY-MM.xlsx
 #  Paralelo a arrastre_deuda · misma estructura · paleta azul EXCESO.
 #  monto = |saldo| (positivo · lo que la JASS le debe al usuario).
 # ─────────────────────────────────────────────────────────────────────────────
@@ -2124,19 +2221,21 @@ def _backup_arrastre_devolucion(ruta: Path) -> Path | None:
     return bk
 
 
-def _leer_revision_previa(ruta: Path) -> dict:
+def _leer_revision_previa(ruta: Path, hoja: str | None = None) -> dict | None:
     """Lee REVISION y ESTADO ya tipeados en arrastre_devolucion, keyed por
     (mz, lt) → {"revision": ..., "estado": ...}, para no borrar el trabajo
     manual del operador al regenerar el archivo (Regla 9 — 3 capas)."""
     previo = {}
     if not ruta.exists():
-        return previo
+        return None if hoja else previo
     try:
         wb = load_workbook(ruta, data_only=True)
     except Exception as e:
         log.warning(f"No se pudo leer REVISION/ESTADO previo: {e}")
-        return previo
-    ws = wb.active
+        return None if hoja else previo
+    if hoja and hoja not in wb.sheetnames:
+        return None
+    ws = wb[hoja] if hoja else wb.active
     hdrs = {str(ws.cell(2, c).value or "").strip().upper(): c
             for c in range(1, ws.max_column + 1)}
     cmz, clt = hdrs.get("MZ"), hdrs.get("LT")
@@ -2155,7 +2254,8 @@ def _leer_revision_previa(ruta: Path) -> dict:
     return previo
 
 
-def _exportar_arrastre_devolucion(resultado: list[dict], mes_ano: str,
+def _exportar_arrastre_devolucion(wb: Workbook, resultado: list[dict], mes_ano: str,
+                                  previo: dict | None = None,
                                   disc_yape: list[dict] = None, disc_efec: list[dict] = None):
     excesos = [r for r in resultado if r["saldo"] < -TOL]
     # No identificados: plata real cobrada (mesa/yape) cuyo MZ+LT no existe en
@@ -2165,13 +2265,8 @@ def _exportar_arrastre_devolucion(resultado: list[dict], mes_ano: str,
     no_identificados = list(disc_efec or []) + list(disc_yape or [])
     last_row = max(len(excesos) + len(no_identificados) + 2, 3)
 
-    ruta = OUTPUTS_DIR / f"arrastre_devolucion_{mes_ano}.xlsx"
-    _backup_arrastre_devolucion(ruta)
-    previo = _leer_revision_previa(ruta)
-
-    wb = Workbook()
-    ws = wb.active
-    ws.title = f"arrastre_devolucion_{mes_ano}"[:31]
+    previo = previo or {}
+    ws = wb.create_sheet("arrastre_devolucion")
     ws.freeze_panes = "A3"
 
     for cs, ce, texto, bg, txt in _AV_GRUPOS:
@@ -2250,16 +2345,15 @@ def _exportar_arrastre_devolucion(resultado: list[dict], mes_ano: str,
         ws.add_data_validation(dv)
         dv.add(f"M3:M{last_row}")
 
-    wb.save(ruta)
-    log.info(f"{ruta.name} → {len(excesos)} usuarios con SALDO<0 · "
-             f"{len(no_identificados)} no identificado(s) (esperan reclamo/reidentificación)")
+    log.info(f"arrastre_devolucion → {len(excesos)} usuarios con SALDO<0 · "
+              f"{len(no_identificados)} no identificado(s) (esperan reclamo/reidentificación)")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-#  OUTPUT 6 — arrastre_consolidado_YYYY-MM.xlsx  (writer único hacia 2_planilla)
+#  HOJA 1 — arrastre_consolidado dentro de planilla_cobrado_YYYY-MM.xlsx
 #  Consolida en un archivo lo que eran 3 arrastres separados (deuda + corte +
 #  multa). Descompone el SALDO pendiente por componente en orden de prioridad
-#  P1 DEUDA_AGUA → P2 CORTE → P3 MULTA → P4 ACUERDOS → P5 CONVENIO: cada columna
+#  P1 DEUDA_AGUA → P2 CORTE → P3 CONVENIO → P4 ACUERDOS → P5 MULTA: cada columna
 #  muestra lo que quedó SIN cubrir tras aplicar el pago en ese orden.
 #  Solo filas TOTAL_ARRASTRE>0. Gate: estado_ciclo.json[mes].arrastre.validado.
 #  2_planilla del próximo mes lo lee como fuente única de multa/acuerdos/convenio.
@@ -2269,32 +2363,125 @@ def _ciclo_validado(mes_ano: str) -> bool:
     return repo_estado.ciclo_validado(mes_ano, ruta=ESTADO_CICLO_PATH)
 
 
-def _marcar_generado(mes_ano: str):
-    """Marca arrastre.generado=true (idempotente). 5b lo lee para sellar validado."""
-    repo_estado.marcar_generado(mes_ano, ruta=ESTADO_CICLO_PATH)
-    log.info(f"estado_ciclo.json → arrastre.generado=true · {mes_ano}")
+def _marcar_generado(mes_ano: str, snapshot_hash: str):
+    """Registra la proyección vigente e invalida sellos de una versión anterior."""
+    repo_estado.marcar_generado(mes_ano, ruta=ESTADO_CICLO_PATH,
+                                snapshot_hash=snapshot_hash)
+    log.info(f"estado_ciclo.json → proyección generada · {mes_ano} · {snapshot_hash[:12]}")
+
+
+_CORTE_LEDGER = "2026-08"
+_CONCEPTO_COMPONENTE = {
+    "AGUA_ANT": "AGUA", "MANT_ANT": "MANTENIMIENTO",
+    "AGUA_ACT": "AGUA", "MANT_ACT": "MANTENIMIENTO",
+    "CORTE_ANT": "CORTE_RECONEXION", "CORTE_ACT": "CORTE_RECONEXION",
+    "CONVENIO": "CONVENIO", "ACUERDOS": "ACUERDOS", "MULTA": "MULTA",
+}
+_ORDEN_ABONO_CERRADO = (
+    "AGUA_ANT", "MANT_ANT", "CORTE_ANT", "CORTE_ACT",
+    "CONVENIO", "ACUERDOS", "MULTA", "AGUA_ACT", "MANT_ACT",
+)
+_ORDEN_CICLO = (
+    "AGUA_ANT", "MANT_ANT", "AGUA_ACT", "MANT_ACT",
+    "CORTE_ANT", "CORTE_ACT", "CONVENIO", "ACUERDOS", "MULTA",
+)
+
+
+def _mes_anterior(mes: str) -> str:
+    year, month = map(int, mes.split("-"))
+    month -= 1
+    if month == 0:
+        year, month = year - 1, 12
+    return f"{year:04d}-{month:02d}"
+
+
+def _componentes_cuenta(r: dict, mes_ano: str) -> dict[str, float]:
+    """Deuda disponible por concepto y antigüedad para aplicar pagos por FIFO."""
+    if mes_ano == _CORTE_LEDGER:
+        agua_ant = max(round(r.get("mes_anterior", 0.0), 2), 0.0)
+        mant_ant = 0.0
+        corte_ant = min(max(round(r.get("corte_reconexion_base", r.get("corte_reconexion", 0.0)), 2), 0.0),
+                        max(round(r.get("corte_reconexion", 0.0), 2), 0.0))
+    else:
+        anterior = _mes_anterior(mes_ano)
+        agua_ant = max(round(repo.get_saldo(r["mz"], r["lt"], "AGUA", anterior), 2), 0.0)
+        mant_ant = max(round(repo.get_saldo(r["mz"], r["lt"], "MANTENIMIENTO", anterior), 2), 0.0)
+        corte_ant = max(round(repo.get_saldo(r["mz"], r["lt"], "CORTE_RECONEXION", anterior), 2), 0.0)
+
+    partes_agua = {
+        "AGUA_ACT": max(round(r.get("mes_actual", 0.0), 2), 0.0),
+        "MANT_ACT": max(round(r.get("mantenimiento", 0.0), 2), 0.0),
+        "AGUA_ANT": agua_ant,
+        "MANT_ANT": mant_ant,
+    }
+    descuento = max(0.0, -round(r.get("blanco_final", 0.0), 2)) + max(
+        0.0, -round(r.get("devolucion", 0.0), 2))
+    for nombre in ("AGUA_ACT", "MANT_ACT", "AGUA_ANT", "MANT_ANT"):
+        usado = min(partes_agua[nombre], descuento)
+        partes_agua[nombre] = round(partes_agua[nombre] - usado, 2)
+        descuento = round(descuento - usado, 2)
+
+    corte_total = max(round(r.get("corte_reconexion", 0.0), 2), 0.0)
+    return {
+        **partes_agua,
+        "CORTE_ANT": corte_ant, "CORTE_ACT": max(round(corte_total - corte_ant, 2), 0.0),
+        "CONVENIO": max(round(r.get("convenio", 0.0), 2), 0.0),
+        "ACUERDOS": max(round(r.get("acuerdos_asamblea", 0.0), 2), 0.0),
+        "MULTA": max(round(r.get("multa", 0.0), 2), 0.0),
+    }
+
+
+def _aplicar_componentes(saldos: dict[str, float], monto: float,
+                         orden: tuple[str, ...]) -> dict[str, float]:
+    aplicado = {c: 0.0 for c in repo.CONCEPTOS_VALIDOS}
+    restante = max(round(monto, 2), 0.0)
+    for componente in orden:
+        usar = min(saldos[componente], restante)
+        saldos[componente] = round(saldos[componente] - usar, 2)
+        concepto = _CONCEPTO_COMPONENTE[componente]
+        aplicado[concepto] = round(aplicado[concepto] + usar, 2)
+        restante = round(restante - usar, 2)
+        if restante <= TOL:
+            break
+    return aplicado
+
+
+def _aplicaciones_por_fuente(r: dict, mes_ano: str) -> tuple[dict[str, dict[str, float]], dict[str, float]]:
+    saldos = _componentes_cuenta(r, mes_ano)
+    cerrado = r.get("abono_rezagado_cerrado", 0.0)
+    vigente = r.get("abono_rezagado_vigente",
+                    r.get("abono_rezagado", 0.0) if "abono_rezagado_cerrado" not in r else 0.0)
+    normal = r.get("total_pagado_normal", r.get("total_pagado", 0.0))
+    pago_cerrado = _aplicar_componentes(saldos, cerrado, _ORDEN_ABONO_CERRADO)
+    pago_normal = _aplicar_componentes(saldos, normal, _ORDEN_CICLO)
+    pago_vigente = _aplicar_componentes(saldos, vigente, _ORDEN_CICLO)
+    pago_abono = {c: round(pago_cerrado[c] + pago_vigente[c], 2)
+                  for c in repo.CONCEPTOS_VALIDOS}
+    return {"5_cobranza": pago_normal, "abonos_rezagados": pago_abono}, saldos
+
+
+def _descomponer_pago(r: dict, monto: float) -> dict[str, float]:
+    saldos = _componentes_cuenta(r, r.get("mes_ano", _CORTE_LEDGER))
+    return _aplicar_componentes(saldos, monto, _ORDEN_CICLO)
 
 
 def _descomponer_saldo(r: dict) -> tuple[list[float], list[float], float]:
-    """Aplica total_pagado en prioridad P1→P5. Devuelve (comps[5], sin_cubrir[5], total)."""
-    comps = [
-        round(r["mes_actual"] + r["mantenimiento"] + r["mes_anterior"]
-              + r["blanco_final"] + r["devolucion"], 2),   # P1 DEUDA_AGUA
-        round(r["corte_reconexion"], 2),                    # P2 CORTE_RECONEXION
-        round(r["multa"], 2),                               # P3 MULTA
-        round(r["acuerdos_asamblea"], 2),                   # P4 ACUERDOS_ASAMBLEA
-        round(r["convenio"], 2),                            # P5 CONVENIO
-    ]
-    restante = r["total_pagado"]
-    sin_cubrir = []
-    for comp in comps:
-        comp = max(comp, 0.0)
-        if restante >= comp:
-            restante = round(restante - comp, 2)
-            sin_cubrir.append(0.0)
-        else:
-            sin_cubrir.append(round(comp - restante, 2))
-            restante = 0.0
+    """Aplica total_pagado en prioridad P1→P5. Devuelve (comps[5], sin_cubrir[5], total).
+
+    ⚠ El ORDEN de esta lista es un contrato con 3 lugares acoplados POR POSICIÓN:
+    `_AC_P` (columnas de arrastre_consolidado), `_CONCEPTOS_PUEBLO` (índice →
+    concepto del ledger) y `_CAMPOS_WATERFALL_REIDENTIFICACION`. Si se reordena
+    acá, los tres se reordenan igual o los montos caen en la columna equivocada.
+    """
+    mes_ano = r.get("mes_ano", _CORTE_LEDGER)
+    inicial = _componentes_cuenta(r, mes_ano)
+    _por_fuente, pendientes = _aplicaciones_por_fuente(r, mes_ano)
+    grupos = (
+        ("AGUA_ANT", "MANT_ANT", "AGUA_ACT", "MANT_ACT"),
+        ("CORTE_ANT", "CORTE_ACT"), ("CONVENIO",), ("ACUERDOS",), ("MULTA",),
+    )
+    comps = [round(sum(inicial[c] for c in grupo), 2) for grupo in grupos]
+    sin_cubrir = [round(sum(pendientes[c] for c in grupo), 2) for grupo in grupos]
     return comps, sin_cubrir, round(sum(sin_cubrir), 2)
 
 
@@ -2309,12 +2496,11 @@ def _descomponer_saldo(r: dict) -> tuple[list[float], list[float], float]:
 #  Ver docs/decisiones/seguimiento_pueblo.md
 # ─────────────────────────────────────────────────────────────────────────────
 
-_CONCEPTOS_PUEBLO = ((2, "MULTA"), (3, "ACUERDOS"), (4, "CONVENIO"))
+# índice POSICIONAL en comps/sin_cubrir de _descomponer_saldo → concepto del ledger
+_CONCEPTOS_PUEBLO = ((2, "CONVENIO"), (3, "ACUERDOS"), (4, "MULTA"))
 
-# genesis_tardia usa nombres de CONCEPTO del lado planilla (ACUERDOS_ASAMBLEA);
-# seguimiento_pueblo usa su propia taxonomía (MULTA/ACUERDOS/CONVENIO). Solo
-# estos 3 cruzan al ledger de pueblo — AGUA/MANTENIMIENTO/CORTE_RECONEXION no
-# se trackean ahí (viven en arrastre_consolidado).
+# genesis_tardia usa nombres de CONCEPTO del lado planilla (ACUERDOS_ASAMBLEA)
+# y el estado de cuenta usa ACUERDOS.
 _GENESIS_TARDIA_CONCEPTO_A_PUEBLO = {
     "MULTA": "MULTA",
     "ACUERDOS": "ACUERDOS",
@@ -2323,19 +2509,13 @@ _GENESIS_TARDIA_CONCEPTO_A_PUEBLO = {
 }
 
 
-def _sembrar_cargos_genesis_tardia_en_pueblo(mes_ano: str) -> None:
-    """genesis_tardia.xlsx parcha la cascada (_cargar_genesis_tardia) pero eso
-    NO crea el evento CARGO en seguimiento_pueblo — sin esta siembra, cuando
-    _reconciliar_pagos_pueblo anota el PAGO correspondiente no encuentra CARGO
-    contra qué compararlo y el SALDO queda negativo (PAGO fantasma sin CARGO).
-    Idempotente vía _ya_registrado (source+audit_ref+mz+lt+concepto) — se puede
-    llamar en cada corrida sin duplicar.
-    """
+def _cargos_genesis_tardia_snapshot(mes_ano: str) -> list[dict]:
+    """CARGOs tardíos incluidos en la propuesta; no toca el ledger."""
     if not GENESIS_TARDIA_PATH.exists():
-        return
+        return []
     df = pd.read_excel(GENESIS_TARDIA_PATH, header=1)
     df.columns = _norm_cols(df)
-    n = 0
+    cargos = []
     for _, f in df.iterrows():
         if str(f.get("MES_ANO_APLICA", "")).strip() != mes_ano:
             continue
@@ -2347,28 +2527,27 @@ def _sembrar_cargos_genesis_tardia_en_pueblo(mes_ano: str) -> None:
         if not mz or not lt or not concepto or monto <= TOL:
             continue
         ref = f"genesis_tardia_{mes_ano}_{concepto}_{mz}_{lt}"
-        res = repo.registrar_cargo(mz, lt, concepto, mes_origen, monto,
-                                    source="genesis_tardia", audit_ref=ref)
-        if not res["skipped"]:
-            n += 1
-    if n:
-        log.info(f"seguimiento_pueblo: {n} CARGO(s) de genesis_tardia sembrado(s)")
+        cargos.append({
+            "mz": mz, "lt": lt, "concepto": concepto, "mes": mes_origen,
+            "monto": round(monto, 2), "source": "genesis_tardia",
+            "audit_ref": ref, "clase": "GENESIS",
+        })
+    return cargos
 
 
-def _reconciliar_pagos_pueblo(resultado: list[dict], mes_ano: str) -> None:
-    _sembrar_cargos_genesis_tardia_en_pueblo(mes_ano)
-    n_pago = n_ajuste = 0
+def _objetivos_ledger(resultado: list[dict], mes_ano: str) -> list[dict]:
+    """Construye SET_DEBE completo sin consultar ni modificar el ledger."""
+    objetivos = []
     reasignaciones = _cargar_reasignaciones_aplicacion(mes_ano)
     for r in resultado:
-        comps, sin_cubrir, _ = _descomponer_saldo(r)
-        pagado_por_concepto = {concepto: round(comps[idx] - sin_cubrir[idx], 2)
-                                for idx, concepto in _CONCEPTOS_PUEBLO}
+        pagos_por_fuente, _pendientes = _aplicaciones_por_fuente(r, mes_ano)
         # Overlay reasignaciones_aplicacion: el pagador pidió que su abono NO
         # cubra CONCEPTO_ORIGEN (aunque le toque por prioridad de cascada) sino
         # CONCEPTO_DESTINO. El CARGO de origen sigue abierto (ver
         # _descomponer_saldo, no tocado acá) — solo se redirige a qué concepto
         # se anota el PAGO en seguimiento_pueblo.
         for origen, destino, monto in reasignaciones.get((r["mz"], r["lt"]), []):
+            pagado_por_concepto = pagos_por_fuente["5_cobranza"]
             if origen not in pagado_por_concepto or destino not in pagado_por_concepto:
                 continue
             delta = min(monto, pagado_por_concepto[origen])
@@ -2376,78 +2555,75 @@ def _reconciliar_pagos_pueblo(resultado: list[dict], mes_ano: str) -> None:
                 continue
             pagado_por_concepto[origen] = round(pagado_por_concepto[origen] - delta, 2)
             pagado_por_concepto[destino] = round(pagado_por_concepto[destino] + delta, 2)
-        for idx, concepto in _CONCEPTOS_PUEBLO:
-            # Los predios de convenio de instalación no viven en seguimiento_pueblo
-            # (su deuda ya está completa en arrastre_consolidado) — reconciliarles
-            # un pago acá crearía un PAGO sin CARGO, saldo negativo falso.
-            if concepto == "CONVENIO" and (r["mz"], r["lt"]) in repo.PREDIOS_INSTALACION_EXCLUIDOS:
+        for source, pagado_por_concepto in pagos_por_fuente.items():
+            if source == "abonos_rezagados" and r.get("abono_rezagado", 0.0) <= TOL:
                 continue
-            pagado_fresco = pagado_por_concepto[concepto]
-            # SET_TIENE = lo que ESTA reconciliación ya dejó = Σ PAGO + Σ AJUSTE propio.
-            # pago_registrado cuenta solo PAGO; sin sumar los AJUSTE ya emitidos, el
-            # branch delta<0 no es idempotente y re-emite el mismo ajuste en cada
-            # corrida (ver docs/aprendizaje contador tuerto).
-            # source="5_cobranza" en las DOS mitades: el SET_TIENE es lo que ESTA
-            # reconciliación dejó, no todo lo que haya en el mes. Sin el filtro en
-            # pago_registrado, un PAGO escrito a mano (declaración de la secretaria)
-            # se contaba como propio → delta negativo → AJUSTE a ciegas → alguien
-            # tenía que estabilizarlo (44 filas de ruido en julio 2026, LEER_ANTES.md).
-            # El AJUSTE se RESTA porque las dos columnas hablan idiomas opuestos:
-            # `ya` está en unidades de CRÉDITO (se compara contra pagado_fresco),
-            # y la columna AJUSTE del ledger está en unidades de DEUDA
-            # (_registrar: saldo += monto). Un AJUSTE de +75 = "devolví 75 de
-            # deuda" = "des-acredité 75". Es la misma traducción que hace la
-            # escritura de abajo (`-delta`), en el sentido inverso: las dos son
-            # el MISMO cambio de unidad y no se pueden tocar por separado sin
-            # romper la idempotencia (bug del signo, corregido 07/08/2026 —
-            # ver LEER_ANTES.md).
-            ya = (repo.pago_registrado(r["mz"], r["lt"], concepto, mes_ano, source="5_cobranza")
-                  - repo.ajuste_reconciliado(r["mz"], r["lt"], concepto, mes_ano, "5_cobranza"))
-            delta = round(pagado_fresco - ya, 2)
-            if delta > TOL:
-                # Se acredita SIEMPRE lo que la cascada calculó, aunque deje el
-                # saldo negativo: ese negativo es la única señal visible de que el
-                # predio pagó de más, y taparlo con un tope silencioso borraría un
-                # exceso que quizá corresponde devolver o dejar a favor. Solo se
-                # avisa. PENDIENTE: cruzar estos avisos contra planilla_cobrado
-                # para separar el exceso real del negativo por defecto del sistema
-                # (el que venimos limpiando) — ver LEER_ANTES.md.
-                saldo_actual = repo.get_saldo(r["mz"], r["lt"], concepto, mes_ano)
-                if delta > saldo_actual + TOL:
-                    log.warning(
-                        f"{r['mz']}-{r['lt']} {concepto}: se acreditan {delta:.2f} sobre un saldo "
-                        f"de {saldo_actual:.2f} → el saldo queda en {saldo_actual - delta:.2f}, "
-                        f"o sea pagado de más. Revisar contra planilla_cobrado: puede ser exceso "
-                        f"real del vecino (devolución o saldo a favor), o que un pago declarado a "
-                        f"mano ya hubiera cubierto esta deuda y se esté acreditando dos veces.")
-                ref = f"recon_{mes_ano}_{concepto}_{r['mz']}_{r['lt']}_{datetime.now().timestamp()}"
-                repo.registrar_pago(r["mz"], r["lt"], concepto, mes_ano, delta,
-                                     source="5_cobranza", audit_ref=ref)
-                n_pago += 1
-            elif delta < -TOL:
-                ref = f"recon_{mes_ano}_{concepto}_{r['mz']}_{r['lt']}_{datetime.now().timestamp()}"
-                # -delta, no delta: revertir un PAGO es DEVOLVER la deuda, así que
-                # el saldo tiene que SUBIR. delta viene en CRÉDITO (negativo =
-                # "acredité de más") y la columna AJUSTE está en DEUDA, así que el
-                # signo se invierte al cruzar. Con `delta` crudo el saldo bajaba
-                # otra vez y quedaba 2× el monto por debajo de la verdad, positivo
-                # y sin alarma (D-16 · D1-6 en julio 2026).
-                repo.registrar_ajuste(r["mz"], r["lt"], concepto, mes_ano, -delta,
-                                      source="5_cobranza", audit_ref=ref,
-                                      clase="CORRECCION_SISTEMA",
-                                      motivo="corrección: pago recalculado a la baja en 5_cobranza "
-                                             "— se devuelve la deuda que este pago había cubierto")
-                n_ajuste += 1
-    if n_pago or n_ajuste:
-        log.info(f"seguimiento_pueblo: {n_pago} pago(s) · {n_ajuste} ajuste(s) registrados")
+            clase_pago = "ABONO_REZAGADO" if source == "abonos_rezagados" else None
+            for concepto in sorted(repo.CONCEPTOS_VALIDOS - {"OTROS"}):
+                if concepto == "CONVENIO" and (r["mz"], r["lt"]) in repo.PREDIOS_INSTALACION_EXCLUIDOS:
+                    continue
+                objetivos.append({
+                    "mz": r["mz"], "lt": r["lt"], "concepto": concepto,
+                    "source": source, "monto_objetivo": round(pagado_por_concepto[concepto], 2),
+                    "clase": clase_pago or "COBRANZA",
+                })
+    return sorted(objetivos, key=lambda x: (x["source"], x["mz"], x["lt"], x["concepto"]))
 
 
-def _exportar_arrastre_consolidado(resultado: list[dict], mes_ano: str):
-    if not _ciclo_validado(mes_ano):
-        log.warning(f"arrastre_consolidado_{mes_ano} omitido — "
-                    f"estado_ciclo.json sin validado:true (falta 5b_validacion)")
-        return
+def _cargos_cuenta_snapshot(resultado: list[dict], mes_ano: str) -> list[dict]:
+    """Cargos de apertura y del ciclo. Agosto es la frontera sin backfill."""
+    cargos = []
+    for r in resultado:
+        componentes = _componentes_cuenta(r, mes_ano)
+        candidatos = [
+            ("AGUA", componentes["AGUA_ACT"], "2_planilla", f"cargo|{mes_ano}|AGUA|{r['mz']}|{r['lt']}",
+             "consumo del ciclo calculado desde lecturas"),
+            ("MANTENIMIENTO", componentes["MANT_ACT"], "2_planilla",
+             f"cargo|{mes_ano}|MANTENIMIENTO|{r['mz']}|{r['lt']}", "mantenimiento del ciclo"),
+            ("CORTE_RECONEXION", componentes["CORTE_ACT"], "6_corte",
+             f"cargo|{mes_ano}|CORTE_RECONEXION|{r['mz']}|{r['lt']}", "penalidad emitida por 6_corte"),
+        ]
+        if mes_ano == _CORTE_LEDGER:
+            candidatos.extend([
+                ("AGUA", componentes["AGUA_ANT"], "saldo_inicial",
+                 f"apertura|{mes_ano}|AGUA|{r['mz']}|{r['lt']}", "saldo de agua al cierre de julio"),
+                ("CORTE_RECONEXION", componentes["CORTE_ANT"], "saldo_inicial",
+                 f"apertura|{mes_ano}|CORTE_RECONEXION|{r['mz']}|{r['lt']}",
+                 "saldo de corte/reconexión al cierre de julio"),
+            ])
+        for concepto, monto, source, audit_ref, motivo in candidatos:
+            if monto > TOL:
+                cargos.append({
+                    "mz": r["mz"], "lt": r["lt"], "concepto": concepto, "mes": mes_ano,
+                    "monto": round(monto, 2), "source": source, "audit_ref": audit_ref,
+                    "clase": "GENESIS", "motivo": motivo,
+                })
+    return cargos
 
+
+def _exportar_snapshot_ledger(resultado: list[dict], mes_ano: str) -> str:
+    payload = {
+        "schema": 2,
+        "mes": mes_ano,
+        "objetivos": _objetivos_ledger(resultado, mes_ano),
+        "cargos": sorted(_cargos_genesis_tardia_snapshot(mes_ano)
+                         + _cargos_cuenta_snapshot(resultado, mes_ano),
+                         key=lambda x: (x["mz"], x["lt"], x["concepto"], x["audit_ref"])),
+    }
+    normalizado = json.dumps(payload, ensure_ascii=True, sort_keys=True,
+                             separators=(",", ":")).encode("utf-8")
+    snapshot_hash = hashlib.sha256(normalizado).hexdigest()
+    documento = {**payload, "snapshot_hash": snapshot_hash}
+    ruta = OUTPUTS_DIR / f"snapshot_ledger_{mes_ano}.json"
+    tmp = ruta.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(documento, ensure_ascii=True, sort_keys=True, indent=2),
+                   encoding="utf-8")
+    tmp.replace(ruta)
+    log.info(f"{ruta.name} → {len(payload['objetivos'])} objetivos · hash {snapshot_hash[:12]}")
+    return snapshot_hash
+
+
+def _exportar_arrastre_consolidado(wb: Workbook, resultado: list[dict], mes_ano: str):
     filas = []
     for r in resultado:
         _comps, sin_cubrir, total_arr = _descomponer_saldo(r)
@@ -2455,9 +2631,7 @@ def _exportar_arrastre_consolidado(resultado: list[dict], mes_ano: str):
             filas.append((r["mz"], r["lt"], r["nombre"], sin_cubrir, total_arr))
 
     last_row = max(len(filas) + 2, 3)
-    wb = Workbook()
-    ws = wb.active
-    ws.title = f"arrastre_consolidado_{mes_ano}"[:31]
+    ws = wb.create_sheet("arrastre_consolidado")
     ws.freeze_panes = "A3"
 
     # Group headers (fila 1)
@@ -2476,8 +2650,9 @@ def _exportar_arrastre_consolidado(resultado: list[dict], mes_ano: str):
 
     for sc in (4, 10):
         _sep(ws, sc, last_row)
+    # anchos por posición P1..P5 = columnas 5..9 (P3 CONVENIO, P5 MULTA)
     for col, ancho in ((1, 6), (2, 6), (3, 26),
-                       (5, 12), (6, 16), (7, 8), (8, 17), (9, 10), (11, 15)):
+                       (5, 12), (6, 16), (7, 10), (8, 17), (9, 8), (11, 15)):
         _w(ws, col, ancho)
     ws.row_dimensions[1].height = 18
     ws.row_dimensions[2].height = 22
@@ -2498,9 +2673,23 @@ def _exportar_arrastre_consolidado(resultado: list[dict], mes_ano: str):
            mono=True, align="right", bold=True, fmt=MONEY)
         ws.row_dimensions[ri].height = 17
 
-    nombre_arch = f"arrastre_consolidado_{mes_ano}.xlsx"
-    wb.save(OUTPUTS_DIR / nombre_arch)
-    log.info(f"{nombre_arch} → {len(filas)} usuarios con TOTAL_ARRASTRE>0")
+    log.info(f"arrastre_consolidado → {len(filas)} usuarios con TOTAL_ARRASTRE>0")
+
+
+def _guardar_planilla_cobrado(wb: Workbook, ruta: Path, mes_ano: str) -> None:
+    _backup_arrastre_devolucion(ruta)
+    temporal = ruta.with_name(f".{ruta.stem}.tmp.xlsx")
+    wb.save(temporal)
+    temporal.replace(ruta)
+
+    for nombre in (f"arrastre_consolidado_{mes_ano}.xlsx",
+                   f"arrastre_devolucion_{mes_ano}.xlsx"):
+        legado = OUTPUTS_DIR / nombre
+        if legado.exists():
+            if nombre.startswith("arrastre_devolucion_"):
+                _backup_arrastre_devolucion(legado)
+            legado.unlink()
+    log.info(f"{ruta.name} → hojas: {', '.join(wb.sheetnames)}")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -2788,11 +2977,12 @@ def main():
     pagos_efectivo    = _cargar_pagos_efectivo()
     blancos           = _cargar_blancos(mes_ano)
     aportes_tanque    = _cargar_aportes_tanque_manuales(mes_ano)
+    abonos_rezagados  = _cargar_abonos_rezagados(mes_ano)
     dev_yape          = _cargar_retornos_yape()
     dev_efec          = _cargar_retornos_efectivo()
     dev_devuelto      = _cargar_devueltos_yape()
     traz_path         = OUTPUTS_DIR / "trazabilidad_cobranza.xlsx"
-    ids_previas, max_ciclo = _cargar_trazabilidad_previa()
+    ids_previas, max_ciclo = _cargar_trazabilidad_previa(pagos_yape + pagos_efectivo)
 
     print("\n[2b/6] Aplicando correcciones de lote...")
     correcciones   = _leer_correcciones()
@@ -2825,7 +3015,7 @@ def main():
     # Si pagos no cambian pero retornos si → re-generar sin avanzar ciclo.
     retornos_actuales  = _retornos_por_lote(dev_yape, dev_efec)
     devueltos_actuales = _devueltos_por_lote(dev_devuelto)
-    retornos_previos  = _retornos_planilla_previa()
+    retornos_previos  = _retornos_planilla_previa(mes_ano)
     retornos_cambiados = retornos_actuales != retornos_previos
 
     force = "--force" in sys.argv
@@ -2852,14 +3042,17 @@ def main():
         usuarios, pagos_yape, pagos_efectivo, blancos,
         dev_yape, dev_efec, dev_devuelto,
         ciclo_nuevo, pagos_nuevos,
-        aportes_tanque=aportes_tanque
+        aportes_tanque=aportes_tanque,
+        abonos_rezagados=abonos_rezagados,
     )
-    # Reconciliación hacia seguimiento_pueblo — no gateada por _ciclo_validado
-    # (los pagos ya ocurrieron, no esperan el sello de fin de mes).
-    _reconciliar_pagos_pueblo(resultado, mes_ano)
-
     print("\n[5/6] Exportando outputs...")
-    _exportar_planilla_cobrado(resultado)
+    planilla_path = OUTPUTS_DIR / f"planilla_cobrado_{mes_ano}.xlsx"
+    previo = _leer_revision_previa(planilla_path, "arrastre_devolucion")
+    if previo is None:
+        previo = _leer_revision_previa(
+            OUTPUTS_DIR / f"arrastre_devolucion_{mes_ano}.xlsx"
+        ) or {}
+    wb_planilla, planilla_path = _exportar_planilla_cobrado(resultado, mes_ano)
     # Contar elegibles para corte — la lista_corte la genera 6_corte leyendo
     # SALDO + MES_ANTERIOR desde planilla_cobrado. Acá solo se reporta el conteo.
     n_corte = sum(1 for r in resultado
@@ -2871,11 +3064,13 @@ def main():
     )
     _exportar_resumen(resultado, n_corte, mes_ano, ciclo_nuevo)
     _exportar_arrastre_deuda(resultado, mes_ano)
-    _exportar_arrastre_devolucion(resultado, mes_ano, disc_yape, disc_efec)
-    _marcar_generado(mes_ano)                          # 5b lo lee para sellar validado
-    _exportar_arrastre_consolidado(resultado, mes_ano)  # gate: validado:true
-    repo.generar_vista()       # lista consultable de la mesa (multa/acuerdos/convenio)
-    repo.exportar_vista_pdf()  # y su PDF imprimible
+    _exportar_arrastre_consolidado(wb_planilla, resultado, mes_ano)
+    _exportar_arrastre_devolucion(
+        wb_planilla, resultado, mes_ano, previo, disc_yape, disc_efec
+    )
+    _guardar_planilla_cobrado(wb_planilla, planilla_path, mes_ano)
+    snapshot_hash = _exportar_snapshot_ledger(resultado, mes_ano)
+    _marcar_generado(mes_ano, snapshot_hash)  # 5b sella exactamente esta versión
 
     print("\n[6/6] Retroescritura y blancos...")
     filas_yape_nuevas = [p["row"] for p in pagos_yape
@@ -2894,12 +3089,14 @@ def main():
     print("\n" + "═" * 60)
     print(f"  Cobranza completada · ciclo {ciclo_nuevo} · {mes_ano}")
     print(f"  Outputs → 5_cobranza/outputs/")
-    print(f"  · planilla_cobrado.xlsx  ({len(resultado)} usuarios · SALDO expuesto)")
+    print(f"  · planilla_cobrado_{mes_ano}.xlsx  "
+          f"({len(resultado)} usuarios · 3 hojas)")
     print(f"  · trazabilidad_cobranza.xlsx")
     print(f"  · resumen_recaudacion.xlsx")
     n_exceso = sum(1 for r in resultado if r["saldo"] < -TOL)
     print(f"  · arrastre_deuda_{mes_ano}.xlsx      ({sum(1 for r in resultado if r['saldo'] > TOL)} pendientes)")
-    print(f"  · arrastre_devolucion_{mes_ano}.xlsx ({n_exceso} excesos)")
+    print(f"    hojas: planilla_cobrado · arrastre_consolidado · arrastre_devolucion "
+          f"({n_exceso} excesos)")
     if disc_yape or disc_efec:
         print(f"  · discrepancias_cobranza.xlsx     "
               f"({len(disc_yape)} yape · {len(disc_efec)} efectivo)")

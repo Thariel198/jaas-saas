@@ -10,6 +10,8 @@ import shutil
 import sys
 from pathlib import Path
 
+import pytest
+
 THIS = Path(__file__).resolve()
 sys.path.insert(0, str(THIS.parent.parent))
 
@@ -18,13 +20,23 @@ import config  # noqa: E402
 TEST_ROOT = THIS.parent / "_tmp_publicar"
 
 
-def _setup():
+def _setup(root: Path | None = None):
+    global TEST_ROOT
+    if root is not None:
+        TEST_ROOT = root
     if TEST_ROOT.exists():
         shutil.rmtree(TEST_ROOT)
     (TEST_ROOT / "outputs").mkdir(parents=True)
     (TEST_ROOT / "shared" / "planilla_mes").mkdir(parents=True)
     config.OUTPUTS_DIR = TEST_ROOT / "outputs"
     config.SHARED_PLANILLA_DIR = TEST_ROOT / "shared" / "planilla_mes"
+
+
+@pytest.fixture(autouse=True)
+def _aislar_pytest(tmp_path):
+    _setup(tmp_path / "publicar")
+    yield
+    shutil.rmtree(TEST_ROOT, ignore_errors=True)
 
 
 def _crear_planilla(mes: str, contenido: bytes):

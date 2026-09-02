@@ -1,18 +1,19 @@
-"""7_cierre/consolidar_cierre.py — Transición de período (freeze · foto · limpieza)
+"""7_cierre/consolidar_cierre.py — Commit único y transición de período.
 
 7_cierre NO genera arrastres (ya los hace 5_cobranza) ni copia nada a
 2_planilla/inputs (2_planilla lee en vivo, Opción A). Su único trabajo es
 transicionar el mes:
 
-  PASO 1 GATE      · aborta si el ciclo no está validado (5b_validacion)
+  PASO 0 PREPARAR  · corre la proyección final de 5_cobranza y 5b_validacion
+  PASO 1 GATE      · verifica el hash exacto del snapshot validado
   PASO 2 COSECHAR  · copia BALDE 2 (canónicos + fuentes de pago) a archivo/{mes}/
   ── seguro ── de acá para abajo es irreversible, requiere --confirmar + "SI" ──
-  PASO 3 FREEZE    · estado_ciclo[mes].estado = CERRADO
-  PASO 4 LIMPIAR   · reset a template SOLO las fuentes manuales (mesa_*, correcciones)
+  PASO 3 COMMIT    · aplica el snapshot al ledger en un batch atómico e idempotente
+  PASO 4 FREEZE    · estado_ciclo[mes].estado = CERRADO
+  PASO 5 LIMPIAR   · reset a template SOLO las fuentes manuales (mesa_*, correcciones)
                      — solo resetea lo que YA se verificó cosechado en el PASO 2
 
-Sin --confirmar: corre GATE+COSECHAR (de solo lectura/copia, reversible) y
-muestra qué haría FREEZE+LIMPIAR — no toca estado_ciclo.json ni resetea nada.
+Sin --confirmar: prepara, valida y cosecha, pero no compromete el ledger ni cierra.
 Con --confirmar: además pide escribir "SI" (consentimiento humano explícito)
 antes de sellar y resetear.
 
@@ -24,7 +25,10 @@ Uso:
     python consolidar_cierre.py --mes 2026-06 --confirmar     # cierre real
 """
 import logging
+import hashlib
+import json
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -33,6 +37,7 @@ import config
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "shared"))
 import utils_estado_ciclo as repo_estado  # noqa: E402
+import seguimiento_repo as repo            # noqa: E402
 import utils_lote                          # noqa: E402
 import utils_templates                     # noqa: E402
 
@@ -43,13 +48,41 @@ class CicloNoValidadoError(Exception):
     pass
 
 
-def paso1_gate(mes: str) -> None:
-    if not repo_estado.ciclo_validado(mes, ruta=config.ESTADO_CICLO_PATH):
+def paso0_preparar(mes: str) -> None:
+    """Regenera la proyección final y valida sus fuentes antes del gate."""
+    activo = config.ciclo.activo(default=None, path=config.SHARED_DIR / "ciclo_activo.json")
+    if activo != mes:
         raise CicloNoValidadoError(
-            f"Ciclo {mes} no está validado en estado_ciclo.json — "
-            f"correr 5b_validacion antes de cerrar el período."
+            f"El cierre solicitado es {mes}, pero el ciclo activo es {activo or 'indefinido'}")
+    subprocess.run([sys.executable, "-u", "-X", "utf8", str(config.COBRANZA_MAIN), "--force"],
+                   cwd=config.ROOT.parent, check=True)
+    subprocess.run([sys.executable, "-u", "-X", "utf8", str(config.VALIDACION_MAIN)],
+                   cwd=config.ROOT.parent, check=True)
+
+
+def _leer_snapshot(mes: str) -> tuple[dict, str]:
+    ruta = config.snapshot_ledger_path(mes)
+    if not ruta.exists():
+        raise CicloNoValidadoError(f"Falta snapshot ledger para {mes}: {ruta}")
+    documento = json.loads(ruta.read_text(encoding="utf-8"))
+    snapshot_hash = documento.pop("snapshot_hash", "")
+    normalizado = json.dumps(documento, ensure_ascii=True, sort_keys=True,
+                             separators=(",", ":")).encode("utf-8")
+    calculado = hashlib.sha256(normalizado).hexdigest()
+    if calculado != snapshot_hash or documento.get("mes") != mes:
+        raise CicloNoValidadoError(f"Snapshot inválido para {mes}: {ruta}")
+    return documento, snapshot_hash
+
+
+def paso1_gate(mes: str) -> tuple[dict, str]:
+    snapshot, snapshot_hash = _leer_snapshot(mes)
+    if not repo_estado.ciclo_validado(
+            mes, ruta=config.ESTADO_CICLO_PATH, snapshot_hash=snapshot_hash):
+        raise CicloNoValidadoError(
+            f"El snapshot {snapshot_hash[:12]} de {mes} no está validado."
         )
-    log.info(f"PASO 1 · GATE — ciclo {mes} validado, sigue el cierre")
+    log.info(f"PASO 1 · GATE — snapshot {snapshot_hash[:12]} validado")
+    return snapshot, snapshot_hash
 
 
 def paso2_cosechar(mes: str) -> int:
@@ -72,9 +105,27 @@ def paso2_cosechar(mes: str) -> int:
     return copiados
 
 
-def paso3_freeze(mes: str) -> None:
+def paso3_commit(mes: str, snapshot: dict, snapshot_hash: str) -> int:
+    if repo_estado.ledger_comprometido(
+            mes, ruta=config.ESTADO_CICLO_PATH, snapshot_hash=snapshot_hash):
+        log.info(f"PASO 3 · COMMIT — {mes} ya estaba comprometido con este hash")
+        return 0
+    if repo_estado.ledger_comprometido(mes, ruta=config.ESTADO_CICLO_PATH):
+        raise CicloNoValidadoError(
+            f"El ledger de {mes} ya fue comprometido con un snapshot diferente")
+    resultado = repo.reconciliar_objetivos_batch(
+        mes, snapshot_hash, snapshot["objetivos"], snapshot.get("cargos", []))
+    repo_estado.marcar_ledger_comprometido(
+        mes, snapshot_hash, resultado["eventos"], ruta=config.ESTADO_CICLO_PATH)
+    repo.generar_vista()
+    repo.exportar_vista_pdf()
+    log.info(f"PASO 3 · COMMIT — {resultado['eventos']} eventos aplicados")
+    return resultado["eventos"]
+
+
+def paso4_freeze(mes: str) -> None:
     repo_estado.marcar_cerrado(mes, ruta=config.ESTADO_CICLO_PATH)
-    log.info(f"PASO 3 · FREEZE — estado_ciclo[{mes}].estado = CERRADO")
+    log.info(f"PASO 4 · FREEZE — estado_ciclo[{mes}].estado = CERRADO")
 
 
 def _fuentes_listas_para_resetear(mes: str) -> dict[str, Path]:
@@ -91,13 +142,13 @@ def _fuentes_listas_para_resetear(mes: str) -> dict[str, Path]:
     return listas
 
 
-def paso4_limpiar(mes: str) -> None:
+def paso5_limpiar(mes: str) -> None:
     for nombre, ruta in _fuentes_listas_para_resetear(mes).items():
         if nombre == "correcciones_lote.xlsx":
             utils_lote.escribir_correcciones_lote(ruta, [])
         else:
             utils_templates.crear_mesa_vacio(ruta)
-        log.info(f"PASO 4 · LIMPIAR — reset a template: {nombre}")
+        log.info(f"PASO 5 · LIMPIAR — reset a template: {nombre}")
 
     out_dir = config.COBRANZA_DIR / "outputs"
     borrados = 0
@@ -105,14 +156,14 @@ def paso4_limpiar(mes: str) -> None:
         for f in out_dir.glob(patron):
             f.unlink()
             borrados += 1
-    log.info(f"PASO 4 · LIMPIAR — {borrados} archivo(s) de basura borrado(s)")
+    log.info(f"PASO 5 · LIMPIAR — {borrados} archivo(s) de basura borrado(s)")
 
 
 def _pedir_consentimiento(mes: str) -> bool:
     """Capa 1 (interactiva) del seguro: muestra exactamente qué se va a resetear
     y exige escribir SI. --confirmar habilita el gatillo; esto es apretarlo."""
     listas = _fuentes_listas_para_resetear(mes)
-    print(f"\nSe va a SELLAR estado_ciclo[{mes}] = CERRADO y RESETEAR a template:")
+    print(f"\nSe va a COMPROMETER el snapshot, SELLAR {mes}=CERRADO y RESETEAR:")
     for nombre in listas:
         print(f"  - {nombre}  (ya cosechado en archivo/{mes}/ — a salvo)")
     resp = input(f"\nEscribí SI para confirmar el cierre de {mes}: ").strip().upper()
@@ -134,12 +185,14 @@ def main(mes: str, confirmar: bool = False) -> None:
     print(f"  7_cierre/consolidar_cierre.py --mes {mes}" + ("  --confirmar" if confirmar else "  (dry-run)"))
     print("=" * 60)
 
-    paso1_gate(mes)
+    paso0_preparar(mes)
+    snapshot, snapshot_hash = paso1_gate(mes)
     n_cosechados = paso2_cosechar(mes)
 
     if not confirmar:
         print(f"\n{n_cosechados} archivo(s) cosechados en archivo/{mes}/ — revisalos.")
-        print("FREEZE y LIMPIAR NO corrieron (falta --confirmar). Nada irreversible pasó.")
+        print(f"Snapshot validado: {snapshot_hash}")
+        print("COMMIT, FREEZE y LIMPIAR NO corrieron (falta --confirmar).")
         print(f"Para cerrar de verdad: python consolidar_cierre.py --mes {mes} --confirmar\n")
         return
 
@@ -147,11 +200,12 @@ def main(mes: str, confirmar: bool = False) -> None:
         print("Cancelado — no se selló ni se reseteó nada.")
         return
 
-    paso3_freeze(mes)
-    paso4_limpiar(mes)
+    n_eventos = paso3_commit(mes, snapshot, snapshot_hash)
+    paso4_freeze(mes)
+    paso5_limpiar(mes)
 
     print("\n" + "=" * 60)
-    print(f"  Cierre de {mes} completado — {n_cosechados} archivos en archivo/{mes}/")
+    print(f"  Cierre de {mes} completado — {n_eventos} eventos · {n_cosechados} archivos")
     print("  Para persistir (paso manual/agente separado):")
     print(f"    git add 7_cierre/archivo/{mes}/ shared/reporte_acumulado_procesado/estado_ciclo.json")
     print(f"    git commit -m \"cierre ciclo {mes}\"")

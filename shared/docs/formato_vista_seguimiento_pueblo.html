@@ -64,7 +64,7 @@
   <span>Owner:</span> shared/seguimiento_repo.py (función <code>generar_vista()</code>) &nbsp;|&nbsp;
   <span>Ruta:</span> shared/vista_seguimiento_pueblo.xlsx &nbsp;|&nbsp;
   <span>Lifecycle:</span> se regenera completa en cada corrida — nunca se edita a mano, es un pivot del registro &nbsp;|&nbsp;
-  <span>Hojas:</span> 5 (MULTA, ACUERDOS, CONVENIO + Ajustes + CONVENIO_HISTORIAL) &nbsp;|&nbsp;
+  <span>Hojas:</span> 10 fijas + CONVENIO_HISTORIAL opcional &nbsp;|&nbsp;
   <span>Fuente:</span> <code>shared/seguimiento_pueblo.xlsx</code> (el registro de eventos, nunca este archivo) · CONVENIO_HISTORIAL lee <code>shared/genesis_inputs/medidor_saldo.xlsx</code>
 </div>
 
@@ -72,7 +72,7 @@
 
 <div class="logica-box">
   <b>Esta es la hoja que el usuario abre y lee</b> — el "estado de cuenta" con el formato que ya usaba a
-  mano: una fila por predio, y un <b>bloque de 5 columnas por mes</b> (DEUDA · PAGO · DECLARADO · AJUSTE · SALDO) que se agrega
+  mano: una fila por predio, y un <b>bloque de 6 columnas por mes</b> (DEUDA · PAGO · ABONO_REZAGADO · DECLARADO · AJUSTE · SALDO) que se agrega
   a la derecha cada mes nuevo. Un vistazo responde "¿cuánto debía, cuánto pagó, cuánto debe ahora, mes a
   mes?" sin reconstruir nada.<br><br>
   <b>Se regenera entera cada vez que se pide</b> — nunca es la fuente de verdad, nunca se edita directo.
@@ -83,10 +83,76 @@
 <div class="nota">
   <b>Por qué existen las dos versiones (registro vs vista):</b> el registro (<code>seguimiento_pueblo.xlsx</code>)
   tiene schema fijo — no cambia nunca, por eso un agente lo puede leer sin romperse. Esta vista, en cambio,
-  <b>agrega 3 columnas nuevas cada mes</b> — perfecto para que la lea un humano, pero un schema que crece
+  <b>agrega 6 columnas nuevas cada mes</b> — perfecto para que la lea un humano, pero un schema que crece
   así rompería a cualquier consumidor automático. Por eso el registro es la fuente y esta vista es solo
   para ojos humanos.
 </div>
+
+<h2>Primera hoja: RESUMEN_DEUDAS</h2>
+
+<div class="logica-box">
+  Una fila por predio reúne los saldos vigentes de todos los conceptos sin releer ni sumar
+  las hojas Excel. <code>TOTAL_DEUDA</code> es la suma de las ocho columnas conceptuales;
+  los predios sin deuda permanecen visibles con ceros. La hoja tiene autofiltro, paneles
+  congelados y orden MZ/LT, y nunca reemplaza el detalle mensual.
+</div>
+
+<table>
+  <tr><th class="sec s-predio" colspan="3">Predio</th><th class="sec s-mes1" colspan="9">Saldos vigentes</th></tr>
+  <tr>
+    <th class="col s-predio">MZ</th><th class="col s-predio">LT</th><th class="col s-predio">NOMBRE</th>
+    <th class="col s-mes1">MES_ANTERIOR</th><th class="col s-mes1">MES_ACTUAL</th>
+    <th class="col s-mes1">MANTENIMIENTO</th><th class="col s-mes1">CORTE_RECONEXION</th>
+    <th class="col s-mes1">CONVENIO</th><th class="col s-mes1">ACUERDOS</th>
+    <th class="col s-mes1">MULTA</th><th class="col s-mes1">OTROS</th>
+    <th class="col s-mes1">TOTAL_DEUDA</th>
+  </tr>
+</table>
+
+<h2>Hojas temporales: MES_ANTERIOR → MES_ACTUAL → MANTENIMIENTO</h2>
+
+<div class="logica-box">
+  El ledger conserva los conceptos <code>AGUA</code> y <code>MANTENIMIENTO</code>. La vista los proyecta
+  por FIFO: el pago de cada concepto cubre primero su saldo anterior y luego el cargo actual.
+  <code>MES_ANTERIOR</code> suma agua y mantenimiento pendientes de ciclos previos;
+  <code>MES_ACTUAL</code> muestra el agua del ciclo; <code>MANTENIMIENTO</code> muestra solo el
+  mantenimiento del ciclo. La hoja visible <code>AGUA</code> no existe.
+</div>
+
+<div class="tabs">
+  <div class="tab active">MES_ANTERIOR</div>
+  <div class="tab inactive">MES_ACTUAL</div>
+  <div class="tab inactive">MANTENIMIENTO</div>
+</div>
+
+<table>
+  <tr>
+    <th class="sec s-predio" colspan="3">Predio</th>
+    <th class="sec s-mes1" colspan="6">2026-08</th>
+  </tr>
+  <tr>
+    <th class="col s-predio">MZ</th><th class="col s-predio">LT</th><th class="col s-predio">NOMBRE</th>
+    <th class="col s-mes1">DEUDA</th><th class="col s-mes1">PAGO</th><th class="col s-mes1">ABONO_REZAGADO</th><th class="col s-mes1">DECLARADO</th>
+    <th class="col s-mes1">AJUSTE</th><th class="col s-mes1">SALDO</th>
+  </tr>
+  <tr>
+    <td class="dat d-predio">I</td><td class="dat d-predio">9</td><td class="dat d-predio">Caso de control</td>
+    <td class="dat d-mes1-deuda">8.00</td><td class="dat d-mes1-pago">8.00</td>
+    <td class="dat d-mes1-decl" style="text-align:center; color:#D1D5DB;">·</td>
+    <td class="dat d-mes1-decl" style="text-align:center; color:#D1D5DB;">·</td>
+    <td class="dat d-mes1-ajuste" style="text-align:center; color:#D1D5DB;">·</td>
+    <td class="dat d-mes1-saldo">0.00</td>
+  </tr>
+</table>
+
+<table>
+  <tr style="background:#f9fafb;"><th style="padding:4px 10px;">Regla</th><th style="padding:4px 10px;">Detalle</th></tr>
+  <tr><td>Orden de hojas</td><td><code>RESUMEN_DEUDAS</code>, <code>MES_ANTERIOR</code>, <code>MES_ACTUAL</code>, <code>MANTENIMIENTO</code>, <code>CORTE_RECONEXION</code>, <code>CONVENIO</code>, <code>ACUERDOS</code>, <code>MULTA</code>, <code>OTROS</code>, <code>Ajustes</code> y, si existe su fuente, <code>CONVENIO_HISTORIAL</code></td></tr>
+  <tr><td>Rollover</td><td>el saldo actual impago de un ciclo pasa al bloque anterior del ciclo siguiente</td></tr>
+  <tr><td>PAGO / ABONO_REZAGADO / DECLARADO</td><td>se reparten por separado y por FIFO dentro de AGUA o MANTENIMIENTO</td></tr>
+  <tr><td>AJUSTE ambiguo</td><td>la generación falla antes de reemplazar el archivo; nunca elige antigüedad por heurística</td></tr>
+  <tr><td>Conservación</td><td>la suma de las tres hojas equivale a AGUA + MANTENIMIENTO por predio, ciclo y campo monetario</td></tr>
+</table>
 
 <h2>Hoja: CONVENIO (MULTA y ACUERDOS son idénticas en estructura)</h2>
 
@@ -99,9 +165,9 @@
 <table>
   <tr>
     <th class="sec s-predio" colspan="3">Predio</th>
-    <th class="sec s-mes1" colspan="5">2026-07</th>
-    <th class="sec s-mes2" colspan="5">2026-08</th>
-    <th class="sec s-mes3" colspan="5">2026-09</th>
+    <th class="sec s-mes1" colspan="6">2026-07</th>
+    <th class="sec s-mes2" colspan="6">2026-08</th>
+    <th class="sec s-mes3" colspan="6">2026-09</th>
   </tr>
   <tr>
     <th class="col s-predio">MZ</th>
@@ -109,16 +175,19 @@
     <th class="col s-predio">NOMBRE</th>
     <th class="col s-mes1">DEUDA</th>
     <th class="col s-mes1">PAGO</th>
+    <th class="col s-mes1">ABONO_REZAGADO</th>
     <th class="col s-mes1">DECLARADO</th>
     <th class="col s-mes1">AJUSTE</th>
     <th class="col s-mes1">SALDO</th>
     <th class="col s-mes2">DEUDA</th>
     <th class="col s-mes2">PAGO</th>
+    <th class="col s-mes2">ABONO_REZAGADO</th>
     <th class="col s-mes2">DECLARADO</th>
     <th class="col s-mes2">AJUSTE</th>
     <th class="col s-mes2">SALDO</th>
     <th class="col s-mes3">DEUDA</th>
     <th class="col s-mes3">PAGO</th>
+    <th class="col s-mes3">ABONO_REZAGADO</th>
     <th class="col s-mes3">DECLARADO</th>
     <th class="col s-mes3">AJUSTE</th>
     <th class="col s-mes3">SALDO</th>
@@ -131,14 +200,17 @@
     <td class="dat d-mes1-deuda">900.00</td>
     <td class="dat d-mes1-pago">100.00</td>
     <td class="dat d-mes1-decl" style="text-align:center; color:#D1D5DB;">·</td>
+    <td class="dat d-mes1-decl" style="text-align:center; color:#D1D5DB;">·</td>
     <td class="dat d-mes1-ajuste" style="text-align:center; color:#D1D5DB;">·</td>
     <td class="dat d-mes1-saldo">800.00</td>
     <td class="dat d-mes2-deuda">0.00</td>
     <td class="dat d-mes2-pago">79.00</td>
+    <td class="dat d-mes2-decl" style="text-align:center; color:#D1D5DB;">·</td>
     <td class="dat d-mes2-decl" style="text-align:right; font-weight:bold; color:#B45309;">40.00</td>
     <td class="dat d-mes2-ajuste" style="text-align:right; font-weight:bold; color:#5B21B6;">-21.00</td>
     <td class="dat d-mes2-saldo">660.00</td>
     <td class="dat d-mes3-deuda">0.00</td>
+    <td class="dat d-mes3-decl" style="text-align:center; color:#D1D5DB;">·</td>
     <td class="dat d-mes3-decl" style="text-align:center; color:#D1D5DB;">·</td>
     <td class="dat d-mes3-ajuste" style="text-align:center; color:#D1D5DB;">·</td>
     <td class="dat d-mes3-saldo">660.00</td>
@@ -151,14 +223,17 @@
     <td class="dat d-mes1-deuda" style="text-align:center; font-style:italic; color:#9CA3AF;">—</td>
     <td class="dat d-mes1-pago" style="text-align:center; font-style:italic; color:#9CA3AF;">—</td>
     <td class="dat d-mes1-decl" style="text-align:center; font-style:italic; color:#9CA3AF;">—</td>
+    <td class="dat d-mes1-decl" style="text-align:center; font-style:italic; color:#9CA3AF;">—</td>
     <td class="dat d-mes1-ajuste" style="text-align:center; font-style:italic; color:#9CA3AF;">—</td>
     <td class="dat d-mes1-saldo" style="text-align:center; font-style:italic; color:#9CA3AF; background:#F3F4F6;">—</td>
     <td class="dat d-mes2-deuda" style="text-align:center; font-style:italic; color:#9CA3AF;">—</td>
     <td class="dat d-mes2-pago" style="text-align:center; font-style:italic; color:#9CA3AF;">—</td>
     <td class="dat d-mes2-decl" style="text-align:center; font-style:italic; color:#9CA3AF;">—</td>
+    <td class="dat d-mes2-decl" style="text-align:center; font-style:italic; color:#9CA3AF;">—</td>
     <td class="dat d-mes2-ajuste" style="text-align:center; font-style:italic; color:#9CA3AF;">—</td>
     <td class="dat d-mes2-saldo" style="text-align:center; font-style:italic; color:#9CA3AF; background:#F3F4F6;">—</td>
     <td class="dat d-mes3-deuda">350.00</td>
+    <td class="dat d-mes3-decl" style="text-align:center; color:#D1D5DB;">·</td>
     <td class="dat d-mes3-decl" style="text-align:center; color:#D1D5DB;">·</td>
     <td class="dat d-mes3-ajuste" style="text-align:center; color:#D1D5DB;">·</td>
     <td class="dat d-mes3-saldo">350.00</td>
@@ -168,13 +243,14 @@
 <h2>Reglas</h2>
 <table>
   <tr style="background:#f9fafb;"><th style="padding:4px 10px;">Regla</th><th style="padding:4px 10px;">Detalle</th></tr>
-  <tr><td>Columnas de mes</td><td>Un bloque de 5 (DEUDA·PAGO·DECLARADO·AJUSTE·SALDO) por cada <code>MES</code> que exista en el registro para ese CONCEPTO — orden cronológico, izquierda a derecha</td></tr>
+  <tr><td>Columnas de mes</td><td>Un bloque de 6 (DEUDA·PAGO·ABONO_REZAGADO·DECLARADO·AJUSTE·SALDO) por cada <code>MES</code> que exista en el registro para ese CONCEPTO — orden cronológico, izquierda a derecha</td></tr>
   <tr><td>DEUDA del bloque</td><td><code>Σ CARGO</code> de ese predio/concepto/mes — <b>solo lo que se le cargó</b>. Hasta el 06/08/2026 era <code>Σ CARGO + Σ AJUSTE</code> y eso hacía que una corrección se leyera como deuda nueva (P-6 mostraba «DEUDA 58» en julio cuando era el ajuste que tapaba un desfase de mes)</td></tr>
-  <tr><td>PAGO del bloque</td><td><code>Σ PAGO</code> con <code>CLASE ∈ CLASES_SUMAN_CAJA</code> — <b>plata que entró de verdad</b>. Esta columna sí se puede sumar para un balance</td></tr>
+  <tr><td>PAGO del bloque</td><td><code>Σ PAGO</code> con clase de caja distinta de <code>ABONO_REZAGADO</code> — plata normal del ciclo</td></tr>
+  <tr><td>ABONO_REZAGADO del bloque</td><td><code>Σ PAGO</code> con <code>CLASE=ABONO_REZAGADO</code> — plata real de un ciclo anterior identificada y aplicada después. Se muestra separada, pero descuenta el saldo igual que cualquier pago</td></tr>
   <tr><td>DECLARADO del bloque</td><td><code>Σ PAGO</code> con <code>CLASE ∉ CLASES_SUMAN_CAJA</code> (hoy: <code>DECLARACION_SECRETARIA</code>) — salda deuda pero <b>no entró a caja</b>: alguien afirma que el vecino pagó y todavía no se verificó de dónde salió. En ámbar. <code>·</code> gris si no hay.<br>En el ledger las dos son <code>TIPO_EVENTO=PAGO</code> y las distingue la <code>CLASE</code>; al pivotear, esa dimensión tiene que volverse columna — la celda agrega varios eventos y no puede llevar el atributo adentro. A agosto/2026 son S/1,257 en 28 filas, y hay 5 celdas que mezclan las dos cosas en el mismo mes</td></tr>
   <tr><td>AJUSTE del bloque</td><td><code>Σ AJUSTE</code> de ese predio/concepto/mes · <code>·</code> gris si no hubo ninguno · <b>rojo</b> si ninguno de los ajustes de esa celda tiene MOTIVO (el ledger no sabe por qué se movió ese saldo) · el porqué está en la hoja <code>Ajustes</code></td></tr>
   <tr><td>SALDO del bloque</td><td>saldo acumulado al cierre de ese mes — igual a <code>get_saldo(mz, lt, concepto, mes)</code></td></tr>
-  <tr><td>Predio sin evento ese mes</td><td>las 5 celdas quedan en <code>—</code> gris itálico (no `0.00` — distingue "no debía nada" de "no había nacido aún en el registro")</td></tr>
+  <tr><td>Predio sin evento ese mes</td><td>las 6 celdas quedan en <code>—</code> gris itálico (no `0.00` — distingue "no debía nada" de "no había nacido aún en el registro")</td></tr>
   <tr><td>Filas</td><td>todo predio que tenga al menos 1 evento para ese CONCEPTO en el registro — ordenado por MZ, LT</td></tr>
 </table>
 
@@ -305,7 +381,7 @@
 <hr style="margin-top:30px; border-color:#e5e7eb;">
 <p style="font-size:11px; color:#9ca3af;">
   Contrato visual aprobado — <code>seguimiento_repo.generar_vista()</code> debe replicar exactamente este formato.<br>
-  Owner: shared/seguimiento_repo.py &nbsp;|&nbsp; Versión: 1.4 (AJUSTE en columna propia + hoja Ajustes + PAGO partido en caja/DECLARADO por CLASES_SUMAN_CAJA) &nbsp;|&nbsp; Fecha: 06/08/2026
+  Owner: shared/seguimiento_repo.py &nbsp;|&nbsp; Versión: 1.5 (consumo desglosado por antigüedad y FIFO) &nbsp;|&nbsp; Fecha: 25/08/2026
 </p>
 
 </body>

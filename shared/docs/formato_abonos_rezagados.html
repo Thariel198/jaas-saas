@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Contrato de abonos_rezagados.xlsx</title>
+  <style>
+    body { max-width: 1100px; margin: 36px auto; padding: 0 20px; font: 16px/1.45 system-ui, sans-serif; color: #17202a; }
+    h1, h2 { color: #174a63; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0 28px; }
+    th, td { border: 1px solid #cad6dc; padding: 9px; text-align: left; }
+    th { background: #174a63; color: white; }
+    code { background: #edf3f5; padding: 2px 5px; }
+    .flow { white-space: pre; overflow-x: auto; background: #f4f7f8; border-left: 5px solid #c98b2e; padding: 16px; }
+  </style>
+</head>
+<body>
+  <h1>Contrato de abonos_rezagados.xlsx</h1>
+  <div class="flow">43 filas historicas -&gt; DESCARTADO -&gt; visibles, no procesables
+6 aplicaciones nuevas -&gt; CONFIRMADO + DIRIGIDO -&gt; dry-run por concepto
+S-5 por S/0 -&gt; CONFIRMADO_SIN_APLICACION -&gt; constancia, no evento</div>
+
+  <h2>Campos de control</h2>
+  <table>
+    <tr><th>Columna</th><th>Contrato</th></tr>
+    <tr><td>ID_ABONO</td><td>Identidad determinista y unica de la fila.</td></tr>
+    <tr><td>ESTADO</td><td><code>CONFIRMADO</code>, <code>DESCARTADO</code> o <code>CONFIRMADO_SIN_APLICACION</code>.</td></tr>
+    <tr><td>MODO_APLICACION</td><td><code>DIRIGIDO</code> para correcciones historicas; <code>NO_APLICA</code> para filas inactivas.</td></tr>
+    <tr><td>CONCEPTO_DESTINO</td><td>Concepto exacto de una aplicacion dirigida.</td></tr>
+    <tr><td>MOTIVO_ESTADO</td><td>Razon auditable; no reemplaza <code>MOTIVO</code>.</td></tr>
+    <tr><td>FECHA_ESTADO</td><td>Fecha ISO de la decision.</td></tr>
+    <tr><td>AUTORIZADO_POR</td><td>Persona que aprobo el estado.</td></tr>
+  </table>
+
+  <h2>Invariantes</h2>
+  <ul>
+    <li>Solo <code>ESTADO=CONFIRMADO</code> es procesable.</li>
+    <li>Una fila dirigida exige monto positivo y concepto valido.</li>
+    <li>Las filas descartadas conservan monto y evidencia originales.</li>
+    <li>La fase 1 no escribe en <code>seguimiento_pueblo.xlsx</code>.</li>
+  </ul>
+</body>
+</html>

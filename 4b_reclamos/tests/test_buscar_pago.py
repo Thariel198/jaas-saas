@@ -174,6 +174,36 @@ def test_sin_candidatos_no_hay_veredicto():
     assert bp._resolver_candidatos("CANDIDATO_TIPEO", []) is None
 
 
+# ── Workbook consolidado por ciclo ──────────────────────────────────────────
+
+def test_excesos_lee_arrastre_devolucion_de_planilla_cobrado_por_ciclo(
+        monkeypatch, tmp_path):
+    import pandas as pd
+
+    repos = {}
+    for mes, mz, estado in (("2026-06", "A", ""), ("2026-07", "B", "resuelto")):
+        repo = tmp_path / mes
+        outputs = repo / "5_cobranza" / "outputs"
+        outputs.mkdir(parents=True)
+        ruta = outputs / f"planilla_cobrado_{mes}.xlsx"
+        df = pd.DataFrame([{
+            "MZ": mz, "LT": "1", "NOMBRE": f"Vecino {mz}", "MONTO": 8,
+            "REFERENCIA": "ref", "COMENTARIO": "nota", "ESTADO": estado,
+        }])
+        with pd.ExcelWriter(ruta) as writer:
+            df.to_excel(writer, sheet_name="arrastre_devolucion", startrow=1, index=False)
+        repos[mes] = repo
+
+    monkeypatch.setattr(bp.comun, "REPOS_CICLO_CERRADO", repos)
+    monkeypatch.setattr(bp.ciclo, "activo", lambda default=None: None)
+
+    excesos = bp._excesos_no_resueltos()
+
+    assert excesos[["MES", "MZ", "LT", "MONTO"]].to_dict("records") == [
+        {"MES": "2026-06", "MZ": "A", "LT": "1", "MONTO": 8.0},
+    ]
+
+
 # ── Aritmética de meses ─────────────────────────────────────────────────────
 
 def test_mes_menos_cruza_el_ano():

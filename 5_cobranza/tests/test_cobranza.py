@@ -78,7 +78,10 @@ ESPERADO = {
     },
     "n_elegibles_corte":     2,   # B-1, B-2 (SALDO>0 AND MES_ANTERIOR>=8)
     "n_arrastre_deuda":      4,   # A-3, A-4, B-1, B-2
-    "n_arrastre_devolucion": 1,   # A-2
+    # A-2 (exceso) + X-99 (no identificado): _exportar_arrastre_devolucion suma los
+    # no identificados a propósito, para que esa plata no quede visible solo en
+    # discrepancias_cobranza.xlsx. La expectativa decía 1, de antes de esa feature.
+    "n_arrastre_devolucion": 2,   # A-2 + X-99
     "n_blancos_aplicados":   1,   # C-1
     "n_trazabilidad":        5,   # 2 yape + 3 efectivo (huérfano X-99 va solo a discrepancias, no a trazabilidad)
 }
@@ -105,6 +108,7 @@ def _setup_paths():
     mod.YAPE_DIR     = TEST_ROOT / "inputs" / "pagos_yape"
     mod.EFEC_DIR     = TEST_ROOT / "inputs" / "pagos_efectivo"
     mod.BLANCOS_PATH = TEST_ROOT / "shared" / "blancos_acumulados.xlsx"
+    mod.ESTADO_CICLO_PATH = TEST_ROOT / "shared" / "estado_ciclo.json"
     # mod.repo ES el módulo seguimiento_repo (mismo objeto, singleton en
     # sys.modules) — redirigir su path acá also lo redirige para main.py.
     # Sin esto, _reconciliar_pagos_pueblo escribiría en el archivo real.
@@ -205,13 +209,24 @@ def _write_blancos():
     wb.save(TEST_ROOT / "shared" / "blancos_acumulados.xlsx")
 
 
+def _write_arrastre_devolucion_legado():
+    wb = Workbook()
+    ws = wb.active
+    ws.append([None] * 13)
+    ws.append(["MZ", "LT", "NOMBRE", None, "monto", None, "MES_ANO_ORIGEN",
+               None, "REFERENCIA", "COMENTARIO", None, "REVISION", "ESTADO"])
+    ws.append(["A", "2", "EXCESO_YAPE", None, 12, None, MES_TEST,
+               None, None, None, None, "revision legada", "pendiente"])
+    wb.save(TEST_ROOT / "outputs" / f"arrastre_devolucion_{MES_TEST}.xlsx")
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 #  LECTORES DE OUTPUT
 # ─────────────────────────────────────────────────────────────────────────────
-def _leer_dh(path: Path) -> tuple[list[str], list[tuple]]:
+def _leer_dh(path: Path, sheet_name: str | None = None) -> tuple[list[str], list[tuple]]:
     """Lee xlsx con doble header (fila 1=grupos, fila 2=cols, fila 3+=datos)."""
     wb = load_workbook(path, data_only=True)
-    ws = wb.active
+    ws = wb[sheet_name] if sheet_name else wb.active
     headers = [str(c.value).strip().upper() if c.value else "" for c in ws[2]]
     filas = []
     for row in ws.iter_rows(min_row=3, values_only=True):
@@ -242,10 +257,16 @@ def _verificar_primera(mod) -> tuple[bool, list[str]]:
             ok = False
 
     # ── planilla_cobrado ──
-    plan_path = mod.OUTPUTS_DIR / "planilla_cobrado.xlsx"
-    headers, filas = _leer_dh(plan_path)
+    plan_path = mod.OUTPUTS_DIR / f"planilla_cobrado_{MES_TEST}.xlsx"
+    headers, filas = _leer_dh(plan_path, "planilla_cobrado")
     chk(len(filas) == ESPERADO["n_planilla"],
         "planilla_cobrado · filas", ESPERADO["n_planilla"], len(filas))
+    chk("ABONO_REZAGADO" in headers,
+        "planilla_cobrado · columna abono", "ABONO_REZAGADO",
+        "presente" if "ABONO_REZAGADO" in headers else "falta")
+    chk(not (mod.OUTPUTS_DIR / "planilla_cobrado.xlsx").exists(),
+        "planilla_cobrado · sin nombre ambiguo", False,
+        (mod.OUTPUTS_DIR / "planilla_cobrado.xlsx").exists())
 
     estados = Counter(str(_col(headers, r, "ESTADO") or "").strip().upper() for r in filas)
     for k, v in ESPERADO["estados"].items():
@@ -263,7 +284,8 @@ def _verificar_primera(mod) -> tuple[bool, list[str]]:
                       "CORTE_RECONEXION", "CONVENIO", "MULTA", "ACUERDOS_ASAMBLEA"))
         descuentos = (_col(headers, r, "BLANCO") or 0) + (_col(headers, r, "DEVOLUCION") or 0)
         total = round(cargos + descuentos, 2)
-        pagado = (_col(headers, r, "MONTO_YAPE") or 0) + (_col(headers, r, "MONTO_EFECTIVO") or 0)
+        pagado = (sum(_col(headers, r, c) or 0 for c in
+                      ("MONTO_YAPE", "MONTO_EFECTIVO", "ABONO_REZAGADO")))
         return round(total - pagado, 2)
 
     chk(abs(_saldo_calc(fila_c1) - 0) < 0.01, "C-1 SALDO=0 tras blanco", 0, _saldo_calc(fila_c1))
@@ -286,9 +308,16 @@ def _verificar_primera(mod) -> tuple[bool, list[str]]:
     chk(len(filas_ad) == ESPERADO["n_arrastre_deuda"],
         "arrastre_deuda · filas", ESPERADO["n_arrastre_deuda"], len(filas_ad))
 
-    # ── arrastre_devolucion ──
-    av_path = mod.OUTPUTS_DIR / f"arrastre_devolucion_{MES_TEST}.xlsx"
-    h_av, filas_av = _leer_dh(av_path)
+    # ── hojas de arrastre dentro de planilla_cobrado ──
+    wb_plan = load_workbook(plan_path, data_only=True)
+    chk(wb_plan.sheetnames == ["planilla_cobrado", "arrastre_consolidado", "arrastre_devolucion"],
+        "planilla_cobrado · hojas", ["planilla_cobrado", "arrastre_consolidado", "arrastre_devolucion"],
+        wb_plan.sheetnames)
+    ws_av = wb_plan["arrastre_devolucion"]
+    chk(ws_av.cell(3, 12).value == "revision legada" and ws_av.cell(3, 13).value == "pendiente",
+        "arrastre_devolucion · migra revisión legada", "revision legada / pendiente",
+        f"{ws_av.cell(3, 12).value} / {ws_av.cell(3, 13).value}")
+    h_av, filas_av = _leer_dh(plan_path, "arrastre_devolucion")
     chk(len(filas_av) == ESPERADO["n_arrastre_devolucion"],
         "arrastre_devolucion · filas", ESPERADO["n_arrastre_devolucion"], len(filas_av))
 
@@ -297,6 +326,13 @@ def _verificar_primera(mod) -> tuple[bool, list[str]]:
         monto_av = _col(h_av, filas_av[0], "MONTO") or 0
         chk(monto_av > 0 and abs(monto_av - 12) < 0.01,
             "arrastre_devolucion · monto=|saldo|", 12.0, monto_av)
+
+    _, filas_ac = _leer_dh(plan_path, "arrastre_consolidado")
+    chk(len(filas_ac) == ESPERADO["n_arrastre_deuda"],
+        "arrastre_consolidado · filas", ESPERADO["n_arrastre_deuda"], len(filas_ac))
+    for base in ("arrastre_devolucion", "arrastre_consolidado"):
+        legado = mod.OUTPUTS_DIR / f"{base}_{MES_TEST}.xlsx"
+        chk(not legado.exists(), f"{base} · sin archivo separado", False, legado.exists())
 
     # ── trazabilidad ──
     traz_path = mod.OUTPUTS_DIR / "trazabilidad_cobranza.xlsx"
@@ -322,9 +358,11 @@ def _snapshot(mod) -> dict:
         _, filas = _leer_dh(p)
         return len(filas)
     return {
-        "planilla":            _n(mod.OUTPUTS_DIR / "planilla_cobrado.xlsx"),
+        "planilla":            _n(mod.OUTPUTS_DIR / f"planilla_cobrado_{MES_TEST}.xlsx"),
         "arrastre_deuda":      _n(mod.OUTPUTS_DIR / f"arrastre_deuda_{MES_TEST}.xlsx"),
-        "arrastre_devolucion": _n(mod.OUTPUTS_DIR / f"arrastre_devolucion_{MES_TEST}.xlsx"),
+        "arrastre_devolucion": len(_leer_dh(
+            mod.OUTPUTS_DIR / f"planilla_cobrado_{MES_TEST}.xlsx", "arrastre_devolucion"
+        )[1]),
         "trazabilidad":        _n(mod.OUTPUTS_DIR / "trazabilidad_cobranza.xlsx"),
     }
 
@@ -357,6 +395,7 @@ def main():
     _write_yape()
     _write_efectivo()
     _write_blancos()
+    _write_arrastre_devolucion_legado()
 
     print("\n[Run 1] main.main() — primera corrida")
     print("-" * 60)
@@ -371,12 +410,28 @@ def main():
     print("\n[Run 2] main.main() — segunda corrida (debe ser idempotente)")
     print("-" * 60)
     antes = _snapshot(mod)
-    mod.main()
+    plan_path = mod.OUTPUTS_DIR / f"planilla_cobrado_{MES_TEST}.xlsx"
+    wb = load_workbook(plan_path)
+    ws = wb["arrastre_devolucion"]
+    ws.cell(3, 12, "revision preservada")
+    ws.cell(3, 13, "pendiente")
+    wb.save(plan_path)
+    sys.argv.append("--force")
+    try:
+        mod.main()
+    finally:
+        sys.argv.remove("--force")
     despues = _snapshot(mod)
 
     print("\n[Check 2] Verificando idempotencia")
     print("-" * 60)
     ok2, msgs2 = _verificar_idempotencia(antes, despues)
+    wb = load_workbook(plan_path, data_only=True)
+    ws = wb["arrastre_devolucion"]
+    revision_preservada = (ws.cell(3, 12).value == "revision preservada"
+                           and ws.cell(3, 13).value == "pendiente")
+    msgs2.append(f"  [{'OK ' if revision_preservada else 'FAIL'}] regeneración preserva REVISION/ESTADO")
+    ok2 = ok2 and revision_preservada
     for m in msgs2:
         print(m)
 

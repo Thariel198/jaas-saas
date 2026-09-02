@@ -139,28 +139,10 @@
       <div class="cols">MZ · LT · NOMBRE · MES_ANO<br>MARC_ANT · MARC_ACT · M3</div>
     </div>
 
-    <div class="input-box manual">
-      <div class="src">hoy manual · futuro 04b</div>
-      <div class="fname">arrastre_deuda<br>_YYYY-MM.xlsx</div>
-      <div class="cols">MZ · LT · monto</div>
-    </div>
-
-    <div class="input-box manual">
-      <div class="src">hoy manual · futuro 6_corte</div>
-      <div class="fname">arrastre_corte<br>_YYYY-MM.xlsx</div>
-      <div class="cols">MZ · LT · monto</div>
-    </div>
-
-    <div class="input-box manual">
-      <div class="src">tesorero actualiza c/mes</div>
-      <div class="fname">convenios.xlsx</div>
-      <div class="cols">MZ · LT · cuota_mes</div>
-    </div>
-
-    <div class="input-box manual">
-      <div class="src">tesorero actualiza c/mes</div>
-      <div class="fname">multas.xlsx</div>
-      <div class="cols">MZ · LT · monto_mes</div>
+    <div class="input-box from-module">
+      <div class="src">shared · ledger comprometido</div>
+      <div class="fname">seguimiento_pueblo.xlsx</div>
+      <div class="cols">AGUA · MANTENIMIENTO · CORTE<br>CONVENIO · MULTA · ACUERDOS</div>
     </div>
 
   </div>
@@ -192,8 +174,8 @@
     </div>
 
     <div class="process-rule">
-      <span class="label">Si arrastre no existe</span>
-      campo = 0 · log avisa
+      <span class="label">Saldo anterior</span>
+      ledger comprometido por 7_cierre
     </div>
   </div>
 
@@ -256,9 +238,8 @@
 </div>
 
 <div class="join-note" style="grid-column: unset; margin-top:16px;">
-  <strong>Join (MZ, LT):</strong> todos los arrastres se unen sobre la base de lecturas.
-  Si un archivo no existe → campo <code>= 0</code>, log avisa pero el módulo termina.
-  Un usuario en el arrastre que no esté en lecturas se ignora.
+  <strong>Join (MZ, LT):</strong> las lecturas directas y los saldos del ledger se unen sobre la base de lecturas.
+  Desde septiembre, un ciclo anterior no comprometido bloquea la generación; no se asume deuda cero.
 </div>
 
 </body>

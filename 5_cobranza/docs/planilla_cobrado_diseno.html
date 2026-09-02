@@ -65,10 +65,10 @@ tr:last-child td{border-bottom:none}
 
 <div id="w">
   <div class="instruc">
-    Generado por <strong>5_cobranza/main.py</strong> — solo lectura.<br>
+    Generado por <strong>5_cobranza/main.py</strong> como <strong>planilla_cobrado_YYYY-MM.xlsx</strong> — solo lectura.<br>
     Copia de <strong>2_planilla/outputs/planilla_YYYY-MM.xlsx</strong> con columnas de pago cargadas desde <strong>4_pagos</strong> y <strong>CICLO_COBRANZA</strong> agregado al final.<br>
     Incluye <strong>todos los usuarios</strong> (pagaron o no) · fuente de verdad para <strong>3_boletas</strong>, <strong>6_corte</strong> y <strong>7_cierre</strong>.<br>
-    <strong>MONTO_YAPE</strong> es el monto neto recibido (descontando retornos y devoluciones) · <strong>RETORNO</strong>: puntero a <strong>pagos_yape_retorno.xlsx</strong> cuando hubo exceso devuelto (yapeó de más) · <strong>DEVUELTO</strong>: puntero a <strong>pagos_yape_devolucion.xlsx</strong> cuando hubo pago adelantado devuelto completo. Ambos en yape / efectivo / mixto según el medio.
+    <strong>MONTO_YAPE</strong> es el monto neto recibido (descontando retornos y devoluciones) · <strong>ABONO_REZAGADO</strong> muestra pagos aplicados fuera de la ventana normal · <strong>SALDO = TOTAL_A_PAGAR − MONTO_YAPE − MONTO_EFECTIVO − ABONO_REZAGADO</strong> · <strong>RETORNO</strong>: puntero a <strong>pagos_yape_retorno.xlsx</strong> cuando hubo exceso devuelto (yapeó de más) · <strong>DEVUELTO</strong>: puntero a <strong>pagos_yape_devolucion.xlsx</strong> cuando hubo pago adelantado devuelto completo. Ambos en yape / efectivo / mixto según el medio.
   </div>
 
   <div class="tab-excel">planilla_cobrado</div>
@@ -85,7 +85,7 @@ tr:last-child td{border-bottom:none}
           <th class="th-desc gh" colspan="2">Descuentos</th>
           <th class="th-total gh">Total</th>
           <th class="th-sep" rowspan="2"></th>
-          <th class="th-pago gh" colspan="7">Pago → 5_cobranza</th>
+          <th class="th-pago gh" colspan="8">Pago → 5_cobranza</th>
           <th class="th-sep" rowspan="2"></th>
           <th class="th-traz gh" colspan="1">¿Cuándo?</th>
         </tr>
@@ -114,6 +114,7 @@ tr:last-child td{border-bottom:none}
 
           <th class="th-pago">MONTO_YAPE</th>
           <th class="th-pago">MONTO_EFECTIVO</th>
+          <th class="th-pago">ABONO_REZAGADO</th>
           <th class="th-pago">SALDO</th>
           <th class="th-pago">RETORNO</th>
           <th class="th-pago">DEVUELTO</th>
@@ -136,7 +137,7 @@ tr:last-child td{border-bottom:none}
           <td class="td-desc-0">—</td><td class="td-desc-0">—</td>
           <td class="td-total">S/ 60.00</td>
           <td class="td-sep"></td>
-          <td class="td-pago">S/ 60.00</td><td class="td-pago-0">—</td><td class="td-pago">S/ 0.00</td><td class="td-pago-0">—</td><td class="td-pago-0">—</td><td><span class="b-cancelado">CANCELADO</span></td><td class="td-fecha">10/06/2026</td>
+          <td class="td-pago">S/ 60.00</td><td class="td-pago-0">—</td><td class="td-pago-0">—</td><td class="td-pago">S/ 0.00</td><td class="td-pago-0">—</td><td class="td-pago-0">—</td><td><span class="b-cancelado">CANCELADO</span></td><td class="td-fecha">10/06/2026</td>
           <td class="td-sep"></td>
           <td class="td-traz">1</td>
         </tr>
@@ -152,23 +153,23 @@ tr:last-child td{border-bottom:none}
           <td class="td-desc-0">—</td><td class="td-desc-0">—</td>
           <td class="td-total">S/ 61.00</td>
           <td class="td-sep"></td>
-          <td class="td-pago-0">—</td><td class="td-pago">S/ 30.00</td><td class="td-pago">S/ 31.00</td><td class="td-pago-0">—</td><td class="td-pago-0">—</td><td><span class="b-parcial">PARCIAL</span></td><td class="td-fecha">10/06/2026</td>
+          <td class="td-pago-0">—</td><td class="td-pago">S/ 30.00</td><td class="td-pago-0">—</td><td class="td-pago">S/ 31.00</td><td class="td-pago-0">—</td><td class="td-pago-0">—</td><td><span class="b-parcial">PARCIAL</span></td><td class="td-fecha">10/06/2026</td>
           <td class="td-sep"></td>
           <td class="td-traz">1</td>
         </tr>
 
-        <!-- fila 3: pendiente — no pagó nada, sin retorno -->
+        <!-- fila 3: parcial por abono rezagado — caso L-5 -->
         <tr>
           <td class="num">3</td>
-          <td class="td-quien">C</td><td class="td-quien">12</td><td class="td-nombre">LINDA PAJUELO CASTILLO</td><td class="td-quien">2026-06</td>
+          <td class="td-quien">L</td><td class="td-quien">5</td><td class="td-nombre">EJEMPLO ABONO REZAGADO</td><td class="td-quien">2026-08</td>
           <td class="td-sep"></td>
           <td class="td-lec">22</td><td class="td-lec">27</td><td class="td-lec-n">5</td>
           <td class="td-sep"></td>
-          <td class="td-cob">S/ 5.00</td><td class="td-cob">S/ 3.00</td><td class="td-cob">S/ 50.00</td><td class="td-cob-0">—</td><td class="td-cob-0">—</td><td class="td-cob">S/ 30.00</td><td class="td-cob-0">—</td>
+          <td class="td-cob">S/ 5.00</td><td class="td-cob">S/ 3.00</td><td class="td-cob">S/ 8.00</td><td class="td-cob-0">—</td><td class="td-cob">S/ 60.00</td><td class="td-cob">S/ 50.00</td><td class="td-cob">S/ 50.00</td>
           <td class="td-desc-0">—</td><td class="td-desc-0">—</td>
-          <td class="td-total">S/ 88.00</td>
+          <td class="td-total">S/ 176.00</td>
           <td class="td-sep"></td>
-          <td class="td-pago-0">—</td><td class="td-pago-0">—</td><td class="td-pago">S/ 88.00</td><td class="td-pago-0">—</td><td class="td-pago-0">—</td><td><span class="b-pendiente">PENDIENTE</span></td><td class="td-pago-0">—</td>
+          <td class="td-pago-0">—</td><td class="td-pago-0">—</td><td class="td-pago">S/ 126.00</td><td class="td-pago">S/ 50.00</td><td class="td-pago-0">—</td><td class="td-pago-0">—</td><td><span class="b-parcial">PARCIAL</span></td><td class="td-pago-0">—</td>
           <td class="td-sep"></td>
           <td class="td-traz" style="opacity:0.5;font-style:italic">—</td>
         </tr>
@@ -184,7 +185,7 @@ tr:last-child td{border-bottom:none}
           <td class="td-desc-0">—</td><td class="td-desc-0">—</td>
           <td class="td-total">S/ 120.00</td>
           <td class="td-sep"></td>
-          <td class="td-pago">S/ 120.00</td><td class="td-pago-0">—</td><td class="td-pago">S/ 0.00</td><td><span class="b-ret-yape">yape</span></td><td class="td-pago-0">—</td><td><span class="b-cancelado">CANCELADO</span></td><td class="td-fecha">10/06/2026</td>
+          <td class="td-pago">S/ 120.00</td><td class="td-pago-0">—</td><td class="td-pago-0">—</td><td class="td-pago">S/ 0.00</td><td><span class="b-ret-yape">yape</span></td><td class="td-pago-0">—</td><td><span class="b-cancelado">CANCELADO</span></td><td class="td-fecha">10/06/2026</td>
           <td class="td-sep"></td>
           <td class="td-traz">1</td>
         </tr>
@@ -200,7 +201,7 @@ tr:last-child td{border-bottom:none}
           <td class="td-desc-v">−S/ 8.00</td><td class="td-desc-0">—</td>
           <td class="td-total">S/ 12.00</td>
           <td class="td-sep"></td>
-          <td class="td-pago">S/ 12.00</td><td class="td-pago-0">—</td><td class="td-pago">S/ 0.00</td><td class="td-pago-0">—</td><td><span class="b-dev-yape">yape</span></td><td><span class="b-cancelado">CANCELADO</span></td><td class="td-fecha">10/06/2026</td>
+          <td class="td-pago">S/ 12.00</td><td class="td-pago-0">—</td><td class="td-pago-0">—</td><td class="td-pago">S/ 0.00</td><td class="td-pago-0">—</td><td><span class="b-dev-yape">yape</span></td><td><span class="b-cancelado">CANCELADO</span></td><td class="td-fecha">10/06/2026</td>
           <td class="td-sep"></td>
           <td class="td-traz">1</td>
         </tr>

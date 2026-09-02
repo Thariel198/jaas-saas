@@ -200,6 +200,11 @@
     <div class="process-title">5_cobranza/main.py</div>
 
     <div class="process-rule">
+      <span class="label">Proyección provisional</span>
+      Se puede re-correr<br>NO escribe ledger
+    </div>
+
+    <div class="process-rule">
       <span class="label">Detecta ciclo nuevo</span>
       max(CICLO_COBRANZA)<br>en trazabilidad + 1
     </div>
@@ -239,11 +244,20 @@
   <div class="output-col">
 
     <div class="output-box">
-      <div class="output-header green">planilla_cobrado.xlsx</div>
+      <div class="output-header green">planilla_cobrado_YYYY-MM.xlsx</div>
       <div class="output-body green">
         <div class="out-label">21 cols planilla + CICLO_COBRANZA + overlay penalidades</div>
-        <div class="out-desc">Rellena MONTO_YAPE · MONTO_EFECTIVO · SALDO<br>RETORNO · DEVUELTO · ESTADO · FECHA_PAGO · CICLO_COBRANZA<br>CORTE_RECONEXION = base + Σ delta audits (6_corte + 6b)</div>
+        <div class="out-desc">Rellena MONTO_YAPE · MONTO_EFECTIVO · ABONO_REZAGADO · SALDO<br>RETORNO · DEVUELTO · ESTADO · FECHA_PAGO · CICLO_COBRANZA<br>CORTE_RECONEXION = base + Σ delta audits (6_corte + 6b)</div>
         <div class="feeds-badge purple-bd">→ 3_boletas · 6_corte · 6b · 7_cierre</div>
+      </div>
+    </div>
+
+    <div class="output-box">
+      <div class="output-header indigo">snapshot_ledger_YYYY-MM.json</div>
+      <div class="output-body indigo">
+        <div class="out-label">Objetivo determinista · hash SHA-256</div>
+        <div class="out-desc">MZ · LT · CONCEPTO · SOURCE · MONTO_OBJETIVO<br>Propuesta regenerable; 7_cierre es el único que la compromete.</div>
+        <div class="feeds-badge purple-bd">→ 7_cierre</div>
       </div>
     </div>
 
@@ -280,7 +294,7 @@
     </div>
 
     <div class="output-box">
-      <div class="output-header indigo">arrastre_devolucion_YYYY-MM.xlsx</div>
+      <div class="output-header indigo">planilla_cobrado.xlsx · hoja arrastre_devolucion</div>
       <div class="output-body indigo">
         <div class="out-label">Solo usuarios con SALDO &lt; 0 (EXCESO)</div>
         <div class="out-desc">MZ · LT · NOMBRE · monto · MES_ANO_ORIGEN</div>
@@ -295,10 +309,12 @@
 <div class="note">
   <strong>Idempotencia:</strong> re-correr con los mismos inputs produce el mismo output.
   Si no hay pagos nuevos respecto a <code>trazabilidad_cobranza.xlsx</code>, el módulo sale sin modificar nada.<br>
+  <strong>Ledger:</strong> las corridas normales y <code>--force</code> son proyecciones; no escriben
+  <code>seguimiento_pueblo.xlsx</code>. El snapshot solo se compromete desde <code>7_cierre</code>.<br>
   <strong>Retroescritura:</strong> <code>CICLO_COBRANZA</code> se escribe también en
   <code>pagos_yape_tepago.xlsx</code> e <code>pagos_efectivo.xlsx</code> (inputs/).<br>
   <strong>Penalidades (B7 Fase 2 / writer único):</strong> <code>6_corte/aplicar_penalidad.py</code> y <code>6b/aplicar_penalidad_multas.py</code>
-  NO escriben en shared/planilla_mes — solo en sus audits. 5_cobranza lee ambos audits en vivo y materializa el overlay en <code>planilla_cobrado.xlsx</code> (que downstream consume 6_corte/6b/7_cierre).
+  NO escriben en shared/planilla_mes — solo en sus audits. 5_cobranza lee ambos audits en vivo y materializa el overlay en <code>planilla_cobrado_YYYY-MM.xlsx</code> (que downstream consume 6_corte/6b/7_cierre).
 </div>
 
 <div style="margin-top:20px; border:1.5px solid #6366F1; border-radius:8px; padding:12px 16px; background:#EEF2FF; max-width:700px;">

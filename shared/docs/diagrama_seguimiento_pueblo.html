@@ -293,7 +293,7 @@
 <div class="inv-row">
   <div class="inv write">
     <span class="ititle">Single writer</span>
-    El registro de eventos solo se escribe vía <code>seguimiento_repo.py</code>. Ningún módulo abre el archivo con <code>load_workbook</code> para escribir directo.
+    El registro solo se escribe vía <code>seguimiento_repo.py</code>. El cierre mensual usa un append batch atómico; las corridas provisionales no escriben eventos.
   </div>
   <div class="inv audit">
     <span class="ititle">Append-only real</span>

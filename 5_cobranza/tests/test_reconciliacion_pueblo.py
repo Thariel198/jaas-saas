@@ -63,6 +63,11 @@ def _usuario(mz, lt, multa, total_pagado):
     }
 
 
+def _commit(resultado, hash_snapshot):
+    objetivos = mod._objetivos_ledger(resultado, MES_TEST)
+    return mod.repo.reconciliar_objetivos_batch(MES_TEST, hash_snapshot, objetivos)
+
+
 def main():
     path = _reset_repo()
     # El cargo tiene que existir: 5_cobranza reconcilia contra deuda real, y el
@@ -72,18 +77,18 @@ def main():
 
     # 1) Primer pago parcial: debe 50 de MULTA, paga 30
     r1 = _usuario("A", "1", multa=50.0, total_pagado=30.0)
-    mod._reconciliar_pagos_pueblo([r1], MES_TEST)
+    _commit([r1], "a" * 64)
     ya = mod.repo.pago_registrado("A", "1", "MULTA", MES_TEST)
     check(ya == 30.0, f"caso 1: pago_registrado=30 (obtuve {ya})")
 
     # 2) Re-corrida idéntica → delta=0, no debe cambiar nada
-    mod._reconciliar_pagos_pueblo([r1], MES_TEST)
+    _commit([r1], "a" * 64)
     ya2 = mod.repo.pago_registrado("A", "1", "MULTA", MES_TEST)
     check(ya2 == 30.0, f"caso 2: re-corrida sin cambios sigue en 30 (obtuve {ya2})")
 
     # 3) Pago nuevo: ahora pagó 45 en total (15 más) → delta incremental = 15
     r3 = _usuario("A", "1", multa=50.0, total_pagado=45.0)
-    mod._reconciliar_pagos_pueblo([r3], MES_TEST)
+    _commit([r3], "b" * 64)
     ya3 = mod.repo.pago_registrado("A", "1", "MULTA", MES_TEST)
     check(ya3 == 45.0, f"caso 3: tras pago incremental, pago_registrado=45 (obtuve {ya3})")
 
@@ -91,7 +96,7 @@ def main():
     # de un pago mal cargado) → debe generar AJUSTE de +25, no tocar el PAGO=45.
     # +25 y no -25: los 25 acreditados de más se le DEVUELVEN a la deuda.
     r4 = _usuario("A", "1", multa=50.0, total_pagado=20.0)
-    mod._reconciliar_pagos_pueblo([r4], MES_TEST)
+    _commit([r4], "c" * 64)
     ya4 = mod.repo.pago_registrado("A", "1", "MULTA", MES_TEST)
     check(ya4 == 45.0, f"caso 4: pago_registrado (solo PAGO) sigue en 45, el ajuste no lo toca (obtuve {ya4})")
 
@@ -120,7 +125,7 @@ def main():
     check(mod.repo.get_saldo("A", "2", "MULTA", MES_TEST) == 0.0,
           "caso 5: la declaración deja el saldo en 0")
 
-    mod._reconciliar_pagos_pueblo([_usuario("A", "2", multa=50.0, total_pagado=50.0)], MES_TEST)
+    _commit([_usuario("A", "2", multa=50.0, total_pagado=50.0)], "d" * 64)
     saldo5 = mod.repo.get_saldo("A", "2", "MULTA", MES_TEST)
     check(saldo5 == -50.0, f"caso 5: el exceso queda visible como saldo -50 (obtuve {saldo5})")
     propio = mod.repo.pago_registrado("A", "2", "MULTA", MES_TEST, source="5_cobranza")

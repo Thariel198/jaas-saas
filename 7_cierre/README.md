@@ -3,7 +3,7 @@
 Cierra un ciclo mensual: **congela** el mes, **cosecha** su registro inmutable a una
 carpeta trackeada, y **limpia** los temporales para que el próximo mes arranque limpio.
 
-> **Estado:** rediseñado 2026-07-03 · pendiente de implementación.
+> **Estado:** implementado; agosto de 2026 es el primer cierre con cuenta completa.
 > Reemplaza el diseño original (generar arrastres) — ese trabajo ya lo absorbió
 > `5_cobranza` (`arrastre_consolidado`) + `seguimiento_pueblo`. Ver "Por qué cambió".
 
@@ -11,7 +11,8 @@ carpeta trackeada, y **limpia** los temporales para que el próximo mes arranque
 
 ## Qué hace — en una frase
 
-`7_cierre` **no genera** arrastres ni saldos. Solo **transiciona el período**:
+`7_cierre` ejecuta la proyección final de 5_cobranza, la valida, compromete su snapshot
+al ledger una sola vez y luego **transiciona el período**:
 sella `estado_ciclo → CERRADO`, materializa la foto inmutable del mes en
 `7_cierre/archivo/YYYY-MM/`, y resetea los slots mutables para el mes siguiente.
 
@@ -46,8 +47,8 @@ de existir de este módulo— es la **transición de mes**: freeze + foto + limp
 
 ## Cuándo correr
 
-Al **cierre del período**, después de que `5b_validacion` selló `validado:true` en
-`estado_ciclo.json` para el mes. Ese sello es el gate (PASO 1): sin él, `7_cierre` aborta.
+Al **cierre del período**. El propio cierre ejecuta la proyección final y
+`5b_validacion`; el sello queda ligado al hash del snapshot exacto que se compromete.
 
 ```
 … → 5_cobranza → 5b_validacion (valida) → 7_cierre (cierra) → (próximo mes)
@@ -73,9 +74,7 @@ Es idempotente: re-correrlo re-cosecha la foto y re-sella (no duplica).
 │   └── diagrama_consolidador_cierre.html      ← detalle de reglas
 ├── archivo/                    ← TRACKEADO en git · la foto inmutable por período
 │   └── 2026-06/
-│       ├── arrastre_consolidado_2026-06.xlsx
-│       ├── planilla_cobrado.xlsx
-│       ├── arrastre_devolucion_2026-06.xlsx
+│       ├── planilla_cobrado_YYYY-MM.xlsx  ← 3 hojas, incluida REVISION manual
 │       ├── mesa_1..7.xlsx
 │       └── correcciones_lote.xlsx
 └── outputs/
@@ -106,7 +105,7 @@ trazabilidad_cobranza.xlsx · trazabilidad_reclamos.xlsx  (append-only)
 Canónicos derivados + fuentes de pago del período. Julio lee el arrastre de acá.
 
 ```
-CANÓNICOS         arrastre_consolidado_2026-06 · planilla_cobrado · arrastre_devolucion
+CANÓNICOS         planilla_cobrado_2026-06.xlsx (3 hojas) · snapshot_ledger_2026-06.json
 FUENTES DE PAGO   mesa_1..7.xlsx · correcciones_lote.xlsx · reportes yape del mes
 ```
 
@@ -138,9 +137,8 @@ DEJA quieto        lecturas_2026-06 · arrastre_deuda_2026-06 (residuo)  — mon
 | Archivo | Origen | Rol |
 |---|---|---|
 | `estado_ciclo.json` | `shared/reporte_acumulado_procesado/` | Gate (validado) + destino del freeze |
-| `arrastre_consolidado_YYYY-MM.xlsx` | `5_cobranza/outputs/` | Canónico a cosechar |
-| `planilla_cobrado.xlsx` | `5_cobranza/outputs/` | Canónico a cosechar |
-| `arrastre_devolucion_YYYY-MM.xlsx` | `5_cobranza/outputs/` | Canónico a cosechar (tiene REVISION manual) |
+| `planilla_cobrado_YYYY-MM.xlsx` | `5_cobranza/outputs/` | Canónico de 3 hojas a cosechar; `arrastre_devolucion` tiene REVISION manual |
+| `snapshot_ledger_YYYY-MM.json` | `5_cobranza/outputs/` | Propuesta validada para commit al ledger |
 | `mesa_1..7.xlsx` | `4_pagos/efectivo/inputs/` | Fuente de pago a cosechar + resetear |
 | `correcciones_lote.xlsx` | `5_cobranza/inputs/` | Fuente de corrección a cosechar + resetear |
 

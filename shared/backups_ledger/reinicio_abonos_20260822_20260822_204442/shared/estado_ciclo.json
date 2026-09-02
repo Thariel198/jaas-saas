@@ -1,0 +1,36 @@
+{
+  "2026-06": {
+    "estado": "CERRADO",
+    "ultima_actualizacion": "2026-07-03T05:08:54",
+    "arrastre": {
+      "generado": true,
+      "generado_en": "2026-06-30T09:14:16",
+      "validado": true,
+      "validado_en": "2026-07-01T09:59:52"
+    },
+    "cerrado_en": "2026-07-03T05:08:54"
+  },
+  "2026-07": {
+    "estado": "CERRADO",
+    "arrastre": {
+      "generado": true,
+      "generado_en": "2026-07-06T14:15:04",
+      "validado": true,
+      "validado_en": "2026-07-31T18:40:40",
+      "gap_conocido": "Nivel 1a TE PAGO dif=+550.00 y 2 MZ efectivo con diferencia, aceptado 31/07/2026 -- no bloquea, causa raiz sin resolver (ver memoria)"
+    },
+    "ultima_actualizacion": "2026-07-31T18:40:40",
+    "cerrado_en": "2026-07-26T15:33:22"
+  },
+  "2026-08": {
+    "estado": "ABIERTO",
+    "arrastre": {
+      "generado": true,
+      "generado_en": "2026-08-22T20:18:01",
+      "validado": false,
+      "gap_conocido": "Nivel 1a TE PAGO dif=+700.00 y efectivo dif=-22.00, aceptados por el usuario el 17/08/2026 como diferencias esperables: S/750 de reasignaciones duplicadas de tanque menos S/50 pendiente de Nelson Mon*, y S/22 de efectivo S-16.",
+      "snapshot_hash": "cfb1d09a8b1924f25867f2f054014142d559e33f54b73a534cc6e5b8c6faf36c"
+    },
+    "ultima_actualizacion": "2026-08-22T20:18:01"
+  }
+}

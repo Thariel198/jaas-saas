@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flujo real ejecutable - JASS System</title>
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; background: #eef3f7; color: #17202a; font-family: Arial, sans-serif; }
+.page { max-width: 1260px; margin: auto; padding: 30px 22px 60px; }
+h1 { color: #174a63; font-size: 24px; margin: 0 0 5px; }
+.sub { color: #65727d; margin: 0 0 18px; font-size: 13px; }
+.flow { display: flex; flex-direction: column; align-items: center; }
+.box { width: min(820px, 100%); border: 2px solid; border-radius: 12px; padding: 14px 18px; box-shadow: 0 2px 5px #00000012; }
+.box h2 { font-size: 16px; margin: 0 0 7px; }
+.box p { font-size: 12px; line-height: 1.45; margin: 4px 0; }
+.box code { font-family: Consolas, monospace; font-size: 11px; }
+.source { background: #eaf5fb; border-color: #2879a6; }
+.process { background: #f1eaff; border-color: #7042bd; }
+.gate { background: #fff6d9; border-color: #c18a13; }
+.output { background: #e5f6eb; border-color: #21864b; }
+.risk { background: #fde9e7; border-color: #c0392b; }
+.current { background: #e9f7ef; border-color: #1e8449; }
+.future { background: #f2f2f2; border-color: #7f8c8d; color: #56616a; }
+.arrow { color: #87939c; font-size: 25px; line-height: 1; padding: 6px 0; }
+.label { color: #65727d; font-size: 10px; font-weight: bold; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 6px; }
+.side { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; width: min(1040px, 100%); }
+.side .box { width: auto; }
+.legend { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 18px 0 25px; font-size: 11px; color: #52606a; }
+.legend span { padding: 5px 9px; border-radius: 5px; border: 1px solid #ccd4da; background: white; }
+.note { width: min(920px, 100%); margin: 26px auto 0; border-left: 4px solid #c18a13; background: #fff; padding: 12px 15px; font-size: 12px; line-height: 1.5; }
+@media (max-width: 700px) { .side { grid-template-columns: 1fr; } h1 { font-size: 20px; } }
+</style>
+</head>
+<body>
+<main class="page">
+  <h1>Flujo real ejecutable del sistema</h1>
+  <p class="sub">Validado contra los scripts actuales del repositorio. Fecha de lectura: 2026-08-15.</p>
+  <div class="legend">
+    <span>Azul = fuente</span><span>Morado = proceso</span><span>Ambar = gate humano</span>
+    <span>Verde = salida actual</span><span>Rojo = riesgo</span><span>Gris = futuro, no ejecutable</span>
+  </div>
+
+  <section class="flow">
+    <div class="box source">
+      <div class="label">Identidad y campo</div>
+      <h2>0_padron + registro del operario</h2>
+      <p><code>0_padron/02_matching/outputs/padron_reconciliado.xlsx</code> aporta MZ, LT y nombres.</p>
+      <p><code>1_lecturas</code> sincroniza cambios, valida anomalías y gestiona ciclos de corrección.</p>
+    </div>
+    <div class="arrow">↓</div>
+    <div class="box process">
+      <div class="label">Ejecutable actual</div>
+      <h2>1_lecturas/main.py</h2>
+      <p>Lee el template mensual, valida 13 tipos de anomalía y solo genera <code>lecturas_planilla_YYYY-MM.xlsx</code> cuando no quedan bloqueantes.</p>
+      <p>También declara <code>shared/ciclo_activo.json</code>.</p>
+    </div>
+    <div class="arrow">↓</div>
+    <div class="box process">
+      <div class="label">Ejecutable actual</div>
+      <h2>2_planilla/main.py</h2>
+      <p>Lee lecturas, arrastre consolidado del mes anterior y saldos vivos de <code>shared/seguimiento_pueblo.xlsx</code> mediante <code>shared/seguimiento_repo.py</code>.</p>
+      <p>Calcula cargos de agua y pueblo, escribe <code>2_planilla/outputs/planilla_YYYY-MM.xlsx</code> y la copia a <code>shared/planilla_mes/</code>.</p>
+    </div>
+    <div class="arrow">↓</div>
+    <div class="box output">
+      <div class="label">Antes de cobrar</div>
+      <h2>3_boletas/enriquecimiento + 3_boletas/main.py</h2>
+      <p>El enriquecimiento lee la planilla más reciente de <code>2_planilla/outputs/</code> y genera <code>3_boletas/Inputs/DATA_boletas.xlsx</code>.</p>
+      <p>El renderer valida DATA, genera DOCX/PDF por recibo y consolida el PDF. No lee libro_mayor.</p>
+    </div>
+    <div class="arrow">↓</div>
+    <div class="side">
+      <div class="box process">
+        <div class="label">Orquestador actual</div>
+        <h2>4_pagos/main.py</h2>
+        <p>Ejecuta 7 pasos: origenes Yape, maestro, matching, validación, efectivo, tanque y deuda directiva.</p>
+        <p>Entrega pagos identificados, pendientes, discrepancias y trazabilidad.</p>
+      </div>
+      <div class="box process">
+        <div class="label">Proceso paralelo</div>
+        <h2>4b_reclamos/main.py</h2>
+        <p>Lee reclamos de efectivo y manuales, preserva estados, sincroniza resoluciones y mantiene la trazabilidad.</p>
+        <p>Los reclamos EN_REVISION luego bloquean la ejecución del corte.</p>
+      </div>
+    </div>
+    <div class="arrow">↓</div>
+    <div class="box process">
+      <div class="label">Ejecutable actual</div>
+      <h2>5_cobranza/main.py [--force]</h2>
+      <p>Lee <code>shared/planilla_mes/</code>, outputs vivos de 4_pagos y overlays manuales: blancos, tanque, retornos, reidentificaciones, ajustes de cargo, génesis tardía, deuda y abonos rezagados.</p>
+      <p>Calcula la cascada CA1, reconcilia pagos de MULTA/ACUERDOS/CONVENIO en <code>shared/seguimiento_pueblo.xlsx</code> y genera <code>planilla_cobrado.xlsx</code>, trazabilidad, resumen y arrastres.</p>
+    </div>
+    <div class="arrow">↓</div>
+    <div class="box gate">
+      <div class="label">Validacion actual</div>
+      <h2>5b_validacion/main.py</h2>
+      <p>Compara pagos Yape/efectivo contra <code>5_cobranza/outputs/planilla_cobrado.xlsx</code>, genera <code>validacion_diferencias.xlsx</code> y sella <code>estado_ciclo.json</code> como validado cuando corresponde.</p>
+      <p><strong>Sin validación correcta no se debe cerrar el ciclo.</strong></p>
+    </div>
+    <div class="arrow">↓</div>
+    <div class="box process">
+      <div class="label">Corte actual</div>
+      <h2>6_corte</h2>
+      <p><code>generar_lista.py</code> lee <code>planilla_cobrado.xlsx</code>, filtra <code>SALDO &gt; 0 AND MES_ANTERIOR &gt;= 8</code> y cruza resoluciones/reclamos.</p>
+      <p><code>aplicar_penalidad.py</code> escribe la penalidad solo en su audit. <code>seguimiento.py</code> clasifica salvados y corte físico después de la ventana.</p>
+    </div>
+    <div class="arrow">↓</div>
+    <div class="box process">
+      <div class="label">Cierre actual</div>
+      <h2>7_cierre/consolidar_cierre.py</h2>
+      <p>Con <code>--mes</code> hace gate + cosecha en modo dry-run. Con <code>--confirmar</code> pide escribir SI, congela <code>estado_ciclo</code>, resetea fuentes manuales y limpia basura.</p>
+      <p>La foto queda en <code>7_cierre/archivo/YYYY-MM/</code>; no hace commit.</p>
+    </div>
+    <div class="arrow">↓</div>
+    <div class="box current">
+      <div class="label">Registro vivo actual</div>
+      <h2>shared/seguimiento_pueblo.xlsx</h2>
+      <p>Es el registro actual de eventos y saldos de MULTA, ACUERDOS y CONVENIO. Su writer es <code>shared/seguimiento_repo.py</code>.</p>
+      <p>Los módulos actuales lo leen o lo actualizan mediante el repo. Es la realidad ejecutable hoy.</p>
+    </div>
+    <div class="arrow">↓</div>
+    <div class="box future">
+      <div class="label">No participa hoy</div>
+      <h2>libro_mayor/</h2>
+      <p>Contiene contratos y diseño futuro de caja/estado de cuenta. No es una dependencia del pipeline actual y no reemplaza a <code>shared/seguimiento_pueblo.xlsx</code>.</p>
+    </div>
+  </section>
+
+  <div class="note"><strong>Conclusión validada:</strong> hoy el flujo operativo termina trabajando con archivos Excel y repositorios de <code>shared/</code>. El libro mayor es una arquitectura futura documentada, no un módulo implementado que produzca los saldos actuales.</div>
+</main>
+</body>
+</html>

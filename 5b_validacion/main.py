@@ -1,4 +1,5 @@
 import json
+import hashlib
 import logging
 import sys
 import pandas as pd
@@ -43,7 +44,8 @@ TANQUE_PATH      = MOD04_PAGOS / "aportes_tanque.xlsx"  # canal-agnóstico (DE10
 BLANCOS_MES_PATH = MOD04_YAPE / "blancos_mes.xlsx"
 PAGASTE_PATH     = _pago_path(MOD04_YAPE, "pagos_yape_pagaste")
 EFEC_PATH        = _pago_path(MOD04_EFEC, "pagos_efectivo")
-COB_PATH         = MOD04 / "outputs" / "planilla_cobrado.xlsx"
+COB_PATH         = _pago_path(MOD04 / "outputs", "planilla_cobrado")
+SNAPSHOT_PATH    = MOD04 / "outputs" / f"snapshot_ledger_{_MES_CICLO}.json"
 
 TOLERANCIA = 0.005  # diferencia máxima considerada OK
 
@@ -720,9 +722,24 @@ def _hoja_por_mz(wb, sheet_name, lbl_reporte, lbl_planilla, filas, periodo):
         _sep(ws, sc, last_row)
 
 # ── MAIN ──────────────────────────────────────────────────────────────────────
+def _hash_snapshot() -> str:
+    if _MES_CICLO is None or not SNAPSHOT_PATH.exists():
+        raise FileNotFoundError(f"Falta snapshot ledger del ciclo activo: {SNAPSHOT_PATH}")
+    documento = json.loads(SNAPSHOT_PATH.read_text(encoding="utf-8"))
+    esperado = documento.pop("snapshot_hash", "")
+    normalizado = json.dumps(documento, ensure_ascii=True, sort_keys=True,
+                             separators=(",", ":")).encode("utf-8")
+    calculado = hashlib.sha256(normalizado).hexdigest()
+    if calculado != esperado:
+        raise ValueError(f"Snapshot ledger alterado: esperado {esperado}, calculado {calculado}")
+    return calculado
+
+
 def _sellar_estado_ciclo():
-    """Marca arrastre.validado=true en estado_ciclo.json para el ciclo que tiene generado=true."""
-    sellado = repo_estado.sellar_validado(ruta=ESTADO_CICLO_PATH)
+    """Sella únicamente el hash exacto validado en esta corrida."""
+    snapshot_hash = _hash_snapshot()
+    sellado = repo_estado.sellar_validado(
+        ruta=ESTADO_CICLO_PATH, mes=_MES_CICLO, snapshot_hash=snapshot_hash)
     if not sellado:
         log.info("estado_ciclo.json — ningún arrastre pendiente de sello")
         return

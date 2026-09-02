@@ -148,15 +148,15 @@
     <div class="card">
       <div class="card-title">Consolidar lecturas + deudas → planilla lista para cobro</div>
       <div class="card-sub">
-        Lee las lecturas validadas de 1_lecturas y las une con 4 fuentes de deuda (arrastre anterior,
-        corte, convenios, multas). Calcula el total a pagar por usuario y genera la planilla del mes
+        Lee las lecturas validadas de 1_lecturas y las une con los saldos comprometidos de
+        seguimiento_pueblo.xlsx. Calcula el total a pagar por usuario y genera la planilla del mes
         con columnas de pago vacías listas para que 5_cobranza las llene.
       </div>
     </div>
     <div class="rule-box">
       <div class="rule-title">Principio de este módulo</div>
       Solo calcula y consolida. No valida lecturas (eso es 1_lecturas). No registra pagos (eso es 5_cobranza).
-      Si un archivo de arrastre no existe → ese campo queda en 0 y el log avisa. El módulo siempre termina.
+      Desde septiembre, el ciclo anterior debe estar comprometido por 7_cierre: no se asume deuda cero.
     </div>
   </div>
 
@@ -166,7 +166,7 @@
 
     <div class="file-block input">
       <span class="badge auto">Viene de 1_lecturas</span>
-      <div class="file-name">inputs/lecturas/lecturas_planilla_YYYY-MM.xlsx</div>
+       <div class="file-name">../1_lecturas/outputs/lecturas_planilla_YYYY-MM.xlsx</div>
       <div class="file-desc">Lecturas validadas y cerradas del operario. Es el archivo base — todos los usuarios que aparecen aquí aparecen en la planilla de salida.</div>
       <table>
         <tr><th>Columna</th><th>Descripción</th></tr>
@@ -270,14 +270,14 @@
         <div class="step-num">1</div>
         <div class="step-body">
           <div class="step-title">Validar y cargar lecturas</div>
-          <div class="step-desc">Lee <code>inputs/lecturas/lecturas_planilla_YYYY-MM.xlsx</code>. Detecta el mes desde la columna <code>MES_ANO</code>. Normaliza claves (MZ, LT). Falla con mensaje claro si el archivo no existe.</div>
+          <div class="step-desc">Lee <code>1_lecturas/outputs/lecturas_planilla_YYYY-MM.xlsx</code>. Detecta el mes desde la columna <code>MES_ANO</code>. Normaliza claves (MZ, LT). Falla con mensaje claro si el archivo no existe.</div>
         </div>
       </div>
       <div class="flow-step">
         <div class="step-num">2</div>
         <div class="step-body">
-          <div class="step-title">Cargar arrastres (tolerante a ausencia)</div>
-          <div class="step-desc">Intenta leer los 4 archivos de arrastre buscando el YYYY-MM correspondiente. Si un archivo no existe → campo en 0, log de advertencia. No falla.</div>
+          <div class="step-title">Cargar saldo comprometido</div>
+          <div class="step-desc">Lee AGUA, MANTENIMIENTO, CORTE_RECONEXION, CONVENIO, MULTA y ACUERDOS desde <code>seguimiento_pueblo.xlsx</code> al cierre del ciclo anterior. Sin compromiso oficial de 7_cierre, falla.</div>
         </div>
       </div>
       <div class="flow-step">

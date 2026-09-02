@@ -1,0 +1,226 @@
+[
+  {
+    "MZ": "T",
+    "LT": "12",
+    "MONTO": 155,
+    "MES_CICLO": "2026-06",
+    "MES_ANO_APLICA": "2026-07",
+    "ESTADO": "CONFIRMADO"
+  },
+  {
+    "MZ": "L",
+    "LT": "4",
+    "MONTO": 58,
+    "MES_CICLO": "2026-06",
+    "MES_ANO_APLICA": "2026-07",
+    "ESTADO": "CONFIRMADO"
+  },
+  {
+    "MZ": "F",
+    "LT": "9",
+    "MONTO": 52,
+    "MES_CICLO": "2026-06",
+    "MES_ANO_APLICA": "2026-07",
+    "ESTADO": "CONFIRMADO"
+  },
+  {
+    "MZ": "F1",
+    "LT": "4",
+    "MONTO": 101,
+    "MES_CICLO": "2026-06",
+    "MES_ANO_APLICA": "2026-08",
+    "ESTADO": "CONFIRMADO"
+  },
+  {
+    "MZ": "H",
+    "LT": "21",
+    "MONTO": 50,
+    "MES_CICLO": "2026-07",
+    "MES_ANO_APLICA": "2026-08",
+    "ESTADO": "CONFIRMADO"
+  },
+  {
+    "MZ": "N",
+    "LT": "6",
+    "MONTO": 70,
+    "MES_CICLO": "2026-07",
+    "MES_ANO_APLICA": "2026-08",
+    "ESTADO": "CONFIRMADO"
+  },
+  {
+    "MZ": "O",
+    "LT": "16",
+    "MONTO": 2,
+    "MES_CICLO": "2026-06",
+    "MES_ANO_APLICA": "2026-07",
+    "ESTADO": "CONFIRMADO"
+  },
+  {
+    "MZ": "D",
+    "LT": "18",
+    "MONTO": 32,
+    "MES_CICLO": "2026-08",
+    "MES_ANO_APLICA": "2026-08",
+    "ESTADO": "CONFIRMADO"
+  },
+  {
+    "MZ": "K",
+    "LT": "12",
+    "MONTO": 122,
+    "MES_CICLO": "2026-08",
+    "MES_ANO_APLICA": "2026-08",
+    "ESTADO": "CONFIRMADO"
+  },
+  {
+    "MZ": "X",
+    "LT": "33",
+    "MONTO": 89,
+    "MES_CICLO": "2026-08",
+    "MES_ANO_APLICA": "2026-08",
+    "ESTADO": "CONFIRMADO"
+  },
+  {
+    "MZ": "C",
+    "LT": "3A",
+    "MONTO": 10,
+    "MES_CICLO": "2026-08",
+    "MES_ANO_APLICA": "2026-08",
+    "ESTADO": "CONFIRMADO"
+  },
+  {
+    "MZ": "F1",
+    "LT": "8",
+    "MONTO": 13,
+    "MES_CICLO": "2026-08",
+    "MES_ANO_APLICA": "2026-08",
+    "ESTADO": "CONFIRMADO"
+  },
+  {
+    "MZ": "F1",
+    "LT": "8",
+    "MONTO": 14,
+    "MES_CICLO": "2026-07",
+    "MES_ANO_APLICA": "2026-08",
+    "ESTADO": "CONFIRMADO"
+  },
+  {
+    "MZ": "H1",
+    "LT": "15",
+    "MONTO": 36,
+    "MES_CICLO": "2026-07",
+    "MES_ANO_APLICA": "2026-08",
+    "ESTADO": "CONFIRMADO"
+  },
+  {
+    "MZ": "E1",
+    "LT": "9",
+    "MONTO": 3,
+    "MES_CICLO": "2026-07",
+    "MES_ANO_APLICA": "2026-08",
+    "ESTADO": "CONFIRMADO"
+  },
+  {
+    "MZ": "S",
+    "LT": "5",
+    "MONTO": 71,
+    "MES_CICLO": "2026-06",
+    "MES_ANO_APLICA": "2026-07",
+    "ESTADO": "BLOQUEADO"
+  },
+  {
+    "MZ": "D",
+    "LT": "16",
+    "MONTO": 85,
+    "MES_CICLO": "2026-06",
+    "MES_ANO_APLICA": "2026-07",
+    "ESTADO": "BLOQUEADO"
+  },
+  {
+    "MZ": "D1",
+    "LT": "6",
+    "MONTO": 33,
+    "MES_CICLO": "2026-06",
+    "MES_ANO_APLICA": "2026-07",
+    "ESTADO": "BLOQUEADO"
+  },
+  {
+    "MZ": "Q",
+    "LT": "11",
+    "MONTO": 17,
+    "MES_CICLO": "2026-06",
+    "MES_ANO_APLICA": "2026-07",
+    "ESTADO": "BLOQUEADO"
+  },
+  {
+    "MZ": "P",
+    "LT": "3",
+    "MONTO": 33,
+    "MES_CICLO": "2026-07",
+    "MES_ANO_APLICA": "2026-08",
+    "ESTADO": "CONFIRMADO"
+  },
+  {
+    "MZ": "W",
+    "LT": "5",
+    "MONTO": 15,
+    "MES_CICLO": "2026-07",
+    "MES_ANO_APLICA": "2026-08",
+    "ESTADO": "CONFIRMADO"
+  },
+  {
+    "MZ": "S",
+    "LT": "2",
+    "MONTO": 60,
+    "MES_CICLO": "2026-07",
+    "MES_ANO_APLICA": "2026-08",
+    "ESTADO": "CONFIRMADO"
+  },
+  {
+    "MZ": "P",
+    "LT": "12",
+    "MONTO": 30,
+    "MES_CICLO": "2026-07",
+    "MES_ANO_APLICA": "2026-08",
+    "ESTADO": "CONFIRMADO"
+  },
+  {
+    "MZ": "L",
+    "LT": "5",
+    "MONTO": 126,
+    "MES_CICLO": "2026-08",
+    "MES_ANO_APLICA": "2026-08",
+    "ESTADO": "CONFIRMADO"
+  },
+  {
+    "MZ": "Q",
+    "LT": "5",
+    "MONTO": 114,
+    "MES_CICLO": "2026-07",
+    "MES_ANO_APLICA": "2026-08",
+    "ESTADO": "CONFIRMADO"
+  },
+  {
+    "MZ": "I",
+    "LT": "9",
+    "MONTO": 86,
+    "MES_CICLO": "2026-06",
+    "MES_ANO_APLICA": "2026-08",
+    "ESTADO": "CONFIRMADO"
+  },
+  {
+    "MZ": "I",
+    "LT": "9",
+    "MONTO": 47,
+    "MES_CICLO": "2026-07",
+    "MES_ANO_APLICA": "2026-08",
+    "ESTADO": "CONFIRMADO"
+  },
+  {
+    "MZ": "G",
+    "LT": "3",
+    "MONTO": 23,
+    "MES_CICLO": "2026-08",
+    "MES_ANO_APLICA": "2026-08",
+    "ESTADO": "CONFIRMADO"
+  }
+]

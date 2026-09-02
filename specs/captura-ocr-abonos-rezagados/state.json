@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "slug": "captura-ocr-abonos-rezagados",
+  "title": "Captura OCR auditada de abonos rezagados",
+  "stage": "EXPLORATION_DRAFT",
+  "selected_option": null,
+  "approvals": {
+    "intake": {
+      "by": "Wilder",
+      "at": "2026-08-22T15:31:19-05:00"
+    }
+  },
+  "history": [
+    {
+      "at": "2026-08-22T12:05:19-05:00",
+      "action": "NEW",
+      "actor": "Wilder",
+      "detail": "Cambio creado"
+    },
+    {
+      "at": "2026-08-22T15:31:19-05:00",
+      "action": "APPROVE_INTAKE",
+      "actor": "Wilder",
+      "detail": ""
+    }
+  ],
+  "created_at": "2026-08-22T12:05:19-05:00",
+  "updated_at": "2026-08-22T15:31:19-05:00"
+}

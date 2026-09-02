@@ -169,7 +169,7 @@
     <div class="rule-box">
       <div class="rule-title">Principio de este módulo</div>
       La planilla original de 2_planilla <strong>nunca se modifica</strong>.
-      <code>planilla_cobrado.xlsx</code> es un output propio — copia enriquecida con los
+      <code>planilla_cobrado_YYYY-MM.xlsx</code> es un output propio — copia enriquecida con los
       pagos cargados. Re-correr con los mismos inputs produce el mismo output (idempotente):
       si no hay pagos nuevos respecto a la trazabilidad, el módulo sale sin tocar nada.
     </div>
@@ -304,7 +304,7 @@
         <div class="step-body">
           <div class="step-title">Cruzar pagos por (MZ, LT)</div>
           <div class="step-desc">Suma <code>MONTO_ASIGNA</code> de yape + <code>MONTO</code> de efectivo.
-            Registra <code>MONTO_YAPE</code>, <code>MONTO_EFECTIVO</code>, <code>FECHA_PAGO</code>.</div>
+            Registra <code>MONTO_YAPE</code>, <code>MONTO_EFECTIVO</code>, <code>ABONO_REZAGADO</code>, <code>FECHA_PAGO</code>.</div>
         </div>
       </div>
       <div class="flow-step">
@@ -322,7 +322,7 @@
         <div class="step-body">
           <div class="step-title">Calcular SALDO y ESTADO</div>
           <div class="step-desc">
-            <code>SALDO = TOTAL_A_PAGAR - MONTO_YAPE - MONTO_EFECTIVO</code><br>
+            <code>SALDO = TOTAL_A_PAGAR - MONTO_YAPE - MONTO_EFECTIVO - ABONO_REZAGADO</code><br>
             Asigna CANCELADO / EXCESO / PARCIAL / PENDIENTE según el saldo.
           </div>
         </div>
@@ -357,8 +357,8 @@
     <div class="file-block output-main">
       <span class="badge perm">Permanente</span>
       <span class="badge feeds">→ 3_boletas · 7_cierre</span>
-      <div class="file-name">outputs/planilla_cobrado.xlsx</div>
-      <div class="file-desc">21 columnas de la planilla + <code>CICLO_COBRANZA</code> (col 22). Fuente de verdad del ciclo. Incluye todos los usuarios.</div>
+      <div class="file-name">outputs/planilla_cobrado_YYYY-MM.xlsx</div>
+      <div class="file-desc">Planilla enriquecida con pagos, <code>ABONO_REZAGADO</code>, saldo y trazabilidad. Fuente de verdad del ciclo. Incluye todos los usuarios.</div>
       <table>
         <tr><th>#</th><th>Columna</th><th>Origen / Quién llena</th></tr>
         <tr><td>1–7</td><td>MZ · LT · NOMBRE · MES_ANO · MARC_ANT · MARC_ACT · M3</td><td>2_planilla (sin cambio)</td></tr>
@@ -366,9 +366,12 @@
         <tr><td>17</td><td>TOTAL_A_PAGAR</td><td>Fórmula Excel</td></tr>
         <tr><td>18</td><td>MONTO_YAPE</td><td>5_cobranza desde pagos_yape</td></tr>
         <tr><td>19</td><td>MONTO_EFECTIVO</td><td>5_cobranza desde pagos_efectivo</td></tr>
-        <tr><td>20</td><td>ESTADO</td><td>5_cobranza · CANCELADO/EXCESO/PARCIAL/PENDIENTE</td></tr>
-        <tr><td>21</td><td>FECHA_PAGO</td><td>5_cobranza · fecha del pago más reciente</td></tr>
-        <tr><td>22</td><td>CICLO_COBRANZA</td><td>5_cobranza · agregado (no existe en planilla original)</td></tr>
+        <tr><td>20</td><td>ABONO_REZAGADO</td><td>5_cobranza desde shared/abonos_rezagados</td></tr>
+        <tr><td>21</td><td>SALDO</td><td>TOTAL_A_PAGAR menos las tres fuentes de pago</td></tr>
+        <tr><td>22–23</td><td>RETORNO · DEVUELTO</td><td>5_cobranza · punteros de devolución</td></tr>
+        <tr><td>24</td><td>ESTADO</td><td>5_cobranza · CANCELADO/EXCESO/PARCIAL/PENDIENTE</td></tr>
+        <tr><td>25</td><td>FECHA_PAGO</td><td>5_cobranza · fecha del pago más reciente</td></tr>
+        <tr><td>26</td><td>CICLO_COBRANZA</td><td>5_cobranza · agregado (no existe en planilla original)</td></tr>
       </table>
     </div>
 
@@ -419,7 +422,7 @@
 
     <div class="file-block output-blue">
       <span class="badge feeds">→ 7_cierre</span>
-      <div class="file-name">outputs/arrastre_devolucion_YYYY-MM.xlsx</div>
+      <div class="file-name">outputs/planilla_cobrado_YYYY-MM.xlsx [hoja arrastre_devolucion]</div>
       <div class="file-desc">Solo usuarios con <code>SALDO &lt; 0</code> (EXCESO — pagaron de más). <code>monto = |SALDO|</code>. La JASS los debe; no se devuelve hasta que el usuario reclame. 7_cierre acumula estos excesos en shared/.</div>
       <table>
         <tr><th>Columna</th><th>Descripción</th></tr>
@@ -454,7 +457,7 @@
       <div class="life-why">5_cobranza marca ESTADO = aplicado al procesar blancos</div>
     </div>
     <div class="life-row">
-      <div class="life-file">outputs/planilla_cobrado.xlsx</div>
+      <div class="life-file">outputs/planilla_cobrado_YYYY-MM.xlsx</div>
       <div class="life-action">PERMANENTE · se sobreescribe cada corrida</div>
       <div class="life-why">fuente de verdad — 3_boletas, 7_cierre</div>
     </div>
@@ -469,7 +472,7 @@
       <div class="life-why">input de 2_planilla en el siguiente ciclo</div>
     </div>
     <div class="life-row">
-      <div class="life-file">outputs/arrastre_devolucion_YYYY-MM.xlsx</div>
+      <div class="life-file">outputs/planilla_cobrado_YYYY-MM.xlsx [hoja arrastre_devolucion]</div>
       <div class="life-action">PERMANENTE · uno por mes</div>
       <div class="life-why">7_cierre acumula excesos pendientes en shared/</div>
     </div>
@@ -488,12 +491,12 @@
 │   └── pagos_efectivo/
 │       └── pagos_efectivo.xlsx           ← de 4_pagos/efectivo/outputs/
 ├── outputs/
-│   ├── planilla_cobrado.xlsx
+│   ├── planilla_cobrado_YYYY-MM.xlsx
 │   ├── lista_corte.xlsx
 │   ├── trazabilidad_cobranza.xlsx
 │   ├── resumen_recaudacion.xlsx
 │   ├── arrastre_deuda_YYYY-MM.xlsx
-│   ├── arrastre_devolucion_YYYY-MM.xlsx
+│   ├── planilla_cobrado_YYYY-MM.xlsx [3 hojas]
 │   ├── run.log
 │   ├── run_validacion.log              ← genera validacion_planilla_cobrado.py
 │   └── validacion_errores.xlsx         ← solo si hay errores

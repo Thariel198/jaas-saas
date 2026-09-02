@@ -48,12 +48,12 @@
 
 <h2>Propósito</h2>
 <div class="nota">
-  <code>2_planilla/main.py</code> arma 3 de sus columnas por <b>join en vivo</b> contra otros módulos
-  (no son cálculo propio de 2_planilla): <code>MES_ANTERIOR</code>+<code>CORTE_RECONEXION</code> vienen de
-  <code>arrastre_consolidado</code> (5_cobranza), y <code>MULTA</code>/<code>CONVENIO</code>/<code>ACUERDOS_ASAMBLEA</code>
-  vienen de <code>seguimiento_repo</code> (shared). Un bug de join (columna mal mapeada, fila sin match)
+  <code>2_planilla/main.py</code> arma sus columnas de deuda por <b>join en vivo</b> con
+  <code>seguimiento_repo</code> (shared): <code>MES_ANTERIOR</code> suma los saldos
+  <code>AGUA</code>+<code>MANTENIMIENTO</code>, y corte, multa, convenio y acuerdos conservan
+  su concepto. Un bug de join (columna mal mapeada, fila sin match)
   deja el valor equivocado en <code>planilla_{mes}.xlsx</code> sin que nada lo note — <code>validar_arrastres.py</code>
-  vuelve a leer las 3 fuentes y compara, predio por predio, contra lo que quedó escrito en la planilla.
+  vuelve a leer las fuentes y compara, predio por predio, contra lo que quedó escrito en la planilla.
 </div>
 
 <div class="warn-box">
@@ -62,7 +62,7 @@
   ni la planilla a mano.
 </div>
 
-<h2>Las 4 fuentes comparadas</h2>
+<h2>Las fuentes comparadas</h2>
 <table>
   <tr style="background:#f9fafb;">
     <th style="padding:4px 10px;">Columna en planilla</th>
@@ -73,19 +73,19 @@
   <tr><td><code>MARC_ANT</code></td><td>1_lecturas/outputs/lecturas_planilla_{mes}.xlsx</td><td><code>MARC_ANT</code></td></tr>
   <tr><td><code>MARC_ACT</code></td><td>1_lecturas/outputs/lecturas_planilla_{mes}.xlsx</td><td><code>MARC_ACT</code></td></tr>
   <tr><td><code>M3</code></td><td>1_lecturas/outputs/lecturas_planilla_{mes}.xlsx</td><td><code>M3</code></td></tr>
-  <tr><td><code>MES_ANTERIOR</code></td><td>5_cobranza/outputs/arrastre_consolidado_{mes_anterior}.xlsx</td><td><code>DEUDA_AGUA</code></td></tr>
-  <tr><td><code>CORTE_RECONEXION</code></td><td>5_cobranza/outputs/arrastre_consolidado_{mes_anterior}.xlsx</td><td><code>CORTE_RECONEXION</code></td></tr>
+  <tr><td><code>MES_ANTERIOR</code></td><td>shared/seguimiento_repo</td><td>saldos <code>AGUA</code> + <code>MANTENIMIENTO</code></td></tr>
+  <tr><td><code>CORTE_RECONEXION</code></td><td>shared/seguimiento_repo</td><td>saldo <code>CORTE_RECONEXION</code></td></tr>
   <tr><td><code>MULTA</code></td><td>shared/seguimiento_repo.get_saldos_bulk("MULTA", mes_anterior)</td><td>saldo por (MZ,LT)</td></tr>
   <tr><td><code>CONVENIO</code></td><td>shared/seguimiento_repo.get_saldos_bulk("CONVENIO", mes_anterior)</td><td>saldo por (MZ,LT)</td></tr>
   <tr><td><code>ACUERDOS_ASAMBLEA</code></td><td>shared/seguimiento_repo.get_saldos_bulk("ACUERDOS", mes_anterior)</td><td>saldo por (MZ,LT)</td></tr>
 </table>
-<p style="font-size:11px; color:#888;">Las columnas de lecturas se comparan contra el <b>origen</b> en 1_lecturas/outputs — así una copia manual mal hecha hacia 2_planilla/inputs/ queda expuesta. NOMBRE compara texto exacto (discrepancia = <code>TEXTO_DISTINTO</code>). Además se chequea <b>cobertura</b>: todo predio del origen debe estar en planilla y viceversa (<code>FALTA_EN_PLANILLA</code> / <code>SOBRA_EN_PLANILLA</code>). Ampliado 2026-07-03 a pedido del usuario.</p>
+<p style="font-size:11px; color:#888;">Las columnas de lecturas se comparan directamente contra <b>1_lecturas/outputs</b>; ya no existe una copia operativa en 2_planilla/inputs. NOMBRE compara texto exacto (discrepancia = <code>TEXTO_DISTINTO</code>). Además se chequea <b>cobertura</b>: un predio adicional en la planilla es válido si conserva deuda viva; sin deuda se reporta como <code>SOBRA_EN_PLANILLA</code>.</p>
 
 <h2>Hoja: Resumen</h2>
 <table>
   <tr class="r-head"><th class="col">CONCEPTO</th><th class="col">FUENTE</th><th class="col">TOTAL_PREDIOS</th><th class="col">COINCIDEN</th><th class="col">DISCREPANCIAS</th></tr>
-  <tr><td class="dat">MES_ANTERIOR</td><td class="dat">arrastre_consolidado.DEUDA_AGUA</td><td class="dat">499</td><td class="dat r-ok">497</td><td class="dat r-bad">2</td></tr>
-  <tr><td class="dat">CORTE_RECONEXION</td><td class="dat">arrastre_consolidado.CORTE_RECONEXION</td><td class="dat">499</td><td class="dat r-ok">499</td><td class="dat">0</td></tr>
+  <tr><td class="dat">MES_ANTERIOR</td><td class="dat">seguimiento_repo.AGUA+MANTENIMIENTO</td><td class="dat">499</td><td class="dat r-ok">497</td><td class="dat r-bad">2</td></tr>
+  <tr><td class="dat">CORTE_RECONEXION</td><td class="dat">seguimiento_repo.CORTE_RECONEXION</td><td class="dat">499</td><td class="dat r-ok">499</td><td class="dat">0</td></tr>
   <tr><td class="dat">MULTA</td><td class="dat">seguimiento_repo</td><td class="dat">499</td><td class="dat r-ok">499</td><td class="dat">0</td></tr>
   <tr><td class="dat">CONVENIO</td><td class="dat">seguimiento_repo</td><td class="dat">499</td><td class="dat r-ok">495</td><td class="dat r-bad">4</td></tr>
   <tr><td class="dat">ACUERDOS_ASAMBLEA</td><td class="dat">seguimiento_repo</td><td class="dat">499</td><td class="dat r-ok">499</td><td class="dat">0</td></tr>
@@ -125,8 +125,8 @@
     <td>No genera fila — no puede haber "columna en planilla" para un predio que no está en planilla. Sí se cuenta aparte en Resumen como advertencia si el número es grande.</td>
   </tr>
   <tr>
-    <td><code>arrastre_consolidado</code> no existe (mes de génesis)</td>
-    <td><code>MES_ANTERIOR</code>/<code>CORTE_RECONEXION</code> se saltan con nota en Resumen — no es una discrepancia, es la ausencia esperada de arrastre.</td>
+    <td>El ciclo anterior no está comprometido</td>
+    <td><code>main.py</code> bloquea la generación; el validador no acepta deuda cero implícita.</td>
   </tr>
   <tr>
     <td><code>lecturas_planilla</code> no existe en 1_lecturas/outputs</td>

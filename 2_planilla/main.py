@@ -20,6 +20,7 @@ import utils_estado_ciclo as repo_estado  # noqa: E402
 import ciclo as ciclo_activo  # noqa: E402
 
 log = logging.getLogger(__name__)
+CORTE_LEDGER = "2026-08"
 
 
 # ── Normalización de clave (MZ, LT) ──────────────────────────────────────
@@ -72,7 +73,7 @@ def _load_optional(path: Path, required_cols: list, label: str) -> pd.DataFrame 
     return _add_key(df)
 
 
-# ── Fuente única de arrastres — arrastre_consolidado del mes anterior ──────
+# ── Fuente única de arrastres — hoja consolidada del mes anterior ──────────
 
 def _mes_anterior(mes: str) -> str:
     y, m = mes.split("-")
@@ -88,30 +89,54 @@ def _ciclo_validado(mes: str) -> bool:
 
 
 def _load_consolidado(mes: str) -> pd.DataFrame | None:
-    """Lee arrastre_consolidado del mes anterior (writer único = 5_cobranza/outputs).
+    """Lee arrastre_consolidado de planilla_cobrado del mes anterior.
 
     Devuelve None si no existe (mes de génesis / pipeline sin cerrar → arrastres=0).
     Aborta si existe pero el ciclo anterior no está validado (dato no confiable).
-    El archivo trae la fila de grupos en la 1 y los nombres de columna en la 2
+    La hoja trae la fila de grupos en la 1 y los nombres de columna en la 2
     → header=1. Los guiones (—) de componentes en 0 se coercionan a 0 en el join.
     """
     mes_ant = _mes_anterior(mes)
     path = config.consolidado_path(mes_ant)
+    if not path.exists():
+        path = config.consolidado_archivado_path(mes_ant)
     if not path.exists():
         log.warning(f"arrastre_consolidado {mes_ant}: no encontrado -> arrastres = 0 "
                     f"(mes de génesis o ciclo anterior sin cerrar)")
         return None
     if not _ciclo_validado(mes_ant):
         raise ValueError(
-            f"arrastre_consolidado_{mes_ant}.xlsx existe pero el ciclo {mes_ant} NO está "
+            f"planilla_cobrado_{mes_ant}.xlsx existe pero el ciclo {mes_ant} NO está "
             f"validado en estado_ciclo.json — correr 5b_validacion antes de generar la planilla."
         )
-    df = pd.read_excel(path, header=1, dtype=str)
+    df = pd.read_excel(path, sheet_name=config.CONSOLIDADO_SHEET, header=1, dtype=str)
     missing = [c for c in config.COLS_CONSOLIDADO if c not in df.columns]
     if missing:
         raise ValueError(f"arrastre_consolidado {mes_ant}: columnas faltantes {missing}")
     log.info(f"arrastre_consolidado {mes_ant} -> {len(df)} filas de arrastre")
     return _add_key(df)
+
+
+def _load_saldos_cuenta(mes: str) -> pd.DataFrame:
+    """Desde septiembre, agua y corte dejan de venir de un archivo de arrastre."""
+    mes_ant = _mes_anterior(mes)
+    if not repo_estado.ledger_comprometido(mes_ant, ruta=config.ESTADO_CICLO_PATH):
+        raise ValueError(
+            f"No se puede generar {mes}: el estado_cuenta de {mes_ant} no está comprometido por 7_cierre."
+        )
+    agua = repo.get_saldos_bulk("AGUA", mes_ant)
+    mantenimiento = repo.get_saldos_bulk("MANTENIMIENTO", mes_ant)
+    corte = repo.get_saldos_bulk("CORTE_RECONEXION", mes_ant)
+    filas = []
+    for mz, lt in sorted(set(agua) | set(mantenimiento) | set(corte)):
+        filas.append({
+            "MZ": mz, "LT": lt, "_mz": _norm_mz(mz), "_lt": _norm_lt(lt),
+            "DEUDA_AGUA": round(max(agua.get((mz, lt), 0.0), 0.0)
+                                 + max(mantenimiento.get((mz, lt), 0.0), 0.0), 2),
+            "CORTE_RECONEXION": round(max(corte.get((mz, lt), 0.0), 0.0), 2),
+        })
+    log.info(f"estado_cuenta {mes_ant} -> {len(filas)} saldos para {mes}")
+    return pd.DataFrame(filas, columns=["MZ", "LT", "_mz", "_lt", "DEUDA_AGUA", "CORTE_RECONEXION"])
 
 
 # ── Join de arrastres ─────────────────────────────────────────────────────
@@ -201,7 +226,7 @@ def build_planilla(mes: str) -> pd.DataFrame:
     # Agua + corte: el consolidado del mes anterior (5_cobranza) los trae ya
     # descompuestos por prioridad. DEUDA_AGUA es la deuda de agua no cubierta
     # → alimenta MES_ANTERIOR.
-    df_cons = _load_consolidado(mes)
+    df_cons = (_load_consolidado(mes) if mes <= CORTE_LEDGER else _load_saldos_cuenta(mes))
 
     # Predios sin lectura (SIN_MEDIDOR) con deuda de agua/pueblo pendiente:
     # se agregan con consumo y mantenimiento en 0 — no tienen servicio activo,
@@ -387,10 +412,10 @@ def main() -> None:
         force=True,
     )
 
-    pattern = str(config.INPUTS_DIR / "lecturas" / "lecturas_planilla_*.xlsx")
+    pattern = str(config.LECTURAS_DIR / "lecturas_planilla_*.xlsx")
     matches = sorted(glob.glob(pattern))
     if not matches:
-        log.error("No se encontró ningún archivo lecturas_planilla_YYYY-MM.xlsx en inputs/lecturas/")
+        log.error("No se encontró ningún archivo lecturas_planilla_YYYY-MM.xlsx en 1_lecturas/outputs/")
         sys.exit(1)
 
     # El mes lo DECLARA 1_lecturas (columna MES_ANO de la plantilla del operario)
@@ -406,7 +431,7 @@ def main() -> None:
                     f"usando el último archivo de lecturas: {mes}. Correr 1_lecturas para declararlo.")
     elif mes not in disponibles:
         log.error(f"El ciclo activo es {mes} pero no hay lecturas_planilla_{mes}.xlsx "
-                  f"en inputs/lecturas/ (hay: {', '.join(disponibles)})")
+                  f"en 1_lecturas/outputs/ (hay: {', '.join(disponibles)})")
         sys.exit(1)
     log.info(f"Mes del ciclo: {mes}")
 

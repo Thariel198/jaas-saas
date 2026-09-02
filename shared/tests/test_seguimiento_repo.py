@@ -16,6 +16,8 @@ if TMP.exists():
     TMP.unlink()
 repo.SEGUIMIENTO_PATH = TMP
 repo.ANULACIONES_PATH = TEST_ROOT / "anulaciones_ledger.json"
+repo._DATA_BOLETAS_PATH_VISTA = TEST_ROOT / "no_data_boletas.xlsx"
+repo._PADRON_PATH_VISTA = TEST_ROOT / "no_padron.xlsx"
 
 errores = []
 
@@ -34,10 +36,15 @@ r2 = repo.registrar_pago("A", "6", "CONVENIO", "2026-07", 100,
                           source="5_cobranza", audit_ref="mesa_2|2026-07-03")
 check(r2["saldo_resultante"] == 800.0, f"tras pago 100 saldo=800 (obtuve {r2['saldo_resultante']})")
 
-# 3) Pago mes siguiente
-r3 = repo.registrar_pago("A", "6", "CONVENIO", "2026-08", 79,
-                          source="5_cobranza", audit_ref="mesa_1|2026-08-05")
-check(r3["saldo_resultante"] == 721.0, f"tras pago 79 saldo=721 (obtuve {r3['saldo_resultante']})")
+# 3) Pago normal y abono rezagado del mes siguiente
+r3 = repo.registrar_pago("A", "6", "CONVENIO", "2026-08", 70,
+                           source="5_cobranza", audit_ref="mesa_1|2026-08-05")
+r3_abono = repo.registrar_pago("A", "6", "CONVENIO", "2026-08", 9,
+                               source="abonos_rezagados", audit_ref="abono|A|6|2026-08",
+                               clase="ABONO_REZAGADO")
+check(r3["saldo_resultante"] == 730.0, f"tras pago normal 70 saldo=730 (obtuve {r3['saldo_resultante']})")
+check(r3_abono["saldo_resultante"] == 721.0,
+      f"tras abono rezagado 9 saldo=721 (obtuve {r3_abono['saldo_resultante']})")
 
 # 4) get_saldo por mes
 check(repo.get_saldo("A", "6", "CONVENIO", "2026-07") == 800.0, "get_saldo julio = 800")
@@ -59,14 +66,16 @@ check(repo.get_saldo("C", "14", "MULTA", "2026-08") == -50.0, "ajuste sin cargo 
 ec = repo.estado_cuenta("A", "6", "CONVENIO")
 print(ec.to_string())
 check(len(ec) == 2, f"estado_cuenta tiene 2 meses (julio, agosto), obtuve {len(ec)}")
-check(list(ec.columns) == ["MES", "DEUDA", "PAGO", "DECLARADO", "AJUSTE", "SALDO"],
-      f"estado_cuenta separa DECLARADO y AJUSTE, obtuve {list(ec.columns)}")
+check(list(ec.columns) == ["MES", "DEUDA", "PAGO", "ABONO_REZAGADO", "DECLARADO", "AJUSTE", "SALDO"],
+      f"estado_cuenta separa ABONO_REZAGADO, DECLARADO y AJUSTE, obtuve {list(ec.columns)}")
 check(ec.iloc[0]["MES"] == "2026-07" and ec.iloc[0]["DEUDA"] == 900.0 and ec.iloc[0]["PAGO"] == 100.0
-      and ec.iloc[0]["DECLARADO"] == 0.0 and ec.iloc[0]["SALDO"] == 800.0,
-      "fila julio: DEUDA=900 PAGO=100 DECLARADO=0 SALDO=800")
-check(ec.iloc[1]["MES"] == "2026-08" and ec.iloc[1]["DEUDA"] == 0.0 and ec.iloc[1]["PAGO"] == 79.0
-      and ec.iloc[1]["DECLARADO"] == 0.0 and ec.iloc[1]["SALDO"] == 721.0,
-      "fila agosto: DEUDA=0 PAGO=79 DECLARADO=0 SALDO=721")
+      and ec.iloc[0]["ABONO_REZAGADO"] == 0.0 and ec.iloc[0]["DECLARADO"] == 0.0
+      and ec.iloc[0]["SALDO"] == 800.0,
+      "fila julio: DEUDA=900 PAGO=100 ABONO_REZAGADO=0 DECLARADO=0 SALDO=800")
+check(ec.iloc[1]["MES"] == "2026-08" and ec.iloc[1]["DEUDA"] == 0.0 and ec.iloc[1]["PAGO"] == 70.0
+      and ec.iloc[1]["ABONO_REZAGADO"] == 9.0 and ec.iloc[1]["DECLARADO"] == 0.0
+      and ec.iloc[1]["SALDO"] == 721.0,
+      "fila agosto: DEUDA=0 PAGO=70 ABONO_REZAGADO=9 DECLARADO=0 SALDO=721")
 
 # 8) deudores
 d = repo.deudores("CONVENIO", minimo=100)
@@ -75,41 +84,79 @@ check(len(d) == 1 and d.iloc[0]["MZ"] == "A" and d.iloc[0]["LT"] == "6", "deudor
 # 9) cuenta completa: agua es válido; un concepto desconocido no.
 r_agua = repo.registrar_cargo("X", "1", "AGUA", "2026-07", 10, source="test", audit_ref="x")
 check(r_agua["saldo_resultante"] == 10.0, "acepta AGUA en la cuenta completa")
+repo.registrar_cargo("E", "1", "AGUA", "2026-08", 6, source="2_planilla", audit_ref="exo_agua_cargo")
+repo.registrar_ajuste("E", "1", "AGUA", "2026-08", -6, source="ajustes_cargo",
+                      audit_ref="exo_agua", motivo="exoneracion autorizada", clase="EXONERACION")
+repo.registrar_cargo("E", "1", "MANTENIMIENTO", "2026-08", 3,
+                     source="2_planilla", audit_ref="exo_mant_cargo")
+repo.registrar_ajuste("E", "1", "MANTENIMIENTO", "2026-08", -3, source="ajustes_cargo",
+                      audit_ref="exo_mant", motivo="exoneracion autorizada", clase="EXONERACION")
+proyeccion_exo = repo._proyectar_consumo_temporal(repo._leer_eventos())
+check(proyeccion_exo["MES_ACTUAL"].query("MZ == 'E' and LT == '1'").iloc[-1]["SALDO"] == 0,
+      "proyecta exoneracion autorizada de AGUA con saldo cero")
+check(proyeccion_exo["MANTENIMIENTO"].query("MZ == 'E' and LT == '1'").iloc[-1]["SALDO"] == 0,
+      "proyecta exoneracion autorizada de MANTENIMIENTO con saldo cero")
+df_ambiguo = repo._leer_eventos().copy()
+df_ambiguo.loc[df_ambiguo["AUDIT_REF"] == "exo_agua", "SOURCE"] = "manual"
+try:
+    repo._proyectar_consumo_temporal(df_ambiguo)
+    check(False, "deberia rechazar un ajuste de consumo no autorizado")
+except repo.ProyeccionTemporalAmbiguaError:
+    check(True, "conserva el bloqueo para ajustes de consumo no autorizados")
 try:
     repo.registrar_cargo("X", "1", "DESCONOCIDO", "2026-07", 10, source="test", audit_ref="x2")
     check(False, "debería rechazar un concepto desconocido")
 except ValueError:
     check(True, "rechaza concepto desconocido")
 
-# 10) generar_vista — 3 hojas por concepto + Ajustes (+ CONVENIO_HISTORIAL si
+# 10) generar_vista — consumo temporal + conceptos + Ajustes (+ CONVENIO_HISTORIAL si
 # existe el snapshot de génesis), doble header, dash para mes sin evento.
-# Desde el 06/08/2026 cada mes son 5 columnas: DEUDA · PAGO · DECLARADO · AJUSTE ·
-# SALDO. El AJUSTE ya no se suma dentro de DEUDA (una corrección se leía como deuda
-# nueva) y el PAGO se parte por CLASES_SUMAN_CAJA: DECLARADO salda deuda pero no es plata.
+# Cada mes son 6 columnas: DEUDA · PAGO · ABONO_REZAGADO · DECLARADO · AJUSTE · SALDO.
+# El AJUSTE no se suma dentro de DEUDA y las clases de pago permanecen separadas.
 VISTA_TMP = TEST_ROOT / "vista.xlsx"
 repo.generar_vista(VISTA_TMP)
 check(VISTA_TMP.exists(), "generar_vista crea el archivo")
 
 import openpyxl
+ledger_wb = openpyxl.load_workbook(TMP)
+check(ledger_wb.sheetnames == ["Eventos", "LEYENDA"], "ledger tiene Eventos + LEYENDA")
+check(ledger_wb["LEYENDA"]["A1"].value == "LEYENDA - Cómo leer esta vista",
+      "leyenda del ledger tiene título")
+ledger_wb.close()
+
 wb = openpyxl.load_workbook(VISTA_TMP)
-esperadas = set(repo.CONCEPTOS_VALIDOS) | {"Ajustes"}
+esperadas = set(repo.CONCEPTOS_VISTA_ORDEN) | {"RESUMEN_DEUDAS", "Ajustes"}
 if repo._MEDIDOR_SALDO_PATH_VISTA.exists():
     esperadas.add("CONVENIO_HISTORIAL")
 check(set(wb.sheetnames) == esperadas, f"hojas = {sorted(esperadas)}, obtuve {wb.sheetnames}")
+check(wb.sheetnames[:9] == ["RESUMEN_DEUDAS", *repo.CONCEPTOS_VISTA_ORDEN],
+      f"orden visible = RESUMEN_DEUDAS + conceptos, obtuve {wb.sheetnames[:9]}")
+check("AGUA" not in wb.sheetnames, "la vista no expone la hoja AGUA")
+
+ws_resumen = wb["RESUMEN_DEUDAS"]
+check([ws_resumen.cell(row=2, column=c).value for c in range(1, 13)] ==
+      list(repo.COLUMNAS_RESUMEN_DEUDAS), "resumen tiene las 12 columnas aprobadas")
+fila_a6 = next(r for r in range(3, ws_resumen.max_row + 1)
+               if ws_resumen.cell(r, 1).value == "A" and ws_resumen.cell(r, 2).value == "6")
+valores_a6 = [ws_resumen.cell(fila_a6, c).value for c in range(4, 13)]
+check(valores_a6 == [0, 0, 0, 0, 721, 0, 0, 0, 721],
+      f"resumen A-6: convenio y total = 721, obtuve {valores_a6}")
+check(ws_resumen.auto_filter.ref == f"A2:L{ws_resumen.max_row}", "resumen tiene autofiltro")
 
 ws = wb["CONVENIO"]
 check(ws["A2"].value == "MZ" and ws["B2"].value == "LT" and ws["C2"].value == "NOMBRE", "fila 2 = MZ/LT/NOMBRE")
 check(ws["A1"].value == "Predio", "fila 1 col A = sección Predio")
-check(ws["D1"].value == "2026-07" and ws["I1"].value == "2026-08", "secciones de mes = 2026-07, 2026-08")
-check([ws[f"{c}2"].value for c in "DEFGH"] == ["DEUDA", "PAGO", "DECLARADO", "AJUSTE", "SALDO"],
-      f'sub-columnas mes 1 = DEUDA/PAGO/DECLARADO/AJUSTE/SALDO, obtuve {[ws[f"{c}2"].value for c in "DEFGH"]}')
+check(ws["D1"].value == "2026-07" and ws["J1"].value == "2026-08", "secciones de mes = 2026-07, 2026-08")
+check([ws[f"{c}2"].value for c in "DEFGHI"] ==
+      ["DEUDA", "PAGO", "ABONO_REZAGADO", "DECLARADO", "AJUSTE", "SALDO"],
+      f'sub-columnas mes 1 correctas, obtuve {[ws[f"{c}2"].value for c in "DEFGHI"]}')
 
 # fila 3 = A-6 (único predio de CONVENIO en este test) — sin ajustes: la celda va "·"
 check(ws["A3"].value == "A" and ws["B3"].value == "6", "fila 3 = predio A-6")
-check([ws[f"{c}3"].value for c in "DEFGH"] == [900.0, 100.0, "·", "·", 800.0],
-      f'julio: DEUDA=900 PAGO=100 DECLARADO=· AJUSTE=· SALDO=800, obtuve {[ws[f"{c}3"].value for c in "DEFGH"]}')
-check([ws[f"{c}3"].value for c in "IJKLM"] == [0.0, 79.0, "·", "·", 721.0],
-      f'agosto: DEUDA=0 PAGO=79 DECLARADO=· AJUSTE=· SALDO=721, obtuve {[ws[f"{c}3"].value for c in "IJKLM"]}')
+check([ws[f"{c}3"].value for c in "DEFGHI"] == [900.0, 100.0, "·", "·", "·", 800.0],
+      f'julio sin abono rezagado, obtuve {[ws[f"{c}3"].value for c in "DEFGHI"]}')
+check([ws[f"{c}3"].value for c in "JKLMNO"] == [0.0, 70.0, 9.0, "·", "·", 721.0],
+      f'agosto separa pago 70 y abono 9, obtuve {[ws[f"{c}3"].value for c in "JKLMNO"]}')
 check(ws.freeze_panes == "D3", "freeze_panes = D3")
 
 # hoja Ajustes — el AJUSTE de C-14 del paso 6 tiene que estar, con su MOTIVO

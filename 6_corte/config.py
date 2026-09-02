@@ -3,6 +3,7 @@
 Un solo lugar para paths, reglas de negocio y tolerancia. Cada script
 (generar_lista, aplicar_penalidad, seguimiento) importa de acá.
 """
+import sys
 from pathlib import Path
 
 # ── PATHS ────────────────────────────────────────────────────────────────────
@@ -12,8 +13,16 @@ OUTPUTS_DIR = ROOT / "outputs"
 BACKUP_DIR  = ROOT / "backup"
 
 # Inputs externos — sólo lectura
-COBRANZA_DIR          = ROOT.parent / "5_cobranza" / "outputs"
-PLANILLA_COBRADO_PATH = COBRANZA_DIR / "planilla_cobrado.xlsx"
+SHARED_DIR = ROOT.parent / "shared"
+sys.path.insert(0, str(SHARED_DIR))
+import ciclo  # noqa: E402
+
+COBRANZA_DIR = ROOT.parent / "5_cobranza" / "outputs"
+_MES_CICLO = ciclo.activo(path=SHARED_DIR / "ciclo_activo.json")
+PLANILLA_COBRADO_PATH = ciclo.resolver(
+    COBRANZA_DIR, "planilla_cobrado", _MES_CICLO,
+    legacy_sin_periodo=ciclo.acepta_legacy(_MES_CICLO),
+)
 
 # Pagos en efectivo — para enriquecer lista_corte con MESA + COBRADOR
 PAGOS_EFECTIVO_PATH = ROOT.parent / "4_pagos" / "efectivo" / "outputs" / "pagos_efectivo.xlsx"
@@ -35,7 +44,6 @@ def resolucion_reclamos_path(mes_ano: str) -> Path:
     return RECLAMOS_DIR / f"resolucion_reclamos_{mes_ano}.xlsx"
 
 # shared/planilla_mes — único archivo externo que escribimos (aplicar_penalidad)
-SHARED_DIR       = ROOT.parent / "shared"
 PLANILLA_MES_DIR = SHARED_DIR / "planilla_mes"
 
 # Inputs propios — estado persistente

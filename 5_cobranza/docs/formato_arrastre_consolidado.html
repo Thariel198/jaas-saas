@@ -24,14 +24,14 @@ tr:last-child td{border-bottom:none}
 .th-p2{background:#FEF3C7;color:#92400E}
 .td-p2{background:#FFFBEB;font-family:var(--font-mono);font-size:11px;font-weight:600;color:#92400E;text-align:right}
 
-.th-p3{background:#FEF2F2;color:#991B1B}
-.td-p3{background:#FFF5F5;font-family:var(--font-mono);font-size:11px;font-weight:600;color:#991B1B;text-align:right}
+.th-p3{background:#E0F2FE;color:#0C4A6E}
+.td-p3{background:#F0F9FF;font-family:var(--font-mono);font-size:11px;font-weight:600;color:#0369A1;text-align:right}
 
 .th-p4{background:#EDE9FE;color:#4C1D95}
 .td-p4{background:#F5F3FF;font-family:var(--font-mono);font-size:11px;font-weight:600;color:#4C1D95;text-align:right}
 
-.th-p5{background:#E0F2FE;color:#0C4A6E}
-.td-p5{background:#F0F9FF;font-family:var(--font-mono);font-size:11px;font-weight:600;color:#0369A1;text-align:right}
+.th-p5{background:#FEF2F2;color:#991B1B}
+.td-p5{background:#FFF5F5;font-family:var(--font-mono);font-size:11px;font-weight:600;color:#991B1B;text-align:right}
 
 .th-total{background:#1E8449;color:#fff;font-weight:700;text-align:center}
 .td-total{background:#D5F5E3;font-family:var(--font-mono);font-size:12px;font-weight:700;color:#1E5C3A;text-align:right}
@@ -58,15 +58,15 @@ tr:last-child td{border-bottom:none}
 
 <div id="w">
   <div class="instruc">
-    Generado por <strong>5_cobranza/main.py</strong> al cierre del ciclo — solo después de que <strong>5b_validacion</strong> sella <em>validado:true</em> en <strong>estado_ciclo.json</strong>.<br>
-    Un registro por usuario con <strong>TOTAL_ARRASTRE &gt; 0</strong>. Consolida en un solo archivo lo que antes eran tres arrastres separados
+    Generado por <strong>5_cobranza/main.py</strong> como parte de la proyección regenerable; <strong>5b_validacion</strong> valida después esa proyección y su snapshot.<br>
+    Un registro por usuario con <strong>TOTAL_ARRASTRE &gt; 0</strong>. Consolida en una hoja lo que antes eran tres arrastres separados
     (<em>arrastre_deuda</em> · <em>arrastre_corte</em> · <em>lista_multas</em>).<br>
     Los montos por columna muestran qué componente quedó <strong>sin cubrir</strong> al aplicar los pagos en orden de prioridad.<br>
-    2_planilla lo lee desde <strong>inputs/arrastre/arrastre_consolidado_YYYY-MM.xlsx</strong> —
+    2_planilla lee la hoja <strong>arrastre_consolidado</strong> de <strong>5_cobranza/outputs/planilla_cobrado_YYYY-MM.xlsx</strong> —
     rechaza el run si <em>estado_ciclo.json</em> no tiene <em>validado:true</em>.
   </div>
 
-  <div class="tab-excel">arrastre_consolidado_2026-06</div>
+  <div class="tab-excel">arrastre_consolidado</div>
   <div class="tw">
     <table>
       <thead>
@@ -88,9 +88,9 @@ tr:last-child td{border-bottom:none}
           <th class="th-quien">NOMBRE</th>
           <th class="th-p1">DEUDA_AGUA</th>
           <th class="th-p2">CORTE_RECONEXION</th>
-          <th class="th-p3">MULTA</th>
+          <th class="th-p3">CONVENIO</th>
           <th class="th-p4">ACUERDOS_ASAMBLEA</th>
-          <th class="th-p5">CONVENIO</th>
+          <th class="th-p5">MULTA</th>
           <th class="th-total">TOTAL_ARRASTRE</th>
         </tr>
       </thead>
@@ -131,9 +131,9 @@ tr:last-child td{border-bottom:none}
           <td class="td-sep"></td>
           <td class="td-p1">8</td>
           <td class="td-p2">30</td>
-          <td class="td-p3">20</td>
           <td class="td-zero">—</td>
           <td class="td-zero">—</td>
+          <td class="td-p5">20</td>
           <td class="td-sep"></td>
           <td class="td-total">58</td>
         </tr>
@@ -145,9 +145,9 @@ tr:last-child td{border-bottom:none}
           <td class="td-sep"></td>
           <td class="td-p1">8</td>
           <td class="td-p2">30</td>
-          <td class="td-p3">20</td>
+          <td class="td-p3">50</td>
           <td class="td-p4">15</td>
-          <td class="td-p5">50</td>
+          <td class="td-p5">20</td>
           <td class="td-sep"></td>
           <td class="td-total">123</td>
         </tr>
@@ -160,22 +160,21 @@ tr:last-child td{border-bottom:none}
     <strong>Orden de prioridad al aplicar pagos:</strong>&nbsp;
     <span class="badge-p bp1">P1 · DEUDA_AGUA</span> →
     <span class="badge-p bp2">P2 · CORTE_RECONEXION</span> →
-    <span class="badge-p bp3">P3 · MULTA</span> →
+    <span class="badge-p bp3">P3 · CONVENIO</span> →
     <span class="badge-p bp4">P4 · ACUERDOS_ASAMBLEA</span> →
-    <span class="badge-p bp5">P5 · CONVENIO</span><br>
+    <span class="badge-p bp5">P5 · MULTA</span><br>
     Un <strong>—</strong> significa que ese componente fue cubierto por el pago o no aplicaba al usuario.
     Solo aparecen filas con TOTAL_ARRASTRE &gt; 0.
-    El arrastre de devolución (<em>arrastre_devolucion_YYYY-MM.xlsx</em>) se mantiene separado —
-    no entra en planilla hasta que el usuario lo reclame.
+    El arrastre de devolución vive en la hoja hermana <em>arrastre_devolucion</em> del mismo workbook.
   </div>
 
   <div class="legend">
     <div class="leg"><div class="ld" style="background:#F0FFF8;border:0.5px solid #6EE7B7"></div>Identidad</div>
     <div class="leg"><div class="ld" style="background:#F4F9FF;border:0.5px solid #AED6F1"></div>Deuda agua (P1)</div>
     <div class="leg"><div class="ld" style="background:#FFFBEB;border:0.5px solid #F9E4A1"></div>Corte/reconexión (P2)</div>
-    <div class="leg"><div class="ld" style="background:#FFF5F5;border:0.5px solid #FCA5A5"></div>Multa (P3)</div>
+    <div class="leg"><div class="ld" style="background:#F0F9FF;border:0.5px solid #BAE6FD"></div>Convenio (P3)</div>
     <div class="leg"><div class="ld" style="background:#F5F3FF;border:0.5px solid #C4B5FD"></div>Acuerdo asamblea (P4)</div>
-    <div class="leg"><div class="ld" style="background:#F0F9FF;border:0.5px solid #BAE6FD"></div>Convenio (P5)</div>
+    <div class="leg"><div class="ld" style="background:#FFF5F5;border:0.5px solid #FCA5A5"></div>Multa (P5)</div>
     <div class="leg"><div class="ld" style="background:#D5F5E3;border:0.5px solid #6EE7B7"></div>Total arrastre</div>
   </div>
 </div>

@@ -4,7 +4,7 @@ Lee los outputs de 5_cobranza y corre 4 bloques de validacion:
 
   Bloque 1 — Re-calculo SALDO en planilla_cobrado
   Bloque 2 — Trazabilidad ↔ planilla_cobrado (sumas por fuente · huerfanos)
-  Bloque 3 — Arrastres ↔ planilla_cobrado (deuda y devolucion, espejo)
+  Bloque 3 — Arrastres ↔ planilla_cobrado (consolidado y devolucion, espejo)
   Bloque 4 — Reporte: consola, run_validacion.log, validacion_errores.xlsx
 
 Uso:
@@ -23,8 +23,16 @@ from openpyxl.styles.borders import Border, Side
 
 ROOT          = Path(__file__).resolve().parent
 OUTPUTS_DIR   = ROOT / "outputs"
-PLANILLA_PATH = OUTPUTS_DIR / "planilla_cobrado.xlsx"
 TRAZ_PATH     = OUTPUTS_DIR / "trazabilidad_cobranza.xlsx"
+
+sys.path.insert(0, str(ROOT))
+import main as cobranza  # noqa: E402
+
+sys.path.insert(0, str(ROOT.parent / "shared"))
+import ciclo  # noqa: E402
+
+MES_CICLO = ciclo.activo(path=ROOT.parent / "shared" / "ciclo_activo.json")
+PLANILLA_PATH = OUTPUTS_DIR / f"planilla_cobrado_{MES_CICLO}.xlsx"
 
 TOL = 0.005
 log = logging.getLogger(__name__)
@@ -72,14 +80,23 @@ def _saldo_de(r: dict) -> float:
               + r["acuerdos"])
     descuentos = r["blanco"] + r["devolucion"]   # vienen negativos
     total = round(cargos + descuentos, 2)
-    return round(total - r["monto_yape"] - r["monto_efectivo"], 2)
+    pagado_normal = max(
+        round(r["monto_yape"] + r["monto_efectivo"] - r.get("aporte_tanque", 0.0), 2),
+        0.0,
+    )
+    return round(total - pagado_normal - r["abono_rezagado"], 2)
+
+
+def _aplicar_aportes_tanque(planilla: list[dict], aportes: dict[str, float]) -> None:
+    for r in planilla:
+        r["aporte_tanque"] = round(aportes.get(f"{r['mz']}-{r['lt']}", 0.0), 2)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  LECTORES
 # ─────────────────────────────────────────────────────────────────────────────
 def _leer_planilla() -> list[dict]:
-    """planilla_cobrado.xlsx con openpyxl + data_only=True.
+    """planilla_cobrado_YYYY-MM.xlsx con openpyxl + data_only=True.
 
     TOTAL_A_PAGAR es formula `=SUM(J:R)`. Si el archivo fue escrito por
     openpyxl sin abrirse en Excel, no hay cache → llega como None.
@@ -90,14 +107,14 @@ def _leer_planilla() -> list[dict]:
         raise FileNotFoundError(f"Falta: {PLANILLA_PATH}")
 
     wb = load_workbook(PLANILLA_PATH, data_only=True)
-    ws = wb.active
+    ws = wb["planilla_cobrado"]
 
     # Fila 1 = grupos · Fila 2 = nombres reales de columnas
     headers = [str(c.value).strip().upper() if c.value else "" for c in ws[2]]
     col_idx = {h: i for i, h in enumerate(headers) if h}
 
     requeridas = {"MZ", "LT", "TOTAL_A_PAGAR", "MONTO_YAPE",
-                  "MONTO_EFECTIVO", "ESTADO"}
+                  "MONTO_EFECTIVO", "ABONO_REZAGADO", "SALDO", "ESTADO"}
     faltantes = requeridas - set(col_idx)
     if faltantes:
         raise ValueError(f"Columnas faltantes en planilla_cobrado: {faltantes}")
@@ -129,19 +146,42 @@ def _leer_planilla() -> list[dict]:
             "total_a_pagar_raw": _g(row, "TOTAL_A_PAGAR"),   # None si formula sin cache
             "monto_yape":       _float(_g(row, "MONTO_YAPE")),
             "monto_efectivo":   _float(_g(row, "MONTO_EFECTIVO")),
+            "abono_rezagado":   _float(_g(row, "ABONO_REZAGADO")),
+            "saldo":            _float(_g(row, "SALDO")),
+            "aporte_tanque":    0.0,
             "estado":           str(_g(row, "ESTADO") or "").strip().upper(),
         })
     return filas
 
 
-def _leer_trazabilidad() -> list[dict]:
+def _identidad_traza(f) -> tuple:
+    mz = _norm_mz(f.get("MZ_ORIGEN")) or _norm_mz(f.get("MZ"))
+    lt = _norm_lt(f.get("LT_ORIGEN")) or _norm_lt(f.get("LT"))
+    return (
+        mz, lt, round(_float(f.get("MONTO")), 2),
+        str(f.get("FUENTE", "")).strip().lower(),
+        cobranza._fecha_str(f.get("FECHA")),
+        int(_float(f.get("CICLO_CORRECCION_ORIGEN")) or 0),
+    )
+
+
+def _identidades_pagos_actuales() -> set[tuple]:
+    pagos = cobranza._cargar_pagos_yape() + cobranza._cargar_pagos_efectivo()
+    return {cobranza._identidad_pago(p) for p in pagos}
+
+
+def _leer_trazabilidad(identidades_actuales: set[tuple] | None = None) -> list[dict]:
     if not TRAZ_PATH.exists():
         log.warning(f"No existe {TRAZ_PATH.name} → Bloque 2 sin datos")
         return []
+    if identidades_actuales is None:
+        identidades_actuales = _identidades_pagos_actuales()
     df = pd.read_excel(TRAZ_PATH, header=1)
     df.columns = _norm_cols(df)
     filas = []
     for _, f in df.iterrows():
+        if _identidad_traza(f) not in identidades_actuales:
+            continue
         mz = _norm_mz(f.get("MZ"))
         lt = _norm_lt(f.get("LT"))
         if not mz or not lt:
@@ -152,14 +192,15 @@ def _leer_trazabilidad() -> list[dict]:
             "nombre": str(f.get("NOMBRE", "")).strip(),
             "monto":  round(_float(f.get("MONTO")), 2),
             "fuente": str(f.get("FUENTE", "")).strip().lower(),
+            "concepto": str(f.get("CONCEPTO", "")).strip().lower(),
         })
     return filas
 
 
-def _leer_arrastre(path: Path) -> list[dict]:
+def _leer_arrastre(path: Path, sheet_name: str, monto_col: str) -> list[dict]:
     if not path.exists():
         return []
-    df = pd.read_excel(path, header=1)
+    df = pd.read_excel(path, sheet_name=sheet_name, header=1)
     df.columns = _norm_cols(df)
     filas = []
     for _, f in df.iterrows():
@@ -171,20 +212,10 @@ def _leer_arrastre(path: Path) -> list[dict]:
             "mz":             mz,
             "lt":             lt,
             "nombre":         str(f.get("NOMBRE", "")).strip(),
-            "monto":          round(_float(f.get("MONTO")), 2),
+            "monto":          round(_float(f.get(monto_col)), 2),
             "mes_ano_origen": str(f.get("MES_ANO_ORIGEN", "")).strip(),
         })
     return filas
-
-
-def _buscar_arrastre(prefijo: str, mes_ano: str) -> Path:
-    """outputs/{prefijo}_{mes_ano}.xlsx · fallback al mas reciente que matchee."""
-    exacto = OUTPUTS_DIR / f"{prefijo}_{mes_ano}.xlsx"
-    if exacto.exists():
-        return exacto
-    candidatos = sorted(OUTPUTS_DIR.glob(f"{prefijo}_*.xlsx"), reverse=True)
-    return candidatos[0] if candidatos else exacto   # path inexistente → falla limpio
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  BLOQUE 1 — Re-calculo SALDO + ESTADO
@@ -197,7 +228,11 @@ def _validar_saldo(planilla: list[dict]) -> list[dict]:
                   + r["acuerdos"])
         descuentos = r["blanco"] + r["devolucion"]
         total_esperado = round(cargos + descuentos, 2)
-        pagado = round(r["monto_yape"] + r["monto_efectivo"], 2)
+        pagado = round(
+            max(r["monto_yape"] + r["monto_efectivo"] - r.get("aporte_tanque", 0.0), 0.0)
+            + r["abono_rezagado"],
+            2,
+        )
         saldo_esperado = round(total_esperado - pagado, 2)
         estado_esperado = _estado_esperado(saldo_esperado, pagado)
 
@@ -209,9 +244,10 @@ def _validar_saldo(planilla: list[dict]) -> list[dict]:
             total_leido = round(_float(total_raw), 2)
             dif_total = round(abs(total_leido - total_esperado), 2)
 
+        dif_saldo = round(abs(r["saldo"] - saldo_esperado), 2)
         estado_mismatch = (r["estado"] != estado_esperado)
 
-        if dif_total > TOL or estado_mismatch:
+        if dif_total > TOL or dif_saldo > TOL or estado_mismatch:
             errores.append({
                 "MZ":              r["mz"],
                 "LT":              r["lt"],
@@ -220,7 +256,10 @@ def _validar_saldo(planilla: list[dict]) -> list[dict]:
                 "TOTAL_ESPERADO":  total_esperado,
                 "DIF_TOTAL":       dif_total,
                 "PAGADO":          pagado,
+                "APORTE_TANQUE":   r.get("aporte_tanque", 0.0),
+                "SALDO_LEIDO":     r["saldo"],
                 "SALDO_ESPERADO":  saldo_esperado,
+                "DIF_SALDO":       dif_saldo,
                 "ESTADO_LEIDO":    r["estado"],
                 "ESTADO_ESPERADO": estado_esperado,
             })
@@ -314,9 +353,9 @@ def _validar_arrastre(planilla: list[dict],
                       filtro_saldo,         # (saldo) -> bool
                       monto_esperado_de,    # (saldo) -> float
                       mes_ano: str) -> list[dict]:
-    """Validacion generica · sirve para arrastre_deuda y arrastre_devolucion.
+    """Validacion generica · sirve para arrastre_consolidado y arrastre_devolucion.
 
-    Para arrastre_deuda:
+    Para arrastre_consolidado:
         filtro_saldo      = lambda s: s > TOL
         monto_esperado_de = lambda s: s
     Para arrastre_devolucion:
@@ -489,16 +528,19 @@ def main() -> int:
     planilla = _leer_planilla()
     traza    = _leer_trazabilidad()
     mes_ano  = planilla[0]["mes_ano"] if planilla else ""
+    _aplicar_aportes_tanque(
+        planilla, cobranza._cargar_aportes_tanque_manuales(mes_ano)
+    )
 
-    arr_deuda_path = _buscar_arrastre("arrastre_deuda", mes_ano)
-    arr_devol_path = _buscar_arrastre("arrastre_devolucion", mes_ano)
-    arr_deuda = _leer_arrastre(arr_deuda_path)
-    arr_devol = _leer_arrastre(arr_devol_path)
+    arr_consolidado = _leer_arrastre(
+        PLANILLA_PATH, "arrastre_consolidado", "TOTAL_ARRASTRE")
+    arr_devol = _leer_arrastre(
+        PLANILLA_PATH, "arrastre_devolucion", "MONTO")
 
-    log.info(f"planilla_cobrado.xlsx → {len(planilla)} usuarios · mes {mes_ano}")
+    log.info(f"{PLANILLA_PATH.name} → {len(planilla)} usuarios · mes {mes_ano}")
     log.info(f"trazabilidad_cobranza.xlsx → {len(traza)} pagos")
-    log.info(f"{arr_deuda_path.name} → {len(arr_deuda)} filas")
-    log.info(f"{arr_devol_path.name} → {len(arr_devol)} filas")
+    log.info(f"{PLANILLA_PATH.name}[arrastre_consolidado] → {len(arr_consolidado)} filas")
+    log.info(f"{PLANILLA_PATH.name}[arrastre_devolucion] → {len(arr_devol)} filas")
 
     # ── Bloque 1 ──
     print("\n[2/4] Bloque 1 — re-calculo SALDO + ESTADO...")
@@ -511,15 +553,15 @@ def main() -> int:
     log.info(f"  Bloque 2 → {len(e_traz)} errores")
 
     # ── Bloque 3 ──
-    print("[4/4] Bloque 3 — arrastres ↔ planilla (deuda + devolucion)...")
+    print("[4/4] Bloque 3 — arrastres ↔ planilla (consolidado + devolucion)...")
     e_ad = _validar_arrastre(
-        planilla, arr_deuda,
-        tipo_arrastre="deuda",
+        planilla, arr_consolidado,
+        tipo_arrastre="consolidado",
         filtro_saldo=lambda s: s > TOL,
         monto_esperado_de=lambda s: s,
-        mes_ano=mes_ano,
+        mes_ano="",
     )
-    log.info(f"  arrastre_deuda → {len(e_ad)} errores")
+    log.info(f"  arrastre_consolidado → {len(e_ad)} errores")
 
     e_av = _validar_arrastre(
         planilla, arr_devol,
@@ -534,7 +576,7 @@ def main() -> int:
     secciones = {
         "errores_saldo":               e_saldo,
         "errores_trazabilidad":        e_traz,
-        "errores_arrastre_deuda":      e_ad,
+        "errores_arrastre_consolidado": e_ad,
         "errores_arrastre_devolucion": e_av,
     }
     total = sum(len(v) for v in secciones.values())
@@ -544,7 +586,7 @@ def main() -> int:
         print("  OK — todos los chequeos pasaron")
         print(f"  · planilla_cobrado: {len(planilla)} usuarios")
         print(f"  · trazabilidad: {len(traza)} pagos")
-        print(f"  · arrastre_deuda: {len(arr_deuda)} usuarios")
+        print(f"  · arrastre_consolidado: {len(arr_consolidado)} usuarios")
         print(f"  · arrastre_devolucion: {len(arr_devol)} usuarios")
         print("═" * 60 + "\n")
         return 0
@@ -553,7 +595,7 @@ def main() -> int:
     print(f"  {total} errores encontrados:")
     print(f"   · Bloque 1 (re-calculo saldo+estado) → {len(e_saldo)}")
     print(f"   · Bloque 2 (trazabilidad)            → {len(e_traz)}")
-    print(f"   · Bloque 3 (arrastre_deuda)          → {len(e_ad)}")
+    print(f"   · Bloque 3 (arrastre_consolidado)    → {len(e_ad)}")
     print(f"   · Bloque 3 (arrastre_devolucion)     → {len(e_av)}")
     print(f"\n  → outputs/validacion_errores.xlsx")
     print("═" * 60 + "\n")

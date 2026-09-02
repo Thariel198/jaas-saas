@@ -1,0 +1,9 @@
+En PowerShell ejecuta:
+cd C:\Users\wilde\PycharmProjects\jass_system
+$env:PYTHONPATH = "$PWD\shared"
+py -c "from shared import seguimiento_repo as r; print(r.generar_vista())"
+
+
+Verifícalo con:
+Get-Item .\shared\vista_seguimiento_pueblo.xlsx | Select-Object FullName, LastWriteTime, Length
+Debe mostrar la ruta, una hora reciente y un tamaño mayor que cero.

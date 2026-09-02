@@ -4,6 +4,7 @@
 solo transiciona el período: cosecha una foto inmutable + resetea slots
 mutables. Ver README.md y docs/diagrama_consolidador_cierre.html.
 """
+import sys
 from pathlib import Path
 
 ROOT        = Path(__file__).parent
@@ -11,11 +12,20 @@ ARCHIVO_DIR = ROOT / "archivo"      # TRACKEADO en git — la foto por período
 OUTPUTS_DIR = ROOT / "outputs"      # solo run.log (gitignored)
 
 SHARED_DIR   = ROOT.parent / "shared"
+sys.path.insert(0, str(SHARED_DIR))
+import ciclo  # noqa: E402
 COBRANZA_DIR = ROOT.parent / "5_cobranza"
 EFECTIVO_DIR = ROOT.parent / "4_pagos" / "efectivo"
 YAPE_DIR     = ROOT.parent / "4_pagos" / "yape" / "motor_matching" / "outputs"
 
 ESTADO_CICLO_PATH = SHARED_DIR / "reporte_acumulado_procesado" / "estado_ciclo.json"
+SEGUIMIENTO_PATH  = SHARED_DIR / "seguimiento_pueblo.xlsx"
+COBRANZA_MAIN     = COBRANZA_DIR / "main.py"
+VALIDACION_MAIN   = ROOT.parent / "5b_validacion" / "main.py"
+
+
+def snapshot_ledger_path(mes: str) -> Path:
+    return COBRANZA_DIR / "outputs" / f"snapshot_ledger_{mes}.json"
 
 
 def archivo_mes_dir(mes: str) -> Path:
@@ -26,10 +36,13 @@ def canonicos_a_cosechar(mes: str) -> dict[str, Path]:
     """Derivados de 5_cobranza — BALDE 2, solo cosecha (nadie los resetea,
     julio no vuelve a leer el nombre de junio)."""
     out = COBRANZA_DIR / "outputs"
+    planilla = ciclo.resolver(
+        out, "planilla_cobrado", mes,
+        legacy_sin_periodo=ciclo.acepta_legacy(mes),
+    )
     return {
-        f"arrastre_consolidado_{mes}.xlsx": out / f"arrastre_consolidado_{mes}.xlsx",
-        "planilla_cobrado.xlsx":            out / "planilla_cobrado.xlsx",
-        f"arrastre_devolucion_{mes}.xlsx":  out / f"arrastre_devolucion_{mes}.xlsx",
+        f"planilla_cobrado_{mes}.xlsx":     planilla,
+        f"snapshot_ledger_{mes}.json":       snapshot_ledger_path(mes),
     }
 
 

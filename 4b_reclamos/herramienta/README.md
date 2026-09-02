@@ -11,7 +11,8 @@ que corre todos los meses.
 |---|---|---|
 | `clasificar_tipo_reclamo.py` | Clasifica `TIPO_RECLAMO` por palabra clave en el texto de `RECLAMO`, duplicando la fila si el reclamo mezcla más de un concepto | Cada mes, después de que `4b_reclamos/main.py` generó `reclamos_YYYY-MM.xlsx` y antes de que el supervisor termine de clasificar a mano |
 | `buscar_pago.py` | Para los reclamos `TIPO_RECLAMO=mes_anterior`, busca evidencia del pago en todo el historial del predio (3 repos por ciclo), en los precursores de `shared/` y en los pools de pagos sin identificar | On-demand, cuando hay un lote de reclamos "ya pagué mes anterior" para verificar |
-| `reporte_historico.py` | Arma `tabla_predio()`: el historial completo de un lote (consumo, mantenimiento, pagos, saldo) cruzando el ciclo activo con los repos congelados de `REPOS_CICLO_CERRADO`. Lee `shared/ciclo_activo.json` (vía `shared/ciclo.py`) para el mes_ano vigente — **no** lee `shared/reporte_acumulado_procesado/estado_ciclo.json` (el del campo `estado: CERRADO/ABIERTO`) | On-demand, para reportes de historial puntuales; reusado por `buscar_pago.py` |
+| `reporte_historico.py` | Genera PDF y Excel desde eventos activos del último ledger comprometido; separa DEUDA/PAGO/AJUSTE/SALDO y no proyecta ciclos abiertos | On-demand para resolver reclamos y auditar el estado mensual real |
+| `aplicar_reimputacion_ca1.py` | Simula y aplica la migracion auditada de pagos junio/julio al orden `CONVENIO -> ACUERDOS -> MULTA`; excluye instalaciones/reactivaciones y abonos rezagados | Uso unico para la reimputacion CA1 cerrada el 24/08/2026; una segunda aplicacion se bloquea |
 
 ## clasificar_tipo_reclamo.py
 
@@ -176,11 +177,35 @@ encuadre equivocado de "consumo+mant primero" como si fuera una anomalía).
 - No escribe en `DATA_boletas.xlsx` ni en ningún archivo de otro módulo.
 - No inventa un candidato único cuando hay ambigüedad real (2+ candidatos → se listan, no se elige).
 
+## reporte_historico.py
+
+```text
+seguimiento_pueblo.xlsx + anulaciones_ledger.json
+                    |
+                    v
+eventos activos hasta el ultimo ciclo comprometido
+                    |
+                    +-- PDF por usuario o lote
+                    +-- Excel: Resumen / Mensual / Ajustes / Referencias
+```
+
+- Junio/julio muestran cobertura parcial: `MULTA`, `ACUERDOS` y `CONVENIO`.
+- La cuenta completa comienza en agosto de 2026.
+- Las referencias Yape/efectivo se muestran aparte como evidencia externa; nunca cambian el saldo.
+- No lee `abonos_rezagados.xlsx`, precursores ni snapshots abiertos para calcular importes.
+
+```powershell
+py -u -X utf8 4b_reclamos/herramienta/reporte_historico.py A 4
+py -u -X utf8 4b_reclamos/herramienta/reporte_historico.py --con-deuda 2026-08
+py -u -X utf8 4b_reclamos/herramienta/reporte_historico.py --todos 2026-08
+```
+
 ## Estructura
 
 ```
 4b_reclamos/herramienta/
 ├── README.md                      # este archivo
+├── aplicar_reimputacion_ca1.py    # migracion CA1: dry run por defecto, --aplicar escribe
 ├── clasificar_tipo_reclamo.py     # clasifica TIPO_RECLAMO, corre cada mes
 ├── buscar_pago.py                 # busca el pago de los reclamos mes_anterior
 ├── reporte_historico.py           # tabla_predio(): historial de un lote (lee ciclo_activo.json)

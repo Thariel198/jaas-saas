@@ -22,6 +22,7 @@ Si cumple 1 y 2 pero no 3, vive en el módulo que es dueño del concepto y se im
 | `data_boletas_audit.xlsx` | Audit log centralizado de toda mutación a `DATA_boletas`. Append-only. Owner: `data_boletas_repo`. | Cualquier consumidor que quiera responder "quién cambió qué/cuándo/por qué" |
 | `seguimiento_repo.py` | **Único writer de `seguimiento_pueblo.xlsx`.** Implementación transitoria de `estado_cuenta`: AGUA · MANTENIMIENTO · CORTE_RECONEXION · MULTA · ACUERDOS · CONVENIO · OTROS. | `7_cierre` (commit batch) · `2_planilla` y reportes (lectura) |
 | `seguimiento_pueblo.xlsx` | Persistencia física transitoria de la cuenta completa. Append-only; el nombre se conserva mientras existan consumidores directos. | 2_planilla · 7_cierre · reportes |
+| `exportar_anulaciones_ledger.py` | Regenera `anulaciones_ledger.xlsx` desde el manifiesto fuente `anulaciones_ledger.json`. | Auditoría humana de anulaciones lógicas |
 | `vista_seguimiento_provicional.xlsx` | Simulación regenerable del snapshot validado sobre una copia temporal del ledger. Nunca es fuente ni escribe eventos reales. | Revisión humana durante el ciclo abierto |
 
 ### Primitivos puros (sin estado)
@@ -104,7 +105,30 @@ mensuales (faena/reunión/asamblea) y pagos: todo es un evento.
 | `registrar_ajuste(mz, lt, concepto, mes, ±monto, *, source, audit_ref, motivo)` | Append de evento AJUSTE | Corrección — nunca se edita un evento pasado |
 | `get_saldo(mz, lt, concepto, mes)` | Ninguno | Suma eventos hasta ese mes — lo que 2_planilla consulta |
 | `estado_cuenta(mz, lt, concepto)` | Ninguno | Pivot ancho de 1 predio (DEUDA·PAGO·SALDO por mes) — DataFrame en memoria |
-| `generar_vista(ruta=None)` | Escribe `vista_seguimiento_pueblo.xlsx` (regenerable) | Pivot ancho de todos los predios, una hoja por concepto |
+| `generar_vista(ruta=None)` | Escribe `vista_seguimiento_pueblo.xlsx` (regenerable) | Resume la deuda vigente por predio, proyecta AGUA/MANTENIMIENTO por antigüedad y pivotea los demás conceptos |
+
+### Proyección temporal de consumo
+
+```text
+AGUA + MANTENIMIENTO en el ledger
+                |
+                v
+MES_ANTERIOR -> MES_ACTUAL -> MANTENIMIENTO en la vista
+```
+
+La vista no replica la hoja `AGUA`: deriva `MES_ANTERIOR` (agua y mantenimiento
+pendientes de ciclos previos), `MES_ACTUAL` (agua del ciclo) y `MANTENIMIENTO`
+(mantenimiento del ciclo). Los pagos se muestran por FIFO dentro de cada concepto,
+primero contra lo anterior. Esta proyección es de solo lectura; no agrega conceptos ni
+eventos al ledger. Si aparece un ajuste de agua o mantenimiento sin identidad del cargo
+afectado, la generación se bloquea antes de reemplazar la vista en vez de inventar su
+antigüedad.
+
+La primera hoja `RESUMEN_DEUDAS` muestra una fila por predio con el saldo vigente de
+`MES_ANTERIOR`, `MES_ACTUAL`, `MANTENIMIENTO`, `CORTE_RECONEXION`, `CONVENIO`,
+`ACUERDOS`, `MULTA` y `OTROS`; `TOTAL_DEUDA` suma esas ocho columnas. El resumen se arma
+desde los mismos DataFrames efectivos antes de escribir Excel, incluye predios con saldo
+cero y no reemplaza las hojas detalladas.
 
 ### Invariantes
 

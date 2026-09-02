@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flujo real - 4_pagos y 5_cobranza</title>
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; background: #f3f5f7; color: #17202a; font-family: Arial, sans-serif; }
+.page { max-width: 1500px; margin: auto; padding: 28px 18px 60px; }
+h1 { color: #174a63; font-size: 23px; margin: 0 0 5px; }
+.sub { color: #66737d; font-size: 13px; margin: 0 0 22px; }
+.lane { display: grid; grid-template-columns: 230px 32px 260px 32px 260px 32px 260px; gap: 0; align-items: start; overflow-x: auto; padding-bottom: 12px; }
+.stage { min-width: 230px; }
+.stage.wide { min-width: 260px; }
+.arrow { min-width: 32px; text-align: center; color: #929da5; font-size: 24px; padding-top: 110px; }
+.title { text-align: center; color: #52606a; font-weight: bold; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 10px; }
+.box { border: 2px solid; border-radius: 10px; padding: 10px 11px; margin-bottom: 8px; box-shadow: 0 2px 5px #00000010; }
+.box h2 { font-size: 14px; margin: 0 0 6px; }
+.box p { font-size: 11px; line-height: 1.4; margin: 3px 0; }
+.box code { font-family: Consolas, monospace; font-size: 10px; }
+.source { background: #eaf5fb; border-color: #2879a6; }
+.process { background: #f1eaff; border-color: #7042bd; }
+.gate { background: #fff6d9; border-color: #c18a13; }
+.output { background: #e5f6eb; border-color: #21864b; }
+.manual { background: #fff1e6; border-color: #d97706; }
+.ledger { background: #e9e6ff; border-color: #4f46a5; }
+.risk { background: #fde9e7; border-color: #c0392b; }
+.future { background: #f2f2f2; border-color: #7f8c8d; color: #56616a; }
+.wide-note { max-width: 1100px; margin: 22px auto; }
+.rule { border-left: 4px solid #c18a13; background: white; padding: 10px 13px; margin: 8px 0; font-size: 12px; line-height: 1.5; }
+.legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 9px; margin: 18px 0 24px; font-size: 11px; color: #52606a; }
+.legend span { padding: 5px 9px; background: white; border: 1px solid #ccd4da; border-radius: 4px; }
+.counts { max-width: 900px; margin: 24px auto; border-collapse: collapse; width: 100%; background: white; font-size: 11px; }
+.counts th, .counts td { border: 1px solid #d6dde2; padding: 6px 8px; text-align: left; }
+.counts th { background: #174a63; color: white; }
+@media (max-width: 850px) { .lane { grid-template-columns: 1fr; gap: 0; overflow-x: visible; } .stage, .stage.wide { min-width: 0; } .arrow { min-width: 0; padding: 2px 0; transform: rotate(90deg); } }
+</style>
+</head>
+<body>
+<main class="page">
+  <h1>Flujo real: 4_pagos → precursores → 5_cobranza</h1>
+  <p class="sub">Diagrama de cajas validado contra <code>4_pagos/main.py</code>, <code>5_cobranza/main.py</code>, <code>seguimiento_repo.py</code> y los archivos actuales.</p>
+  <div class="legend"><span>Azul = entrada</span><span>Morado = proceso</span><span>Ambar = decision humana</span><span>Verde = salida</span><span>Naranja = registro manual</span><span>Violeta = seguimiento pueblo</span><span>Rojo = riesgo</span></div>
+
+  <section class="lane">
+    <div class="stage">
+      <div class="title">1. 4_pagos</div>
+      <div class="box source"><h2>Yape</h2><p>Origenes → maestro → motor de matching → validación.</p><p>Salida principal: <code>pagos_yape_tepago_2026-08.xlsx</code>.</p><p>Si <code>CONCEPTO</code> está vacío, es candidato a pago de agua.</p></div>
+      <div class="box source"><h2>Efectivo</h2><p>Procesa mesas y cobraadores.</p><p>Salida: <code>pagos_efectivo_2026-08.xlsx</code>.</p><p>Si <code>CONCEPTO</code> está vacío, es candidato a pago de agua.</p></div>
+      <div class="box output"><h2>Otros outputs</h2><p><code>aportes_tanque.xlsx</code> y <code>deuda_directiva.xlsx</code> son rutas separadas, no deuda de agua normal.</p></div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="stage wide">
+      <div class="title">2. Precursores manuales</div>
+      <div class="box manual"><h2>Abonos rezagados</h2><p><code>shared/abonos_rezagados.xlsx</code>.</p><p>Plata real que llegó fuera de la ventana. Se separa por <code>MES_CICLO</code>: ciclo cerrado o vigente.</p></div>
+      <div class="box manual"><h2>Identidad y destino</h2><p><code>reidentificacion.xlsx</code> y <code>deuda_correcciones.xlsx</code>.</p><p>Un pago estaba en el predio equivocado; uno acredita al destino y el otro devuelve deuda al origen si correspondía.</p></div>
+      <div class="box manual"><h2>Contexto de deuda</h2><p><code>ajustes_cargo.xlsx</code>, <code>genesis_tardia.xlsx</code> y <code>blancos_efectivo.xlsx</code>.</p><p>Anulan cargos, agregan cargos tardíos o identifican efectivo que ya estaba en caja.</p></div>
+      <div class="box manual"><h2>Destino especial</h2><p><code>aportes_tanque_manuales.xlsx</code> se resta antes de la cascada.</p><p><code>reasignaciones_aplicacion.xlsx</code> cambia el concepto que recibe el pago.</p></div>
+      <div class="box manual"><h2>Exceso ya decidido</h2><p><code>devoluciones_aplicadas.xlsx</code> baja una deuda una sola vez en el ciclo indicado.</p></div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="stage wide">
+      <div class="title">3. Carga 5_cobranza</div>
+      <div class="box source"><h2>Planilla base</h2><p>Lee <code>shared/planilla_mes/planilla_YYYY-MM.xlsx</code>.</p><p>Trae cargos de agua, corte, convenio, acuerdos y multa.</p></div>
+      <div class="box process"><h2>Overlays en memoria</h2><p>Aplica penalidad, devoluciones, ajustes de cargo, reidentificación, deuda de origen, génesis tardía y blancos.</p><p>No todos son pagos. Algunos cambian deuda; otros cambian identidad o contexto.</p></div>
+      <div class="box process"><h2>Carga de pagos</h2><p>Resta retornos/devoluciones al Yape.</p><p>Excluye pagos con <code>CONCEPTO</code> no vacío.</p><p>Suma pago normal + abono rezagado.</p></div>
+      <div class="box process"><h2>Tanque antes de cascada</h2><p>El aporte voluntario se descuenta del pago normal antes de calcular deuda.</p><p>Así no paga dos veces: aporte y concepto de deuda.</p></div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="stage wide">
+      <div class="title">4. Cálculo y salidas</div>
+      <div class="box process"><h2>Saldo calculado</h2><p><code>TOTAL_CARGOS - (pago normal + abono)</code>.</p><p>La cascada actual es P1 agua → P2 corte → P3 convenio → P4 acuerdos → P5 multa.</p></div>
+      <div class="box output"><h2>planilla_cobrado.xlsx</h2><p>Expone pagos, <code>SALDO</code>, estado y trazabilidad del ciclo.</p></div>
+      <div class="box output"><h2>arrastre_deuda / consolidado</h2><p>Saldo positivo que queda pendiente. El consolidado lo lee el siguiente <code>2_planilla</code> tras validación.</p></div>
+      <div class="box output"><h2>arrastre_devolucion</h2><p>Incluye <code>SALDO &lt; 0</code> de predios reales y pagos huérfanos cuyo MZ/LT no existe en planilla.</p></div>
+    </div>
+  </section>
+
+  <div class="wide-note">
+    <div class="rule"><strong>Importante:</strong> <code>arrastre_devolucion</code> no es una copia de todos los ajustes del seguimiento. Es una salida de <code>5_cobranza</code> para exceso calculado o pago huérfano pendiente de revisión.</div>
+  </div>
+
+  <section class="lane">
+    <div class="stage wide">
+      <div class="title">5. Reconciliación pueblo</div>
+      <div class="box process"><h2>Separación por fuente</h2><p><code>_descomponer_pago()</code> separa pago normal y abono rezagado.</p><p>Solo reparte a P3 CONVENIO, P4 ACUERDOS y P5 MULTA. Agua y corte viven en arrastre, no aquí.</p></div>
+      <div class="box process"><h2>Reconciliación por delta</h2><p><code>SET_DEBE</code> = lo recién calculado.</p><p><code>SET_TIENE</code> = PAGO + AJUSTE previamente escritos por <code>SOURCE=5_cobranza</code>.</p><p>Delta positivo escribe PAGO; delta negativo escribe AJUSTE CORRECCION_SISTEMA.</p></div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="stage wide">
+      <div class="title">6. Seguimiento vivo</div>
+      <div class="box ledger"><h2>shared/seguimiento_pueblo.xlsx</h2><p>Es el registro real actual de MULTA, ACUERDOS y CONVENIO.</p><p>Writer único: <code>shared/seguimiento_repo.py</code>.</p><p>Append-only e idempotente por <code>SOURCE + AUDIT_REF + MZ + LT + CONCEPTO</code>.</p></div>
+      <div class="box ledger"><h2>Eventos manuales existentes</h2><p>Pueden tener <code>SOURCE=manual</code>, <code>correccion_genesis_formula</code>, <code>genesis_tardia</code>, <code>reidentificacion_cargo</code> u otros.</p><p>No son automáticamente pagos de la última corrida de 5_cobranza.</p></div>
+      <div class="box risk"><h2>Riesgo actual</h2><p>Auditoría 2026-08-15: 1.569 eventos, 755 CARGO, 601 PAGO, 213 AJUSTE.</p><p>Hay 209 AJUSTE sin MOTIVO. No borrar: investigar por predio, concepto, mes, SOURCE y AUDIT_REF.</p></div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="stage wide">
+      <div class="title">7. Clasificación de eventos</div>
+      <div class="box output"><h2>Plata real</h2><p>Solo <code>CLASE=COBRANZA</code> y <code>CLASE=ABONO_REZAGADO</code> suman caja.</p></div>
+      <div class="box manual"><h2>Pago declarado</h2><p><code>DECLARACION</code> o <code>DECLARACION_SECRETARIA</code> baja deuda, pero no suma caja hasta resolver su origen.</p></div>
+      <div class="box manual"><h2>Correccion de negocio</h2><p><code>EXONERACION</code> perdona; <code>REASIGNACION</code> mueve entre conceptos; <code>GENESIS</code> crea deuda.</p></div>
+      <div class="box risk"><h2>Correccion del sistema</h2><p><code>CORRECCION_SISTEMA</code> repara un cálculo o evento del código; no es plata nueva.</p></div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="stage wide">
+      <div class="title">8. Corte y siguiente ciclo</div>
+      <div class="box gate"><h2>5b_validacion</h2><p>Valida cobranza y sella el ciclo.</p></div>
+      <div class="box process"><h2>6_corte</h2><p>Lee <code>planilla_cobrado</code>; publica elegibles por agua: <code>SALDO &gt; 0</code> y <code>MES_ANTERIOR &gt;= 8</code>.</p></div>
+      <div class="box process"><h2>7_cierre</h2><p>Cosecha la foto; con <code>--confirmar</code> congela y limpia.</p></div>
+      <div class="box future"><h2>libro_mayor</h2><p>No participa hoy. Es la migración futura de estos registros a otro contexto.</p></div>
+    </div>
+  </section>
+
+  <table class="counts">
+    <tr><th>Auditoría del archivo actual</th><th>Conteo</th><th>Qué significa</th></tr>
+    <tr><td><code>shared/seguimiento_pueblo.xlsx</code></td><td>1.569 eventos</td><td>Registro vivo actual, no libro_mayor.</td></tr>
+    <tr><td><code>SOURCE=5_cobranza</code></td><td>625</td><td>Eventos escritos por reconciliación automática.</td></tr>
+    <tr><td><code>SOURCE=manual</code></td><td>75</td><td>Eventos introducidos manualmente.</td></tr>
+    <tr><td><code>AJUSTE</code> sin <code>MOTIVO</code></td><td>209</td><td>Cola de explicación; no es seguro reinterpretarlos.</td></tr>
+    <tr><td><code>arrastre_devolucion_2026-08.xlsx</code></td><td>10 filas</td><td>Excesos de predios y/o pagos huérfanos del ciclo.</td></tr>
+  </table>
+</main>
+</body>
+</html>

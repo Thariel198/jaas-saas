@@ -67,6 +67,11 @@ def _eventos(path):
     return df[df["TIPO_EVENTO"] == "AJUSTE"], len(df)
 
 
+def _commit(total_pagado, hash_snapshot):
+    objetivos = mod._objetivos_ledger([_usuario(total_pagado)], MES_TEST)
+    return mod.repo.reconciliar_objetivos_batch(MES_TEST, hash_snapshot, objetivos)
+
+
 def main():
     path = _reset_repo()
     mod.repo.registrar_cargo("A", "1", "MULTA", MES_TEST, CARGO,
@@ -75,13 +80,13 @@ def main():
     check(saldo() == CARGO, f"paso 0: el CARGO deja saldo {CARGO} (obtuve {saldo()})")
 
     # ── paso 1: corrida normal, el vecino pagó 75 de los 200 ──────────────────
-    mod._reconciliar_pagos_pueblo([_usuario(PAGO)], MES_TEST)
+    _commit(PAGO, "a" * 64)
     check(saldo() == CARGO - PAGO,
           f"paso 1: tras acreditar {PAGO}, saldo {CARGO - PAGO} (obtuve {saldo()})")
 
     # ── paso 2: el insumo encoge — ese pago ya no le corresponde a MULTA ──────
     # Revertir el pago DEVUELVE la deuda: el saldo tiene que volver al cargo entero.
-    mod._reconciliar_pagos_pueblo([_usuario(0.0)], MES_TEST)
+    _commit(0.0, "b" * 64)
     ajustes, _ = _eventos(path)
     check(len(ajustes) == 1, f"paso 2: exactamente 1 evento AJUSTE (obtuve {len(ajustes)})")
     if len(ajustes):
@@ -93,7 +98,7 @@ def main():
 
     # ── paso 3: re-corrida idéntica → idempotencia, no se escribe nada ────────
     _, n_antes = _eventos(path)
-    mod._reconciliar_pagos_pueblo([_usuario(0.0)], MES_TEST)
+    _commit(0.0, "b" * 64)
     ajustes3, n_despues = _eventos(path)
     check(n_despues == n_antes,
           f"paso 3: re-corrida sin cambios no escribe (eventos {n_antes} -> {n_despues})")
@@ -101,7 +106,7 @@ def main():
     check(saldo() == CARGO, f"paso 3: saldo estable en {CARGO} (obtuve {saldo()})")
 
     # ── paso 4: el pago reaparece (se corrigió el crudo) → vuelve a acreditarse ─
-    mod._reconciliar_pagos_pueblo([_usuario(PAGO)], MES_TEST)
+    _commit(PAGO, "a" * 64)
     check(saldo() == CARGO - PAGO,
           f"paso 4: el pago vuelve a acreditarse, saldo {CARGO - PAGO} (obtuve {saldo()})")
     check(mod.repo.pago_registrado("A", "1", "MULTA", MES_TEST, source="5_cobranza") == PAGO * 2,

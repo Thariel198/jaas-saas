@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2026-08-13 — Se borran 10 copias del repo</title>
+<link rel="stylesheet" href="../cuaderno/estilo.css">
+</head>
+<body>
+
+<header class="hero">
+  <p class="crumbs"><a href="index.html">← Diario</a> · 2026-08-13</p>
+  <p class="eyebrow"><span class="dot"></span>una copia no se borra por su fecha: se borra cuando se prueba que no tiene nada único</p>
+  <h1>Se borran 10 copias del repo (40.8 GB)</h1>
+  <p class="lede">
+    <code>PycharmProjects</code> tenía 10 carpetas copia de <code>jass_system</code> acumuladas entre
+    junio y agosto. Antes de borrarlas se verificó una por una qué contenían que no estuviera en
+    ningún repo vivo. Resultado: <b>ninguna tenía código propio</b> y lo único irrecuperable eran
+    <b>29.4 MB de documentos entregados</b> (boletas y recibos de julio) más los archivos de mayo.
+  </p>
+  <div class="meta-row">
+    <span>fecha: 2026-08-13</span>
+    <span>estado: ejecutado</span>
+    <span>40.8 GB liberados · 276 archivos rescatados</span>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="modulo-laminas">
+
+    <article class="lamina" style="border:1px solid var(--line);border-radius:8px;background:var(--paper-raised);padding:26px 22px 30px;margin-bottom:18px">
+
+      <div class="sub-h"><span class="qn">①</span> el método: hash de blob, no fecha de archivo</div>
+      <p>Comparar por fecha o por tamaño no prueba nada — una copia vieja puede tener un archivo que
+        nunca se commiteó. El criterio que sí cierra:</p>
+      <div class="ascii">1. HEAD de la copia es ancestro de master?
+      git merge-base --is-ancestor &lt;head&gt; master
+      → si sí, TODO su código commiteado ya está en el repo principal
+
+2. y lo NO commiteado (modificados + untracked)?
+      git hash-object &lt;archivo-de-la-copia&gt;   → sha del contenido
+      git cat-file -e &lt;sha&gt;   (en el repo principal)
+      → si el blob existe, ese contenido se commiteó en algún momento
+      → si NO existe, comparar líneas: ¿la copia es MAYOR que master?
+
+3. y los datos (.xlsx .pdf .docx .jpg .csv)?
+      set de rutas de la copia − (principal ∪ Julio ∪ Junio)
+      → lo que queda es lo único que existe solo ahí</div>
+      <div class="keypoint">Los 4 <code>HEAD</code> (<code>51d8d26</code> · <code>6382881</code> ·
+        <code>7c7bc33</code> · <code>7607a85</code>) eran ancestros de master, y en cada archivo con
+        contenido único <b>master estaba adelante</b> (ej. <code>5_cobranza/main.py</code>: copia 2796
+        líneas → master 2914). El paso 2 encontró <b>2 excepciones reales</b>, y ahí estuvo el valor
+        de hacerlo: <code>jass_system2</code> tenía <code>crear_templates.py</code> con 28 líneas de
+        más — pero eran el dibujo de la mesa <i>antes</i> de moverlo a
+        <code>shared/utils_templates.py</code>, y su <code>6b_corte_multas</code> escribía la penalidad
+        en <code>planilla_mes</code>, el diseño anterior al Modelo A de writer único.
+        <b>Más líneas ≠ más nuevo.</b></div>
+
+      <div class="sub-h"><span class="qn">②</span> lo que sí era único: 29.4 MB</div>
+      <div class="ascii">mayo 2026            2026-05_historial.xlsx · libro_2026-05.xlsx
+                     ← mayo no existe en NINGÚN repo vivo
+
+boletas de julio     100 boleta_*.pdf + 87 boleta_*.pdf de confirmación
+                     ← el principal solo tiene las de agosto
+
+recibos 17975-18065  63 PDF cuyo NÚMERO quedó asignado a otro predio
+                     en el lote que master regeneró después
+                     ← los .docx fuente (118 MB) no se rescataron: regenerables
+
+reportes 4b          reporte_historico_2026-07 · _confirmacion · _q-5 ·
+                     convenio_multa_referencias · lote_saldo_negativo</div>
+      <p>Todo quedó en <code>PycharmProjects/_archivo_rescate_2026-08-13/</code>, con
+        <code>LEEME.md</code> que dice de qué copia salió cada cosa. Se puso <b>fuera</b> del repo a
+        propósito: 187 PDF sueltos dentro de <code>4b_reclamos/outputs/</code> los levantaría cualquier
+        script que barre esa carpeta.</p>
+      <div class="keypoint">Dos sustos que no lo eran: <code>0_padron/03_llenado</code> (5 archivos que
+        master no tiene, porque <code>0_padron/</code> está en <code>.gitignore</code>) sigue con hash
+        idéntico en <code>Junio\jass_system - junio</code>; y el informe largo del
+        <i>race condition</i> del 13/07 más su script
+        <code>shared/fix_race_condition_yape_20260713.py</code> viven en
+        <code>Julio\jass_system - Julio</code> — master solo tiene el resumen de 36 líneas, que
+        justamente remite a esa carpeta.</div>
+
+      <div class="sub-h"><span class="qn">③</span> qué se borró y qué quedó en pie</div>
+      <div class="ascii">BORRADAS                        ciclo congelado        datos únicos
+   jass_system - 5              jul ABIERTO 18/07     0
+   jass_system - copia (3)      jul ABIERTO 15/07     0
+   jass_system - copia-1        jun CERRADO 03/07     0_padron/03_llenado
+   jass_system - copia-2        jul ABIERTO 11/07     los 2 de mayo
+   jass_system - agosto1        jul CERRADO 26/07     boletas + recibos julio
+   jass_system - agosto2        jul CERRADO 31/07     2 PDF de reclamos
+   jass_system - copia (2)      .git roto, solo raíz  0
+   jass_system2                 jun ABIERTO 28/06     3 tmp de test
+   Julio\... - Julio - copia    jul CERRADO           0
+   Julio\... - Julio - copia-2  jul CERRADO           0
+   agosto                       carpeta vacía
+
+EN PIE
+   jass_system                       ciclo activo · master cdd4354 · limpio
+   Julio\jass_system - Julio         julio CERRADO · 95e2d18 · re-correr julio
+   Junio\jass_system - junio         junio ABIERTO · re-correr junio
+   jass_system\7_cierre\archivo\     la data de cada ciclo ya cerrado</div>
+      <p><code>jass_system2</code> era el repo de experimentación (regla de
+        <code>CLAUDE.md</code>: documentar antes de borrarlo). Su aporte real —el submódulo
+        <code>sin_servicio</code>, commit <code>7607a85</code>— está en master; lo no commiteado era
+        el diseño viejo descrito en ①. Quedó una carpeta vacía,
+        <code>jass_system2/0_padron/02_matching/.pytest_cache</code>, que niega el acceso hasta a
+        <code>takeown</code>: 0 bytes, se borra con un explorador como administrador.</p>
+      <div class="keypoint"><b>Lo que hace que esto sea repetible:</b> las copias no valían por su
+        código —el repo principal siempre estaba adelante— sino por <b>documentos que se le
+        entregaron a la gente</b> y que el pipeline regenera con otra numeración. Ese es el único
+        contenido que una copia de <code>jass_system</code> puede tener en exclusiva, y es el primero
+        que hay que buscar antes de borrar la próxima.</div>
+
+    </article>
+
+  </div>
+</main>
+
+</body>
+</html>
